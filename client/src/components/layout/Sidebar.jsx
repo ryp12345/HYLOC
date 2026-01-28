@@ -12,6 +12,7 @@ const Sidebar = () => {
     { name: 'Roles', path: '/super-admin/roles', icon: '🧩' },
     { name: 'Department', path: '/super-admin/departments', icon: '🏢' },
     { name: 'Designation', path: '/super-admin/designations', icon: '🏷️' },
+    { name: 'Association', path: '/super-admin/associations', icon: '🤝' },
     { name: 'Users', path: '/super-admin/users', icon: '👥' },
     { name: 'KMIS', path: '/super-admin/kmis', icon: '📚' },
     { name: 'PILLERS', path: '/super-admin/pillers', icon: '🧱' },

@@ -1,7 +1,21 @@
 import { useEffect, useMemo, useState } from 'react';
 import { getUsers, createUser, updateUser, deleteUser } from '../../api/userApi';
 
-const initialForm = { firstName: '', lastName: '', email: '', password: '', role: 'employee', status: 'active' };
+const initialForm = { 
+  firstName: '', 
+  middleName: '',
+  lastName: '', 
+  email: '', 
+  empid: '',
+  phone: '',
+  address: '',
+  bloodGroup: '',
+  departmentId: '',
+  password: 'Password@123', 
+  confirmPassword: 'Password@123',
+  role: 'employee', 
+  status: 'active' 
+};
 
 export default function UsersPage() {
   const [rows, setRows] = useState([]);
@@ -10,6 +24,8 @@ export default function UsersPage() {
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(initialForm);
   const [error, setError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const load = async () => {
     try { const res = await getUsers(); setRows(res.data || []); }
@@ -17,15 +33,22 @@ export default function UsersPage() {
   };
   useEffect(() => { load(); }, []);
 
-  const onClose = () => { setIsModalOpen(false); setEditingId(null); setForm(initialForm); setError(''); };
+  const onClose = () => { setIsModalOpen(false); setEditingId(null); setForm(initialForm); setError(''); setShowPassword(false); setShowConfirmPassword(false); };
   const openCreate = () => { onClose(); setIsModalOpen(true); };
   const openEdit = (row) => {
     setEditingId(row.id);
     setForm({
       firstName: row.first_name || '',
+      middleName: row.middle_name || '',
       lastName: row.last_name || '',
       email: row.email || '',
-      password: '',
+      empid: row.empid || '',
+      phone: row.phone || '',
+      address: row.address || '',
+      bloodGroup: row.blood_group || '',
+      departmentId: row.department_id || '',
+      password: 'Password@123',
+      confirmPassword: 'Password@123',
       role: row.role || 'employee',
       status: row.status || 'active',
     });
@@ -207,30 +230,66 @@ export default function UsersPage() {
                   <form className="space-y-5" onSubmit={submit}>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                       <div>
+                        <label className="block mb-2 text-sm font-medium text-gray-700">Employee ID</label>
+                        <input value={form.empid} onChange={e=>setForm({ ...form, empid: e.target.value })} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="EMP-001" />
+                      </div>
+                      <div>
                         <label className="block mb-2 text-sm font-medium text-gray-700">First Name</label>
                         <input value={form.firstName} onChange={e=>setForm({ ...form, firstName: e.target.value })} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="John" required />
+                      </div>
+                      <div>
+                        <label className="block mb-2 text-sm font-medium text-gray-700">Middle Name</label>
+                        <input value={form.middleName} onChange={e=>setForm({ ...form, middleName: e.target.value })} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="James" />
                       </div>
                       <div>
                         <label className="block mb-2 text-sm font-medium text-gray-700">Last Name</label>
                         <input value={form.lastName} onChange={e=>setForm({ ...form, lastName: e.target.value })} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Doe" required />
                       </div>
-                      <div>
+                      <div className="md:col-span-2">
                         <label className="block mb-2 text-sm font-medium text-gray-700">Email</label>
                         <input type="email" value={form.email} onChange={e=>setForm({ ...form, email: e.target.value })} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="john@example.com" required />
                       </div>
                       <div>
-                        <label className="block mb-2 text-sm font-medium text-gray-700">
-                          Password {editingId && <span className="text-xs text-gray-500">(leave blank to keep current)</span>}
-                        </label>
-                        <input type="password" value={form.password} onChange={e=>setForm({ ...form, password: e.target.value })} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="••••••••" required={!editingId} />
+                        <label className="block mb-2 text-sm font-medium text-gray-700">Phone</label>
+                        <input value={form.phone} onChange={e=>setForm({ ...form, phone: e.target.value })} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="+1234567890" />
                       </div>
                       <div>
-                        <label className="block mb-2 text-sm font-medium text-gray-700">Role</label>
-                        <select value={form.role} onChange={e=>setForm({ ...form, role: e.target.value })} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                          <option value="employee">Employee</option>
-                          <option value="management">Management</option>
-                          <option value="super_admin">Super Admin</option>
-                        </select>
+                        <label className="block mb-2 text-sm font-medium text-gray-700">Blood Group</label>
+                        <input value={form.bloodGroup} onChange={e=>setForm({ ...form, bloodGroup: e.target.value })} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="O+" />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block mb-2 text-sm font-medium text-gray-700">Address</label>
+                        <textarea value={form.address} onChange={e=>setForm({ ...form, address: e.target.value })} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="123 Main Street, City" rows="2" />
+                      </div>
+                      <div>
+                        <label className="block mb-2 text-sm font-medium text-gray-700">Department ID</label>
+                        <input value={form.departmentId} onChange={e=>setForm({ ...form, departmentId: e.target.value })} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="DEPT-001" />
+                      </div>
+                      <div>
+                        <label className="block mb-2 text-sm font-medium text-gray-700">Password</label>
+                        <div className="relative">
+                          <input type={showPassword ? 'text' : 'password'} value={form.password} onChange={e=>setForm({ ...form, password: e.target.value })} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="••••••••" />
+                          <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-3 text-gray-500 hover:text-gray-700">
+                            {showPassword ? (
+                              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-4.803m5.596-3.856a3.375 3.375 0 11-4.753 4.753m4.753-4.753L9.172 9.172M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                            ) : (
+                              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7C7.523 19 3.732 16.057 2.458 12z" /></svg>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block mb-2 text-sm font-medium text-gray-700">Confirm Password</label>
+                        <div className="relative">
+                          <input type={showConfirmPassword ? 'text' : 'password'} value={form.confirmPassword} onChange={e=>setForm({ ...form, confirmPassword: e.target.value })} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="••••••••" />
+                          <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-3 text-gray-500 hover:text-gray-700">
+                            {showConfirmPassword ? (
+                              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-4.803m5.596-3.856a3.375 3.375 0 11-4.753 4.753m4.753-4.753L9.172 9.172M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                            ) : (
+                              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7C7.523 19 3.732 16.057 2.458 12z" /></svg>
+                            )}
+                          </button>
+                        </div>
                       </div>
                       {editingId && (
                         <div>

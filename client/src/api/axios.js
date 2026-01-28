@@ -4,6 +4,7 @@ const API_URL = 'http://localhost:3001/api';
 
 const axiosInstance = axios.create({
   baseURL: API_URL,
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json'
   }

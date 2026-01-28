@@ -8,6 +8,9 @@ import Register from '../pages/auth/Register';
 import AdminDashboard from '../pages/admin/Dashboard';
 import UserDashboard from '../pages/user/Dashboard';
 import UsersPage from '../pages/admin/UsersPage';
+import DepartmentsPage from '../pages/admin/DepartmentsPage';
+import DesignationsPage from '../pages/admin/DesignationsPage';
+import AssociationsPage from '../pages/admin/AssociationsPage';
 
 // Layouts & Route Guards
 import ProtectedRoute from './ProtectedRoute';
@@ -146,6 +149,45 @@ const AppRoutes = () => {
                 <RoleRoute allowedRoles={['super_admin', 'management']}>
                   <DashboardLayout>
                     <UsersPage />
+                  </DashboardLayout>
+                </RoleRoute>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/super-admin/departments"
+            element={
+              <ProtectedRoute>
+                <RoleRoute allowedRoles={['super_admin', 'management']}>
+                  <DashboardLayout>
+                    <DepartmentsPage />
+                  </DashboardLayout>
+                </RoleRoute>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/super-admin/designations"
+            element={
+              <ProtectedRoute>
+                <RoleRoute allowedRoles={['super_admin', 'management']}>
+                  <DashboardLayout>
+                    <DesignationsPage />
+                  </DashboardLayout>
+                </RoleRoute>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/super-admin/associations"
+            element={
+              <ProtectedRoute>
+                <RoleRoute allowedRoles={['super_admin', 'management']}>
+                  <DashboardLayout>
+                    <AssociationsPage />
                   </DashboardLayout>
                 </RoleRoute>
               </ProtectedRoute>
