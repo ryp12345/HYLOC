@@ -7,6 +7,8 @@ const departmentRoutes = require('./routes/department.routes');
 const designationRoutes = require('./routes/designation.routes');
 const associationRoutes = require('./routes/association.routes');
 const roleRoutes = require('./routes/role.routes');
+const userRoleRoutes = require('./routes/userRole.routes');
+const pillerRoutes = require('./routes/piller.routes');
 const { errorHandler, notFoundHandler } = require('./middlewares/error.middleware');
 
 const app = express();
@@ -23,6 +25,8 @@ app.use('/api/departments', departmentRoutes);
 app.use('/api/designations', designationRoutes);
 app.use('/api/associations', associationRoutes);
 app.use('/api/roles', roleRoutes);
+app.use('/api/user-roles', userRoleRoutes);
+app.use('/api/pillers', pillerRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

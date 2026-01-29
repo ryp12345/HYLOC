@@ -1,5 +1,41 @@
 require('dotenv').config();
 
+const getAllowedOrigins = () => {
+  const allowedOrigins = [
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'http://127.0.0.1:3000',
+    'http://127.0.0.1:3001'
+  ];
+
+  // Allow any IP-based origin for development (0.0.0.0:3000 or 192.168.x.x:3000, etc.)
+  return (origin, callback) => {
+    if (!origin) {
+      // Allow non-origin requests (like mobile apps or Postman)
+      return callback(null, true);
+    }
+
+    // Check if it's localhost or 127.0.0.1
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    // Check if it's an IP-based origin (for development)
+    const ipPattern = /^https?:\/\/(\d{1,3}\.){3}\d{1,3}:\d+$/;
+    if (ipPattern.test(origin)) {
+      return callback(null, true);
+    }
+
+    // For production, you can add specific domains
+    const productionOrigins = process.env.ALLOWED_ORIGINS?.split(',') || [];
+    if (productionOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    callback(new Error('Not allowed by CORS'));
+  };
+};
+
 module.exports = {
   nodeEnv: process.env.NODE_ENV || 'development',
   port: process.env.PORT || 3001,
@@ -17,7 +53,7 @@ module.exports = {
     refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES || '7d'
   },
   cors: {
-    origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+    origin: getAllowedOrigins(),
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']

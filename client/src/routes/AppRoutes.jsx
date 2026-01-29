@@ -7,11 +7,15 @@ import Login from '../pages/auth/Login';
 import Register from '../pages/auth/Register';
 import AdminDashboard from '../pages/admin/Dashboard';
 import UserDashboard from '../pages/user/Dashboard';
+import ManagementDashboard from '../pages/management/ManagementDashboard';
+import EmployeeDashboard from '../pages/employee/EmployeeDashboard';
 import UsersPage from '../pages/admin/UsersPage';
+import UserRolePage from '../pages/admin/UserRolePage';
 import DepartmentsPage from '../pages/admin/DepartmentsPage';
 import DesignationsPage from '../pages/admin/DesignationsPage';
 import AssociationsPage from '../pages/admin/AssociationsPage';
 import RolesPage from '../pages/admin/RolesPage';
+import PillersPage from '../pages/admin/PillersPage';
 
 // Layouts & Route Guards
 import ProtectedRoute from './ProtectedRoute';
@@ -108,11 +112,15 @@ const DashboardRedirect = () => {
     return <Navigate to="/login" replace />;
   }
 
-  if (user.role === 'admin' || user.role === 'management') {
+  if (user.role === 'admin') {
     return <Navigate to="/admin/dashboard" replace />;
   }
 
-  return <Navigate to="/user/dashboard" replace />;
+  if (user.role === 'management') {
+    return <Navigate to="/management/dashboard" replace />;
+  }
+
+  return <Navigate to="/employee/dashboard" replace />;
 };
 
 const AppRoutes = () => {
@@ -183,6 +191,19 @@ const AppRoutes = () => {
           />
 
           <Route
+            path="/super-admin/user-roles"
+            element={
+              <ProtectedRoute>
+                <RoleRoute allowedRoles={['admin']}>
+                  <DashboardLayout>
+                    <UserRolePage />
+                  </DashboardLayout>
+                </RoleRoute>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
             path="/super-admin/departments"
             element={
               <ProtectedRoute>
@@ -234,6 +255,19 @@ const AppRoutes = () => {
             }
           />
 
+          <Route
+            path="/super-admin/pillers"
+            element={
+              <ProtectedRoute>
+                <RoleRoute allowedRoles={['admin', 'management']}>
+                  <DashboardLayout>
+                    <PillersPage />
+                  </DashboardLayout>
+                </RoleRoute>
+              </ProtectedRoute>
+            }
+          />
+
           {/* User Dashboard */}
           <Route
             path="/user/dashboard"
@@ -242,6 +276,34 @@ const AppRoutes = () => {
                 <RoleRoute allowedRoles={['employee', 'management', 'admin']}>
                   <DashboardLayout>
                     <UserDashboard />
+                  </DashboardLayout>
+                </RoleRoute>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Management Dashboard */}
+          <Route
+            path="/management/dashboard"
+            element={
+              <ProtectedRoute>
+                <RoleRoute allowedRoles={['management', 'admin']}>
+                  <DashboardLayout>
+                    <ManagementDashboard />
+                  </DashboardLayout>
+                </RoleRoute>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Employee Dashboard */}
+          <Route
+            path="/employee/dashboard"
+            element={
+              <ProtectedRoute>
+                <RoleRoute allowedRoles={['employee', 'management', 'admin']}>
+                  <DashboardLayout>
+                    <EmployeeDashboard />
                   </DashboardLayout>
                 </RoleRoute>
               </ProtectedRoute>

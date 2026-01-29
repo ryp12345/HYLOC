@@ -7,8 +7,20 @@ const Sidebar = () => {
   const location = useLocation();
   const [isOpen, setIsOpen] = useState(true);
 
+  // Determine dashboard path based on user role
+  const getDashboardPath = () => {
+    const roleValue = (user?.role?.name || user?.role || '').toString().toLowerCase();
+    if (roleValue === 'admin') {
+      return '/admin/dashboard';
+    } else if (roleValue === 'management') {
+      return '/management/dashboard';
+    } else {
+      return '/employee/dashboard';
+    }
+  };
+
   const adminLinks = [
-   { name: 'Dashboard', path: '/super-admin/dashboard', icon: '📊' },
+    { name: 'Dashboard', path: getDashboardPath(), icon: '📊' },
     { name: 'Roles', path: '/super-admin/roles', icon: '🔐' },
     { name: 'Department', path: '/super-admin/departments', icon: '🏢' },
     { name: 'Designation', path: '/super-admin/designations', icon: '🏷️' },
@@ -19,22 +31,30 @@ const Sidebar = () => {
     { name: 'USER-ROLES', path: '/super-admin/user-roles', icon: '🧩' }
   ];
 
-  const userLinks = [
-    { name: 'Dashboard', path: '/user/dashboard', icon: '📊' },
-    { name: 'Profile', path: '/user/profile', icon: '👤' },
-    { name: 'Settings', path: '/user/settings', icon: '⚙️' }
+  const managementLinks = [
+    { name: 'Dashboard', path: getDashboardPath(), icon: '📊' },
+    { name: 'Team', path: '/management/team', icon: '👥' },
+    { name: 'Leaves', path: '/management/leaves', icon: '📅' },
+    { name: 'Reports', path: '/management/reports', icon: '📊' }
+  ];
+
+  const employeeLinks = [
+    { name: 'Dashboard', path: getDashboardPath(), icon: '📊' },
+    { name: 'MyKMI', path: '/employee/mykmi', icon: '📚' },
+    { name: 'Leaves', path: '/employee/leaves', icon: '📅' }
   ];
 
   const roleValue = (
     user?.role?.name || user?.role || ''
   ).toString().toLowerCase();
 
-  const isAdmin =
-    ['admin', 'management'].includes(roleValue) ||
+  const isAdmin = roleValue === 'admin' ||
     (user?.email || '').toLowerCase() === 'admin@hyloc.co.in' ||
     (user?.empid || '').toString() === '10000';
 
-  const links = isAdmin ? adminLinks : userLinks;
+  const isManagement = roleValue === 'management';
+
+  const links = isAdmin ? adminLinks : isManagement ? managementLinks : employeeLinks;
 
   return (
     <aside

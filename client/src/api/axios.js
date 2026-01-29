@@ -1,6 +1,13 @@
 import axios from 'axios';
 
-const API_URL = 'http://localhost:3001/api';
+// Detect if running on localhost or network IP
+const getAPIUrl = () => {
+  const hostname = window.location.hostname;
+  const port = 3001;
+  return `http://${hostname}:${port}/api`;
+};
+
+const API_URL = getAPIUrl();
 
 const axiosInstance = axios.create({
   baseURL: API_URL,

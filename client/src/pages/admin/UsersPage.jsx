@@ -155,6 +155,7 @@ export default function UsersPage() {
               <thead className="bg-blue-600">
                 <tr>
                   <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">S.NO</th>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">Emp ID</th>
                   <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">Name</th>
                   <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">Email</th>
                   <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">Department</th>
@@ -165,11 +166,12 @@ export default function UsersPage() {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {filtered.length === 0 ? (
-                  <tr><td colSpan="7" className="px-6 py-12 text-center text-gray-500">No users found</td></tr>
+                  <tr><td colSpan="8" className="px-6 py-12 text-center text-gray-500">No users found</td></tr>
                 ) : (
                   paginated.map((u, idx) => (
                     <tr key={u.id} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-colors duration-150`}>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{(page - 1) * PAGE_SIZE + idx + 1}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{u.empid || '--N/A--'}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{u.firstname} {u.lastname}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{u.email}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{u.department_name || '--N/A--'}</td>
