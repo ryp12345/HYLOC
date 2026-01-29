@@ -16,6 +16,8 @@ import DesignationsPage from '../pages/admin/DesignationsPage';
 import AssociationsPage from '../pages/admin/AssociationsPage';
 import RolesPage from '../pages/admin/RolesPage';
 import PillersPage from '../pages/admin/PillersPage';
+import KmisPage from '../pages/admin/KmisPage';
+import KmiDetail from '../pages/admin/KmiDetail';
 import EmployeeLeavesPage from '../pages/employee/leaves/LeavesPage';
 
 // Layouts & Route Guards
@@ -263,6 +265,32 @@ const AppRoutes = () => {
                 <RoleRoute allowedRoles={['admin', 'management']}>
                   <DashboardLayout>
                     <PillersPage />
+                  </DashboardLayout>
+                </RoleRoute>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/super-admin/kmis"
+            element={
+              <ProtectedRoute>
+                <RoleRoute allowedRoles={['admin', 'management']}>
+                  <DashboardLayout>
+                    <KmisPage />
+                  </DashboardLayout>
+                </RoleRoute>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/super-admin/kmis/:id"
+            element={
+              <ProtectedRoute>
+                <RoleRoute allowedRoles={['admin', 'management']}>
+                  <DashboardLayout>
+                    <KmiDetail />
                   </DashboardLayout>
                 </RoleRoute>
               </ProtectedRoute>
