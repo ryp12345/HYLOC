@@ -21,8 +21,8 @@ exports.register = async (email, password, firstName, lastName) => {
     user: {
       id: user.id,
       email: user.email,
-      firstName: user.first_name,
-      lastName: user.last_name,
+      firstName: user.firstname,
+      lastName: user.lastname,
       role: userRole
     },
     accessToken,
@@ -43,8 +43,12 @@ exports.login = async (empid, password) => {
     throw new Error('Invalid employee ID or password');
   }
 
-  // Generate tokens (set default role if not present)
-  const userRole = user.role || 'user';
+  // Set default role as 'employee' or check empid for admin
+  let userRole = 'employee';
+  if (user.empid === 10000 || user.email === 'admin@hyloc.co.in') {
+    userRole = 'admin';
+  }
+
   const accessToken = generateAccessToken(user.id, user.email, userRole);
   const refreshToken = generateRefreshToken(user.id);
 
@@ -52,8 +56,8 @@ exports.login = async (empid, password) => {
     user: {
       id: user.id,
       email: user.email,
-      firstName: user.first_name,
-      lastName: user.last_name,
+      firstName: user.firstname,
+      lastName: user.lastname,
       empid: user.empid,
       role: userRole
     },

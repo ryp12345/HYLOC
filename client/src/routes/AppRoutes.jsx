@@ -11,6 +11,7 @@ import UsersPage from '../pages/admin/UsersPage';
 import DepartmentsPage from '../pages/admin/DepartmentsPage';
 import DesignationsPage from '../pages/admin/DesignationsPage';
 import AssociationsPage from '../pages/admin/AssociationsPage';
+import RolesPage from '../pages/admin/RolesPage';
 
 // Layouts & Route Guards
 import ProtectedRoute from './ProtectedRoute';
@@ -88,6 +89,32 @@ const AuthRoute = ({ children }) => {
   return children;
 };
 
+// Dashboard redirect based on user role
+const DashboardRedirect = () => {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (user.role === 'admin' || user.role === 'management') {
+    return <Navigate to="/admin/dashboard" replace />;
+  }
+
+  return <Navigate to="/user/dashboard" replace />;
+};
+
 const AppRoutes = () => {
   return (
     <Router>
@@ -119,7 +146,7 @@ const AppRoutes = () => {
             path="/admin/dashboard"
             element={
               <ProtectedRoute>
-                <RoleRoute allowedRoles={['super_admin', 'management']}>
+                <RoleRoute allowedRoles={['admin', 'management']}>
                   <DashboardLayout>
                     <AdminDashboard />
                   </DashboardLayout>
@@ -133,7 +160,7 @@ const AppRoutes = () => {
             path="/super-admin/dashboard"
             element={
               <ProtectedRoute>
-                <RoleRoute allowedRoles={['super_admin', 'management']}>
+                <RoleRoute allowedRoles={['admin', 'management']}>
                   <DashboardLayout>
                     <AdminDashboard />
                   </DashboardLayout>
@@ -146,7 +173,7 @@ const AppRoutes = () => {
             path="/super-admin/users"
             element={
               <ProtectedRoute>
-                <RoleRoute allowedRoles={['super_admin', 'management']}>
+                <RoleRoute allowedRoles={['admin', 'management']}>
                   <DashboardLayout>
                     <UsersPage />
                   </DashboardLayout>
@@ -159,9 +186,22 @@ const AppRoutes = () => {
             path="/super-admin/departments"
             element={
               <ProtectedRoute>
-                <RoleRoute allowedRoles={['super_admin', 'management']}>
+                <RoleRoute allowedRoles={['admin', 'management']}>
                   <DashboardLayout>
                     <DepartmentsPage />
+                  </DashboardLayout>
+                </RoleRoute>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/super-admin/roles"
+            element={
+              <ProtectedRoute>
+                <RoleRoute allowedRoles={['admin', 'management']}>
+                  <DashboardLayout>
+                    <RolesPage />
                   </DashboardLayout>
                 </RoleRoute>
               </ProtectedRoute>
@@ -172,7 +212,7 @@ const AppRoutes = () => {
             path="/super-admin/designations"
             element={
               <ProtectedRoute>
-                <RoleRoute allowedRoles={['super_admin', 'management']}>
+                <RoleRoute allowedRoles={['admin', 'management']}>
                   <DashboardLayout>
                     <DesignationsPage />
                   </DashboardLayout>
@@ -185,7 +225,7 @@ const AppRoutes = () => {
             path="/super-admin/associations"
             element={
               <ProtectedRoute>
-                <RoleRoute allowedRoles={['super_admin', 'management']}>
+                <RoleRoute allowedRoles={['admin', 'management']}>
                   <DashboardLayout>
                     <AssociationsPage />
                   </DashboardLayout>
@@ -199,7 +239,7 @@ const AppRoutes = () => {
             path="/user/dashboard"
             element={
               <ProtectedRoute>
-                <RoleRoute allowedRoles={['employee', 'management', 'super_admin']}>
+                <RoleRoute allowedRoles={['employee', 'management', 'admin']}>
                   <DashboardLayout>
                     <UserDashboard />
                   </DashboardLayout>
@@ -211,11 +251,7 @@ const AppRoutes = () => {
           {/* Default dashboard redirect */}
           <Route
             path="/dashboard"
-            element={
-              <ProtectedRoute>
-                <Navigate to="/user/dashboard" replace />
-              </ProtectedRoute>
-            }
+            element={<DashboardRedirect />}
           />
 
           {/* Error Routes */}

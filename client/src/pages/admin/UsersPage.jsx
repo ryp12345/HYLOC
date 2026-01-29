@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { getUsers, createUser, updateUser, deleteUser } from '../../api/userApi';
+import { getDepartments } from '../../api/departmentApi';
+import { getDesignations } from '../../api/designationApi';
 
 const initialForm = { 
   firstName: '', 
@@ -11,6 +13,7 @@ const initialForm = {
   address: '',
   bloodGroup: '',
   departmentId: '',
+  designationId: '',
   password: 'Password@123', 
   confirmPassword: 'Password@123',
   role: 'employee', 
@@ -26,27 +29,45 @@ export default function UsersPage() {
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [departments, setDepartments] = useState([]);
+  const [designations, setDesignations] = useState([]);
 
   const load = async () => {
-    try { const res = await getUsers(); setRows(res.data || []); }
+    try { const res = await getUsers(); setRows(res.data?.data || []); }
     catch { setRows([]); }
   };
-  useEffect(() => { load(); }, []);
+  
+  const loadDepartments = async () => {
+    try { const res = await getDepartments(); setDepartments(res.data?.data || []); }
+    catch { setDepartments([]); }
+  };
+  
+  const loadDesignations = async () => {
+    try { const res = await getDesignations(); setDesignations(res.data?.data || []); }
+    catch { setDesignations([]); }
+  };
+  
+  useEffect(() => { 
+    load(); 
+    loadDepartments();
+    loadDesignations();
+  }, []);
 
   const onClose = () => { setIsModalOpen(false); setEditingId(null); setForm(initialForm); setError(''); setShowPassword(false); setShowConfirmPassword(false); };
   const openCreate = () => { onClose(); setIsModalOpen(true); };
   const openEdit = (row) => {
     setEditingId(row.id);
     setForm({
-      firstName: row.first_name || '',
-      middleName: row.middle_name || '',
-      lastName: row.last_name || '',
+      firstName: row.firstname || '',
+      middleName: row.middlename || '',
+      lastName: row.lastname || '',
       email: row.email || '',
       empid: row.empid || '',
       phone: row.phone || '',
       address: row.address || '',
-      bloodGroup: row.blood_group || '',
+      bloodGroup: row.bloodgroup || '',
       departmentId: row.department_id || '',
+      designationId: row.designation_id || '',
       password: 'Password@123',
       confirmPassword: 'Password@123',
       role: row.role || 'employee',
@@ -94,8 +115,8 @@ export default function UsersPage() {
     });
     const q = search.toLowerCase();
     return sorted.filter(r => (
-      r.first_name?.toLowerCase().includes(q) ||
-      r.last_name?.toLowerCase().includes(q) ||
+      r.firstname?.toLowerCase().includes(q) ||
+      r.lastname?.toLowerCase().includes(q) ||
       r.email?.toLowerCase().includes(q) ||
       r.role?.toLowerCase().includes(q) ||
       r.status?.toLowerCase().includes(q)
@@ -136,28 +157,28 @@ export default function UsersPage() {
                   <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">S.NO</th>
                   <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">Name</th>
                   <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">Email</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">Role</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">Department</th>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">Designation</th>
+                  <th className="px-6 py-4 text-center text-xs font-medium text-white uppercase tracking-wider">Status</th>
                   <th className="px-6 py-4 text-center text-xs font-medium text-white uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {filtered.length === 0 ? (
-                  <tr><td colSpan="6" className="px-6 py-12 text-center text-gray-500">No users found</td></tr>
+                  <tr><td colSpan="7" className="px-6 py-12 text-center text-gray-500">No users found</td></tr>
                 ) : (
                   paginated.map((u, idx) => (
                     <tr key={u.id} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-colors duration-150`}>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{(page - 1) * PAGE_SIZE + idx + 1}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{u.first_name} {u.last_name}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{u.firstname} {u.lastname}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{u.email}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <span className={`px-3 py-1 text-xs font-medium rounded-full ${u.role==='admin'?'bg-purple-100 text-purple-800':'bg-blue-100 text-blue-800'}`}>
-                          {u.role}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <span className={`px-3 py-1 text-xs font-medium rounded-full ${u.status==='active'?'bg-green-100 text-green-800':'bg-gray-100 text-gray-800'}`}>
-                          {u.status}
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{u.department_name || '--N/A--'}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{u.designation_name || '--N/A--'}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                          u.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                        }`}>
+                          {u.status || 'active'}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
@@ -255,15 +276,39 @@ export default function UsersPage() {
                       </div>
                       <div>
                         <label className="block mb-2 text-sm font-medium text-gray-700">Blood Group</label>
-                        <input value={form.bloodGroup} onChange={e=>setForm({ ...form, bloodGroup: e.target.value })} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="O+" />
+                        <select value={form.bloodGroup} onChange={e=>setForm({ ...form, bloodGroup: e.target.value })} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                          <option value="">Select Blood Group</option>
+                          <option value="A+">A+</option>
+                          <option value="A-">A-</option>
+                          <option value="B+">B+</option>
+                          <option value="B-">B-</option>
+                          <option value="AB+">AB+</option>
+                          <option value="AB-">AB-</option>
+                          <option value="O+">O+</option>
+                          <option value="O-">O-</option>
+                        </select>
                       </div>
                       <div className="md:col-span-2">
                         <label className="block mb-2 text-sm font-medium text-gray-700">Address</label>
                         <textarea value={form.address} onChange={e=>setForm({ ...form, address: e.target.value })} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="123 Main Street, City" rows="2" />
                       </div>
                       <div>
-                        <label className="block mb-2 text-sm font-medium text-gray-700">Department ID</label>
-                        <input value={form.departmentId} onChange={e=>setForm({ ...form, departmentId: e.target.value })} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="DEPT-001" />
+                        <label className="block mb-2 text-sm font-medium text-gray-700">Department</label>
+                        <select value={form.departmentId} onChange={e=>setForm({ ...form, departmentId: e.target.value })} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                          <option value="">Select Department</option>
+                          {departments.map(dept => (
+                            <option key={dept.id} value={dept.id}>{dept.department_name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block mb-2 text-sm font-medium text-gray-700">Designation</label>
+                        <select value={form.designationId} onChange={e=>setForm({ ...form, designationId: e.target.value })} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                          <option value="">Select Designation</option>
+                          {designations.map(desig => (
+                            <option key={desig.id} value={desig.id}>{desig.designation_name}</option>
+                          ))}
+                        </select>
                       </div>
                       <div>
                         <label className="block mb-2 text-sm font-medium text-gray-700">Password</label>

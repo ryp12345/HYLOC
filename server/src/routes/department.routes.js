@@ -8,19 +8,19 @@ const router = express.Router();
 // All department routes require authentication
 router.use(authenticate);
 
-// Get all departments (accessible by super_admin and management)
-router.get('/', authorize('super_admin', 'management'), departmentController.getAllDepartments);
+// Get all departments (accessible by admin and management)
+router.get('/', authorize('admin', 'management'), departmentController.getAllDepartments);
 
-// Get department by ID (accessible by super_admin and management)
-router.get('/:id', authorize('super_admin', 'management'), departmentController.getDepartmentById);
+// Get department by ID (accessible by admin and management)
+router.get('/:id', authorize('admin', 'management'), departmentController.getDepartmentById);
 
-// Create department (only super_admin)
-router.post('/', authorize('super_admin'), departmentController.createDepartment);
+// Create department (only admin)
+router.post('/', authorize('admin'), departmentController.createDepartment);
 
-// Update department (only super_admin)
-router.put('/:id', authorize('super_admin'), departmentController.updateDepartment);
+// Update department (only admin)
+router.put('/:id', authorize('admin'), departmentController.updateDepartment);
 
-// Delete department (only super_admin)
-router.delete('/:id', authorize('super_admin'), departmentController.deleteDepartment);
+// Delete department (only admin)
+router.delete('/:id', authorize('admin'), departmentController.deleteDepartment);
 
 module.exports = router;

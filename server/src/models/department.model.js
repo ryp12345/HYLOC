@@ -28,11 +28,11 @@ exports.getDepartmentById = async (id) => {
 };
 
 // Get department by name
-exports.getDepartmentByName = async (deptName) => {
+exports.getDepartmentByName = async (departmentName) => {
   try {
     const result = await pool.query(
-      'SELECT * FROM departments WHERE dept_name = $1',
-      [deptName]
+      'SELECT * FROM departments WHERE department_name = $1',
+      [departmentName]
     );
     return result.rows[0];
   } catch (error) {
@@ -42,11 +42,11 @@ exports.getDepartmentByName = async (deptName) => {
 };
 
 // Create department
-exports.createDepartment = async (deptName, status = 'active') => {
+exports.createDepartment = async (departmentName) => {
   try {
     const result = await pool.query(
-      'INSERT INTO departments (dept_name, status) VALUES ($1, $2) RETURNING *',
-      [deptName, status]
+      'INSERT INTO departments (department_name) VALUES ($1) RETURNING *',
+      [departmentName]
     );
     return result.rows[0];
   } catch (error) {
@@ -62,14 +62,9 @@ exports.updateDepartment = async (id, updates) => {
     const values = [];
     let paramCount = 1;
 
-    if (updates.dept_name !== undefined) {
-      fields.push(`dept_name = $${paramCount}`);
-      values.push(updates.dept_name);
-      paramCount++;
-    }
-    if (updates.status !== undefined) {
-      fields.push(`status = $${paramCount}`);
-      values.push(updates.status);
+    if (updates.department_name !== undefined) {
+      fields.push(`department_name = $${paramCount}`);
+      values.push(updates.department_name);
       paramCount++;
     }
 

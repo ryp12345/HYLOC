@@ -64,12 +64,18 @@ exports.getProfile = async (req, res) => {
     const userId = req.user.userId;
     const user = await authService.getUserById(userId);
     
+    // Determine role based on empid or email
+    let userRole = 'employee';
+    if (user.empid === 10000 || user.email === 'admin@hyloc.co.in') {
+      userRole = 'admin';
+    }
+    
     return sendSuccess(res, {
       id: user.id,
       email: user.email,
-      firstName: user.first_name,
-      lastName: user.last_name,
-      role: user.role
+      firstName: user.firstname,
+      lastName: user.lastname,
+      role: userRole
     }, 'Profile retrieved successfully', 200);
   } catch (error) {
     console.error('Get profile error:', error.message);

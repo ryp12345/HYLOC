@@ -1,0 +1,9 @@
+-- Create roles table
+CREATE TABLE IF NOT EXISTS roles (
+  id INTEGER GENERATED ALWAYS AS IDENTITY,
+  role_name VARCHAR(255) NOT NULL UNIQUE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT roles_pkey PRIMARY KEY (id),
+  CONSTRAINT roles_role_name_key UNIQUE (role_name)
+);

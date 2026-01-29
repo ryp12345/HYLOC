@@ -12,10 +12,10 @@ router.use(authenticate);
 router.get('/me', userController.getMyProfile);
 
 // Super admin and management routes
-router.get('/', authorize('super_admin', 'management'), userController.getAllUsers);
-router.get('/:id', authorize('super_admin', 'management'), userController.getUserById);
-router.post('/', authorize('super_admin'), userController.createUser);
-router.put('/:id', authorize('super_admin'), userController.updateUser);
-router.delete('/:id', authorize('super_admin'), userController.deleteUser);
+router.get('/', authorize('admin', 'management'), userController.getAllUsers);
+router.get('/:id', authorize('admin', 'management'), userController.getUserById);
+router.post('/', authorize('admin'), userController.createUser);
+router.put('/:id', authorize('admin'), userController.updateUser);
+router.delete('/:id', authorize('admin'), userController.deleteUser);
 
 module.exports = router;

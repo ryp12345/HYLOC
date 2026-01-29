@@ -8,19 +8,19 @@ const router = express.Router();
 // All designation routes require authentication
 router.use(authenticate);
 
-// Get all designations (accessible by super_admin and management)
-router.get('/', authorize('super_admin', 'management'), designationController.getAllDesignations);
+// Get all designations (accessible by admin and management)
+router.get('/', authorize('admin', 'management'), designationController.getAllDesignations);
 
-// Get designation by ID (accessible by super_admin and management)
-router.get('/:id', authorize('super_admin', 'management'), designationController.getDesignationById);
+// Get designation by ID (accessible by admin and management)
+router.get('/:id', authorize('admin', 'management'), designationController.getDesignationById);
 
-// Create designation (only super_admin)
-router.post('/', authorize('super_admin'), designationController.createDesignation);
+// Create designation (only admin)
+router.post('/', authorize('admin'), designationController.createDesignation);
 
-// Update designation (only super_admin)
-router.put('/:id', authorize('super_admin'), designationController.updateDesignation);
+// Update designation (only admin)
+router.put('/:id', authorize('admin'), designationController.updateDesignation);
 
-// Delete designation (only super_admin)
-router.delete('/:id', authorize('super_admin'), designationController.deleteDesignation);
+// Delete designation (only admin)
+router.delete('/:id', authorize('admin'), designationController.deleteDesignation);
 
 module.exports = router;

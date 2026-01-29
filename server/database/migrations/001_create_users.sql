@@ -3,19 +3,24 @@ DROP TABLE IF EXISTS users CASCADE;
 
 -- Create users table
 CREATE TABLE IF NOT EXISTS users (
-  id INT PRIMARY KEY,
-  email VARCHAR(255) UNIQUE NOT NULL,
-  empid VARCHAR(50),
-  first_name VARCHAR(100),
-  middle_name VARCHAR(100),
-  last_name VARCHAR(100),
-  department_id INT,
-  phone VARCHAR(20),
+  id INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY (INCREMENT 1 START 1 MINVALUE 1 MAXVALUE 2147483647 CACHE 1),
+  empid BIGINT NOT NULL UNIQUE,
+  department_id INTEGER,
+  designation_id INTEGER,
+  status VARCHAR(20) NOT NULL DEFAULT 'active',
+  phone VARCHAR(25),
   address TEXT,
-  blood_group VARCHAR(5),
+  firstname VARCHAR(100) NOT NULL,
+  middlename VARCHAR(100),
+  lastname VARCHAR(100) NOT NULL,
+  email VARCHAR(150) NOT NULL UNIQUE,
+  bloodgroup VARCHAR(10),
   password VARCHAR(255) NOT NULL,
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT users_pkey PRIMARY KEY (id),
+  CONSTRAINT users_email_unique UNIQUE (email),
+  CONSTRAINT users_empid_unique UNIQUE (empid)
 );
 
 -- Create index on email for faster lookups

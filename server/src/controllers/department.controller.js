@@ -32,21 +32,21 @@ exports.getDepartmentById = async (req, res) => {
 // Create department
 exports.createDepartment = async (req, res) => {
   try {
-    const { deptName, status = 'active' } = req.body;
+    const { departmentName } = req.body;
 
     // Validate required fields
-    if (!deptName || !deptName.trim()) {
+    if (!departmentName || !departmentName.trim()) {
       return sendError(res, 'Department name is required', 400);
     }
 
     // Check if department already exists
-    const existingDept = await departmentModel.getDepartmentByName(deptName.trim());
+    const existingDept = await departmentModel.getDepartmentByName(departmentName.trim());
     if (existingDept) {
       return sendError(res, 'Department with this name already exists', 400);
     }
 
     // Create department
-    const newDepartment = await departmentModel.createDepartment(deptName.trim(), status);
+    const newDepartment = await departmentModel.createDepartment(departmentName.trim());
 
     return sendSuccess(res, newDepartment, 'Department created successfully', 201);
   } catch (error) {
@@ -68,25 +68,18 @@ exports.updateDepartment = async (req, res) => {
     }
 
     // Map camelCase to snake_case for database
-    if (req.body.deptName !== undefined) {
-      if (!req.body.deptName.trim()) {
+    if (req.body.departmentName !== undefined) {
+      if (!req.body.departmentName.trim()) {
         return sendError(res, 'Department name cannot be empty', 400);
       }
 
       // Check if new name is already taken by another department
-      const nameExists = await departmentModel.getDepartmentByName(req.body.deptName.trim());
+      const nameExists = await departmentModel.getDepartmentByName(req.body.departmentName.trim());
       if (nameExists && nameExists.id !== parseInt(id)) {
         return sendError(res, 'Department name already taken', 400);
       }
 
-      updates.dept_name = req.body.deptName.trim();
-    }
-
-    if (req.body.status !== undefined) {
-      if (!['active', 'inactive'].includes(req.body.status)) {
-        return sendError(res, 'Invalid status value', 400);
-      }
-      updates.status = req.body.status;
+      updates.department_name = req.body.departmentName.trim();
     }
 
     if (Object.keys(updates).length === 0) {

@@ -9,14 +9,14 @@ const Sidebar = () => {
 
   const adminLinks = [
    { name: 'Dashboard', path: '/super-admin/dashboard', icon: '📊' },
-    { name: 'Roles', path: '/super-admin/roles', icon: '🧩' },
+    { name: 'Roles', path: '/super-admin/roles', icon: '🔐' },
     { name: 'Department', path: '/super-admin/departments', icon: '🏢' },
     { name: 'Designation', path: '/super-admin/designations', icon: '🏷️' },
     { name: 'Association', path: '/super-admin/associations', icon: '🤝' },
     { name: 'Users', path: '/super-admin/users', icon: '👥' },
     { name: 'KMIS', path: '/super-admin/kmis', icon: '📚' },
-    { name: 'PILLERS', path: '/super-admin/pillers', icon: '🧱' },
-    { name: 'USER-ROLES', path: '/super-admin/user-roles', icon: '🔐' }
+    { name: 'PILLERS', path: '/super-admin/pillers', icon: '🏛️' },
+    { name: 'USER-ROLES', path: '/super-admin/user-roles', icon: '🧩' }
   ];
 
   const userLinks = [
@@ -30,7 +30,7 @@ const Sidebar = () => {
   ).toString().toLowerCase();
 
   const isAdmin =
-    ['super_admin', 'management'].includes(roleValue) ||
+    ['admin', 'management'].includes(roleValue) ||
     (user?.email || '').toLowerCase() === 'admin@hyloc.co.in' ||
     (user?.empid || '').toString() === '10000';
 

@@ -16,19 +16,22 @@ const Navbar = () => {
   return (
     <nav className="bg-white text-gray-900 shadow-lg">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
-          {/* Logo */}
+        <div className="flex items-center h-16">
+          {/* Empty flex space on left */}
+          <div className="flex-1"></div>
+
+          {/* Logo - Centered */}
           <div className="flex-shrink-0 flex items-center gap-3">
             <img
               src="/hyloc-logo.png"
               alt="Hyloc logo"
-              className="h-8 w-8"
+              className="h-12 w-12"
             />
-            <h1 className="text-2xl font-bold">HYLOC-MGT</h1>
+            <h1 className="text-3xl font-bold">Hyloc Hydrotechnic Pvt Ltd</h1>
           </div>
 
-          {/* User Info & Menu */}
-          <div className="flex items-center space-x-4 relative">
+          {/* User Info & Menu - Right aligned */}
+          <div className="flex-1 flex justify-end items-center space-x-4 relative">
             {user && (
               <>
                 <div className="hidden md:block relative">

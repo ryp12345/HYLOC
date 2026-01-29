@@ -8,19 +8,19 @@ const router = express.Router();
 // All association routes require authentication
 router.use(authenticate);
 
-// Get all associations (accessible by super_admin and management)
-router.get('/', authorize('super_admin', 'management'), associationController.getAllAssociations);
+// Get all associations (accessible by admin and management)
+router.get('/', authorize('admin', 'management'), associationController.getAllAssociations);
 
-// Get association by ID (accessible by super_admin and management)
-router.get('/:id', authorize('super_admin', 'management'), associationController.getAssociationById);
+// Get association by ID (accessible by admin and management)
+router.get('/:id', authorize('admin', 'management'), associationController.getAssociationById);
 
-// Create association (only super_admin)
-router.post('/', authorize('super_admin'), associationController.createAssociation);
+// Create association (only admin)
+router.post('/', authorize('admin'), associationController.createAssociation);
 
-// Update association (only super_admin)
-router.put('/:id', authorize('super_admin'), associationController.updateAssociation);
+// Update association (only admin)
+router.put('/:id', authorize('admin'), associationController.updateAssociation);
 
-// Delete association (only super_admin)
-router.delete('/:id', authorize('super_admin'), associationController.deleteAssociation);
+// Delete association (only admin)
+router.delete('/:id', authorize('admin'), associationController.deleteAssociation);
 
 module.exports = router;
