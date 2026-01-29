@@ -16,6 +16,7 @@ import DesignationsPage from '../pages/admin/DesignationsPage';
 import AssociationsPage from '../pages/admin/AssociationsPage';
 import RolesPage from '../pages/admin/RolesPage';
 import PillersPage from '../pages/admin/PillersPage';
+import EmployeeLeavesPage from '../pages/employee/leaves/LeavesPage';
 
 // Layouts & Route Guards
 import ProtectedRoute from './ProtectedRoute';
@@ -304,6 +305,20 @@ const AppRoutes = () => {
                 <RoleRoute allowedRoles={['employee', 'management', 'admin']}>
                   <DashboardLayout>
                     <EmployeeDashboard />
+                  </DashboardLayout>
+                </RoleRoute>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Employee Leaves */}
+          <Route
+            path="/employee/leaves"
+            element={
+              <ProtectedRoute>
+                <RoleRoute allowedRoles={['employee', 'management', 'admin']}>
+                  <DashboardLayout>
+                    <EmployeeLeavesPage />
                   </DashboardLayout>
                 </RoleRoute>
               </ProtectedRoute>

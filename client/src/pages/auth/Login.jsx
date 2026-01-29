@@ -57,17 +57,17 @@ function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-900 via-blue-950 to-blue-950 p-4">
+    <div className="min-h-screen flex items-center justify-center p-4" style={{ backgroundColor: '#001f3f' }}>
       <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl p-8">
         <div className="text-center mb-8">
           <div className="flex items-center justify-center mb-4">
             <img
               src="/hyloc-logo.png"
               alt="Hyloc logo"
-              className="h-16 w-16"
+              className="h-24 w-32"
             />
           </div>
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-purple-700 bg-clip-text text-transparent mb-2">
+          <h1 className="text-4xl font-bold text-black mb-2">
             Hyloc Hydrotechnic Pvt Ltd
           </h1>
         </div>

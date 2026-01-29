@@ -60,7 +60,8 @@ const Sidebar = () => {
     <aside
       className={`${
         isOpen ? 'w-64' : 'w-20'
-      } bg-gradient-to-b from-gray-800 to-gray-900 text-white transition-all duration-300 min-h-screen shadow-lg`}
+      } text-white transition-all duration-300 min-h-screen shadow-lg`}
+      style={{ backgroundColor: '#001f3f' }}
     >
       {/* Toggle Button */}
       <div className="flex justify-end p-4">
@@ -80,9 +81,14 @@ const Sidebar = () => {
             to={link.path}
             className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition duration-200 ${
               location.pathname === link.path
-                ? 'bg-blue-600 text-white'
+                ? 'text-white border-l-4'
                 : 'text-gray-300 hover:bg-gray-700'
             }`}
+            style={
+              location.pathname === link.path
+                ? { backgroundColor: '#3498db', borderLeftColor: '#2980b9' }
+                : {}
+            }
           >
             <span className="text-xl">{link.icon}</span>
             {isOpen && <span className="font-medium">{link.name}</span>}

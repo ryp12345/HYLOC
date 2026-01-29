@@ -115,7 +115,6 @@ export default function RolesPage() {
       <div className="max-w-7xl mx-auto">
         <div className="mb-12 text-center">
           <h1 className="mb-2 text-4xl font-extrabold text-gray-900">Roles</h1>
-          <p className="text-lg text-gray-600">Create, update and manage roles</p>
         </div>
 
         <div className="flex flex-col items-start justify-between gap-4 mb-6 sm:flex-row sm:items-center">
