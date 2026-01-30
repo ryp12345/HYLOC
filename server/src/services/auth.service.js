@@ -1,6 +1,7 @@
 const UserModel = require('../models/user.model');
 const { comparePassword } = require('../utils/hash');
 const { generateAccessToken, generateRefreshToken } = require('../utils/jwt');
+const db = require('../config/db');
 
 exports.register = async (email, password, firstName, lastName) => {
   // Check if user already exists
@@ -43,11 +44,21 @@ exports.login = async (empid, password) => {
     throw new Error('Invalid employee ID or password');
   }
 
-  // Set default role as 'employee' or check empid for admin
-  let userRole = 'employee';
-  if (user.empid === 10000 || user.email === 'admin@hyloc.co.in') {
-    userRole = 'admin';
-  }
+  // Get user's primary role from user_roles table
+  const roleQuery = `
+    SELECT r.role_name
+    FROM user_roles ur
+    JOIN roles r ON ur.role_id = r.id
+    WHERE ur.user_id = $1
+    ORDER BY ur.id ASC
+    LIMIT 1
+  `;
+  const roleResult = await db.query(roleQuery, [user.id]);
+  
+  // Use role from database, fallback to 'Employee' if no role assigned
+  const userRole = roleResult.rows.length > 0 ? roleResult.rows[0].role_name : 'Employee';
+
+  console.log('Login successful for user:', user.empid, 'Role:', userRole);
 
   const accessToken = generateAccessToken(user.id, user.email, userRole);
   const refreshToken = generateRefreshToken(user.id);
@@ -79,7 +90,21 @@ exports.refreshAccessToken = async (refreshToken) => {
     throw new Error('User not found');
   }
 
-  const accessToken = generateAccessToken(user.id, user.email, user.role);
+  // Get user's primary role from user_roles table
+  const roleQuery = `
+    SELECT r.role_name
+    FROM user_roles ur
+    JOIN roles r ON ur.role_id = r.id
+    WHERE ur.user_id = $1
+    ORDER BY ur.id ASC
+    LIMIT 1
+  `;
+  const roleResult = await db.query(roleQuery, [user.id]);
+  
+  // Use role from database, fallback to 'Employee' if no role assigned
+  const userRole = roleResult.rows.length > 0 ? roleResult.rows[0].role_name : 'Employee';
+
+  const accessToken = generateAccessToken(user.id, user.email, userRole);
   return { accessToken };
 };
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import EmployeeCalendar from '../../employee/leaves/EmployeeCalendar';
+import ManagerCalendar from './ManagerCalendar';
 
 const LeavesPage = () => {
 	return (
@@ -7,11 +7,11 @@ const LeavesPage = () => {
 			<div className="flex items-center justify-between">
 				<div>
 					<h1 className="text-2xl font-bold text-gray-800">Manager Leaves</h1>
-					<p className="text-sm text-gray-600">Calendar view</p>
+					<p className="text-sm text-gray-600">Apply and manage your own leaves</p>
 				</div>
 			</div>
 
-			<EmployeeCalendar />
+			<ManagerCalendar />
 		</div>
 	);
 };

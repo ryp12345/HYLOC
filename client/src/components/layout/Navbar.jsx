@@ -16,7 +16,7 @@ const Navbar = () => {
   return (
     <nav className="bg-white text-gray-900 shadow-lg">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center h-16">
+        <div className="flex items-center h-20">
           {/* Empty flex space on left */}
           <div className="flex-1"></div>
 

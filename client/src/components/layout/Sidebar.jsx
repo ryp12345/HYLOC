@@ -21,14 +21,14 @@ const Sidebar = () => {
 
   const adminLinks = [
     { name: 'Dashboard', path: getDashboardPath(), icon: '📊' },
-    { name: 'Roles', path: '/super-admin/roles', icon: '🔐' },
-    { name: 'Department', path: '/super-admin/departments', icon: '🏢' },
-    { name: 'Designation', path: '/super-admin/designations', icon: '🏷️' },
-    { name: 'Association', path: '/super-admin/associations', icon: '🤝' },
-    { name: 'Users', path: '/super-admin/users', icon: '👥' },
-    { name: 'KMIS', path: '/super-admin/kmis', icon: '📚' },
-    { name: 'PILLERS', path: '/super-admin/pillers', icon: '🏛️' },
-    { name: 'USER-ROLES', path: '/super-admin/user-roles', icon: '🧩' }
+    { name: 'Roles', path: '/admin/roles', icon: '🔐' },
+    { name: 'Department', path: '/admin/departments', icon: '🏢' },
+    { name: 'Designation', path: '/admin/designations', icon: '🏷️' },
+    { name: 'Association', path: '/admin/associations', icon: '🤝' },
+    { name: 'Users', path: '/admin/users', icon: '👥' },
+    { name: 'KMIS', path: '/admin/kmis', icon: '📚' },
+    { name: 'PILLERS', path: '/admin/pillers', icon: '🏛️' },
+    { name: 'USER-ROLES', path: '/admin/user-roles', icon: '🧩' }
   ];
 
   const managementLinks = [

@@ -14,6 +14,7 @@ const kpiValueRoutes = require('./routes/kpi-value.routes');
 const kpiDepartmentRoutes = require('./routes/kpi-department.routes');
 const kpiEmployeeRoutes = require('./routes/kpi-employee.routes');
 const categoryRoutes = require('./routes/category.routes');
+const leaveRoutes = require('./routes/leave.routes');
 const { errorHandler, notFoundHandler } = require('./middlewares/error.middleware');
 
 const app = express();
@@ -37,6 +38,7 @@ app.use('/api/kpi-values', kpiValueRoutes);
 app.use('/api/kpi-departments', kpiDepartmentRoutes);
 app.use('/api/kpi-employees', kpiEmployeeRoutes);
 app.use('/api/categories', categoryRoutes);
+app.use('/api/leaves', leaveRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

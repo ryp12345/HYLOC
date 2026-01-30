@@ -7,7 +7,7 @@ const getAPIUrl = () => {
   return `http://${hostname}:${port}/api`;
 };
 
-const API_URL = getAPIUrl();
+export const API_URL = getAPIUrl();
 
 const axiosInstance = axios.create({
   baseURL: API_URL,

@@ -76,7 +76,9 @@ exports.findUserByEmpid = async (empid) => {
 
 exports.findUserById = async (id) => {
   const query = `
-    SELECT u.id, u.email, u.firstname, u.lastname, u.created_at
+    SELECT u.id, u.email, u.firstname, u.middlename, u.lastname, u.empid, 
+           u.phone, u.address, u.bloodgroup, u.department_id, u.designation_id, 
+           u.status, u.created_at
     FROM users u 
     WHERE u.id = $1
   `;
@@ -178,5 +180,27 @@ exports.getAllUsers = async () => {
     ORDER BY u.created_at DESC
   `;
   const result = await db.query(query);
+  return result.rows;
+};
+
+/**
+ * Get users by department ID
+ * @param {number} departmentId - Department ID
+ * @returns {Promise<Array>} Array of users
+ */
+exports.getUsersByDepartment = async (departmentId) => {
+  const query = `
+    SELECT u.id, u.empid, u.firstname, u.middlename, u.lastname, u.email, 
+           u.department_id, u.designation_id, u.status,
+           d.department_name,
+           des.designation_name
+    FROM users u
+    LEFT JOIN departments d ON u.department_id = d.id
+    LEFT JOIN designations des ON u.designation_id = des.id
+    WHERE u.department_id = $1 AND u.status = 'active'
+    ORDER BY u.firstname, u.lastname
+  `;
+  
+  const result = await db.query(query, [departmentId]);
   return result.rows;
 };

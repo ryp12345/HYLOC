@@ -18,6 +18,7 @@ import PillersPage from '../pages/admin/PillersPage';
 import KmisPage from '../pages/admin/KmisPage';
 import KmiDetail from '../pages/admin/KmiDetail';
 import EmployeeLeavesPage from '../pages/employee/leaves/LeavesPage';
+import ManagerLeavesPage from '../pages/manager/leaves/LeavesPage';
 
 // Layouts & Route Guards
 import ProtectedRoute from './ProtectedRoute';
@@ -114,14 +115,22 @@ const DashboardRedirect = () => {
     return <Navigate to="/login" replace />;
   }
 
-  if (user.role === 'admin') {
+  // Check role (case-insensitive) and redirect accordingly
+  const userRole = user.role?.toLowerCase();
+
+  if (userRole === 'admin' || userRole === 'hr') {
     return <Navigate to="/admin/dashboard" replace />;
   }
 
-  if (user.role === 'management') {
+  if (userRole === 'management') {
     return <Navigate to="/management/dashboard" replace />;
   }
 
+  if (userRole === 'manager') {
+    return <Navigate to="/manager/leaves" replace />;
+  }
+
+  // Employee or any other role defaults to employee dashboard
   return <Navigate to="/employee/dashboard" replace />;
 };
 
@@ -163,20 +172,9 @@ const AppRoutes = () => {
             }
           />
 
-          {/* Super Admin Routes */}
+          {/* Admin Routes */}
           <Route
-            path="/super-admin/dashboard"
-            element={
-              <ProtectedRoute>
-                <DashboardLayout>
-                  <AdminDashboard />
-                </DashboardLayout>
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="/super-admin/users"
+            path="/admin/users"
             element={
               <ProtectedRoute>
                 <DashboardLayout>
@@ -187,7 +185,7 @@ const AppRoutes = () => {
           />
 
           <Route
-            path="/super-admin/user-roles"
+            path="/admin/user-roles"
             element={
               <ProtectedRoute>
                 <DashboardLayout>
@@ -198,7 +196,7 @@ const AppRoutes = () => {
           />
 
           <Route
-            path="/super-admin/departments"
+            path="/admin/departments"
             element={
               <ProtectedRoute>
                 <DashboardLayout>
@@ -209,7 +207,7 @@ const AppRoutes = () => {
           />
 
           <Route
-            path="/super-admin/roles"
+            path="/admin/roles"
             element={
               <ProtectedRoute>
                 <DashboardLayout>
@@ -220,7 +218,7 @@ const AppRoutes = () => {
           />
 
           <Route
-            path="/super-admin/designations"
+            path="/admin/designations"
             element={
               <ProtectedRoute>
                 <DashboardLayout>
@@ -231,7 +229,7 @@ const AppRoutes = () => {
           />
 
           <Route
-            path="/super-admin/associations"
+            path="/admin/associations"
             element={
               <ProtectedRoute>
                 <DashboardLayout>
@@ -242,7 +240,7 @@ const AppRoutes = () => {
           />
 
           <Route
-            path="/super-admin/pillers"
+            path="/admin/pillers"
             element={
               <ProtectedRoute>
                 <DashboardLayout>
@@ -253,7 +251,7 @@ const AppRoutes = () => {
           />
 
           <Route
-            path="/super-admin/kmis"
+            path="/admin/kmis"
             element={
               <ProtectedRoute>
                 <DashboardLayout>
@@ -264,7 +262,7 @@ const AppRoutes = () => {
           />
 
           <Route
-            path="/super-admin/kmis/:id"
+            path="/admin/kmis/:id"
             element={
               <ProtectedRoute>
                 <DashboardLayout>
@@ -305,6 +303,18 @@ const AppRoutes = () => {
               <ProtectedRoute>
                 <DashboardLayout>
                   <EmployeeLeavesPage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Manager Leaves */}
+          <Route
+            path="/manager/leaves"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <ManagerLeavesPage />
                 </DashboardLayout>
               </ProtectedRoute>
             }

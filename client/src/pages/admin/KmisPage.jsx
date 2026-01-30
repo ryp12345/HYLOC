@@ -48,9 +48,9 @@ function KmisPage() {
   const [replicateLoading, setReplicateLoading] = useState(false);
   const [replicateExpandedNodes, setReplicateExpandedNodes] = useState(new Set());
   
-  // Check if user is admin (super-admin or admin)
+  // Check if user is admin
   useEffect(() => {
-    if (!authLoading && (!user || (user.role !== 'super-admin' && user.role !== 'admin'))) {
+    if (!authLoading && (!user || user.role !== 'admin')) {
       navigate('/unauthorized', { replace: true });
     }
   }, [user, authLoading, navigate]);
@@ -68,7 +68,7 @@ function KmisPage() {
   }
   
   // Redirect if not admin
-  if (!user || (user.role !== 'super-admin' && user.role !== 'admin')) {
+  if (!user || user.role !== 'admin') {
     return null;
   }
 
@@ -329,7 +329,7 @@ function KmisPage() {
   };
 
   const handleView = (kmi) => {
-    navigate(`/super-admin/kmis/${kmi.id}`, { state: { kmi } });
+    navigate(`/admin/kmis/${kmi.id}`, { state: { kmi } });
   };
 
   const handleSubmit = async (e) => {
