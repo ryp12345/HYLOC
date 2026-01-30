@@ -27,6 +27,25 @@ export const AuthProvider = ({ children }) => {
     };
 
     initializeAuth();
+
+    // Listen for storage changes (e.g., logout in another tab or token refresh)
+    const handleStorageChange = (e) => {
+      if (e.key === 'user' && !e.newValue) {
+        setUser(null);
+      } else if (e.key === 'user' && e.newValue) {
+        try {
+          setUser(JSON.parse(e.newValue));
+        } catch (err) {
+          console.error('Error parsing user from storage:', err);
+        }
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
   }, []);
 
   const register = async (email, password, firstName, lastName) => {

@@ -29,7 +29,7 @@ exports.createUser = async (userData) => {
     const user = userResult.rows[0];
     
     // Get role_id from roles table
-    const roleIdQuery = 'SELECT id FROM roles WHERE name = $1';
+    const roleIdQuery = 'SELECT id FROM roles WHERE role_name = $1';
     const roleIdResult = await client.query(roleIdQuery, [userData.role || 'employee']);
     const roleId = roleIdResult.rows[0]?.id;
     
@@ -110,13 +110,13 @@ exports.updateUser = async (id, updates) => {
         UPDATE users
         SET ${userFields.join(', ')}, updated_at = NOW()
         WHERE id = $${paramCount}
-        RETURNING id, email, firstname, lastname, status, created_at, updated_at
+        RETURNING id, email, firstname, middlename, lastname, status, created_at, updated_at
       `;
       const userResult = await client.query(userQuery, userValues);
       user = userResult.rows[0];
     } else {
       // Get existing user data
-      const getUserQuery = 'SELECT id, email, firstname, lastname, status, created_at, updated_at FROM users WHERE id = $1';
+      const getUserQuery = 'SELECT id, email, firstname, middlename, lastname, status, created_at, updated_at FROM users WHERE id = $1';
       const userResult = await client.query(getUserQuery, [id]);
       user = userResult.rows[0];
     }
@@ -124,7 +124,7 @@ exports.updateUser = async (id, updates) => {
     // Handle role update in user_roles table
     if (updates.role !== undefined) {
       // Get role_id from roles table
-      const roleIdQuery = 'SELECT id FROM roles WHERE name = $1';
+      const roleIdQuery = 'SELECT id FROM roles WHERE role_name = $1';
       const roleIdResult = await client.query(roleIdQuery, [updates.role]);
       const roleId = roleIdResult.rows[0]?.id;
       
@@ -145,7 +145,7 @@ exports.updateUser = async (id, updates) => {
     } else {
       // Get current active role
       const roleResult = await client.query(
-        'SELECT r.name as role FROM user_roles ur JOIN roles r ON ur.role_id = r.id WHERE ur.user_id = $1 AND ur.is_active = true ORDER BY ur.assigned_at DESC LIMIT 1',
+        'SELECT r.role_name as role FROM user_roles ur JOIN roles r ON ur.role_id = r.id WHERE ur.user_id = $1 AND ur.is_active = true ORDER BY ur.assigned_at DESC LIMIT 1',
         [id]
       );
       user.role = roleResult.rows[0]?.role || 'employee';
@@ -169,7 +169,7 @@ exports.deleteUser = async (id) => {
 
 exports.getAllUsers = async () => {
   const query = `
-    SELECT u.id, u.email, u.firstname, u.lastname, u.empid, u.phone, u.address, u.bloodgroup, u.department_id, u.designation_id, u.status, u.created_at,
+    SELECT u.id, u.email, u.firstname, u.middlename, u.lastname, u.empid, u.phone, u.address, u.bloodgroup, u.department_id, u.designation_id, u.status, u.created_at,
            d.department_name,
            des.designation_name
     FROM users u

@@ -6,7 +6,6 @@ import { AuthProvider } from '../context/AuthContext';
 import Login from '../pages/auth/Login';
 import Register from '../pages/auth/Register';
 import AdminDashboard from '../pages/admin/Dashboard';
-import UserDashboard from '../pages/user/Dashboard';
 import ManagementDashboard from '../pages/management/ManagementDashboard';
 import EmployeeDashboard from '../pages/employee/EmployeeDashboard';
 import UsersPage from '../pages/admin/UsersPage';
@@ -157,11 +156,9 @@ const AppRoutes = () => {
             path="/admin/dashboard"
             element={
               <ProtectedRoute>
-                <RoleRoute allowedRoles={['admin', 'management']}>
-                  <DashboardLayout>
-                    <AdminDashboard />
-                  </DashboardLayout>
-                </RoleRoute>
+                <DashboardLayout>
+                  <AdminDashboard />
+                </DashboardLayout>
               </ProtectedRoute>
             }
           />
@@ -171,11 +168,9 @@ const AppRoutes = () => {
             path="/super-admin/dashboard"
             element={
               <ProtectedRoute>
-                <RoleRoute allowedRoles={['admin', 'management']}>
-                  <DashboardLayout>
-                    <AdminDashboard />
-                  </DashboardLayout>
-                </RoleRoute>
+                <DashboardLayout>
+                  <AdminDashboard />
+                </DashboardLayout>
               </ProtectedRoute>
             }
           />
@@ -184,11 +179,9 @@ const AppRoutes = () => {
             path="/super-admin/users"
             element={
               <ProtectedRoute>
-                <RoleRoute allowedRoles={['admin', 'management']}>
-                  <DashboardLayout>
-                    <UsersPage />
-                  </DashboardLayout>
-                </RoleRoute>
+                <DashboardLayout>
+                  <UsersPage />
+                </DashboardLayout>
               </ProtectedRoute>
             }
           />
@@ -197,11 +190,9 @@ const AppRoutes = () => {
             path="/super-admin/user-roles"
             element={
               <ProtectedRoute>
-                <RoleRoute allowedRoles={['admin']}>
-                  <DashboardLayout>
-                    <UserRolePage />
-                  </DashboardLayout>
-                </RoleRoute>
+                <DashboardLayout>
+                  <UserRolePage />
+                </DashboardLayout>
               </ProtectedRoute>
             }
           />
@@ -210,11 +201,9 @@ const AppRoutes = () => {
             path="/super-admin/departments"
             element={
               <ProtectedRoute>
-                <RoleRoute allowedRoles={['admin', 'management']}>
-                  <DashboardLayout>
-                    <DepartmentsPage />
-                  </DashboardLayout>
-                </RoleRoute>
+                <DashboardLayout>
+                  <DepartmentsPage />
+                </DashboardLayout>
               </ProtectedRoute>
             }
           />
@@ -223,11 +212,9 @@ const AppRoutes = () => {
             path="/super-admin/roles"
             element={
               <ProtectedRoute>
-                <RoleRoute allowedRoles={['admin', 'management']}>
-                  <DashboardLayout>
-                    <RolesPage />
-                  </DashboardLayout>
-                </RoleRoute>
+                <DashboardLayout>
+                  <RolesPage />
+                </DashboardLayout>
               </ProtectedRoute>
             }
           />
@@ -236,11 +223,9 @@ const AppRoutes = () => {
             path="/super-admin/designations"
             element={
               <ProtectedRoute>
-                <RoleRoute allowedRoles={['admin', 'management']}>
-                  <DashboardLayout>
-                    <DesignationsPage />
-                  </DashboardLayout>
-                </RoleRoute>
+                <DashboardLayout>
+                  <DesignationsPage />
+                </DashboardLayout>
               </ProtectedRoute>
             }
           />
@@ -249,11 +234,9 @@ const AppRoutes = () => {
             path="/super-admin/associations"
             element={
               <ProtectedRoute>
-                <RoleRoute allowedRoles={['admin', 'management']}>
-                  <DashboardLayout>
-                    <AssociationsPage />
-                  </DashboardLayout>
-                </RoleRoute>
+                <DashboardLayout>
+                  <AssociationsPage />
+                </DashboardLayout>
               </ProtectedRoute>
             }
           />
@@ -262,11 +245,9 @@ const AppRoutes = () => {
             path="/super-admin/pillers"
             element={
               <ProtectedRoute>
-                <RoleRoute allowedRoles={['admin', 'management']}>
-                  <DashboardLayout>
-                    <PillersPage />
-                  </DashboardLayout>
-                </RoleRoute>
+                <DashboardLayout>
+                  <PillersPage />
+                </DashboardLayout>
               </ProtectedRoute>
             }
           />
@@ -275,11 +256,9 @@ const AppRoutes = () => {
             path="/super-admin/kmis"
             element={
               <ProtectedRoute>
-                <RoleRoute allowedRoles={['admin', 'management']}>
-                  <DashboardLayout>
-                    <KmisPage />
-                  </DashboardLayout>
-                </RoleRoute>
+                <DashboardLayout>
+                  <KmisPage />
+                </DashboardLayout>
               </ProtectedRoute>
             }
           />
@@ -288,25 +267,9 @@ const AppRoutes = () => {
             path="/super-admin/kmis/:id"
             element={
               <ProtectedRoute>
-                <RoleRoute allowedRoles={['admin', 'management']}>
-                  <DashboardLayout>
-                    <KmiDetail />
-                  </DashboardLayout>
-                </RoleRoute>
-              </ProtectedRoute>
-            }
-          />
-
-          {/* User Dashboard */}
-          <Route
-            path="/user/dashboard"
-            element={
-              <ProtectedRoute>
-                <RoleRoute allowedRoles={['employee', 'management', 'admin']}>
-                  <DashboardLayout>
-                    <UserDashboard />
-                  </DashboardLayout>
-                </RoleRoute>
+                <DashboardLayout>
+                  <KmiDetail />
+                </DashboardLayout>
               </ProtectedRoute>
             }
           />
@@ -316,11 +279,9 @@ const AppRoutes = () => {
             path="/management/dashboard"
             element={
               <ProtectedRoute>
-                <RoleRoute allowedRoles={['management', 'admin']}>
-                  <DashboardLayout>
-                    <ManagementDashboard />
-                  </DashboardLayout>
-                </RoleRoute>
+                <DashboardLayout>
+                  <ManagementDashboard />
+                </DashboardLayout>
               </ProtectedRoute>
             }
           />
@@ -330,11 +291,9 @@ const AppRoutes = () => {
             path="/employee/dashboard"
             element={
               <ProtectedRoute>
-                <RoleRoute allowedRoles={['employee', 'management', 'admin']}>
-                  <DashboardLayout>
-                    <EmployeeDashboard />
-                  </DashboardLayout>
-                </RoleRoute>
+                <DashboardLayout>
+                  <EmployeeDashboard />
+                </DashboardLayout>
               </ProtectedRoute>
             }
           />
@@ -344,11 +303,9 @@ const AppRoutes = () => {
             path="/employee/leaves"
             element={
               <ProtectedRoute>
-                <RoleRoute allowedRoles={['employee', 'management', 'admin']}>
-                  <DashboardLayout>
-                    <EmployeeLeavesPage />
-                  </DashboardLayout>
-                </RoleRoute>
+                <DashboardLayout>
+                  <EmployeeLeavesPage />
+                </DashboardLayout>
               </ProtectedRoute>
             }
           />

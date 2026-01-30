@@ -197,7 +197,6 @@ function KmiDetail() {
       </div>
     );
   }
-
   return (
     <div className="w-full max-w-7xl mx-auto p-6">
       {notification.show && (
@@ -207,37 +206,23 @@ function KmiDetail() {
           <button className="ml-4 text-white hover:text-gray-200 font-bold text-xl" onClick={() => setNotification({ show: false, message: '', type: '' })}>×</button>
         </div>
       )}
-
       <div className="mb-6 flex justify-between items-center">
-        <button className="px-4 py-2 text-blue-600 hover:bg-blue-50 rounded-md text-sm font-medium" onClick={() => navigate('/super-admin/kmis')}>
+        <button className="px-5 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-md text-sm font-medium" onClick={() => navigate('/super-admin/kmis')}>
           ← Back to KMIs
         </button>
         <h2 className="text-2xl font-bold text-gray-800">KMI Details</h2>
       </div>
-
       <div className="bg-white rounded-lg shadow p-6 mb-6">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-3">
           <div className="flex flex-col">
-            <span className="text-sm font-semibold text-gray-600 mb-1">Title:</span>
-            <span className="text-base text-gray-800">{kmi.title}</span>
-          </div>
-          <div className="flex flex-col">
-            <span className="text-sm font-semibold text-gray-600 mb-1">Category:</span>
-            <span className="inline-block px-3 py-1 bg-blue-100 text-blue-800 rounded text-sm font-medium w-fit">{getCategoryName(kmi.category_id)}</span>
+            <span className="text-lg font-bold text-[#1B55C4]">{kmi.title}</span>
           </div>
           <div className="flex flex-col">
             <span className="text-sm font-semibold text-gray-600 mb-1">Financial Year:</span>
-            <span className="inline-block px-3 py-1 bg-gray-100 text-gray-700 rounded text-sm w-fit">{kmi.fin_year || 'N/A'}</span>
+            <span className="inline-block px-3 py-1 bg-blue-100 text-blue-800 rounded text-sm font-medium w-fit">{kmi.fin_year || 'N/A'}</span>
           </div>
-          {kmi.parent_kpi_id && (
-            <div className="flex flex-col">
-              <span className="text-sm font-semibold text-gray-600 mb-1">Parent KPI ID:</span>
-              <span className="text-base text-gray-800">{kmi.parent_kpi_id}</span>
-            </div>
-          )}
         </div>
       </div>
-
       <div>
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-xl font-bold text-gray-800">KPI Values</h3>
@@ -245,56 +230,70 @@ function KmiDetail() {
             + Add Value
           </button>
         </div>
-
         {kpiValues.length === 0 ? (
           <div className="text-center py-10 text-gray-500 text-base">No KPI values found. Add your first value!</div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {kpiValues.map((value) => (
-              <div key={value.id} className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
-                <div className="bg-gray-50 px-4 py-3 border-b border-gray-200 flex justify-between items-center">
-                  <h4 className="font-semibold text-gray-800 text-base">{value.data}</h4>
-                  <div className="flex gap-1">
-                    <button className="p-1.5 hover:bg-gray-200 rounded text-sm" onClick={() => handleEdit(value)}>✏️</button>
-                    <button className="p-1.5 hover:bg-red-100 rounded text-sm text-red-600" onClick={() => handleDelete(value.id)}>🗑️</button>
-                  </div>
-                </div>
-                <div className="p-4 space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Type:</span>
-                    <span className="text-sm font-medium text-gray-800">{value.kpi_type || 'manual'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Unit:</span>
-                    <span className="text-sm font-medium text-gray-800">{value.uom || 'N/A'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Operator:</span>
-                    <span className="text-sm font-medium text-gray-800">{value['data operator'] || 'N/A'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Target Required:</span>
-                    <span className="text-sm font-medium text-gray-800">{value.target_required ? 'Yes' : 'No'}</span>
-                  </div>
-                  {value.piller_id && (
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-600">Piller:</span>
-                      <span className="text-sm font-medium text-gray-800">{getPillerName(value.piller_id)}</span>
-                    </div>
-                  )}
-                  {value.default_target_value && (
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-600">Default Target:</span>
-                      <span className="text-sm font-medium text-gray-800">{value.default_target_value}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
+          <div className="bg-white rounded-lg shadow overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50 border-b border-gray-200">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Type</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Data</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Data Operator</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Unit of Measurement</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Piller</th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">Target Required</th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {kpiValues.map((value) => (
+                    <tr key={value.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-4 py-3 text-sm text-gray-800">
+                        <span className="inline-block px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-medium">
+                          {value.kpi_type || 'manual'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-sm font-medium text-gray-900">{value.data}</td>
+                      <td className="px-4 py-3 text-sm text-gray-600">{value['data operator'] || 'N/A'}</td>
+                      <td className="px-4 py-3 text-sm text-gray-600">{value.uom || 'N/A'}</td>
+                      <td className="px-4 py-3 text-sm text-gray-600">{getPillerName(value.piller_id)}</td>
+                      <td className="px-4 py-3 text-sm text-center">
+                        <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${value.target_required ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
+                          {value.target_required ? 'Yes' : 'No'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-center">
+                        <div className="flex items-center justify-center space-x-2">
+                          <button
+                            onClick={() => handleEdit(value)}
+                            className="p-2 text-white transition-colors duration-200 bg-blue-600 rounded-lg hover:bg-blue-700"
+                            title="Edit"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={() => handleDelete(value.id)}
+                            className="p-2 text-white transition-colors duration-200 bg-red-600 rounded-lg hover:bg-red-700"
+                            title="Delete"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>
-
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-5" onClick={() => setShowModal(false)}>
           <div className="bg-white rounded-lg shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
@@ -329,6 +328,19 @@ function KmiDetail() {
                   <option value="aggregated">Aggregated</option>
                 </select>
               </div>
+              {formData.kpi_type === 'calculated' && (
+                <div className="mb-5">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Formula</label>
+                  <textarea
+                    name="formula"
+                    value={formData.formula}
+                    onChange={handleChange}
+                    rows="3"
+                    placeholder="Enter calculation formula"
+                    className="w-full px-3 py-2.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  />
+                </div>
+              )}
               <div className="mb-5">
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Unit of Measurement</label>
                 <input
@@ -396,19 +408,6 @@ function KmiDetail() {
                   Target Required
                 </label>
               </div>
-              {formData.kpi_type === 'calculated' && (
-                <div className="mb-5">
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Formula</label>
-                  <textarea
-                    name="formula"
-                    value={formData.formula}
-                    onChange={handleChange}
-                    rows="3"
-                    placeholder="Enter calculation formula"
-                    className="w-full px-3 py-2.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                  />
-                </div>
-              )}
               <div className="flex justify-end gap-3 pt-4">
                 <button type="button" className="px-5 py-2.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50" onClick={() => setShowModal(false)}>
                   Cancel

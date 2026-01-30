@@ -1,10 +1,7 @@
--- Drop old users table if it exists
-DROP TABLE IF EXISTS users CASCADE;
-
 -- Create users table
 CREATE TABLE IF NOT EXISTS users (
   id INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY (INCREMENT 1 START 1 MINVALUE 1 MAXVALUE 2147483647 CACHE 1),
-  empid BIGINT NOT NULL UNIQUE,
+  empid BIGINT UNIQUE,
   department_id INTEGER,
   designation_id INTEGER,
   status VARCHAR(20) NOT NULL DEFAULT 'active',

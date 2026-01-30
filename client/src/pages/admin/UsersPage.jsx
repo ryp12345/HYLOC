@@ -82,20 +82,56 @@ export default function UsersPage() {
       const payload = { 
         ...form,
       };
-      // Don't send empty password on edit
-      if (editingId && !payload.password) {
+      // Don't send password fields on edit
+      if (editingId) {
         delete payload.password;
+        delete payload.confirmPassword;
       }
-      if (editingId) await updateUser(editingId, payload);
-      else await createUser(payload);
-      onClose(); load();
+      // Normalize optional fields to null instead of empty strings
+      if (!payload.empid) payload.empid = null;
+      if (!payload.phone) payload.phone = null;
+      if (!payload.address) payload.address = null;
+      if (!payload.bloodGroup) payload.bloodGroup = null;
+      if (!payload.departmentId) payload.departmentId = null;
+      if (!payload.designationId) payload.designationId = null;
+
+      if (editingId) {
+        await updateUser(editingId, payload);
+        // Optimistically update UI in case list refresh is delayed
+        const departmentName = departments.find(d => String(d.id) === String(payload.departmentId))?.department_name || '--N/A--';
+        const designationName = designations.find(d => String(d.id) === String(payload.designationId))?.designation_name || '--N/A--';
+        setRows(prev => prev.map(r => (
+          r.id === editingId
+            ? {
+                ...r,
+                firstname: form.firstName,
+                middlename: form.middleName,
+                lastname: form.lastName,
+                email: form.email,
+                empid: payload.empid || null,
+                phone: payload.phone || null,
+                address: payload.address || null,
+                bloodgroup: payload.bloodGroup || null,
+                department_id: payload.departmentId || null,
+                designation_id: payload.designationId || null,
+                department_name: payload.departmentId ? departmentName : '--N/A--',
+                designation_name: payload.designationId ? designationName : '--N/A--',
+                status: form.status || r.status,
+              }
+            : r
+        )));
+      } else {
+        await createUser(payload);
+      }
+      await load();
+      onClose();
     } catch (e) { setError(e.response?.data?.message || 'Failed to save'); }
   };
 
   const remove = async (id) => {
-    if (!confirm('Deactivate this user?')) return;
+    if (!confirm('Delete this user?')) return;
     try { 
-      await updateUser(id, { status: 'inactive' }); 
+      await deleteUser(id);
       load(); 
     } catch {}
   };
@@ -172,7 +208,7 @@ export default function UsersPage() {
                     <tr key={u.id} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-colors duration-150`}>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{(page - 1) * PAGE_SIZE + idx + 1}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{u.empid || '--N/A--'}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{u.firstname} {u.lastname}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{u.firstname} {u.middlename || ''} {u.lastname}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{u.email}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{u.department_name || '--N/A--'}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{u.designation_name || '--N/A--'}</td>
@@ -312,32 +348,36 @@ export default function UsersPage() {
                           ))}
                         </select>
                       </div>
-                      <div>
-                        <label className="block mb-2 text-sm font-medium text-gray-700">Password</label>
-                        <div className="relative">
-                          <input type={showPassword ? 'text' : 'password'} value={form.password} onChange={e=>setForm({ ...form, password: e.target.value })} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="••••••••" />
-                          <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-3 text-gray-500 hover:text-gray-700">
-                            {showPassword ? (
-                              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-4.803m5.596-3.856a3.375 3.375 0 11-4.753 4.753m4.753-4.753L9.172 9.172M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                            ) : (
-                              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7C7.523 19 3.732 16.057 2.458 12z" /></svg>
-                            )}
-                          </button>
-                        </div>
-                      </div>
-                      <div>
-                        <label className="block mb-2 text-sm font-medium text-gray-700">Confirm Password</label>
-                        <div className="relative">
-                          <input type={showConfirmPassword ? 'text' : 'password'} value={form.confirmPassword} onChange={e=>setForm({ ...form, confirmPassword: e.target.value })} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="••••••••" />
-                          <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-3 text-gray-500 hover:text-gray-700">
-                            {showConfirmPassword ? (
-                              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-4.803m5.596-3.856a3.375 3.375 0 11-4.753 4.753m4.753-4.753L9.172 9.172M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                            ) : (
-                              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7C7.523 19 3.732 16.057 2.458 12z" /></svg>
-                            )}
-                          </button>
-                        </div>
-                      </div>
+                      {!editingId && (
+                        <>
+                          <div>
+                            <label className="block mb-2 text-sm font-medium text-gray-700">Password</label>
+                            <div className="relative">
+                              <input type={showPassword ? 'text' : 'password'} value={form.password} onChange={e=>setForm({ ...form, password: e.target.value })} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="••••••••" />
+                              <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-3 text-gray-500 hover:text-gray-700">
+                                {showPassword ? (
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-4.803m5.596-3.856a3.375 3.375 0 11-4.753 4.753m4.753-4.753L9.172 9.172M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                ) : (
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7C7.523 19 3.732 16.057 2.458 12z" /></svg>
+                                )}
+                              </button>
+                            </div>
+                          </div>
+                          <div>
+                            <label className="block mb-2 text-sm font-medium text-gray-700">Confirm Password</label>
+                            <div className="relative">
+                              <input type={showConfirmPassword ? 'text' : 'password'} value={form.confirmPassword} onChange={e=>setForm({ ...form, confirmPassword: e.target.value })} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="••••••••" />
+                              <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-3 text-gray-500 hover:text-gray-700">
+                                {showConfirmPassword ? (
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-4.803m5.596-3.856a3.375 3.375 0 11-4.753 4.753m4.753-4.753L9.172 9.172M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                ) : (
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7C7.523 19 3.732 16.057 2.458 12z" /></svg>
+                                )}
+                              </button>
+                            </div>
+                          </div>
+                        </>
+                      )}
                       {editingId && (
                         <div>
                           <label className="block mb-2 text-sm font-medium text-gray-700">Status</label>

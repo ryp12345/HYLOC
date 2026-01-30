@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from '../../api/axios';
+import { useAuth } from '../../context/AuthContext';
 
 // Helper function to get current financial year
 const getInitialYear = () => {
@@ -13,6 +14,10 @@ const getInitialYear = () => {
 };
 
 function KmisPage() {
+  const navigate = useNavigate();
+  const { user, loading: authLoading } = useAuth();
+  
+  // State declarations MUST come before any conditional returns
   const [kpis, setKpis] = useState([]);
   const [kpiTree, setKpiTree] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -42,7 +47,30 @@ function KmisPage() {
   const [selectedKpisToReplicate, setSelectedKpisToReplicate] = useState(new Set());
   const [replicateLoading, setReplicateLoading] = useState(false);
   const [replicateExpandedNodes, setReplicateExpandedNodes] = useState(new Set());
-  const navigate = useNavigate();
+  
+  // Check if user is admin (super-admin or admin)
+  useEffect(() => {
+    if (!authLoading && (!user || (user.role !== 'super-admin' && user.role !== 'admin'))) {
+      navigate('/unauthorized', { replace: true });
+    }
+  }, [user, authLoading, navigate]);
+  
+  // Show loading while checking auth
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+  
+  // Redirect if not admin
+  if (!user || (user.role !== 'super-admin' && user.role !== 'admin')) {
+    return null;
+  }
 
   // Generate financial years on component mount
   useEffect(() => {

@@ -31,18 +31,24 @@ axiosInstance.interceptors.request.use(
   }
 );
 
-// Handle token refresh on 401
+// Handle token refresh on 401 or 403
 axiosInstance.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    // Handle both 401 and 403 errors (token expiration)
+    if ((error.response?.status === 401 || error.response?.status === 403) && !originalRequest._retry) {
       originalRequest._retry = true;
 
       try {
         const refreshToken = localStorage.getItem('refreshToken');
-        const response = await axiosInstance.post('/auth/refresh-token', {
+        
+        if (!refreshToken) {
+          throw new Error('No refresh token available');
+        }
+
+        const response = await axios.post(`${API_URL}/auth/refresh-token`, {
           refreshToken
         });
 
@@ -52,8 +58,10 @@ axiosInstance.interceptors.response.use(
         originalRequest.headers.Authorization = `Bearer ${accessToken}`;
         return axiosInstance(originalRequest);
       } catch (refreshError) {
+        // Clear storage and redirect to login
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
+        localStorage.removeItem('user');
         window.location.href = '/login';
         return Promise.reject(refreshError);
       }
