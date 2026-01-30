@@ -10,6 +10,8 @@ function KmiDetail() {
   const [kpiValues, setKpiValues] = useState([]);
   const [categories, setCategories] = useState([]);
   const [pillers, setPillers] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [units, setUnits] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showModal, setShowModal] = useState(false);
@@ -36,6 +38,8 @@ function KmiDetail() {
     loadKmiDetails();
     loadCategories();
     loadPillers();
+    loadUsers();
+    loadUnits();
   }, [id]);
 
   const loadKmiDetails = async () => {
@@ -81,6 +85,24 @@ function KmiDetail() {
     }
   };
 
+  const loadUsers = async () => {
+    try {
+      const response = await axios.get('/users');
+      setUsers(response.data.data || []);
+    } catch (err) {
+      console.error('Failed to load users', err);
+    }
+  };
+
+  const loadUnits = async () => {
+    try {
+      const response = await axios.get('/unit-master');
+      setUnits(response.data.data || []);
+    } catch (err) {
+      console.error('Failed to load units', err);
+    }
+  };
+
   React.useEffect(() => {
     const loadAllKpiValues = async () => {
       try {
@@ -117,6 +139,19 @@ function KmiDetail() {
 
   const getPillerName = (pillerId) => {
     return pillers.find((p) => p.id === pillerId)?.piller_name || 'N/A';
+  };
+
+  const getUnitName = (unitId) => {
+    if (unitId == null) return 'N/A';
+    return units.find((u) => String(u.id) === String(unitId))?.unit_name || String(unitId);
+  };
+
+  const getOperatorName = (operatorId) => {
+    if (!operatorId) return 'N/A';
+    const user = users.find((u) => String(u.empid ?? u.id) === String(operatorId));
+    if (!user) return String(operatorId);
+    const emp = user.empid ? ` (${user.empid})` : '';
+    return `${user.firstname || ''} ${user.lastname || ''}`.trim() + emp;
   };
 
   const handleAddNew = () => {
@@ -176,9 +211,9 @@ function KmiDetail() {
     
     setFormData({
       data: value.data || '',
-      data_operator: value['data operator'] || '',
+      data_operator: value.data_operator != null ? String(value.data_operator) : (value['data operator'] || ''),
       target_required: value.target_required !== undefined ? value.target_required : true,
-      uom: value.uom || '',
+      uom: value.uom != null ? String(value.uom) : '',
       kpi_type: value.kpi_type || 'manual',
       piller_id: value.piller_id || null,
       formula: formula,
@@ -257,7 +292,7 @@ function KmiDetail() {
         kpi_id: parseInt(id),
         data_operator: formData.data_operator || null,
         target_required: formData.target_required,
-        uom: formData.uom || null,
+        uom: formData.uom ? parseInt(formData.uom) : null,
         kpi_type: formData.kpi_type,
         piller_id: formData.piller_id ? parseInt(formData.piller_id) : null,
         formula: formData.kpi_type === 'computed'
@@ -392,8 +427,10 @@ function KmiDetail() {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-sm font-medium text-gray-900">{value.data}</td>
-                      <td className="px-4 py-3 text-sm text-gray-600">{value['data operator'] || 'N/A'}</td>
-                      <td className="px-4 py-3 text-sm text-gray-600">{value.uom || 'N/A'}</td>
+                      <td className="px-4 py-3 text-sm text-gray-600">
+                        {getOperatorName(value.data_operator ?? value['data operator'])}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-600">{getUnitName(value.uom)}</td>
                       <td className="px-4 py-3 text-sm text-gray-600">{getPillerName(value.piller_id)}</td>
                       <td className="px-4 py-3 text-sm text-center">
                         <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${value.target_required ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
@@ -600,17 +637,26 @@ function KmiDetail() {
               )}
               <div className="mb-5">
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Unit of Measurement</label>
-                <input
-                  type="text"
+                <select
                   name="uom"
                   value={formData.uom}
                   onChange={handleChange}
-                  placeholder="e.g., USD, Units, %"
                   className="w-full px-3 py-2.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                />
+                >
+                  <option value="">Select Unit</option>
+                  {units.length === 0 ? (
+                    <option disabled>No units available</option>
+                  ) : (
+                    units.map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {u.unit_name}
+                      </option>
+                    ))
+                  )}
+                </select>
               </div>
               <div className="mb-5">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Data Operator</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Assign Data Operator</label>
                 <select
                   name="data_operator"
                   value={formData.data_operator}
@@ -618,11 +664,20 @@ function KmiDetail() {
                   className="w-full px-3 py-2.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                 >
                   <option value="">Select Operator</option>
-                  <option value="sum">Sum</option>
-                  <option value="average">Average</option>
-                  <option value="count">Count</option>
-                  <option value="max">Maximum</option>
-                  <option value="min">Minimum</option>
+                  {users.length === 0 ? (
+                    <option disabled>No users available</option>
+                  ) : (
+                    users.map((user) => {
+                      const value = user.empid ?? user.id;
+                      const label = `${user.firstname || ''} ${user.lastname || ''}`.trim();
+                      const suffix = user.empid ? ` (${user.empid})` : '';
+                      return (
+                        <option key={user.id} value={value}>
+                          {label || 'User'}{suffix}
+                        </option>
+                      );
+                    })
+                  )}
                 </select>
               </div>
               <div className="mb-5">
@@ -636,7 +691,7 @@ function KmiDetail() {
                   <option value="">Select Piller</option>
                   {pillers.map((piller) => (
                     <option key={piller.id} value={piller.id}>
-                      {piller.piller_name}
+                      {piller.piller_name}{piller.short_name ? ` (${piller.short_name})` : ''}
                     </option>
                   ))}
                 </select>
