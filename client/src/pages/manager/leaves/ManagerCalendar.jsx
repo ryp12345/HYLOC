@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../../../context/AuthContext';
 import { 
   applyLeave, 
   getMyLeaves, 
@@ -11,6 +12,8 @@ import {
 } from '../../../api/leaveApi';
 
 const ManagerCalendar = ({ joinDate }) => {
+  const { user } = useAuth();
+  const userRole = (user?.role?.name || user?.role || '').toString().toLowerCase();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState('month'); // 'month', 'week', 'list'
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -172,7 +175,7 @@ const ManagerCalendar = ({ joinDate }) => {
         await applyLeave(leaveForm);
       }
       
-      setShowLeaveForm(false);
+      handleCloseLeaveForm();
       await loadData();
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to submit leave');
@@ -203,11 +206,26 @@ const ManagerCalendar = ({ joinDate }) => {
   };
 
   // Date helpers (avoid UTC shifting)
-  const parseDateOnly = (dateString) => {
-    if (!dateString) return null;
-    // Extract just the date part if it's an ISO datetime string
-    const datePart = dateString.split('T')[0];
-    const [year, month, day] = datePart.split('-').map(Number);
+  const parseDateOnly = (dateValue) => {
+    if (!dateValue) return null;
+    if (dateValue instanceof Date) {
+      const d = new Date(dateValue.getFullYear(), dateValue.getMonth(), dateValue.getDate());
+      d.setHours(0, 0, 0, 0);
+      return d;
+    }
+
+    const dateString = String(dateValue);
+
+    if (dateString.includes('T')) {
+      const parsed = new Date(dateString);
+      if (isNaN(parsed.getTime())) return null;
+      const d = new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
+      d.setHours(0, 0, 0, 0);
+      return d;
+    }
+
+    const [year, month, day] = dateString.split('-').map(Number);
+    if (!year || !month || !day) return null;
     const d = new Date(year, month - 1, day);
     d.setHours(0, 0, 0, 0);
     return d;
@@ -236,13 +254,19 @@ const ManagerCalendar = ({ joinDate }) => {
   const getCalendarLeavesForDate = (date) => {
     if (!date) return [];
     const checkTime = toLocalDateOnly(date).getTime();
-    return calendarLeaves.filter((leave) => {
+    const matchingLeaves = calendarLeaves.filter((leave) => {
       const fromDate = parseDateOnly(leave.from_date);
       const toDate = parseDateOnly(leave.to_date);
       if (!fromDate || !toDate) return false;
 
       return checkTime >= fromDate.getTime() && checkTime <= toDate.getTime();
     });
+
+    if (userRole === 'manager') {
+      return matchingLeaves.filter((leave) => leave.user_role === 'Employee');
+    }
+
+    return [];
   };
 
   const openCalendarLeaveModal = (date) => {
@@ -256,6 +280,16 @@ const ManagerCalendar = ({ joinDate }) => {
     setShowCalendarLeaveModal(false);
     setSelectedCalendarDate(null);
     setSelectedCalendarLeaves([]);
+  };
+
+  const handleCloseLeaveForm = () => {
+    setShowLeaveForm(false);
+    setSelectedDate(new Date());
+  };
+
+  const handleCloseDateDetail = () => {
+    setShowDateDetail(false);
+    setSelectedDate(new Date());
   };
 
   const formatAlternate = (leave) => {
@@ -405,15 +439,8 @@ const ManagerCalendar = ({ joinDate }) => {
       <div className="bg-white rounded-lg shadow-lg p-6">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-4">
+          <div>
             <h2 className="text-2xl font-bold text-gray-800">Manager Leave Calendar</h2>
-            <button
-              onClick={() => openLeaveForm()}
-              disabled={!eligibility?.canApply || loading}
-              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
-            >
-              + Apply Leave
-            </button>
           </div>
           
           {/* View Mode Toggle */}
@@ -758,7 +785,7 @@ const ManagerCalendar = ({ joinDate }) => {
                 {formatFullDate(selectedDate)}
               </h3>
               <button
-                onClick={() => setShowDateDetail(false)}
+                onClick={handleCloseDateDetail}
                 className="text-gray-500 hover:text-gray-700 text-2xl"
               >
                 ×
@@ -814,7 +841,7 @@ const ManagerCalendar = ({ joinDate }) => {
                     <button
                       onClick={() => {
                         openEditForm(leave);
-                        setShowDateDetail(false);
+                        handleCloseDateDetail();
                       }}
                       className="flex-1 px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600"
                     >
@@ -824,7 +851,7 @@ const ManagerCalendar = ({ joinDate }) => {
                       onClick={() => {
                         if (window.confirm('Are you sure you want to cancel this leave?')) {
                           handleCancelLeave(leave.id);
-                          setShowDateDetail(false);
+                          handleCloseDateDetail();
                         }
                       }}
                       className="flex-1 px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
@@ -850,7 +877,7 @@ const ManagerCalendar = ({ joinDate }) => {
                 {editingLeave ? 'Edit Leave Application' : 'Apply for Leave'}
               </h3>
               <button
-                onClick={() => setShowLeaveForm(false)}
+                onClick={handleCloseLeaveForm}
                 className="text-gray-500 hover:text-gray-700 text-2xl"
               >
                 ×
@@ -1003,7 +1030,7 @@ const ManagerCalendar = ({ joinDate }) => {
               <div className="flex justify-end gap-3 pt-4">
                 <button
                   type="button"
-                  onClick={() => setShowLeaveForm(false)}
+                  onClick={handleCloseLeaveForm}
                   className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
                 >
                   Cancel

@@ -6,8 +6,6 @@ const LeaveApprovalPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('Pending');
-  const [rejectionReason, setRejectionReason] = useState('');
-  const [rejectingLeaveId, setRejectingLeaveId] = useState(null);
 
   const loadLeaves = async () => {
     setLoading(true);
@@ -28,7 +26,7 @@ const LeaveApprovalPage = () => {
       
       setLeaves(filtered);
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to load leaves');
+      setError(err.response?.data?.message || err.message || 'Failed to load leaves');
       console.error('Error loading leaves:', err);
     } finally {
       setLoading(false);
@@ -57,23 +55,15 @@ const LeaveApprovalPage = () => {
     }
   };
 
-  const handleRejectClick = (leaveId) => {
-    setRejectingLeaveId(leaveId);
-    setRejectionReason('');
-  };
-
-  const handleRejectSubmit = async () => {
-    if (!rejectionReason.trim()) {
-      alert('Please provide a rejection reason');
+  const handleReject = async (leaveId) => {
+    if (!window.confirm('Reject this leave request?')) {
       return;
     }
-    
+
     setLoading(true);
     setError(null);
     try {
-      await rejectLeave(rejectingLeaveId, rejectionReason);
-      setRejectingLeaveId(null);
-      setRejectionReason('');
+      await rejectLeave(leaveId);
       await loadLeaves();
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to reject leave');
@@ -116,7 +106,7 @@ const LeaveApprovalPage = () => {
               className={`px-6 py-3 rounded-lg font-medium transition-colors ${
                 activeTab === tab
                   ? 'bg-blue-600 text-white'
-                  : 'bg-white text-gray-700 hover:bg-gray-100'
+                  : 'bg-blue-100 text-gray-700 hover:bg-blue-200'
               }`}
             >
               {tab}
@@ -195,13 +185,6 @@ const LeaveApprovalPage = () => {
                         )}
                       </div>
 
-                      {leave.status === 'Rejected' && leave.rejection_reason && (
-                        <div className="mt-3 p-3 bg-red-50 rounded text-sm">
-                          <span className="font-medium text-red-700">Rejection Reason:</span>{' '}
-                          <span className="text-red-600">{leave.rejection_reason}</span>
-                        </div>
-                      )}
-
                       {(leave.status === 'Approved' || leave.status === 'Rejected') && leave.approver_name && (
                         <div className="mt-2 text-sm text-gray-500">
                           {leave.status} by: {leave.approver_name}
@@ -229,7 +212,7 @@ const LeaveApprovalPage = () => {
                             Approve
                           </button>
                           <button
-                            onClick={() => handleRejectClick(leave.id)}
+                            onClick={() => handleReject(leave.id)}
                             disabled={loading}
                             className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:bg-gray-400"
                           >
@@ -246,39 +229,6 @@ const LeaveApprovalPage = () => {
         </div>
       </div>
 
-      {/* Rejection Modal */}
-      {rejectingLeaveId && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Reject Leave Request</h3>
-            <textarea
-              value={rejectionReason}
-              onChange={(e) => setRejectionReason(e.target.value)}
-              placeholder="Enter rejection reason..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 min-h-[100px]"
-            />
-            <div className="flex gap-3 mt-4">
-              <button
-                onClick={handleRejectSubmit}
-                disabled={loading}
-                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:bg-gray-400"
-              >
-                Confirm Reject
-              </button>
-              <button
-                onClick={() => {
-                  setRejectingLeaveId(null);
-                  setRejectionReason('');
-                }}
-                disabled={loading}
-                className="flex-1 px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

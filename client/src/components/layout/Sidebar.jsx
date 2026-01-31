@@ -6,6 +6,7 @@ const Sidebar = () => {
   const { user } = useAuth();
   const location = useLocation();
   const [isOpen, setIsOpen] = useState(true);
+  const [expandedMenu, setExpandedMenu] = useState(null);
 
   // Determine dashboard path based on user role
   const getDashboardPath = () => {
@@ -14,6 +15,8 @@ const Sidebar = () => {
       return '/admin/dashboard';
     } else if (roleValue === 'management') {
       return '/management/dashboard';
+    } else if (roleValue === 'manager') {
+      return '/manager/dashboard';
     } else {
       return '/employee/dashboard';
     }
@@ -33,16 +36,27 @@ const Sidebar = () => {
 
   const managementLinks = [
     { name: 'Dashboard', path: getDashboardPath(), icon: '📊' },
-    { name: 'Team', path: '/management/team', icon: '👥' },
-    { name: 'Leaves', path: '/management/leaves', icon: '📅' },
-    { name: 'Leave Approval', path: '/management/leave-approval', icon: '✅' },
+    { 
+      name: 'Leave Management', 
+      icon: '📋',
+      submenu: [
+        { name: 'Leaves', path: '/management/leaves', icon: '📅' },
+        { name: 'Leave Approval', path: '/management/leave-approval', icon: '✅' }
+      ]
+    },
     { name: 'Reports', path: '/management/reports', icon: '📊' }
   ];
 
   const managerLinks = [
     { name: 'Dashboard', path: getDashboardPath(), icon: '📊' },
-    { name: 'Leaves', path: '/manager/leaves', icon: '📅' },
-    { name: 'Leave Approval', path: '/manager/leave-approval', icon: '✅' }
+    { 
+      name: 'Leave Management', 
+      icon: '📋',
+      submenu: [
+        { name: 'Leaves', path: '/manager/leaves', icon: '📅' },
+        { name: 'Leave Approval', path: '/manager/leave-approval', icon: '✅' }
+      ]
+    }
   ];
 
   const employeeLinks = [
@@ -84,23 +98,62 @@ const Sidebar = () => {
       {/* Navigation Links */}
       <nav className="space-y-2 px-4">
         {links.map((link) => (
-          <Link
-            key={link.path}
-            to={link.path}
-            className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition duration-200 ${
-              location.pathname === link.path
-                ? 'text-white border-l-4'
-                : 'text-gray-300 hover:bg-gray-700'
-            }`}
-            style={
-              location.pathname === link.path
-                ? { backgroundColor: '#3498db', borderLeftColor: '#2980b9' }
-                : {}
-            }
-          >
-            <span className="text-xl">{link.icon}</span>
-            {isOpen && <span className="font-medium">{link.name}</span>}
-          </Link>
+          <div key={link.submenu ? link.name : link.path}>
+            {link.submenu ? (
+              // Parent menu item with submenu
+              <div>
+                <button
+                  onClick={() => setExpandedMenu(expandedMenu === link.name ? null : link.name)}
+                  className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition duration-200 ${
+                    expandedMenu === link.name
+                      ? 'bg-blue-500 text-white'
+                      : 'text-gray-300 hover:bg-gray-700'
+                  }`}
+                >
+                  <span className="text-xl">{link.icon}</span>
+                  {isOpen && (
+                    <>
+                      <span className="font-medium flex-1 text-left text-sm whitespace-nowrap truncate">{link.name}</span>
+                      <span className="text-sm">{expandedMenu === link.name ? '▼' : '▶'}</span>
+                    </>
+                  )}
+                </button>
+
+                {/* Submenu Items */}
+                {expandedMenu === link.name && isOpen && (
+                  <div className="space-y-1 mt-1">
+                    {link.submenu.map((subitem) => (
+                      <Link
+                        key={subitem.path}
+                        to={subitem.path}
+                        className={`flex items-center space-x-3 px-8 py-2 rounded-lg transition duration-200 text-sm ${
+                          location.pathname === subitem.path
+                            ? 'bg-blue-500 text-white font-semibold'
+                            : 'text-gray-400 hover:text-gray-200'
+                        }`}
+                      >
+                        <span className="text-lg">{subitem.icon}</span>
+                        <span className="font-medium">{subitem.name}</span>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              // Regular menu item
+              <Link
+                to={link.path}
+                className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition duration-200 ${
+                  location.pathname === link.path
+                    ? 'bg-blue-500 text-white'
+                    : 'text-gray-300 hover:bg-gray-700'
+                }`}
+              >
+                <span className="text-xl">{link.icon}</span>
+                {isOpen && <span className="font-medium">{link.name}</span>}
+              </Link>
+            )}
+          </div>
         ))}
       </nav>
     </aside>

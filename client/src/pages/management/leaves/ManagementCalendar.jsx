@@ -37,8 +37,8 @@ const ManagementCalendar = () => {
 			
 			// Store all leaves for Team Leave display (all statuses, all users)
 			const currentYearLeaves = allLeaves.filter((leave) => {
-				const fromDate = new Date(leave.from_date);
-				return fromDate.getFullYear() === year;
+				const fromDate = parseDateOnly(leave.from_date);
+				return fromDate && fromDate.getFullYear() === year;
 			});
 			setAllOrgLeaves(currentYearLeaves);
 		} catch (err) {
@@ -108,11 +108,26 @@ const ManagementCalendar = () => {
 			date.getFullYear() === today.getFullYear();
 	};
 
-	const parseDateOnly = (dateString) => {
-		if (!dateString) return null;
-		// Extract just the date part if it's an ISO datetime string
-		const datePart = dateString.split('T')[0];
-		const [year, month, day] = datePart.split('-').map(Number);
+	const parseDateOnly = (dateValue) => {
+		if (!dateValue) return null;
+		if (dateValue instanceof Date) {
+			const d = new Date(dateValue.getFullYear(), dateValue.getMonth(), dateValue.getDate());
+			d.setHours(0, 0, 0, 0);
+			return d;
+		}
+
+		const dateString = String(dateValue);
+
+		if (dateString.includes('T')) {
+			const parsed = new Date(dateString);
+			if (isNaN(parsed.getTime())) return null;
+			const d = new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
+			d.setHours(0, 0, 0, 0);
+			return d;
+		}
+
+		const [year, month, day] = dateString.split('-').map(Number);
+		if (!year || !month || !day) return null;
 		const d = new Date(year, month - 1, day);
 		d.setHours(0, 0, 0, 0);
 		return d;
@@ -184,10 +199,9 @@ const ManagementCalendar = () => {
 	const overlapsMonth = (leave) => {
 		const monthStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
 		const monthEnd = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
-		const fromDate = new Date(leave.from_date);
-		const toDate = new Date(leave.to_date);
-		fromDate.setHours(0, 0, 0, 0);
-		toDate.setHours(0, 0, 0, 0);
+		const fromDate = parseDateOnly(leave.from_date);
+		const toDate = parseDateOnly(leave.to_date);
+		if (!fromDate || !toDate) return false;
 		return fromDate <= monthEnd && toDate >= monthStart;
 	};
 
@@ -219,7 +233,7 @@ const ManagementCalendar = () => {
 							onClick={() => setViewMode('month')}
 							className={`px-4 py-2 rounded transition-colors ${
 								viewMode === 'month'
-									? 'bg-emerald-600 text-white'
+									? 'bg-blue-600 text-white'
 									: 'bg-gray-100 text-gray-700 hover:bg-gray-200'
 							}`}
 						>
@@ -229,7 +243,7 @@ const ManagementCalendar = () => {
 							onClick={() => setViewMode('week')}
 							className={`px-4 py-2 rounded transition-colors ${
 								viewMode === 'week'
-									? 'bg-emerald-600 text-white'
+									? 'bg-blue-600 text-white'
 									: 'bg-gray-100 text-gray-700 hover:bg-gray-200'
 							}`}
 						>
@@ -239,7 +253,7 @@ const ManagementCalendar = () => {
 							onClick={() => setViewMode('list')}
 							className={`px-4 py-2 rounded transition-colors ${
 								viewMode === 'list'
-									? 'bg-emerald-600 text-white'
+									? 'bg-blue-600 text-white'
 									: 'bg-gray-100 text-gray-700 hover:bg-gray-200'
 							}`}
 						>
@@ -257,7 +271,7 @@ const ManagementCalendar = () => {
 								<div className="mb-6 flex items-center justify-center gap-4">
 									<button
 										onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1))}
-										className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-semibold text-lg"
+										className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold text-lg"
 									>
 										&lt;
 									</button>
@@ -266,7 +280,7 @@ const ManagementCalendar = () => {
 									</h3>
 									<button
 										onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1))}
-										className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-semibold text-lg"
+										className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold text-lg"
 									>
 										&gt;
 									</button>
@@ -276,7 +290,7 @@ const ManagementCalendar = () => {
 									{dayNames.map((day) => (
 										<div
 											key={day}
-											className="bg-emerald-100 text-emerald-800 font-semibold text-center py-2 rounded"
+											className="bg-blue-100 text-blue-800 font-semibold text-center py-2 rounded"
 										>
 											{day}
 										</div>

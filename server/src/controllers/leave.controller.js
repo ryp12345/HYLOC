@@ -487,7 +487,6 @@ exports.rejectLeave = async (req, res, next) => {
     const leaveId = parseInt(req.params.id);
     const rejectorId = req.user.userId;
     const userRole = req.user.role;
-    const rejectionReason = req.body.rejection_reason || 'No reason provided';
     
     // Only Manager and Management can reject
     if (!['Manager', 'Management'].includes(userRole)) {
@@ -551,7 +550,7 @@ exports.rejectLeave = async (req, res, next) => {
       }
     }
     
-    const rejectedLeave = await leaveModel.rejectLeave(leaveId, rejectorId, rejectionReason);
+    const rejectedLeave = await leaveModel.rejectLeave(leaveId, rejectorId);
     
     res.status(200).json({
       success: true,

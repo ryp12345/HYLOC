@@ -576,10 +576,10 @@ function KmisPage() {
               type="checkbox"
               checked={isSelected}
               onChange={() => toggleReplicateNodeSelection(node.id, allDescendants)}
-              className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-2 focus:ring-blue-500"
+              className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-2 focus:ring-blue-500 flex-shrink-0"
             />
             <button
-              className={`w-6 h-6 flex items-center justify-center rounded text-sm ${
+              className={`w-6 h-6 flex items-center justify-center rounded text-sm flex-shrink-0 ${
                 hasChildren ? 'text-blue-500 hover:bg-blue-50 cursor-pointer' : 'text-gray-300 cursor-default'
               }`}
               onClick={() => hasChildren && toggleReplicateNodeExpand(node.id)}
@@ -587,13 +587,13 @@ function KmisPage() {
             >
               {hasChildren ? (isExpanded ? '▼' : '▶') : '•'}
             </button>
-          </div>
-          <div className="flex-1">
-            <div className="font-medium text-gray-800 text-sm">{node.title}</div>
-            <div className="flex gap-2 mt-1">
-              <span className="inline-block px-2 py-0.5 bg-blue-100 text-blue-800 rounded text-xs font-medium">
-                {getCategoryNameById(node.category_id)}
-              </span>
+            <div className="flex-1 min-w-0">
+              <div className="font-medium text-gray-800 text-sm">{node.title}</div>
+              <div className="flex gap-2 mt-1">
+                <span className="inline-block px-2 py-0.5 bg-blue-100 text-blue-800 rounded text-xs font-medium">
+                  {getCategoryNameById(node.category_id)}
+                </span>
+              </div>
             </div>
           </div>
         </div>

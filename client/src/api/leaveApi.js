@@ -117,8 +117,6 @@ export const approveLeave = async (id) => {
 /**
  * Reject leave (Manager/Management)
  */
-export const rejectLeave = async (id, rejectionReason) => {
-  return await axios.post(`/leaves/${id}/reject`, {
-    rejection_reason: rejectionReason
-  });
+export const rejectLeave = async (id) => {
+  return await axios.post(`/leaves/${id}/reject`, {});
 };

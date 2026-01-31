@@ -351,20 +351,18 @@ exports.approveLeave = async (leaveId, approverId) => {
  * Reject a leave
  * @param {number} leaveId - Leave ID
  * @param {number} rejectorId - ID of user rejecting
- * @param {string} reason - Rejection reason
  * @returns {Promise<Object|null>} Updated leave record
  */
-exports.rejectLeave = async (leaveId, rejectorId, reason) => {
+exports.rejectLeave = async (leaveId, rejectorId) => {
   const query = `
     UPDATE leaves
     SET status = 'Rejected',
-        approved_by = $1,
-        rejection_reason = $2
-    WHERE id = $3
+        approved_by = $1
+    WHERE id = $2
     RETURNING *
   `;
-  
-  const result = await db.query(query, [rejectorId, reason, leaveId]);
+
+  const result = await db.query(query, [rejectorId, leaveId]);
   return result.rows[0] || null;
 };
 

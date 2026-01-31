@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../../../context/AuthContext';
 import { 
   applyLeave, 
   getMyLeaves, 
@@ -6,11 +7,12 @@ import {
   updateLeave, 
   cancelLeave,
   checkLeaveEligibility,
-  getDepartmentColleagues,
-  getDepartmentLeaves
+  getDepartmentColleagues
 } from '../../../api/leaveApi';
 
 const EmployeeCalendar = ({ joinDate }) => {
+  const { user } = useAuth();
+  const userId = user?.id;
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState('month'); // 'month', 'week', 'day'
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -22,10 +24,6 @@ const EmployeeCalendar = ({ joinDate }) => {
   const [colleagues, setColleagues] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [calendarLeaves, setCalendarLeaves] = useState([]);
-  const [showCalendarLeaveModal, setShowCalendarLeaveModal] = useState(false);
-  const [selectedCalendarDate, setSelectedCalendarDate] = useState(null);
-  const [selectedCalendarLeaves, setSelectedCalendarLeaves] = useState([]);
   
   // Form state
   const [showLeaveForm, setShowLeaveForm] = useState(false);
@@ -71,11 +69,6 @@ const EmployeeCalendar = ({ joinDate }) => {
       console.log('Colleagues data:', colleaguesResponse.data.data);
       console.log('Colleagues count:', colleaguesResponse.data.data?.length);
       setColleagues(colleaguesResponse.data.data || []);
-
-      const departmentLeavesResponse = await getDepartmentLeaves({ year });
-      const departmentLeaves = departmentLeavesResponse.data.data || [];
-      console.log('Department leaves loaded:', departmentLeaves);
-      setCalendarLeaves(departmentLeaves);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to load data');
       console.error('Error loading data:', err);
@@ -174,7 +167,7 @@ const EmployeeCalendar = ({ joinDate }) => {
         await applyLeave(leaveForm);
       }
       
-      setShowLeaveForm(false);
+      handleCloseLeaveForm();
       await loadData();
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to submit leave');
@@ -205,11 +198,26 @@ const EmployeeCalendar = ({ joinDate }) => {
   };
 
   // Date helpers (avoid UTC shifting)
-  const parseDateOnly = (dateString) => {
-    if (!dateString) return null;
-    // Extract just the date part if it's an ISO datetime string
-    const datePart = dateString.split('T')[0];
-    const [year, month, day] = datePart.split('-').map(Number);
+  const parseDateOnly = (dateValue) => {
+    if (!dateValue) return null;
+    if (dateValue instanceof Date) {
+      const d = new Date(dateValue.getFullYear(), dateValue.getMonth(), dateValue.getDate());
+      d.setHours(0, 0, 0, 0);
+      return d;
+    }
+
+    const dateString = String(dateValue);
+
+    if (dateString.includes('T')) {
+      const parsed = new Date(dateString);
+      if (isNaN(parsed.getTime())) return null;
+      const d = new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
+      d.setHours(0, 0, 0, 0);
+      return d;
+    }
+
+    const [year, month, day] = dateString.split('-').map(Number);
+    if (!year || !month || !day) return null;
     const d = new Date(year, month - 1, day);
     d.setHours(0, 0, 0, 0);
     return d;
@@ -240,29 +248,14 @@ const EmployeeCalendar = ({ joinDate }) => {
     return result;
   };
 
-  const getCalendarLeavesForDate = (date) => {
-    if (!date) return [];
-    const checkTime = toLocalDateOnly(date).getTime();
-    return calendarLeaves.filter((leave) => {
-      const fromDate = parseDateOnly(leave.from_date);
-      const toDate = parseDateOnly(leave.to_date);
-      if (!fromDate || !toDate) return false;
-
-      return checkTime >= fromDate.getTime() && checkTime <= toDate.getTime();
-    });
+  const handleCloseLeaveForm = () => {
+    setShowLeaveForm(false);
+    setSelectedDate(new Date());
   };
 
-  const openCalendarLeaveModal = (date) => {
-    const dayLeaves = getCalendarLeavesForDate(date);
-    setSelectedCalendarDate(date);
-    setSelectedCalendarLeaves(dayLeaves);
-    setShowCalendarLeaveModal(true);
-  };
-
-  const closeCalendarLeaveModal = () => {
-    setShowCalendarLeaveModal(false);
-    setSelectedCalendarDate(null);
-    setSelectedCalendarLeaves([]);
+  const handleCloseDateDetail = () => {
+    setShowDateDetail(false);
+    setSelectedDate(new Date());
   };
 
   const formatAlternate = (leave) => {
@@ -412,15 +405,8 @@ const EmployeeCalendar = ({ joinDate }) => {
       <div className="bg-white rounded-lg shadow-lg p-6">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-4">
+          <div>
             <h2 className="text-2xl font-bold text-gray-800">Calendar</h2>
-            <button
-              onClick={() => openLeaveForm()}
-              disabled={!eligibility?.canApply || loading}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
-            >
-              + Apply Leave
-            </button>
           </div>
           
           {/* View Mode Toggle */}
@@ -496,7 +482,6 @@ const EmployeeCalendar = ({ joinDate }) => {
           <div className="grid grid-cols-7 gap-1">
             {monthDays.map((date, index) => {
               const leave = getLeaveForDate(date);
-              const dayCalendarLeaves = getCalendarLeavesForDate(date);
               return (
                 <div
                   key={index}
@@ -530,22 +515,6 @@ const EmployeeCalendar = ({ joinDate }) => {
                         >
                           <div className="font-semibold text-center">My Leave</div>
                         </button>
-                      )}
-                      {dayCalendarLeaves.length > 0 && (
-                        <div className="mt-2 space-y-1">
-                          <button
-                            className="w-full px-2 py-1 rounded bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-colors"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openCalendarLeaveModal(date);
-                            }}
-                          >
-                            Team Leave
-                          </button>
-                          <div className="text-[10px] text-gray-500 text-center">
-                            {dayCalendarLeaves.length} leave(s)
-                          </div>
-                        </div>
                       )}
                     </>
                   )}
@@ -582,7 +551,6 @@ const EmployeeCalendar = ({ joinDate }) => {
           {/* Week Grid */}
           <div className="grid grid-cols-7 gap-1">
             {weekDays.map((date) => {
-              const dayCalendarLeaves = getCalendarLeavesForDate(date);
               return (
               <div
                 key={date.toISOString()}
@@ -600,22 +568,6 @@ const EmployeeCalendar = ({ joinDate }) => {
                 </div>
                 {isToday(date) && (
                   <div className="text-blue-600 text-xs font-italic">Today</div>
-                )}
-                {dayCalendarLeaves.length > 0 && (
-                  <div className="mt-2 space-y-1">
-                    <button
-                      className="w-full px-2 py-1 rounded bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-colors"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        openCalendarLeaveModal(date);
-                      }}
-                    >
-                      Team Leave
-                    </button>
-                    <div className="text-[10px] text-gray-500 text-center">
-                      {dayCalendarLeaves.length} leave(s)
-                    </div>
-                  </div>
                 )}
               </div>
             );
@@ -698,63 +650,6 @@ const EmployeeCalendar = ({ joinDate }) => {
       )}
     </div>
 
-    {showCalendarLeaveModal && selectedCalendarDate && (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <div className="bg-white rounded-lg shadow-xl w-full max-w-5xl max-h-[90vh] overflow-y-auto">
-          <div className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-bold text-gray-800">
-                Leave Details - {formatFullDate(selectedCalendarDate)}
-              </h3>
-              <button
-                onClick={closeCalendarLeaveModal}
-                className="text-gray-500 hover:text-gray-700 text-2xl"
-              >
-                ×
-              </button>
-            </div>
-
-            {selectedCalendarLeaves.length === 0 ? (
-              <div className="text-center text-gray-500 py-8">No leaves for this date</div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full text-sm border">
-                  <thead className="bg-gray-100 text-gray-700">
-                    <tr>
-                      <th className="text-left px-4 py-2 border">User Name</th>
-                      <th className="text-left px-4 py-2 border">Role</th>
-                      <th className="text-left px-4 py-2 border">From Date</th>
-                      <th className="text-left px-4 py-2 border">To Date</th>
-                      <th className="text-left px-4 py-2 border">Leave Reason</th>
-                      <th className="text-left px-4 py-2 border">Alternate</th>
-                      <th className="text-left px-4 py-2 border">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {selectedCalendarLeaves.map((leave) => (
-                      <tr key={leave.id} className="border-t">
-                        <td className="px-4 py-2 border">{leave.user_name}</td>
-                        <td className="px-4 py-2 border">{leave.user_role || '—'}</td>
-                        <td className="px-4 py-2 border">{formatFullDate(parseDateOnly(leave.from_date))}</td>
-                        <td className="px-4 py-2 border">{formatFullDate(parseDateOnly(leave.to_date))}</td>
-                        <td className="px-4 py-2 border">{leave.leave_reason || '—'}</td>
-                        <td className="px-4 py-2 border">{formatAlternate(leave)}</td>
-                        <td className="px-4 py-2 border">
-                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold text-white ${getLeaveBadgeColor(leave.status)}`}>
-                            {leave.status || '—'}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    )}
-
     {/* Date Detail Modal */}
     {showDateDetail && selectedDate && (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -765,7 +660,7 @@ const EmployeeCalendar = ({ joinDate }) => {
                 {formatFullDate(selectedDate)}
               </h3>
               <button
-                onClick={() => setShowDateDetail(false)}
+                onClick={handleCloseDateDetail}
                 className="text-gray-500 hover:text-gray-700 text-2xl"
               >
                 ×
@@ -821,7 +716,7 @@ const EmployeeCalendar = ({ joinDate }) => {
                     <button
                       onClick={() => {
                         openEditForm(leave);
-                        setShowDateDetail(false);
+                        handleCloseDateDetail();
                       }}
                       className="flex-1 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
                     >
@@ -831,7 +726,7 @@ const EmployeeCalendar = ({ joinDate }) => {
                       onClick={() => {
                         if (window.confirm('Are you sure you want to cancel this leave?')) {
                           handleCancelLeave(leave.id);
-                          setShowDateDetail(false);
+                          handleCloseDateDetail();
                         }
                       }}
                       className="flex-1 px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
@@ -857,7 +752,7 @@ const EmployeeCalendar = ({ joinDate }) => {
                 {editingLeave ? 'Edit Leave Application' : 'Apply for Leave'}
               </h3>
               <button
-                onClick={() => setShowLeaveForm(false)}
+                onClick={handleCloseLeaveForm}
                 className="text-gray-500 hover:text-gray-700 text-2xl"
               >
                 ×
@@ -1010,7 +905,7 @@ const EmployeeCalendar = ({ joinDate }) => {
               <div className="flex justify-end gap-3 pt-4">
                 <button
                   type="button"
-                  onClick={() => setShowLeaveForm(false)}
+                  onClick={handleCloseLeaveForm}
                   className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
                 >
                   Cancel

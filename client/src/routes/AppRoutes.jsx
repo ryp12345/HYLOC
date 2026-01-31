@@ -9,6 +9,7 @@ import AdminDashboard from '../pages/admin/Dashboard';
 import ManagementDashboard from '../pages/management/ManagementDashboard';
 import ManagementLeavesPage from '../pages/management/leaves/LeavesPage';
 import EmployeeDashboard from '../pages/employee/EmployeeDashboard';
+import ManagerDashboard from '../pages/manager/ManagerDashboard';
 import UsersPage from '../pages/admin/UsersPage';
 import UserRolePage from '../pages/admin/UserRolePage';
 import DepartmentsPage from '../pages/admin/DepartmentsPage';
@@ -130,7 +131,7 @@ const DashboardRedirect = () => {
   }
 
   if (userRole === 'manager') {
-    return <Navigate to="/manager/leaves" replace />;
+    return <Navigate to="/manager/dashboard" replace />;
   }
 
   // Employee or any other role defaults to employee dashboard
@@ -282,6 +283,18 @@ const AppRoutes = () => {
               <ProtectedRoute>
                 <DashboardLayout>
                   <ManagementDashboard />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Manager Dashboard */}
+          <Route
+            path="/manager/dashboard"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <ManagerDashboard />
                 </DashboardLayout>
               </ProtectedRoute>
             }
