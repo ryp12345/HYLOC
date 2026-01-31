@@ -15,6 +15,17 @@ export const getDepartmentColleagues = async () => {
 };
 
 /**
+ * Get department colleague leaves (for Employee/Manager calendar view)
+ */
+export const getDepartmentLeaves = async (filters = {}) => {
+  const params = new URLSearchParams();
+  if (filters.year) params.append('year', filters.year);
+  
+  const query = params.toString();
+  return await axios.get(`/leaves/department-leaves${query ? `?${query}` : ''}`);
+};
+
+/**
  * Apply for leave
  */
 export const applyLeave = async (leaveData) => {
@@ -83,7 +94,7 @@ export const getPendingLeaves = async (filters = {}) => {
 };
 
 /**
- * Get all leaves (for Management/HR)
+ * Get all leaves (for Management and Manager)
  */
 export const getAllLeaves = async (filters = {}) => {
   const params = new URLSearchParams();

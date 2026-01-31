@@ -6,7 +6,8 @@ import {
   updateLeave, 
   cancelLeave,
   checkLeaveEligibility,
-  getDepartmentColleagues 
+  getDepartmentColleagues,
+  getDepartmentLeaves
 } from '../../../api/leaveApi';
 
 const EmployeeCalendar = ({ joinDate }) => {
@@ -21,6 +22,10 @@ const EmployeeCalendar = ({ joinDate }) => {
   const [colleagues, setColleagues] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [calendarLeaves, setCalendarLeaves] = useState([]);
+  const [showCalendarLeaveModal, setShowCalendarLeaveModal] = useState(false);
+  const [selectedCalendarDate, setSelectedCalendarDate] = useState(null);
+  const [selectedCalendarLeaves, setSelectedCalendarLeaves] = useState([]);
   
   // Form state
   const [showLeaveForm, setShowLeaveForm] = useState(false);
@@ -49,6 +54,7 @@ const EmployeeCalendar = ({ joinDate }) => {
       
       // Load leaves for current year
       const leavesResponse = await getMyLeaves({ year });
+      console.log('My leaves loaded:', leavesResponse.data.data);
       setLeaves(leavesResponse.data.data || []);
       
       // Load leave balance
@@ -65,6 +71,11 @@ const EmployeeCalendar = ({ joinDate }) => {
       console.log('Colleagues data:', colleaguesResponse.data.data);
       console.log('Colleagues count:', colleaguesResponse.data.data?.length);
       setColleagues(colleaguesResponse.data.data || []);
+
+      const departmentLeavesResponse = await getDepartmentLeaves({ year });
+      const departmentLeaves = departmentLeavesResponse.data.data || [];
+      console.log('Department leaves loaded:', departmentLeaves);
+      setCalendarLeaves(departmentLeaves);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to load data');
       console.error('Error loading data:', err);
@@ -82,11 +93,19 @@ const EmployeeCalendar = ({ joinDate }) => {
     }));
   };
 
+  // Format date as YYYY-MM-DD in local timezone (not UTC)
+  const formatDateForInput = (date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   // Open leave form for new application
   const openLeaveForm = (date = null) => {
     const formattedDate = date 
-      ? date.toISOString().split('T')[0]
-      : selectedDate.toISOString().split('T')[0];
+      ? formatDateForInput(date)
+      : formatDateForInput(selectedDate);
     
     setLeaveForm({
       from_date: formattedDate,
@@ -127,8 +146,8 @@ const EmployeeCalendar = ({ joinDate }) => {
     } else {
       // If no leave, directly open the form with this date
       setLeaveForm({
-        from_date: date.toISOString().split('T')[0],
-        to_date: date.toISOString().split('T')[0],
+        from_date: formatDateForInput(date),
+        to_date: formatDateForInput(date),
         leave_duration: 'Full Day',
         leave_reason: '',
         alternate_person: '',
@@ -185,22 +204,72 @@ const EmployeeCalendar = ({ joinDate }) => {
     }
   };
 
+  // Date helpers (avoid UTC shifting)
+  const parseDateOnly = (dateString) => {
+    if (!dateString) return null;
+    // Extract just the date part if it's an ISO datetime string
+    const datePart = dateString.split('T')[0];
+    const [year, month, day] = datePart.split('-').map(Number);
+    const d = new Date(year, month - 1, day);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  };
+
+  const toLocalDateOnly = (date) => {
+    const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    d.setHours(0, 0, 0, 0);
+    return d;
+  };
+
   // Check if a date has leave
   const getLeaveForDate = (date) => {
     if (!date) return null;
-    
-    const dateStr = date.toISOString().split('T')[0];
-    return leaves.find(leave => {
-      const fromDate = new Date(leave.from_date);
-      const toDate = new Date(leave.to_date);
-      const checkDate = new Date(dateStr);
-      
-      fromDate.setHours(0, 0, 0, 0);
-      toDate.setHours(0, 0, 0, 0);
-      checkDate.setHours(0, 0, 0, 0);
-      
-      return checkDate >= fromDate && checkDate <= toDate;
+
+    const checkTime = toLocalDateOnly(date).getTime();
+    const result = leaves.find((leave) => {
+      const fromDate = parseDateOnly(leave.from_date);
+      const toDate = parseDateOnly(leave.to_date);
+      if (!fromDate || !toDate) return false;
+
+      const matches = checkTime >= fromDate.getTime() && checkTime <= toDate.getTime();
+      if (matches) {
+        console.log('Leave match found:', { date: date.toDateString(), leave, checkTime, fromTime: fromDate.getTime(), toTime: toDate.getTime() });
+      }
+      return matches;
     });
+    return result;
+  };
+
+  const getCalendarLeavesForDate = (date) => {
+    if (!date) return [];
+    const checkTime = toLocalDateOnly(date).getTime();
+    return calendarLeaves.filter((leave) => {
+      const fromDate = parseDateOnly(leave.from_date);
+      const toDate = parseDateOnly(leave.to_date);
+      if (!fromDate || !toDate) return false;
+
+      return checkTime >= fromDate.getTime() && checkTime <= toDate.getTime();
+    });
+  };
+
+  const openCalendarLeaveModal = (date) => {
+    const dayLeaves = getCalendarLeavesForDate(date);
+    setSelectedCalendarDate(date);
+    setSelectedCalendarLeaves(dayLeaves);
+    setShowCalendarLeaveModal(true);
+  };
+
+  const closeCalendarLeaveModal = () => {
+    setShowCalendarLeaveModal(false);
+    setSelectedCalendarDate(null);
+    setSelectedCalendarLeaves([]);
+  };
+
+  const formatAlternate = (leave) => {
+    const primary = leave.alternate_person || '';
+    const additional = leave.additional_alternate || '';
+    if (primary && additional) return `${primary}, ${additional}`;
+    return primary || additional || '—';
   };
 
   // Get leave badge color
@@ -314,26 +383,26 @@ const EmployeeCalendar = ({ joinDate }) => {
         </div>
       )}
 
-      {/* Leave Balance Card */}
+      {/* Leave Balance Cards */}
       {leaveBalance && (
-        <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg shadow-lg p-6 text-white">
-          <h3 className="text-lg font-semibold mb-4">Leave Balance - {currentDate.getFullYear()}</h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div>
-              <p className="text-sm opacity-90">Entitled</p>
-              <p className="text-2xl font-bold">{leaveBalance.leave_entitled}</p>
+        <div>
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">Leave Balance - {currentDate.getFullYear()}</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg shadow-lg p-6 text-white">
+              <p className="text-sm opacity-90 mb-2">Entitled</p>
+              <p className="text-3xl font-bold">{leaveBalance.leave_entitled}</p>
             </div>
-            <div>
-              <p className="text-sm opacity-90">Accumulated</p>
-              <p className="text-2xl font-bold">{leaveBalance.leaves_accumulated}</p>
+            <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-lg shadow-lg p-6 text-white">
+              <p className="text-sm opacity-90 mb-2">Accumulated</p>
+              <p className="text-3xl font-bold">{leaveBalance.leaves_accumulated}</p>
             </div>
-            <div>
-              <p className="text-sm opacity-90">Availed</p>
-              <p className="text-2xl font-bold">{leaveBalance.leaves_availed}</p>
+            <div className="bg-gradient-to-r from-yellow-500 to-yellow-600 rounded-lg shadow-lg p-6 text-white">
+              <p className="text-sm opacity-90 mb-2">Availed</p>
+              <p className="text-3xl font-bold">{leaveBalance.leaves_availed}</p>
             </div>
-            <div>
-              <p className="text-sm opacity-90">Available</p>
-              <p className="text-2xl font-bold">{leaveBalance.leave_balance}</p>
+            <div className="bg-gradient-to-r from-red-500 to-red-600 rounded-lg shadow-lg p-6 text-white">
+              <p className="text-sm opacity-90 mb-2">Available</p>
+              <p className="text-3xl font-bold">{leaveBalance.leave_balance}</p>
             </div>
           </div>
         </div>
@@ -392,11 +461,23 @@ const EmployeeCalendar = ({ joinDate }) => {
       {/* Month View */}
       {viewMode === 'month' && (
         <div>
-          {/* Month Header */}
-          <div className="mb-6">
-            <h3 className="text-xl font-semibold text-gray-800 text-center">
+          {/* Month Header with Navigation */}
+          <div className="mb-6 flex items-center justify-center gap-4">
+            <button
+              onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1))}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold text-lg"
+            >
+              &lt;
+            </button>
+            <h3 className="text-xl font-semibold text-gray-800 min-w-48 text-center">
               {formatMonthYear(currentDate)}
             </h3>
+            <button
+              onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1))}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold text-lg"
+            >
+              &gt;
+            </button>
           </div>
 
           {/* Day Headers */}
@@ -415,6 +496,7 @@ const EmployeeCalendar = ({ joinDate }) => {
           <div className="grid grid-cols-7 gap-1">
             {monthDays.map((date, index) => {
               const leave = getLeaveForDate(date);
+              const dayCalendarLeaves = getCalendarLeavesForDate(date);
               return (
                 <div
                   key={index}
@@ -439,16 +521,31 @@ const EmployeeCalendar = ({ joinDate }) => {
                       )}
                       {leave && (
                         <button 
-                          className={`mt-1 w-full px-2 py-1.5 rounded text-white text-xs font-medium shadow-sm hover:shadow-md transition-all ${getLeaveBadgeColor(leave.status)} hover:opacity-90`}
+                          className="mt-1 w-full px-2 py-1.5 rounded bg-blue-600 text-white text-xs font-medium shadow-sm hover:shadow-md transition-all hover:bg-blue-700"
                           title="Click to view/edit leave"
                           onClick={(e) => {
                             e.stopPropagation();
                             handleDateClick(date);
                           }}
                         >
-                          <div className="font-semibold text-center">{leave.status}</div>
-                          <div className="text-xs text-center truncate">{leave.leave_duration}</div>
+                          <div className="font-semibold text-center">My Leave</div>
                         </button>
+                      )}
+                      {dayCalendarLeaves.length > 0 && (
+                        <div className="mt-2 space-y-1">
+                          <button
+                            className="w-full px-2 py-1 rounded bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-colors"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openCalendarLeaveModal(date);
+                            }}
+                          >
+                            Team Leave
+                          </button>
+                          <div className="text-[10px] text-gray-500 text-center">
+                            {dayCalendarLeaves.length} leave(s)
+                          </div>
+                        </div>
                       )}
                     </>
                   )}
@@ -484,7 +581,9 @@ const EmployeeCalendar = ({ joinDate }) => {
 
           {/* Week Grid */}
           <div className="grid grid-cols-7 gap-1">
-            {weekDays.map((date) => (
+            {weekDays.map((date) => {
+              const dayCalendarLeaves = getCalendarLeavesForDate(date);
+              return (
               <div
                 key={date.toISOString()}
                 className={`min-h-[150px] p-3 rounded border-2 transition-all cursor-pointer ${
@@ -502,8 +601,25 @@ const EmployeeCalendar = ({ joinDate }) => {
                 {isToday(date) && (
                   <div className="text-blue-600 text-xs font-italic">Today</div>
                 )}
+                {dayCalendarLeaves.length > 0 && (
+                  <div className="mt-2 space-y-1">
+                    <button
+                      className="w-full px-2 py-1 rounded bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-colors"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openCalendarLeaveModal(date);
+                      }}
+                    >
+                      Team Leave
+                    </button>
+                    <div className="text-[10px] text-gray-500 text-center">
+                      {dayCalendarLeaves.length} leave(s)
+                    </div>
+                  </div>
+                )}
               </div>
-            ))}
+            );
+            })}
           </div>
         </div>
       )}
@@ -581,6 +697,63 @@ const EmployeeCalendar = ({ joinDate }) => {
         </div>
       )}
     </div>
+
+    {showCalendarLeaveModal && selectedCalendarDate && (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="bg-white rounded-lg shadow-xl w-full max-w-5xl max-h-[90vh] overflow-y-auto">
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-gray-800">
+                Leave Details - {formatFullDate(selectedCalendarDate)}
+              </h3>
+              <button
+                onClick={closeCalendarLeaveModal}
+                className="text-gray-500 hover:text-gray-700 text-2xl"
+              >
+                ×
+              </button>
+            </div>
+
+            {selectedCalendarLeaves.length === 0 ? (
+              <div className="text-center text-gray-500 py-8">No leaves for this date</div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm border">
+                  <thead className="bg-gray-100 text-gray-700">
+                    <tr>
+                      <th className="text-left px-4 py-2 border">User Name</th>
+                      <th className="text-left px-4 py-2 border">Role</th>
+                      <th className="text-left px-4 py-2 border">From Date</th>
+                      <th className="text-left px-4 py-2 border">To Date</th>
+                      <th className="text-left px-4 py-2 border">Leave Reason</th>
+                      <th className="text-left px-4 py-2 border">Alternate</th>
+                      <th className="text-left px-4 py-2 border">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedCalendarLeaves.map((leave) => (
+                      <tr key={leave.id} className="border-t">
+                        <td className="px-4 py-2 border">{leave.user_name}</td>
+                        <td className="px-4 py-2 border">{leave.user_role || '—'}</td>
+                        <td className="px-4 py-2 border">{formatFullDate(parseDateOnly(leave.from_date))}</td>
+                        <td className="px-4 py-2 border">{formatFullDate(parseDateOnly(leave.to_date))}</td>
+                        <td className="px-4 py-2 border">{leave.leave_reason || '—'}</td>
+                        <td className="px-4 py-2 border">{formatAlternate(leave)}</td>
+                        <td className="px-4 py-2 border">
+                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold text-white ${getLeaveBadgeColor(leave.status)}`}>
+                            {leave.status || '—'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    )}
 
     {/* Date Detail Modal */}
     {showDateDetail && selectedDate && (

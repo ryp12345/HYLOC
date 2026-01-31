@@ -1,4 +1,4 @@
-const leaveService = require('../services/leave.service');
+﻿const leaveService = require('../services/leave.service');
 const leaveModel = require('../models/leave.model');
 const entitlementModel = require('../models/leaveEntitlement.model');
 const userModel = require('../models/user.model');
@@ -354,18 +354,18 @@ exports.getPendingLeaves = async (req, res, next) => {
 };
 
 /**
- * Get all leaves (for Management/HR)
+ * Get all leaves (for Management)
  * GET /api/leaves/all
  */
 exports.getAllLeaves = async (req, res, next) => {
   try {
     const userRole = req.user.role;
     
-    // Only Management and HR can view all leaves
-    if (!['Management', 'HR'].includes(userRole)) {
+    // Only Management and Manager can view all leaves
+    if (!['Management', 'Manager'].includes(userRole)) {
       return res.status(403).json({
         success: false,
-        message: 'Forbidden: Only Management and HR can view all leaves'
+        message: 'Forbidden: Only Management and Manager can view all leaves'
       });
     }
     
@@ -557,6 +557,65 @@ exports.rejectLeave = async (req, res, next) => {
       success: true,
       message: 'Leave rejected',
       data: rejectedLeave
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Get department colleague leaves (for Employee calendar view)
+ * GET /api/leaves/department-leaves
+ */
+exports.getDepartmentLeaves = async (req, res, next) => {
+  try {
+    const userId = req.user.userId;
+    const userRole = req.user.role;
+    
+    // Get user's department
+    const user = await userModel.findUserById(userId);
+    
+    if (!user || !user.department_id) {
+      return res.status(200).json({
+        success: true,
+        data: [],
+        message: 'User has no department assigned'
+      });
+    }
+    
+    const filters = {
+      department_id: user.department_id,
+      year: req.query.year ? parseInt(req.query.year) : new Date().getFullYear()
+    };
+    
+    // Employee: Only see other Employees in same department
+    // Manager: See Employees in same department + Managers from other departments
+    const allLeaves = await leaveModel.getAllLeaves(filters);
+    
+    let filteredLeaves;
+    if (userRole === 'Employee') {
+      // Employees see only other Employees in their department
+      filteredLeaves = allLeaves.filter(leave => leave.user_role === 'Employee');
+    } else if (userRole === 'Manager') {
+      // Managers see Employees in their department + all other Managers
+      filteredLeaves = allLeaves.filter(leave => {
+        if (leave.user_role === 'Employee') {
+          return leave.department_id === user.department_id;
+        }
+        if (leave.user_role === 'Manager') {
+          return leave.department_id !== user.department_id;
+        }
+        return false;
+      });
+    } else {
+      // Management sees all
+      filteredLeaves = allLeaves;
+    }
+    
+    res.status(200).json({
+      success: true,
+      data: filteredLeaves,
+      message: 'Department leaves fetched successfully'
     });
   } catch (error) {
     next(error);

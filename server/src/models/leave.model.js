@@ -114,9 +114,18 @@ exports.getAllLeaves = async (filters = {}) => {
            u.firstname || ' ' || u.lastname as user_name,
            u.empid,
            u.department_id,
+           user_role.role_name as user_role,
            approver.firstname || ' ' || approver.lastname as approver_name
     FROM leaves l
     LEFT JOIN users u ON l.user_id = u.id
+    LEFT JOIN LATERAL (
+      SELECT r.role_name
+      FROM user_roles ur
+      JOIN roles r ON ur.role_id = r.id
+      WHERE ur.user_id = u.id
+      ORDER BY ur.id ASC
+      LIMIT 1
+    ) user_role ON TRUE
     LEFT JOIN users approver ON l.approved_by = approver.id
     WHERE 1=1
   `;
@@ -164,7 +173,7 @@ exports.updateLeave = async (id, updateData) => {
   const allowedFields = [
     'from_date', 'to_date', 'leave_duration', 'credited_days',
     'leave_reason', 'alternate_person', 'additional_alternate',
-    'available_on_phone', 'status', 'approved_by', 'approved_at',
+    'available_on_phone', 'status', 'approved_by',
     'rejection_reason'
   ];
   
@@ -240,9 +249,18 @@ exports.getPendingLeaves = async (filters = {}) => {
     SELECT l.*, 
            u.firstname || ' ' || u.lastname as user_name,
            u.empid,
-           u.department_id
+           u.department_id,
+           user_role.role_name as user_role
     FROM leaves l
     LEFT JOIN users u ON l.user_id = u.id
+    LEFT JOIN LATERAL (
+      SELECT r.role_name
+      FROM user_roles ur
+      JOIN roles r ON ur.role_id = r.id
+      WHERE ur.user_id = u.id
+      ORDER BY ur.id ASC
+      LIMIT 1
+    ) user_role ON TRUE
     WHERE l.status = 'Pending'
   `;
   
@@ -268,6 +286,49 @@ exports.getPendingLeaves = async (filters = {}) => {
 };
 
 /**
+ * Get department leaves for Manager (Employee leaves only)
+ * @param {Object} filters - Filters like department_id, status
+ * @returns {Promise<Array>} Array of leave records
+ */
+exports.getDepartmentLeavesForManager = async (filters = {}) => {
+  let query = `
+    SELECT l.*, 
+           u.firstname || ' ' || u.lastname as user_name,
+           u.empid,
+           u.department_id,
+           user_role.role_name as user_role,
+           approver.firstname || ' ' || approver.lastname as approver_name
+    FROM leaves l
+    LEFT JOIN users u ON l.user_id = u.id
+    LEFT JOIN LATERAL (
+      SELECT r.role_name
+      FROM user_roles ur
+      JOIN roles r ON ur.role_id = r.id
+      WHERE ur.user_id = u.id
+      ORDER BY ur.id ASC
+      LIMIT 1
+    ) user_role ON TRUE
+    LEFT JOIN users approver ON l.approved_by = approver.id
+    WHERE u.department_id = $1
+      AND user_role.role_name = 'Employee'
+  `;
+
+  const values = [filters.department_id];
+  let paramCount = 1;
+
+  if (filters.status) {
+    paramCount++;
+    query += ` AND l.status = $${paramCount}`;
+    values.push(filters.status);
+  }
+
+  query += ` ORDER BY l.created_at ASC`;
+
+  const result = await db.query(query, values);
+  return result.rows;
+};
+
+/**
  * Approve a leave
  * @param {number} leaveId - Leave ID
  * @param {number} approverId - ID of user approving
@@ -277,8 +338,7 @@ exports.approveLeave = async (leaveId, approverId) => {
   const query = `
     UPDATE leaves
     SET status = 'Approved',
-        approved_by = $1,
-        approved_at = NOW()
+        approved_by = $1
     WHERE id = $2
     RETURNING *
   `;
@@ -299,7 +359,6 @@ exports.rejectLeave = async (leaveId, rejectorId, reason) => {
     UPDATE leaves
     SET status = 'Rejected',
         approved_by = $1,
-        approved_at = NOW(),
         rejection_reason = $2
     WHERE id = $3
     RETURNING *

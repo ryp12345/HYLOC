@@ -11,6 +11,7 @@ router.use(authenticate);
 // Employee and Manager routes (can apply and manage own leaves)
 router.get('/eligibility', leaveController.checkEligibility);
 router.get('/department-colleagues', authorize('Employee', 'Manager'), leaveController.getDepartmentColleagues);
+router.get('/department-leaves', authorize('Employee', 'Manager'), leaveController.getDepartmentLeaves);
 router.post('/', authorize('Employee', 'Manager'), leaveController.applyLeave);
 router.get('/my-leaves', authorize('Employee', 'Manager'), leaveController.getMyLeaves);
 router.get('/balance', authorize('Employee', 'Manager'), leaveController.getMyBalance);
@@ -23,8 +24,8 @@ router.get('/pending', authorize('Manager', 'Management'), leaveController.getPe
 router.post('/:id/approve', authorize('Manager', 'Management'), leaveController.approveLeave);
 router.post('/:id/reject', authorize('Manager', 'Management'), leaveController.rejectLeave);
 
-// Management and HR routes (view all)
-router.get('/all', authorize('Management', 'HR'), leaveController.getAllLeaves);
+// Management and Manager routes (view all)
+router.get('/all', authorize('Management', 'Manager'), leaveController.getAllLeaves);
 
 // Common route (view specific leave - with permission check in controller)
 router.get('/:id', leaveController.getLeaveById);

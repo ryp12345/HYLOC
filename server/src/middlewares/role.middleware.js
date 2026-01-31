@@ -6,7 +6,11 @@ exports.authorize = (...allowedRoles) => {
       return sendError(res, 'User not authenticated', 401);
     }
 
-    if (!allowedRoles.includes(req.user.role)) {
+    // Case-insensitive role comparison
+    const userRole = req.user.role ? req.user.role.toLowerCase() : '';
+    const normalizedAllowedRoles = allowedRoles.map(role => role.toLowerCase());
+
+    if (!normalizedAllowedRoles.includes(userRole)) {
       return sendError(res, 'Access denied. Insufficient permissions', 403);
     }
 

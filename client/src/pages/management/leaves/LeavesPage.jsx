@@ -1,5 +1,5 @@
 import React from 'react';
-import EmployeeCalendar from '../../employee/leaves/EmployeeCalendar';
+import ManagementCalendar from './ManagementCalendar';
 
 const LeavesPage = () => {
 	return (
@@ -11,7 +11,7 @@ const LeavesPage = () => {
 				</div>
 			</div>
 
-			<EmployeeCalendar />
+			<ManagementCalendar />
 		</div>
 	);
 };

@@ -7,6 +7,7 @@ import Login from '../pages/auth/Login';
 import Register from '../pages/auth/Register';
 import AdminDashboard from '../pages/admin/Dashboard';
 import ManagementDashboard from '../pages/management/ManagementDashboard';
+import ManagementLeavesPage from '../pages/management/leaves/LeavesPage';
 import EmployeeDashboard from '../pages/employee/EmployeeDashboard';
 import UsersPage from '../pages/admin/UsersPage';
 import UserRolePage from '../pages/admin/UserRolePage';
@@ -19,6 +20,8 @@ import KmisPage from '../pages/admin/KmisPage';
 import KmiDetail from '../pages/admin/KmiDetail';
 import EmployeeLeavesPage from '../pages/employee/leaves/LeavesPage';
 import ManagerLeavesPage from '../pages/manager/leaves/LeavesPage';
+import ManagerLeaveApprovalPage from '../pages/manager/leaves/LeaveApprovalPage';
+import ManagementLeaveApprovalPage from '../pages/management/leaves/LeaveApprovalPage';
 
 // Layouts & Route Guards
 import ProtectedRoute from './ProtectedRoute';
@@ -118,7 +121,7 @@ const DashboardRedirect = () => {
   // Check role (case-insensitive) and redirect accordingly
   const userRole = user.role?.toLowerCase();
 
-  if (userRole === 'admin' || userRole === 'hr') {
+  if (userRole === 'admin') {
     return <Navigate to="/admin/dashboard" replace />;
   }
 
@@ -284,6 +287,30 @@ const AppRoutes = () => {
             }
           />
 
+          {/* Management Leave Approval */}
+          <Route
+            path="/management/leave-approval"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <ManagementLeaveApprovalPage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Management Leaves */}
+          <Route
+            path="/management/leaves"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <ManagementLeavesPage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+
           {/* Employee Dashboard */}
           <Route
             path="/employee/dashboard"
@@ -315,6 +342,18 @@ const AppRoutes = () => {
               <ProtectedRoute>
                 <DashboardLayout>
                   <ManagerLeavesPage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Manager Leave Approval */}
+          <Route
+            path="/manager/leave-approval"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <ManagerLeaveApprovalPage />
                 </DashboardLayout>
               </ProtectedRoute>
             }

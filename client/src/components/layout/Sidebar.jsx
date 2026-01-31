@@ -35,7 +35,14 @@ const Sidebar = () => {
     { name: 'Dashboard', path: getDashboardPath(), icon: '📊' },
     { name: 'Team', path: '/management/team', icon: '👥' },
     { name: 'Leaves', path: '/management/leaves', icon: '📅' },
+    { name: 'Leave Approval', path: '/management/leave-approval', icon: '✅' },
     { name: 'Reports', path: '/management/reports', icon: '📊' }
+  ];
+
+  const managerLinks = [
+    { name: 'Dashboard', path: getDashboardPath(), icon: '📊' },
+    { name: 'Leaves', path: '/manager/leaves', icon: '📅' },
+    { name: 'Leave Approval', path: '/manager/leave-approval', icon: '✅' }
   ];
 
   const employeeLinks = [
@@ -53,8 +60,9 @@ const Sidebar = () => {
     (user?.empid || '').toString() === '10000';
 
   const isManagement = roleValue === 'management';
+  const isManager = roleValue === 'manager';
 
-  const links = isAdmin ? adminLinks : isManagement ? managementLinks : employeeLinks;
+  const links = isAdmin ? adminLinks : isManagement ? managementLinks : isManager ? managerLinks : employeeLinks;
 
   return (
     <aside
