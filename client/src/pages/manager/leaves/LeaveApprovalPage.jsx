@@ -29,15 +29,25 @@ const LeaveApprovalPage = () => {
     setLoading(true);
     setError(null);
     try {
-      // Manager sees Employee leaves <= 2 days only
+      // Manager sees Employee leaves from same department, <= 2 days only
       const response = await getAllLeaves({});
       const allLeaves = response.data.data || [];
       
-      // Filter: Employee role with credited_days <= 2
+      // Get manager's department from user object
+      const managerDepartmentId = user?.departmentId || user?.department_id;
+      console.log('Manager department ID:', managerDepartmentId);
+      console.log('Manager user object:', user);
+      
+      // Filter: Employee role with credited_days <= 2 AND same department
       const filtered = allLeaves.filter(leave => {
         const role = leave.user_role;
         const duration = parseFloat(leave.credited_days);
-        return role === 'Employee' && duration <= 2;
+        const leaveDepartmentId = leave.department_id;
+        const matches = role === 'Employee' && duration <= 2 && leaveDepartmentId === managerDepartmentId;
+        if (role === 'Employee') {
+          console.log(`Leave ${leave.id}: duration=${duration}, dept=${leaveDepartmentId}, matches=${matches}`);
+        }
+        return matches;
       });
       
       setEmployeeLeaves(filtered);

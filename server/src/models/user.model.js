@@ -41,6 +41,21 @@ exports.createUser = async (userData) => {
       `;
       await client.query(userRoleQuery, [user.id, roleId]);
     }
+
+    // Create leave entitlement for current year based on joining month
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1;
+    const leaveEntitled = 12 - month + 1;
+
+    const entitlementQuery = `
+      INSERT INTO leaves_entitlement (
+        user_id, year, leave_entitled, leaves_accumulated, leaves_availed
+      )
+      VALUES ($1, $2, $3, 0.0, 0.0)
+      ON CONFLICT (user_id, year) DO NOTHING
+    `;
+    await client.query(entitlementQuery, [user.id, year, leaveEntitled]);
     
     await client.query('COMMIT');
     

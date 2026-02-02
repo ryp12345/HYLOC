@@ -174,7 +174,7 @@ exports.updateLeave = async (id, updateData) => {
     'from_date', 'to_date', 'leave_duration', 'credited_days',
     'leave_reason', 'alternate_person', 'additional_alternate',
     'available_on_phone', 'status', 'approved_by',
-    'rejection_reason'
+    'rejection_reason', 'leave_type'
   ];
   
   const setClause = [];

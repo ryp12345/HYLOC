@@ -172,7 +172,11 @@ const ManagerCalendar = ({ joinDate }) => {
         await updateLeave(editingLeave.id, leaveForm);
       } else {
         // Create new leave
-        await applyLeave(leaveForm);
+        const response = await applyLeave(leaveForm);
+        if (response?.data?.data?.split) {
+          const count = response?.data?.data?.records?.length || 2;
+          window.alert(`Your leave was split into ${count} separate requests (Paid/Unpaid).`);
+        }
       }
       
       handleCloseLeaveForm();

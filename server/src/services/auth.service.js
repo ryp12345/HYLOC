@@ -70,6 +70,7 @@ exports.login = async (empid, password) => {
       firstName: user.firstname,
       lastName: user.lastname,
       empid: user.empid,
+      departmentId: user.department_id,
       role: userRole
     },
     accessToken,

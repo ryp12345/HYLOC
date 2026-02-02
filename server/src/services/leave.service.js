@@ -133,23 +133,113 @@ exports.applyLeave = async (userId, leaveData, userRole) => {
     
     // 4. Get current year
     const year = new Date(leaveData.from_date).getFullYear();
-    
-    // 5. Create leave record
-    const leaveRecord = await leaveModel.createLeave({
-      user_id: userId,
-      from_date: leaveData.from_date,
-      to_date: normalizedToDate,
-      leave_duration: leaveData.leave_duration || 'Full Day',
-      credited_days: creditedDays,
-      leave_reason: leaveData.leave_reason,
-      leave_type: leaveData.leave_type || 'Paid',
-      alternate_person: leaveData.alternate_person,
-      additional_alternate: leaveData.additional_alternate,
-      available_on_phone: leaveData.available_on_phone !== undefined ? leaveData.available_on_phone : true
-    });
-    
-    // 6. Update leaves_availed in entitlement
-    await entitlementModel.updateLeavesAvailed(userId, year, creditedDays, client);
+
+    // 5. Determine paid/unpaid based on balance
+    const balanceInfo = await entitlementModel.getLeaveBalance(userId, year);
+    const availableBalance = parseFloat(balanceInfo.leave_balance || 0);
+
+    const toDateString = (date) => {
+      const yyyy = date.getFullYear();
+      const mm = String(date.getMonth() + 1).padStart(2, '0');
+      const dd = String(date.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
+    };
+
+    const addDays = (dateStr, days) => {
+      const d = new Date(`${dateStr}T00:00:00`);
+      d.setDate(d.getDate() + days);
+      return toDateString(d);
+    };
+
+    const createLeaveSegment = async (segment) => {
+      return await leaveModel.createLeave({
+        user_id: userId,
+        from_date: segment.from_date,
+        to_date: segment.to_date,
+        leave_duration: segment.leave_duration,
+        credited_days: segment.credited_days,
+        leave_reason: leaveData.leave_reason,
+        leave_type: segment.leave_type,
+        alternate_person: leaveData.alternate_person,
+        additional_alternate: leaveData.additional_alternate,
+        available_on_phone: leaveData.available_on_phone !== undefined ? leaveData.available_on_phone : true
+      });
+    };
+
+    // 6. Create leave record(s)
+    const leaveDuration = leaveData.leave_duration || 'Full Day';
+    const isFullDay = leaveDuration === 'Full Day';
+    let leaveRecord = null;
+
+    if (!isFullDay) {
+      // Half-day leave: no split across multiple records
+      const leaveType = availableBalance >= creditedDays ? 'Paid' : 'Unpaid';
+      leaveRecord = await createLeaveSegment({
+        from_date: leaveData.from_date,
+        to_date: normalizedToDate,
+        leave_duration: leaveDuration,
+        credited_days: creditedDays,
+        leave_type: leaveType
+      });
+
+      if (leaveType === 'Paid') {
+        await entitlementModel.updateLeavesAvailed(userId, year, creditedDays, client);
+      }
+    } else if (availableBalance >= creditedDays) {
+      // All paid
+      leaveRecord = await createLeaveSegment({
+        from_date: leaveData.from_date,
+        to_date: normalizedToDate,
+        leave_duration: 'Full Day',
+        credited_days: creditedDays,
+        leave_type: 'Paid'
+      });
+
+      await entitlementModel.updateLeavesAvailed(userId, year, creditedDays, client);
+    } else if (availableBalance <= 0) {
+      // All unpaid
+      leaveRecord = await createLeaveSegment({
+        from_date: leaveData.from_date,
+        to_date: normalizedToDate,
+        leave_duration: 'Full Day',
+        credited_days: creditedDays,
+        leave_type: 'Unpaid'
+      });
+    } else {
+      // Split into two requests (paid + unpaid), integer full days only
+      const paidDays = Math.min(Math.floor(availableBalance), Math.floor(creditedDays));
+      const unpaidDays = creditedDays - paidDays;
+
+      const records = [];
+      let currentDate = leaveData.from_date;
+
+      if (paidDays > 0) {
+        const paidTo = addDays(currentDate, paidDays - 1);
+        records.push(await createLeaveSegment({
+          from_date: currentDate,
+          to_date: paidTo,
+          leave_duration: 'Full Day',
+          credited_days: paidDays,
+          leave_type: 'Paid'
+        }));
+        currentDate = addDays(paidTo, 1);
+      }
+
+      if (unpaidDays > 0) {
+        records.push(await createLeaveSegment({
+          from_date: currentDate,
+          to_date: normalizedToDate,
+          leave_duration: 'Full Day',
+          credited_days: unpaidDays,
+          leave_type: 'Unpaid'
+        }));
+      }
+
+      if (paidDays > 0) {
+        await entitlementModel.updateLeavesAvailed(userId, year, paidDays, client);
+      }
+      leaveRecord = { split: true, records };
+    }
     
     await client.query('COMMIT');
     
@@ -219,8 +309,18 @@ exports.updatePendingLeave = async (leaveId, userId, updateData, userRole) => {
     const difference = newCreditedDays - oldCreditedDays;
     
     if (difference !== 0) {
-      const year = new Date(existingLeave.from_date).getFullYear();
-      await entitlementModel.updateLeavesAvailed(userId, year, difference, client);
+      if (existingLeave.leave_type === 'Paid') {
+        const year = new Date(existingLeave.from_date).getFullYear();
+        
+        if (difference > 0) {
+          const balanceInfo = await entitlementModel.getLeaveBalance(userId, year);
+          const availableBalance = parseFloat(balanceInfo.leave_balance || 0);
+          if (availableBalance < difference) {
+            throw new Error('Insufficient leave balance for update');
+          }
+        }
+        await entitlementModel.updateLeavesAvailed(userId, year, difference, client);
+      }
     }
     
     await client.query('COMMIT');
@@ -260,12 +360,14 @@ exports.cancelLeave = async (leaveId, userId, userRole) => {
     const fromDate = new Date(existingLeave.from_date);
     const year = fromDate.getFullYear();
     
-    await entitlementModel.updateLeavesAvailed(
-      userId,
-      year,
-      -creditedDays,
-      client
-    );
+    if (existingLeave.leave_type === 'Paid') {
+      await entitlementModel.updateLeavesAvailed(
+        userId,
+        year,
+        -creditedDays,
+        client
+      );
+    }
     
     // 4. Delete leave
     await leaveModel.deleteLeave(leaveId);
