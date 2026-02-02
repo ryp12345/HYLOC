@@ -7,7 +7,7 @@ const router = express.Router();
 
 // All leave entitlement routes require authentication and Admin role
 router.use(authenticate);
-router.use(authorize('Admin'));
+router.use(authorize('admin'));
 
 // List entitlements for a year
 router.get('/', leaveEntitlementController.listEntitlements);

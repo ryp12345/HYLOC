@@ -4,7 +4,9 @@ import axios from 'axios';
 const getAPIUrl = () => {
   const hostname = window.location.hostname;
   const port = 3001;
-  return `http://${hostname}:${port}/api`;
+  const url = `http://${hostname}:${port}/api`;
+  console.log('API URL:', url);
+  return url;
 };
 
 export const API_URL = getAPIUrl();
@@ -48,7 +50,7 @@ axiosInstance.interceptors.response.use(
           throw new Error('No refresh token available');
         }
 
-        const response = await axios.post(`${API_URL}/auth/refresh-token`, {
+        const response = await axiosInstance.post('/auth/refresh-token', {
           refreshToken
         });
 

@@ -704,7 +704,7 @@ const ManagerCalendar = ({ joinDate }) => {
                         onClick={() => openEditForm(leave)}
                         className="px-3 py-1 bg-purple-500 text-white rounded hover:bg-purple-600 text-sm"
                       >
-                        Edit
+                        Edit-1
                       </button>
                       <button
                         onClick={() => handleCancelLeave(leave.id)}
@@ -847,7 +847,7 @@ const ManagerCalendar = ({ joinDate }) => {
                         openEditForm(leave);
                         handleCloseDateDetail();
                       }}
-                      className="flex-1 px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600"
+                      className="flex-1 px-4 py-2 bg-blue-500 text-white rounded hover:bg-purple-600"
                     >
                       Edit
                     </button>

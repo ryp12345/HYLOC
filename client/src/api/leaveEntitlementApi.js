@@ -1,33 +1,21 @@
 import axios from './axios';
 
-const BASE_URL = '/api/leave-entitlements';
+const BASE_URL = '/leave-entitlements';
 
 export const getEntitlements = (year, token) =>
-  axios.get(`${BASE_URL}?year=${year}`, {
-    headers: { Authorization: `Bearer ${token}` }
-  });
+  axios.get(`${BASE_URL}?year=${year}`);
 
 export const getStaffWithStatus = (year, token) =>
-  axios.get(`${BASE_URL}/staff?year=${year}`, {
-    headers: { Authorization: `Bearer ${token}` }
-  });
+  axios.get(`${BASE_URL}/staff?year=${year}`);
 
 export const assignLeave = (data, token) =>
-  axios.post(`${BASE_URL}/assign`, data, {
-    headers: { Authorization: `Bearer ${token}` }
-  });
+  axios.post(`${BASE_URL}/assign`, data);
 
 export const bulkAssignLeave = (assignments, token) =>
-  axios.post(`${BASE_URL}/bulk-assign`, { assignments }, {
-    headers: { Authorization: `Bearer ${token}` }
-  });
+  axios.post(`${BASE_URL}/bulk-assign`, { assignments });
 
 export const updateEntitlement = (id, data, token) =>
-  axios.put(`${BASE_URL}/${id}`, data, {
-    headers: { Authorization: `Bearer ${token}` }
-  });
+  axios.put(`${BASE_URL}/${id}`, data);
 
 export const deleteEntitlement = (id, token) =>
-  axios.delete(`${BASE_URL}/${id}`, {
-    headers: { Authorization: `Bearer ${token}` }
-  });
+  axios.delete(`${BASE_URL}/${id}`);

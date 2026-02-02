@@ -14,6 +14,7 @@ import MgtKmiDetail from '../pages/management/MgtKmiDetail';
 
 import ManagementLeavesPage from '../pages/management/leaves/LeavesPage';
 import EmployeeDashboard from '../pages/employee/EmployeeDashboard';
+import EmpKpiKaiPage from '../pages/employee/EmpKpiKaiPage';
 import ManagerDashboard from '../pages/manager/ManagerDashboard';
 import UsersPage from '../pages/admin/UsersPage';
 import LeaveEntitlementPage from '../pages/admin/leaves/LeaveEntitlementPage';
@@ -382,6 +383,18 @@ const AppRoutes = () => {
               <ProtectedRoute>
                 <DashboardLayout>
                   <EmployeeDashboard />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Employee KPI/KAI Page */}
+          <Route
+            path="/employee/kpikai"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <EmpKpiKaiPage />
                 </DashboardLayout>
               </ProtectedRoute>
             }

@@ -15,17 +15,16 @@ exports.createOrGetEntitlement = async (userId, year, leaveEntitled = 12.0) => {
     // Use UPSERT to avoid race conditions
     const upsertQuery = `
       INSERT INTO leaves_entitlement (
-        user_id, year, leave_entitled, leaves_accumulated, leaves_availed, created_at, updated_at
+        user_id, year, leave_entitled, leaves_accumulated, leaves_availed
       )
-      VALUES ($1, $2, $3, 0.0, 0.0, NOW(), NOW())
+      VALUES ($1, $2, $3, 0.0, 0.0)
       ON CONFLICT (user_id, year) DO NOTHING
     `;
     await client.query(upsertQuery, [userId, year, leaveEntitled]);
     
     // Get the record (whether it was just inserted or already existed)
     const getQuery = `
-      SELECT id, user_id, year, leave_entitled, leaves_accumulated, leaves_availed, created_at, updated_at
-      FROM leaves_entitlement
+      SELECT * FROM leaves_entitlement
       WHERE user_id = $1 AND year = $2
     `;
     const result = await client.query(getQuery, [userId, year]);
@@ -49,8 +48,7 @@ exports.createOrGetEntitlement = async (userId, year, leaveEntitled = 12.0) => {
  */
 exports.getEntitlementByUserAndYear = async (userId, year) => {
   const query = `
-    SELECT id, user_id, year, leave_entitled, leaves_accumulated, leaves_availed, created_at, updated_at
-    FROM leaves_entitlement
+    SELECT * FROM leaves_entitlement
     WHERE user_id = $1 AND year = $2
   `;
   
@@ -65,8 +63,7 @@ exports.getEntitlementByUserAndYear = async (userId, year) => {
  */
 exports.getEntitlementsByUserId = async (userId) => {
   const query = `
-    SELECT id, user_id, year, leave_entitled, leaves_accumulated, leaves_availed, created_at, updated_at
-    FROM leaves_entitlement
+    SELECT * FROM leaves_entitlement
     WHERE user_id = $1
     ORDER BY year DESC
   `;
@@ -218,15 +215,18 @@ exports.getLeaveBalance = async (userId, year) => {
 exports.getAllBalances = async (year, filters = {}) => {
   let query = `
     SELECT 
+      le.id,
       le.user_id,
-      u.firstname || ' ' || u.lastname as user_name,
+      COALESCE(u.firstname, '') || ' ' || COALESCE(u.lastname, '') as user_name,
       u.empid,
       u.department_id,
-      d.name as department_name,
+      d.department_name,
       le.year,
       le.leave_entitled,
       le.leaves_accumulated,
       le.leaves_availed,
+      le.created_at,
+      le.updated_at,
       (le.leave_entitled + le.leaves_accumulated - le.leaves_availed) as leave_balance
     FROM leaves_entitlement le
     LEFT JOIN users u ON le.user_id = u.id

@@ -38,7 +38,7 @@ const Sidebar = () => {
   const managementLinks = [
     { name: 'Dashboard', path: getDashboardPath(), icon: '📊' },
     { name: 'KMI', path: '/management/mgtkmi', icon: '📚' },
-    { name: 'MgtPiller', path: '/management/mgtpiller', icon: '🏛️' },
+    { name: 'Piller', path: '/management/mgtpiller', icon: '🏛️' },
     { 
       name: 'Leave Management', 
       icon: '📋',
@@ -63,7 +63,7 @@ const Sidebar = () => {
 
   const employeeLinks = [
     { name: 'Dashboard', path: getDashboardPath(), icon: '📊' },
-    { name: 'MyKMI', path: '/employee/mykmi', icon: '📚' },
+    { name: 'My KPIs/KAIs', path: '/employee/kpikai', icon: '📈' },
     { name: 'Leaves', path: '/employee/leaves', icon: '📅' }
   ];
 

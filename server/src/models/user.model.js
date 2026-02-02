@@ -192,6 +192,9 @@ exports.getAllUsers = async () => {
     FROM users u
     LEFT JOIN departments d ON u.department_id = d.id
     LEFT JOIN designations des ON u.designation_id = des.id
+    LEFT JOIN user_roles ur ON u.id = ur.user_id
+    LEFT JOIN roles r ON ur.role_id = r.id
+    WHERE r.role_name IS NULL OR r.role_name != 'admin'
     ORDER BY u.created_at DESC
   `;
   const result = await db.query(query);

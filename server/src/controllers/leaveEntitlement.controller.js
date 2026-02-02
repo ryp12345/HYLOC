@@ -9,6 +9,7 @@ exports.listEntitlements = async (req, res) => {
     const entitlements = await leaveEntitlementModel.getAllBalances(Number(year));
     res.json(entitlements);
   } catch (err) {
+    console.error('Error in listEntitlements:', err);
     res.status(500).json({ error: err.message });
   }
 };
@@ -27,6 +28,7 @@ exports.listStaffWithStatus = async (req, res) => {
     }));
     res.json(staff);
   } catch (err) {
+    console.error('Error in listStaffWithStatus:', err);
     res.status(500).json({ error: err.message });
   }
 };

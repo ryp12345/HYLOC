@@ -10,7 +10,7 @@ import {
 
 const PAGE_SIZE = 10;
 
-const LeaveEntitlementPage = ({ token }) => {
+const LeaveEntitlementPage = ({ token: propToken }) => {
   const [year, setYear] = useState(new Date().getFullYear());
   const [entitlements, setEntitlements] = useState([]);
   const [staff, setStaff] = useState([]);
@@ -21,22 +21,31 @@ const LeaveEntitlementPage = ({ token }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [page, setPage] = useState(1);
+  const token = propToken || localStorage.getItem('accessToken');
 
   useEffect(() => {
     loadData();
-  }, [year]);
+  }, [year, token]);
 
   const loadData = async () => {
+    if (!token) {
+      setError('No authentication token found. Please login.');
+      return;
+    }
     setLoading(true);
     try {
+      console.log('Loading data with token:', token);
       const [entRes, staffRes] = await Promise.all([
         getEntitlements(year, token),
         getStaffWithStatus(year, token)
       ]);
+      console.log('Entitlements response:', entRes);
+      console.log('Staff response:', staffRes);
       setEntitlements(entRes.data);
       setStaff(staffRes.data);
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to load data');
+      console.error('Failed to load data:', err);
+      setError(err.response?.data?.error || err.message || 'Failed to load data');
     }
     setLoading(false);
   };
