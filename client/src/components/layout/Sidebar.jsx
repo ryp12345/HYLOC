@@ -31,11 +31,14 @@ const Sidebar = () => {
     { name: 'Users', path: '/admin/users', icon: '👥' },
     { name: 'KMIS', path: '/admin/kmis', icon: '📚' },
     { name: 'PILLERS', path: '/admin/pillers', icon: '🏛️' },
-    { name: 'USER-ROLES', path: '/admin/user-roles', icon: '🧩' }
+    { name: 'USER-ROLES', path: '/admin/user-roles', icon: '🧩' },
+    { name: 'Leave Entitlement', path: '/admin/leaves/leave-entitlement', icon: '🗓️' }
   ];
 
   const managementLinks = [
     { name: 'Dashboard', path: getDashboardPath(), icon: '📊' },
+    { name: 'KMI', path: '/management/mgtkmi', icon: '📚' },
+    { name: 'MgtPiller', path: '/management/mgtpiller', icon: '🏛️' },
     { 
       name: 'Leave Management', 
       icon: '📋',
@@ -44,7 +47,6 @@ const Sidebar = () => {
         { name: 'Leave Approval', path: '/management/leave-approval', icon: '✅' }
       ]
     },
-    { name: 'Reports', path: '/management/reports', icon: '📊' }
   ];
 
   const managerLinks = [

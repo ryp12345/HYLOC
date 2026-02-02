@@ -113,21 +113,6 @@ function ManagementDashboard() {
           <div className="text-3xl font-bold text-gray-800">{loading ? 0 : departmentStats.total}</div>
         </div>
       </div>
-
-      {/* Quick Actions */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-xl font-bold text-gray-800 mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <button className="p-4 border border-gray-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition">
-            <div className="font-semibold text-gray-800">View Reports</div>
-            <p className="text-sm text-gray-500">Check attendance & performance</p>
-          </button>
-          <button className="p-4 border border-gray-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition">
-            <div className="font-semibold text-gray-800">Team Management</div>
-            <p className="text-sm text-gray-500">Manage team members</p>
-          </button>
-        </div>
-      </div>
     </div>
   );
 }

@@ -15,16 +15,17 @@ exports.createOrGetEntitlement = async (userId, year, leaveEntitled = 12.0) => {
     // Use UPSERT to avoid race conditions
     const upsertQuery = `
       INSERT INTO leaves_entitlement (
-        user_id, year, leave_entitled, leaves_accumulated, leaves_availed
+        user_id, year, leave_entitled, leaves_accumulated, leaves_availed, created_at, updated_at
       )
-      VALUES ($1, $2, $3, 0.0, 0.0)
+      VALUES ($1, $2, $3, 0.0, 0.0, NOW(), NOW())
       ON CONFLICT (user_id, year) DO NOTHING
     `;
     await client.query(upsertQuery, [userId, year, leaveEntitled]);
     
     // Get the record (whether it was just inserted or already existed)
     const getQuery = `
-      SELECT * FROM leaves_entitlement
+      SELECT id, user_id, year, leave_entitled, leaves_accumulated, leaves_availed, created_at, updated_at
+      FROM leaves_entitlement
       WHERE user_id = $1 AND year = $2
     `;
     const result = await client.query(getQuery, [userId, year]);
@@ -48,7 +49,8 @@ exports.createOrGetEntitlement = async (userId, year, leaveEntitled = 12.0) => {
  */
 exports.getEntitlementByUserAndYear = async (userId, year) => {
   const query = `
-    SELECT * FROM leaves_entitlement
+    SELECT id, user_id, year, leave_entitled, leaves_accumulated, leaves_availed, created_at, updated_at
+    FROM leaves_entitlement
     WHERE user_id = $1 AND year = $2
   `;
   
@@ -63,7 +65,8 @@ exports.getEntitlementByUserAndYear = async (userId, year) => {
  */
 exports.getEntitlementsByUserId = async (userId) => {
   const query = `
-    SELECT * FROM leaves_entitlement
+    SELECT id, user_id, year, leave_entitled, leaves_accumulated, leaves_availed, created_at, updated_at
+    FROM leaves_entitlement
     WHERE user_id = $1
     ORDER BY year DESC
   `;

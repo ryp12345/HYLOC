@@ -6,11 +6,17 @@ import { AuthProvider } from '../context/AuthContext';
 import Login from '../pages/auth/Login';
 import Register from '../pages/auth/Register';
 import AdminDashboard from '../pages/admin/Dashboard';
+
 import ManagementDashboard from '../pages/management/ManagementDashboard';
+import MgtPiller from '../pages/management/MgtPiller';
+import MgtKmiPage from '../pages/management/MgtKmiPage';
+import MgtKmiDetail from '../pages/management/MgtKmiDetail';
+
 import ManagementLeavesPage from '../pages/management/leaves/LeavesPage';
 import EmployeeDashboard from '../pages/employee/EmployeeDashboard';
 import ManagerDashboard from '../pages/manager/ManagerDashboard';
 import UsersPage from '../pages/admin/UsersPage';
+import LeaveEntitlementPage from '../pages/admin/leaves/LeaveEntitlementPage';
 import UserRolePage from '../pages/admin/UserRolePage';
 import DepartmentsPage from '../pages/admin/DepartmentsPage';
 import DesignationsPage from '../pages/admin/DesignationsPage';
@@ -27,7 +33,7 @@ import ManagementLeaveApprovalPage from '../pages/management/leaves/LeaveApprova
 // Layouts & Route Guards
 import ProtectedRoute from './ProtectedRoute';
 import RoleRoute from './RoleRoute';
-import Navbar from '../components/layout/Navbar';
+import Header from '../components/layout/Header';
 import Sidebar from '../components/layout/Sidebar';
 import { useAuth } from '../context/AuthContext';
 
@@ -37,7 +43,7 @@ const DashboardLayout = ({ children }) => {
     <div className="flex">
       <Sidebar />
       <div className="flex-1 flex flex-col">
-        <Navbar />
+        <Header />
         <main className="flex-1 p-6 bg-gray-100">
           {children}
         </main>
@@ -276,6 +282,27 @@ const AppRoutes = () => {
             }
           />
 
+            <Route
+              path="/admin/leaves/leave-entitlement"
+              element={
+                <ProtectedRoute>
+                  <DashboardLayout>
+                    <LeaveEntitlementPage />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              }
+            />
+          <Route
+            path="/management/kmis/:id"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <MgtKmiDetail />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+
           {/* Management Dashboard */}
           <Route
             path="/management/dashboard"
@@ -287,6 +314,30 @@ const AppRoutes = () => {
               </ProtectedRoute>
             }
           />
+
+            {/* Management Piller Page */}
+          <Route
+            path="/management/mgtpiller"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <MgtPiller />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+
+            {/* Management KMI Page */}
+            <Route
+              path="/management/mgtkmi"
+              element={
+                <ProtectedRoute>
+                  <DashboardLayout>
+                    <MgtKmiPage />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              }
+            />
 
           {/* Manager Dashboard */}
           <Route
