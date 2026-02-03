@@ -570,23 +570,6 @@ function EmpKpiKaiPage() {
           </button>
         </div>
       )}
-
-      {/* Page Header */}
-      <div className="bg-white border-b border-slate-200 sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-6 py-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-4xl font-bold text-slate-900">My KPIs/KAIs</h1>
-              <p className="text-slate-600 mt-1">Manage and track your Key Performance Indicators</p>
-            </div>
-            <div className="text-right">
-              <p className="text-sm font-medium text-slate-600">Financial Year</p>
-              <p className="text-2xl font-bold text-blue-600">{getSelectedFinancialYear()}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-6 py-8">
         {!selectedKPI ? (
@@ -685,7 +668,6 @@ function EmpKpiKaiPage() {
                 </button>
               </div>
               
-              Breadcrumb
               <nav className="flex items-center gap-2 flex-wrap">
                 {buildBreadcrumb(selectedKPI).map((kpi, index, array) => (
                   <div key={kpi.id} className="flex items-center gap-2">
@@ -693,7 +675,7 @@ function EmpKpiKaiPage() {
                       <span className="text-blue-500">●</span>
                       {getCategoryName(kpi.category_id)}
                     </span>
-                    <span className="text-slate-700 font-medium">{kpi.title}</span>
+                    <span className="text-slate-700  font-medium">{kpi.title}</span>
                     {index < array.length - 1 && <span className="text-slate-400 text-xl">›</span>}
                   </div>
                 ))}
