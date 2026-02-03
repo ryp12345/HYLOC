@@ -3,8 +3,10 @@ require('dotenv').config();
 const getAllowedOrigins = () => {
   const allowedOrigins = [
     'http://localhost:3000',
+    'http://localhost:5000',
     'http://localhost:3001',
     'http://127.0.0.1:3000',
+    'http://127.0.0.1:5000',
     'http://127.0.0.1:3001'
   ];
 
@@ -21,7 +23,7 @@ const getAllowedOrigins = () => {
     }
 
     // Check if it's an IP-based origin (for development)
-    const ipPattern = /^https?:\/\/(\d{1,3}\.){3}\d{1,3}:\d+$/;
+    const ipPattern = /^https?:\/\/(localhost|127\.0\.0\.1|(\d{1,3}\.){3}\d{1,3}):\d+$/;
     if (ipPattern.test(origin)) {
       return callback(null, true);
     }
@@ -32,6 +34,7 @@ const getAllowedOrigins = () => {
       return callback(null, true);
     }
 
+    console.warn(`CORS: Origin not allowed: ${origin}`);
     callback(new Error('Not allowed by CORS'));
   };
 };

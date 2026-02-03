@@ -34,6 +34,7 @@ const EmployeeCalendar = ({ joinDate }) => {
     to_date: '',
     leave_duration: 'Full Day',
     leave_reason: '',
+    duration: 1,
     alternate_person: '',
     additional_alternate: '',
     available_on_phone: true
@@ -52,7 +53,7 @@ const EmployeeCalendar = ({ joinDate }) => {
       
       // Load leaves for current year
       const leavesResponse = await getMyLeaves({ year });
-      console.log('My leaves loaded:', leavesResponse.data.data);
+      //console.log('My leaves loaded:', leavesResponse.data.data);
       setLeaves(leavesResponse.data.data || []);
       
       // Load leave balance
@@ -65,13 +66,13 @@ const EmployeeCalendar = ({ joinDate }) => {
       
       // Load department colleagues
       const colleaguesResponse = await getDepartmentColleagues();
-      console.log('Colleagues response:', colleaguesResponse);
-      console.log('Colleagues data:', colleaguesResponse.data.data);
-      console.log('Colleagues count:', colleaguesResponse.data.data?.length);
+      // console.log('Colleagues response:', colleaguesResponse);
+      // console.log('Colleagues data:', colleaguesResponse.data.data);
+      // console.log('Colleagues count:', colleaguesResponse.data.data?.length);
       setColleagues(colleaguesResponse.data.data || []);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to load data');
-      console.error('Error loading data:', err);
+      //console.error('Error loading data:', err);
     } finally {
       setLoading(false);
     }
@@ -80,10 +81,22 @@ const EmployeeCalendar = ({ joinDate }) => {
   // Handle form input changes
   const handleFormChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setLeaveForm(prev => ({
-      ...prev,
+    let updatedForm = {
+      ...leaveForm,
       [name]: type === 'checkbox' ? checked : value
-    }));
+    };
+    // Auto-calculate duration if from_date or to_date changes
+    if (name === 'from_date' || name === 'to_date') {
+      const from = new Date(name === 'from_date' ? value : updatedForm.from_date);
+      const to = new Date(name === 'to_date' ? value : updatedForm.to_date);
+      if (from && to && !isNaN(from) && !isNaN(to)) {
+        const diff = Math.round((to - from) / (1000 * 60 * 60 * 24)) + 1;
+        updatedForm.duration = diff > 0 ? diff : 1;
+      } else {
+        updatedForm.duration = 1;
+      }
+    }
+    setLeaveForm(updatedForm);
   };
 
   // Format date as YYYY-MM-DD in local timezone (not UTC)
@@ -100,15 +113,23 @@ const EmployeeCalendar = ({ joinDate }) => {
       ? formatDateForInput(date)
       : formatDateForInput(selectedDate);
     
-    setLeaveForm({
+    const initialForm = {
       from_date: formattedDate,
       to_date: formattedDate,
       leave_duration: 'Full Day',
       leave_reason: '',
+      duration: 1,
       alternate_person: '',
       additional_alternate: '',
       available_on_phone: true
-    });
+    };
+    // Calculate duration for initial values
+    const from = new Date(initialForm.from_date);
+    const to = new Date(initialForm.to_date);
+    if (from && to && !isNaN(from) && !isNaN(to)) {
+      initialForm.duration = Math.round((to - from) / (1000 * 60 * 60 * 24)) + 1;
+    }
+    setLeaveForm(initialForm);
     setEditingLeave(null);
     setShowLeaveForm(true);
   };
@@ -138,15 +159,22 @@ const EmployeeCalendar = ({ joinDate }) => {
       setShowDateDetail(true);
     } else {
       // If no leave, directly open the form with this date
-      setLeaveForm({
+      const initialForm = {
         from_date: formatDateForInput(date),
         to_date: formatDateForInput(date),
         leave_duration: 'Full Day',
         leave_reason: '',
+        duration: 1,
         alternate_person: '',
         additional_alternate: '',
         available_on_phone: true
-      });
+      };
+      const from = new Date(initialForm.from_date);
+      const to = new Date(initialForm.to_date);
+      if (from && to && !isNaN(from) && !isNaN(to)) {
+        initialForm.duration = Math.round((to - from) / (1000 * 60 * 60 * 24)) + 1;
+      }
+      setLeaveForm(initialForm);
       setEditingLeave(null);
       setShowLeaveForm(true);
     }
@@ -245,7 +273,7 @@ const EmployeeCalendar = ({ joinDate }) => {
 
       const matches = checkTime >= fromDate.getTime() && checkTime <= toDate.getTime();
       if (matches) {
-        console.log('Leave match found:', { date: date.toDateString(), leave, checkTime, fromTime: fromDate.getTime(), toTime: toDate.getTime() });
+       //console.log('Leave match found:', { date: date.toDateString(), leave, checkTime, fromTime: fromDate.getTime(), toTime: toDate.getTime() });
       }
       return matches;
     });
@@ -281,6 +309,12 @@ const EmployeeCalendar = ({ joinDate }) => {
       default:
         return 'bg-gray-500';
     }
+  };
+
+  // Get team leaves for a specific date (Employee calendar - return empty array for now)
+  const getTeamLeavesForDate = (date) => {
+    // For Employee calendar, we don't show team leaves, return empty array
+    return [];
   };
 
   // Get month details for month view
@@ -764,48 +798,61 @@ const EmployeeCalendar = ({ joinDate }) => {
             </div>
 
             <form onSubmit={handleSubmitLeave} className="space-y-4">
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    From Date *
-                  </label>
+
+              <div className="grid grid-cols-12 gap-4 w-full items-start">
+                <div className="col-span-5">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">From Date *</label>
                   <input
                     type="date"
                     name="from_date"
                     value={leaveForm.from_date}
                     onChange={handleFormChange}
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base"
+                    style={{fontVariantNumeric:'tabular-nums'}}
                   />
                 </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    To Date
-                  </label>
+                <div className="col-span-5">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">To Date *</label>
                   <input
                     type="date"
                     name="to_date"
                     value={leaveForm.to_date}
                     onChange={handleFormChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base"
+                    style={{fontVariantNumeric:'tabular-nums'}}
                   />
                 </div>
+                <div className="col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Days</label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    name="duration"
+                    value={leaveForm.duration < 10 ? `0${leaveForm.duration}` : leaveForm.duration}
+                    readOnly
+                    className="w-20 px-2 py-2 border border-gray-300 rounded-lg bg-gray-100 focus:outline-none text-center"
+                    style={{minWidth:'3.5rem',maxWidth:'4.5rem'}}
+                  />
+                </div>
+              </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Leave Duration *
-                  </label>
+              {/* Second row: Day type dropdown */}
+              <div className="grid grid-cols-12 gap-4 w-full mt-2">
+                <div className="col-span-3">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Day Type</label>
                   <select
-                    name="leave_duration"
-                    value={leaveForm.leave_duration}
+                    name="day_type"
+                    value={leaveForm.day_type || ''}
                     onChange={handleFormChange}
-                    required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base"
                   >
-                    <option value="Full Day">Full Day</option>
-                    <option value="Morning Half">Morning Half</option>
-                    <option value="Afternoon Half">Afternoon Half</option>
+                    <option value="">Select</option>
+                    <option value="full">Full day</option>
+                    <option value="morning">Morning half</option>
+                    <option value="afternoon">Afternoon half</option>
                   </select>
                 </div>
               </div>
@@ -815,9 +862,7 @@ const EmployeeCalendar = ({ joinDate }) => {
               </p>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Reason for Leave *
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Reason for Leave *</label>
                 <textarea
                   name="leave_reason"
                   value={leaveForm.leave_reason}

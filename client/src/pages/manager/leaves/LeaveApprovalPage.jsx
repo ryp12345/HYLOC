@@ -183,7 +183,6 @@ const LeaveApprovalPage = () => {
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider rounded-tl-xl">Name</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Role</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">EmpID</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">From</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">To</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Duration</th>
@@ -200,10 +199,9 @@ const LeaveApprovalPage = () => {
                   <tr key={leave.id} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-colors duration-150`}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{leave.user_name}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{leave.user_role}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{leave.empid}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{formatDate(leave.from_date)}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{formatDate(leave.to_date)}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{leave.credited_days} day(s) / {leave.leave_duration}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{parseInt(leave.credited_days, 10)} day(s)</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{leave.leave_type}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{leave.leave_reason}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{leave.alternate_person || '-'}</td>

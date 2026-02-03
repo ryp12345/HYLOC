@@ -24,18 +24,18 @@ exports.getPillerById = async (req, res) => {
     if (!piller) {
       return res.status(404).json({
         success: false,
-        message: 'Piller not found'
+        message: 'Pillar not found'
       });
     }
     res.status(200).json({
       success: true,
-      message: 'Piller retrieved successfully',
+      message: 'Pillar retrieved successfully',
       data: piller
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: 'Failed to retrieve piller',
+      message: 'Failed to retrieve pillar',
       error: error.message
     });
   }
@@ -63,13 +63,13 @@ exports.createPiller = async (req, res) => {
     const piller = await pillerModel.createPiller(pillerName, shortName);
     res.status(201).json({
       success: true,
-      message: 'Piller created successfully',
+      message: 'Pillar created successfully',
       data: piller
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: 'Failed to create piller',
+      message: 'Failed to create pillar',
       error: error.message
     });
   }
@@ -83,7 +83,7 @@ exports.updatePiller = async (req, res) => {
     if (!pillerName || !shortName) {
       return res.status(400).json({
         success: false,
-        message: 'Piller name and short name are required'
+        message: 'Pillar name and short name are required'
       });
     }
 
@@ -91,19 +91,19 @@ exports.updatePiller = async (req, res) => {
     if (!piller) {
       return res.status(404).json({
         success: false,
-        message: 'Piller not found'
+        message: 'Pillar not found'
       });
     }
 
     res.status(200).json({
       success: true,
-      message: 'Piller updated successfully',
+      message: 'Pillar updated successfully',
       data: piller
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: 'Failed to update piller',
+      message: 'Failed to update pillar',
       error: error.message
     });
   }
@@ -133,3 +133,6 @@ exports.deletePiller = async (req, res) => {
     });
   }
 };
+
+
+

@@ -115,3 +115,6 @@ exports.deleteDepartment = async (req, res) => {
     return sendError(res, 'Failed to delete department', 500);
   }
 };
+
+
+

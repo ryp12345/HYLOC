@@ -101,7 +101,7 @@ function ManagementDashboard() {
           <div className="text-3xl font-bold text-gray-800">{loading ? 0 : kpiStats.total}</div>
         </div>
         <div className="bg-white rounded-lg shadow p-6 border-l-4 border-purple-500">
-          <div className="text-gray-500 text-sm font-semibold mb-2">Total Pillers</div>
+          <div className="text-gray-500 text-sm font-semibold mb-2">Total Pillars</div>
           <div className="text-3xl font-bold text-gray-800">{loading ? 0 : pillerStats.total}</div>
         </div>
         <div className="bg-white rounded-lg shadow p-6 border-l-4 border-green-500">

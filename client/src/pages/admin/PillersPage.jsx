@@ -119,7 +119,7 @@ export default function PillersPage() {
           </div>
           <button onClick={openCreate} className="flex items-center justify-center w-full px-6 py-3 font-medium text-white transition-all duration-300 transform rounded-lg shadow-lg bg-blue-600 hover:bg-blue-700 hover:-translate-y-1 hover:scale-105 sm:w-auto">
             <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" /></svg>
-            Add Piller
+            Add Pillar
           </button>
         </div>
 
@@ -157,7 +157,7 @@ export default function PillersPage() {
                           <button
                             onClick={() => remove(row.id)}
                             className="p-2 text-white transition-colors duration-200 bg-red-600 rounded-lg hover:bg-red-700"
-                            title="Delete Piller"
+                            title="Delete Pillar"
                           >
                             <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -202,7 +202,7 @@ export default function PillersPage() {
               <div className="inline-block overflow-hidden text-left align-bottom transition-all transform bg-white rounded-lg shadow-xl sm:my-8 sm:align-middle sm:max-w-md sm:w-full">
                 <div className="px-6 py-4 bg-blue-600">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-medium leading-6 text-white">{editingId ? 'Edit Piller' : 'Add Piller'}</h3>
+                    <h3 className="text-lg font-medium leading-6 text-white">{editingId ? 'Edit Pillar' : 'Add Pillar'}</h3>
                     <button className="text-white hover:text-gray-200" onClick={onClose}>
                       <svg className="w-6 h-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
@@ -217,7 +217,7 @@ export default function PillersPage() {
                         value={form.pillerName}
                         onChange={(e) => setForm({ ...form, pillerName: e.target.value })}
                         className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="Enter piller name"
+                        placeholder="Enter pillar name"
                         required
                       />
                     </div>
@@ -235,7 +235,7 @@ export default function PillersPage() {
 
                     <div className="flex justify-end space-x-4 pt-4">
                       <button type="button" onClick={onClose} className="inline-flex justify-center px-6 py-3 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">Cancel</button>
-                      <button type="submit" className="inline-flex justify-center px-6 py-3 text-sm font-medium text-white border border-transparent rounded-lg shadow-sm bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">{editingId? 'Update Piller':'Create Piller'}</button>
+                      <button type="submit" className="inline-flex justify-center px-6 py-3 text-sm font-medium text-white border border-transparent rounded-lg shadow-sm bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">{editingId? 'Update Pillar':'Create Pillar'}</button>
                     </div>
                   </form>
                 </div>

@@ -688,7 +688,7 @@ function KmiDetail() {
                   onChange={handleChange}
                   className="w-full px-3 py-2.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                 >
-                  <option value="">Select Piller</option>
+                  <option value="">Select Pillar</option>
                   {pillers.map((piller) => (
                     <option key={piller.id} value={piller.id}>
                       {piller.piller_name}{piller.short_name ? ` (${piller.short_name})` : ''}

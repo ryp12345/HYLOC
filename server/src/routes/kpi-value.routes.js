@@ -8,6 +8,9 @@ router.get('/', kpiValueController.getAllKPIValues);
 // Get KPI value by ID
 router.get('/:id', kpiValueController.getKPIValueById);
 
+// Get monthly data for a KPI value for a specific year
+router.get('/:id/monthly-data/:year', kpiValueController.getMonthlyData);
+
 // Get KPI values by KPI ID
 router.get('/kpi/:kpiId', kpiValueController.getKPIValuesByKPI);
 

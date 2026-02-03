@@ -122,3 +122,6 @@ exports.deleteDesignation = async (req, res) => {
     return sendError(res, 'Failed to delete designation', 500);
   }
 };
+
+
+

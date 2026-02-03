@@ -1,4 +1,4 @@
-﻿const leaveService = require('../services/leave.service');
+const leaveService = require('../services/leave.service');
 const leaveModel = require('../models/leave.model');
 const entitlementModel = require('../models/leaveEntitlement.model');
 const userModel = require('../models/user.model');
@@ -627,3 +627,4 @@ exports.getDepartmentLeaves = async (req, res, next) => {
     next(error);
   }
 };
+

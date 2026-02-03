@@ -47,13 +47,13 @@ export default function MgtPiller() {
     <div className="min-h-screen px-4 py-12 bg-gradient-to-br from-gray-50 to-gray-100 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
         <div className="mb-12 text-center">
-          <h1 className="mb-2 text-4xl font-extrabold text-gray-900">Pillers</h1>
-          <p className="text-lg text-gray-600">View all pillers</p>
+          <h1 className="mb-2 text-4xl font-extrabold text-gray-900">Pillars</h1>
+          <p className="text-lg text-gray-600">View all pillars</p>
         </div>
 
         <div className="flex flex-col items-start justify-between gap-4 mb-6 sm:flex-row sm:items-center">
           <div className="relative w-full sm:w-72">
-            <input value={search} onChange={(e)=>setSearch(e.target.value)} placeholder="Search pillers..." className="w-full py-2 pl-10 pr-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+            <input value={search} onChange={(e)=>setSearch(e.target.value)} placeholder="Search pillars..." className="w-full py-2 pl-10 pr-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400 absolute left-3 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
           </div>
         </div>

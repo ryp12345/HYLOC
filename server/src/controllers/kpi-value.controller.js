@@ -1,4 +1,5 @@
 const kpiValueModel = require('../models/kpi-value.model');
+const pool = require('../config/db');
 
 exports.getAllKPIValues = async (req, res) => {
   try {
@@ -68,6 +69,70 @@ exports.getKPIValueById = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to retrieve KPI value',
+      error: error.message
+    });
+  }
+};
+
+// GET /api/kpi-values/:id/monthly-data/:year
+// Fetch monthly data for a KPI value for a specific year (and next year if spanning calendar years)
+exports.getMonthlyData = async (req, res) => {
+  try {
+    const { id, year } = req.params;
+    const kpiValueId = parseInt(id, 10);
+    const fyYear = parseInt(year, 10);
+
+    if (!kpiValueId || !fyYear) {
+      return res.status(400).json({
+        success: false,
+        message: 'kpiValueId and year are required'
+      });
+    }
+
+    // For a financial year starting in fyYear, we need to get data from:
+    // - April to December of fyYear
+    // - January to March of (fyYear + 1)
+    // So we query for year = fyYear OR year = (fyYear + 1)
+
+    const result = await pool.query(
+      `SELECT id, kpi_value_id, month, year, value, value_type, created_at, updated_at
+       FROM kpi_data_value
+       WHERE kpi_value_id = $1 AND (year = $2 OR year = $3)
+       ORDER BY year, month ASC`,
+      [kpiValueId, fyYear, fyYear + 1]
+    );
+
+    // Transform the data to have target_value and actual_value as separate fields
+    const monthlyDataMap = {};
+    result.rows.forEach(row => {
+      const key = `${row.month}_${row.year}`;
+      if (!monthlyDataMap[key]) {
+        monthlyDataMap[key] = {
+          month: row.month,
+          year: row.year,
+          target_value: null,
+          actual_value: null
+        };
+      }
+      if (row.value_type === 'target') {
+        monthlyDataMap[key].target_value = row.value;
+      } else if (row.value_type === 'actual') {
+        monthlyDataMap[key].actual_value = row.value;
+      }
+    });
+
+    const data = Object.values(monthlyDataMap);
+
+    res.status(200).json({
+      success: true,
+      message: 'Monthly data retrieved successfully',
+      data: data
+    });
+  } catch (error) {
+    console.error('Error fetching monthly data:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve monthly data',
       error: error.message
     });
   }
@@ -196,3 +261,6 @@ exports.deleteKPIValue = async (req, res) => {
     });
   }
 };
+
+
+
