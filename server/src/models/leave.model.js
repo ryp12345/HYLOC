@@ -114,7 +114,7 @@ exports.getAllLeaves = async (filters = {}) => {
            u.firstname || ' ' || u.lastname as user_name,
            u.empid,
            u.department_id,
-           user_role.role_name as user_role,
+           COALESCE(user_role.role_name, 'Employee') as user_role,
            approver.firstname || ' ' || approver.lastname as approver_name
     FROM leaves l
     LEFT JOIN users u ON l.user_id = u.id
@@ -250,7 +250,7 @@ exports.getPendingLeaves = async (filters = {}) => {
            u.firstname || ' ' || u.lastname as user_name,
            u.empid,
            u.department_id,
-           user_role.role_name as user_role
+           COALESCE(user_role.role_name, 'Employee') as user_role
     FROM leaves l
     LEFT JOIN users u ON l.user_id = u.id
     LEFT JOIN LATERAL (

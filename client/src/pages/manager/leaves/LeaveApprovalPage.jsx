@@ -176,131 +176,81 @@ const LeaveApprovalPage = () => {
         </div>
 
         {/* Leave List */}
-        <div className="bg-white rounded-lg shadow">
-          {loading ? (
-            <div className="p-8 text-center text-gray-500">Loading...</div>
-          ) : filteredLeaves.length === 0 ? (
-            <div className="p-8 text-center text-gray-500">
-              No {activeTab.toLowerCase()} leave requests
-            </div>
-          ) : (
-            <div className="divide-y divide-gray-200">
-              {filteredLeaves.map(leave => {
-                const duration = parseFloat(leave.credited_days);
-                const requiresManagementApproval = view === 'approve-leaves' && duration > 2;
-
-                return (
-                  <div key={leave.id} className="p-6 hover:bg-gray-50 transition-colors">
-                    <div className="flex justify-between items-start">
-                      {/* Column 1: Leave Details */}
-                      <div className="flex-1">
-                        {view === 'approve-leaves' && (
-                          <div className="flex items-center gap-2 mb-2">
-                            <h3 className="text-lg font-semibold text-gray-800">
-                              {leave.user_name}
-                            </h3>
-                            <span className="text-xs text-gray-400">
-                              EmpID: {leave.empid}
-                            </span>
-                          </div>
-                        )}
-
-                        <div className="grid grid-cols-2 gap-4 text-sm">
-                          <div>
-                            <span className="font-medium text-gray-700">From:</span>{' '}
-                            <span className="text-gray-600">{formatDate(leave.from_date)}</span>
-                          </div>
-                          <div>
-                            <span className="font-medium text-gray-700">To:</span>{' '}
-                            <span className="text-gray-600">{formatDate(leave.to_date)}</span>
-                          </div>
-                          <div>
-                            <span className="font-medium text-gray-700">Duration:</span>{' '}
-                            <span className="text-gray-600">{leave.credited_days} day(s)</span>
-                          </div>
-                          <div>
-                            <span className="font-medium text-gray-700">Type:</span>{' '}
-                            <span className="text-gray-600">{leave.leave_duration}</span>
-                          </div>
-                          <div>
-                            <span className="font-medium text-gray-700">Leave Type:</span>{' '}
-                            <span className="text-gray-600">{leave.leave_type}</span>
-                          </div>
-                          <div>
-                            <span className="font-medium text-gray-700">Available on Phone:</span>{' '}
-                            <span className="text-gray-600">{leave.available_on_phone ? 'Yes' : 'No'}</span>
-                          </div>
+        <div className="mb-10 overflow-hidden bg-white shadow-xl rounded-xl">
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-blue-600">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider rounded-tl-xl">Name</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Role</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">EmpID</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">From</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">To</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Duration</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Leave Type</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Reason</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Alternate Person</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Available on Phone</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider rounded-tr-xl">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredLeaves.map((leave, idx) => (
+                  <tr key={leave.id} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-colors duration-150`}>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{leave.user_name}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{leave.user_role}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{leave.empid}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{formatDate(leave.from_date)}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{formatDate(leave.to_date)}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{leave.credited_days} day(s) / {leave.leave_duration}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{leave.leave_type}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{leave.leave_reason}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{leave.alternate_person || '-'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{leave.available_on_phone ? 'Yes' : 'No'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                        leave.status === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
+                        leave.status === 'Approved' ? 'bg-green-100 text-green-800' :
+                        'bg-red-100 text-red-800'
+                      }`}>
+                        {leave.status}
+                      </span>
+                      {['Approved', 'Rejected'].includes(leave.status) && leave.approver_name && (
+                        <div className="text-xs text-gray-400 mt-1">by: {leave.approver_name}</div>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
+                      {leave.status === 'Pending' && (
+                        <div className="flex gap-2 justify-center">
+                          <button
+                            onClick={() => handleApprove(leave.id)}
+                            disabled={loading}
+                            className="p-2 text-white transition-colors duration-200 bg-green-600 rounded-lg hover:bg-green-700 disabled:bg-gray-400"
+                            title="Approve"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={() => handleReject(leave.id)}
+                            disabled={loading}
+                            className="p-2 text-white transition-colors duration-200 bg-red-600 rounded-lg hover:bg-red-700 disabled:bg-gray-400"
+                            title="Reject"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
                         </div>
-
-                        <div className="mt-3 text-sm">
-                          <div className="mb-2">
-                            <span className="font-medium text-gray-700">Reason:</span>{' '}
-                            <span className="text-gray-600">{leave.leave_reason}</span>
-                          </div>
-                          {leave.alternate_person && (
-                            <div className="mb-2">
-                              <span className="font-medium text-gray-700">Alternate Person:</span>{' '}
-                              <span className="text-gray-600">{leave.alternate_person}</span>
-                            </div>
-                          )}
-                          {leave.additional_alternate && (
-                            <div>
-                              <span className="font-medium text-gray-700">Additional Alternate:</span>{' '}
-                              <span className="text-gray-600">{leave.additional_alternate}</span>
-                            </div>
-                          )}
-                        </div>
-
-                        {(leave.status === 'Approved' || leave.status === 'Rejected') && leave.approver_name && (
-                          <div className="mt-2 text-sm text-gray-500">
-                            {leave.status} by: {leave.approver_name}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Column 2: Status & Actions */}
-                      <div className="ml-6 flex flex-col items-end gap-3">
-                        <span className={`px-4 py-2 rounded-full text-sm font-medium ${
-                          leave.status === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
-                          leave.status === 'Approved' ? 'bg-green-100 text-green-800' :
-                          'bg-red-100 text-red-800'
-                        }`}>
-                          {leave.status}
-                        </span>
-
-                        {view === 'approve-leaves' && leave.status === 'Pending' && (
-                          <>
-                            {requiresManagementApproval ? (
-                              <div className="px-4 py-2 bg-orange-100 text-orange-800 rounded-lg text-sm font-medium text-center">
-                                Requires Management Approval
-                              </div>
-                            ) : (
-                              <div className="flex gap-2">
-                                <button
-                                  onClick={() => handleApprove(leave.id)}
-                                  disabled={loading}
-                                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:bg-gray-400"
-                                >
-                                  Approve
-                                </button>
-                                <button
-                                  onClick={() => handleReject(leave.id)}
-                                  disabled={loading}
-                                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:bg-gray-400"
-                                >
-                                  Reject
-                                </button>
-                              </div>
-                            )}
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>

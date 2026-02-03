@@ -29,9 +29,9 @@ const Sidebar = () => {
     { name: 'Designation', path: '/admin/designations', icon: '🏷️' },
     { name: 'Association', path: '/admin/associations', icon: '🤝' },
     { name: 'Users', path: '/admin/users', icon: '👥' },
-    { name: 'KMIS', path: '/admin/kmis', icon: '📚' },
-    { name: 'PILLERS', path: '/admin/pillers', icon: '🏛️' },
-    { name: 'USER-ROLES', path: '/admin/user-roles', icon: '🧩' },
+    { name: "KMI's", path: '/admin/kmis', icon: '📚' },
+    { name: 'Pillars', path: '/admin/pillers', icon: '🏛️' },
+    { name: 'User-Roles', path: '/admin/user-roles', icon: '🧩' },
     { name: 'Leave Entitlement', path: '/admin/leaves/leave-entitlement', icon: '🗓️' }
   ];
 
