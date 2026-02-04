@@ -39,8 +39,8 @@ const LeaveEntitlementPage = ({ token: propToken }) => {
         getEntitlements(year, token),
         getStaffWithStatus(year, token)
       ]);
-      console.log('Entitlements response:', entRes);
-      console.log('Staff response:', staffRes);
+      // console.log('Entitlements response:', entRes);
+      // console.log('Staff response:', staffRes);
       setEntitlements(entRes.data);
       setStaff(staffRes.data);
     } catch (err) {

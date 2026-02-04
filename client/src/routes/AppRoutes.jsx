@@ -171,6 +171,7 @@ const AppRoutes = () => {
             }
           />
 
+         
           {/* Admin Dashboard */}
           <Route
             path="/admin/dashboard"

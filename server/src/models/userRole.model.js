@@ -4,7 +4,7 @@ const pool = require('../config/db');
 exports.getAllUserRoles = async () => {
   try {
     const result = await pool.query(`
-      SELECT 
+      SELECT DISTINCT ON (ur.id)
         ur.id,
         ur.user_id,
         ur.role_id,
@@ -19,7 +19,7 @@ exports.getAllUserRoles = async () => {
       FROM user_roles ur
       LEFT JOIN users u ON ur.user_id = u.id
       LEFT JOIN roles r ON ur.role_id = r.id
-      ORDER BY ur.created_at DESC
+      ORDER BY ur.id, ur.created_at DESC
     `);
     return result.rows;
   } catch (error) {

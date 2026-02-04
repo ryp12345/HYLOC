@@ -797,7 +797,7 @@ function MonthlyDataForm({ month, monthIndex, kpiValueId, targetRequired, initia
         <div className="space-y-3">
           {targetRequired && (
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">🎯 Target</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Target</label>
               <input
                 type="text"
                 value={targetValue}
@@ -808,7 +808,7 @@ function MonthlyDataForm({ month, monthIndex, kpiValueId, targetRequired, initia
             </div>
           )}
           <div>
-            <label className="block text-xs font-semibold text-slate-00 mb-1">✓ Actual</label>
+            <label className="block text-xs font-semibold text-slate-00 mb-1">Actual</label>
             <input
               type="text"
               value={actualValue}
