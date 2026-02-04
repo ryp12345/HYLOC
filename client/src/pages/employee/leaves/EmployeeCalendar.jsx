@@ -33,6 +33,7 @@ const EmployeeCalendar = ({ joinDate }) => {
     from_date: '',
     to_date: '',
     leave_duration: 'Full Day',
+    day_type: 'full',
     leave_reason: '',
     duration: 1,
     alternate_person: '',
@@ -92,8 +93,20 @@ const EmployeeCalendar = ({ joinDate }) => {
       if (from && to && !isNaN(from) && !isNaN(to)) {
         const diff = Math.round((to - from) / (1000 * 60 * 60 * 24)) + 1;
         updatedForm.duration = diff > 0 ? diff : 1;
+        // If dates differ, force day_type to 'full'
+        if (updatedForm.from_date !== updatedForm.to_date) {
+          updatedForm.day_type = 'full';
+        }
       } else {
         updatedForm.duration = 1;
+      }
+    }
+    // Set duration based on day_type
+    if (name === 'day_type') {
+      if (value === 'full') {
+        updatedForm.duration = 1;
+      } else if (value === 'morning' || value === 'afternoon') {
+        updatedForm.duration = 0.5;
       }
     }
     setLeaveForm(updatedForm);
@@ -800,29 +813,45 @@ const EmployeeCalendar = ({ joinDate }) => {
             <form onSubmit={handleSubmitLeave} className="space-y-4">
 
               <div className="grid grid-cols-12 gap-4 w-full items-start">
-                <div className="col-span-5">
+                <div className="col-span-4">
                   <label className="block text-sm font-medium text-gray-700 mb-1">From Date *</label>
                   <input
                     type="date"
                     name="from_date"
                     value={leaveForm.from_date}
-                    onChange={handleFormChange}
+                    readOnly
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base bg-gray-100 cursor-not-allowed"
                     style={{fontVariantNumeric:'tabular-nums'}}
                   />
                 </div>
-                <div className="col-span-5">
+                <div className="col-span-4">
                   <label className="block text-sm font-medium text-gray-700 mb-1">To Date *</label>
                   <input
                     type="date"
                     name="to_date"
                     value={leaveForm.to_date}
                     onChange={handleFormChange}
+                    min={leaveForm.from_date}
                     required
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base"
                     style={{fontVariantNumeric:'tabular-nums'}}
                   />
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Day Type</label>
+                  <select
+                    name="day_type"
+                    value={leaveForm.day_type || 'full'}
+                    onChange={handleFormChange}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base"
+                    disabled={leaveForm.from_date !== leaveForm.to_date}
+                  >
+                    <option value="full">Full day</option>
+                    <option value="morning">Morning half</option>
+                    <option value="afternoon">Afternoon half</option>
+                  </select>
                 </div>
                 <div className="col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Days</label>
@@ -831,29 +860,17 @@ const EmployeeCalendar = ({ joinDate }) => {
                     inputMode="numeric"
                     pattern="[0-9]*"
                     name="duration"
-                    value={leaveForm.duration < 10 ? `0${leaveForm.duration}` : leaveForm.duration}
+                    value={
+                      leaveForm.duration === 0.5
+                        ? '0.5'
+                        : leaveForm.duration < 10
+                          ? `0${leaveForm.duration}`
+                          : leaveForm.duration
+                    }
                     readOnly
                     className="w-20 px-2 py-2 border border-gray-300 rounded-lg bg-gray-100 focus:outline-none text-center"
                     style={{minWidth:'3.5rem',maxWidth:'4.5rem'}}
                   />
-                </div>
-              </div>
-
-              {/* Second row: Day type dropdown */}
-              <div className="grid grid-cols-12 gap-4 w-full mt-2">
-                <div className="col-span-3">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Day Type</label>
-                  <select
-                    name="day_type"
-                    value={leaveForm.day_type || ''}
-                    onChange={handleFormChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base"
-                  >
-                    <option value="">Select</option>
-                    <option value="full">Full day</option>
-                    <option value="morning">Morning half</option>
-                    <option value="afternoon">Afternoon half</option>
-                  </select>
                 </div>
               </div>
 
@@ -953,18 +970,18 @@ const EmployeeCalendar = ({ joinDate }) => {
 
               <div className="flex justify-end gap-3 pt-4">
                 <button
-                  type="button"
-                  onClick={handleCloseLeaveForm}
-                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-                <button
                   type="submit"
                   disabled={loading}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400"
+                  className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-400"
                 >
                   {loading ? 'Submitting...' : editingLeave ? 'Update Leave' : 'Submit Leave'}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCloseLeaveForm}
+                  className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+                >
+                  Cancel
                 </button>
               </div>
             </form>

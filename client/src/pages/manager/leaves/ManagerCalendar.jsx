@@ -38,6 +38,7 @@ const ManagerCalendar = ({ joinDate }) => {
     from_date: '',
     to_date: '',
     leave_duration: 'Full Day',
+    day_type: 'full',
     leave_reason: '',
     duration: 1,
     alternate_person: '',
@@ -104,6 +105,14 @@ const ManagerCalendar = ({ joinDate }) => {
         updatedForm.duration = 1;
       }
     }
+    // Set duration based on day_type
+    if (name === 'day_type') {
+      if (value === 'full') {
+        updatedForm.duration = 1;
+      } else if (value === 'morning' || value === 'afternoon') {
+        updatedForm.duration = 0.5;
+      }
+    }
     setLeaveForm(updatedForm);
   };
 
@@ -125,6 +134,7 @@ const ManagerCalendar = ({ joinDate }) => {
       from_date: formattedDate,
       to_date: formattedDate,
       leave_duration: 'Full Day',
+      day_type: 'full',
       leave_reason: '',
       duration: 1,
       alternate_person: '',
@@ -717,6 +727,12 @@ const ManagerCalendar = ({ joinDate }) => {
                       {leave.alternate_person && (
                         <div className="text-sm text-gray-600">
                           <strong>Alternate:</strong> {leave.alternate_person}
+                        </div>
+                      )}
+                      
+                      {leave.additional_alternate && (
+                        <div className="text-sm text-gray-600">
+                          <strong>Additional Alternate:</strong> {leave.additional_alternate}
                         </div>
                       )}
                       

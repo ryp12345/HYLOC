@@ -2,8 +2,15 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../api/axios';
+import { getAllUnitMasters } from '../../api/unitMasterApi';
 
 function EmpKpiKaiPage() {
+    const [units, setUnits] = useState([]);
+    const unitSymbolById = useMemo(() => {
+      const map = {};
+      units.forEach(u => { map[u.id] = u.symbol; });
+      return map;
+    }, [units]);
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const [kpis, setKPIs] = useState([]); // All KPIs for hierarchy display
@@ -111,6 +118,13 @@ function EmpKpiKaiPage() {
     const q = searchQuery.toLowerCase();
     return base.filter((kpi) => kpi.title?.toLowerCase().includes(q));
   }, [kpis, assignedKPIIdsForYear, kpiById, selectedYear, searchQuery]);
+
+  // Fetch all units on mount
+  useEffect(() => {
+    getAllUnitMasters().then(res => {
+      setUnits(res.data.data || []);
+    }).catch(() => setUnits([]));
+  }, []);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -365,7 +379,7 @@ function EmpKpiKaiPage() {
             {/* View Button */}
             {kpiValues.length > 0 && (
               <button 
-                className="flex-shrink-0 inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors shadow-sm hover:shadow-md"
+                className="flex-shrink-0 inline-flex items-center gap-2 px-4 py-2 bg-white hover:bg-slate-100 text-black rounded-lg font-medium transition-colors shadow-sm hover:shadow-md border border-blue-600"
                 type="button" 
                 onClick={() => selectKPI(node.kpi, kpiValues)}
                 title="View KPI details"
@@ -430,9 +444,9 @@ function EmpKpiKaiPage() {
                     }`}>
                       {String(kpiValue.kpi_type).toLowerCase() === 'computed' ? '🧮 Computed' : '📝 Manual'}
                     </span>
-                    {kpiValue.unit_symbol && (
-                      <span className="inline-flex items-center gap-2 px-3 py-1 bg-orange-50 text-orange-700 rounded-full text-xs font-semibold border border-orange-200">
-                        📏 {kpiValue.unit_symbol}
+                    {kpiValue.uom && unitSymbolById[kpiValue.uom] && (
+                      <span className="unit-badge inline-flex items-center gap-2 px-3 py-1 bg-orange-50 text-orange-700 rounded-full text-xs font-semibold border border-orange-200" title="Unit of Measurement">
+                        📏 {unitSymbolById[kpiValue.uom]}
                       </span>
                     )}
                     {kpiValue.target_required && (
@@ -473,7 +487,7 @@ function EmpKpiKaiPage() {
                             targetRequired={kpiValue.target_required}
                             initialTarget={monthData.target_value ?? ''}
                             initialActual={monthData.actual_value ?? ''}
-                            unitSymbol={kpiValue.unit_symbol}
+                            unitSymbol={unitSymbolById[kpiValue.uom]}
                             defaultTargetValue={kpiValue.default_target_value}
                             onSubmit={handleDataSubmit}
                           />
@@ -498,26 +512,27 @@ function EmpKpiKaiPage() {
                               <span className="text-blue-600">📍</span>
                               {month}
                             </h5>
-                            <div className="space-y-2 text-sm">
+                            <div className="data-display space-y-2 text-sm">
                               {kpiValue.target_required && (
-                                <div>
-                                  <p className="text-black font-bold">Target:</p>
-                                  <p className="text-slate-900 font-semibold">
-                                    {formatValue(monthData.target_value ?? kpiValue.default_target_value)}
-                                    {kpiValue.unit_symbol && <span className="text-slate-600 ml-1">{kpiValue.unit_symbol}</span>}
-                                  </p>
-                                </div>
-                              )}
-                              <div>
-                                <p className="text-black font-bold">Calculated:</p>
-                                <p className={`text-lg font-bold ${hasComputedValue ? 'text-emerald-700' : 'text-slate-500'}`}>
-                                  {formatValue(monthData.actual_value)}
-                                  {kpiValue.unit_symbol && <span className="text-slate-600 ml-1 text-sm">{kpiValue.unit_symbol}</span>}
+                                <p className="data-row">
+                                  <strong>Target:</strong> {formatValue(monthData.target_value ?? kpiValue.default_target_value)}
+                                  {kpiValue.uom && unitSymbolById[kpiValue.uom] && (
+                                    <span className="unit-badge inline-flex items-center gap-2 px-2 py-0.5 bg-orange-50 text-orange-700 rounded-full text-xs font-semibold border border-orange-200 ml-2" title="Unit of Measurement">
+                                      📏 {unitSymbolById[kpiValue.uom]}
+                                    </span>
+                                  )}
                                 </p>
-                              </div>
-                              <p className="text-xs text-slate-500 mt-2 pt-2 border-t border-slate-200 italic">
-                                🔧 Auto-calculated
+                              )}
+                              <p className="data-row">
+                                <strong>Calculated:</strong> 
+                                <span className={`computed-value text-lg font-bold ${hasComputedValue ? 'text-emerald-700' : 'text-slate-500'}`}>{formatValue(monthData.actual_value)}</span>
+                                {kpiValue.uom && unitSymbolById[kpiValue.uom] && (
+                                  <span className="unit-badge inline-flex items-center gap-2 px-2 py-0.5 bg-orange-50 text-orange-700 rounded-full text-xs font-semibold border border-orange-200 ml-2" title="Unit of Measurement">
+                                    📏 {unitSymbolById[kpiValue.uom]}
+                                  </span>
+                                )}
                               </p>
+                              <p className="computed-note text-xs text-slate-500 mt-2 pt-2 border-t border-slate-200 italic">🔧 Auto-calculated</p>
                             </div>
                           </div>
                         );
@@ -576,18 +591,18 @@ function EmpKpiKaiPage() {
           <div className="space-y-6">
             {/* Filters Section */}
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 hover:shadow-md transition-shadow">
-              <h2 className="text-lg font-semibold text-slate-900 mb-6 flex items-center gap-2">
+              <h2 className="text-lg font-semibold text-blue-900 mb-6 flex items-center gap-2">
                 <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
                 </svg>
-                Filters & Search
+                My KPIs/KAIs
               </h2>
               
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {/* Financial Year Dropdown */}
                 <div className="flex flex-col gap-2">
                   <label htmlFor="financial-year" className="text-sm font-semibold text-slate-700">
-                    📅 Financial Year
+                    Financial Year
                   </label>
                   <select
                     id="financial-year"
@@ -605,7 +620,7 @@ function EmpKpiKaiPage() {
                 {/* Search Input */}
                 <div className="flex flex-col gap-2 col-span-1 md:col-span-2 lg:col-span-2">
                   <label htmlFor="search-kpi" className="text-sm font-semibold text-slate-700">
-                    🔍 Search KPI
+                    Search KPI
                   </label>
                   <div className="relative">
                     <input
@@ -656,38 +671,37 @@ function EmpKpiKaiPage() {
           </div>
         ) : (
           <div className="space-y-6">
-            {/* Back Button & Breadcrumb */}
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <button 
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium transition-colors"
-                  onClick={() => setSelectedKPI(null)}
-                  title="Back to KPI list"
-                >
-                  ← Back
-                </button>
-              </div>
-              
-              <nav className="flex items-center gap-2 flex-wrap">
-                {buildBreadcrumb(selectedKPI).map((kpi, index, array) => (
-                  <div key={kpi.id} className="flex items-center gap-2">
-                    <span className="inline-flex items-center gap-2 px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-semibold border border-blue-200">
-                      <span className="text-blue-500">●</span>
-                      {getCategoryName(kpi.category_id)}
-                    </span>
-                    <span className="text-slate-700  font-medium">{kpi.title}</span>
-                    {index < array.length - 1 && <span className="text-slate-400 text-xl">›</span>}
-                  </div>
-                ))}
-              </nav>
-            </div>
 
-            {/* Year Selector for Detail View */}
+            {/* Back Button, Breadcrumb & Financial Year Selector Combined */}
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-              <div className="flex items-end gap-6">
-                <div className="flex flex-col gap-2 flex-1">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
+                <div className="flex items-center gap-3">
+                  <button 
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium transition-colors"
+                    onClick={() => setSelectedKPI(null)}
+                    title="Back to KPI list"
+                  >
+                    ← Back
+                  </button>
+                  {/* Breadcrumb in colored box */}
+                  <div className="px-4 py-3 rounded-lg"  style={{ backgroundColor: '#0a2a52' }}>
+                    <nav className="flex items-center gap-2 flex-wrap">
+                      {buildBreadcrumb(selectedKPI).map((kpi, index, array) => (
+                        <div key={kpi.id} className="flex items-center gap-2">
+                          <span className="inline-flex items-center text-bold gap-2 px-3 py-1 bg-blue-500 text-white rounded-full text-xs font-semibold border border-blue-700">
+                            <span className="text-white">●</span>
+                            <span className="font-bold">{getCategoryName(kpi.category_id)}</span>
+                          </span>
+                          <span className="text-white font-medium">{kpi.title}</span>
+                          {index < array.length - 1 && <span className="text-slate-400 text-xl">›</span>}
+                        </div>
+                      ))}
+                    </nav>
+                  </div>
+                </div>
+                <div className="flex flex-col gap-2 min-w-[180px]">
                   <label htmlFor="financial-year-detail" className="text-sm font-semibold text-slate-700">
-                    📅 Financial Year
+                    Financial Year
                   </label>
                   <select
                     id="financial-year-detail"
@@ -825,7 +839,11 @@ function MonthlyDataForm({ month, monthIndex, kpiValueId, targetRequired, initia
               <p className="text-black text-xs font-bold mb-1">Target</p>
               <p className="text-slate-900 font-semibold text-base">
                 {getTargetDisplay()}
-                {unitSymbol && <span className="text-slate-600 text-xs ml-1">{unitSymbol}</span>}
+                {unitSymbol && (
+                  <span className="unit-badge inline-flex items-center gap-2 px-2 py-0.5 bg-orange-50 text-orange-700 rounded-full text-xs font-semibold border border-orange-200 ml-2" title="Unit of Measurement">
+                    📏 {unitSymbol}
+                  </span>
+                )}
               </p>
             </div>
           )}
@@ -833,7 +851,11 @@ function MonthlyDataForm({ month, monthIndex, kpiValueId, targetRequired, initia
             <p className="text-black text-xs font-bold mb-1">Actual</p>
             <p className="text-slate-900 font-semibold text-base">
               {formatDisplayValue(actualValue)}
-              {unitSymbol && <span className="text-slate-600 text-xs ml-1">{unitSymbol}</span>}
+              {unitSymbol && (
+                <span className="unit-badge inline-flex items-center gap-2 px-2 py-0.5 bg-orange-50 text-orange-700 rounded-full text-xs font-semibold border border-orange-200 ml-2" title="Unit of Measurement">
+                  📏 {unitSymbol}
+                </span>
+              )}
             </p>
           </div>
           <button 
