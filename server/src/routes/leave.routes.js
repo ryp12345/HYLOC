@@ -16,7 +16,7 @@ router.post('/', authorize('Employee', 'Manager'), leaveController.applyLeave);
 router.get('/my-leaves', authorize('Employee', 'Manager'), leaveController.getMyLeaves);
 router.get('/balance', authorize('Employee', 'Manager'), leaveController.getMyBalance);
 router.get('/history/:year', authorize('Employee', 'Manager'), leaveController.getLeaveHistory);
-router.put('/:id', authorize('Employee', 'Manager'), leaveController.updateLeave);
+router.put('/:id', authorize('Employee', 'Manager', 'Management'), leaveController.updateLeave);
 router.delete('/:id', authorize('Employee', 'Manager'), leaveController.cancelLeave);
 
 // Manager and Management routes (approval/rejection)

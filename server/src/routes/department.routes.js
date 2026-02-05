@@ -8,11 +8,11 @@ const router = express.Router();
 // All department routes require authentication
 router.use(authenticate);
 
-// Get all departments (accessible by admin and management)
-router.get('/', authorize('admin', 'management'), departmentController.getAllDepartments);
+// Get all departments (accessible by admin, management, and manager)
+router.get('/', authorize('admin', 'management', 'manager'), departmentController.getAllDepartments);
 
-// Get department by ID (accessible by admin and management)
-router.get('/:id', authorize('admin', 'management'), departmentController.getDepartmentById);
+// Get department by ID (accessible by admin, management, and manager)
+router.get('/:id', authorize('admin', 'management', 'manager'), departmentController.getDepartmentById);
 
 // Create department (only admin)
 router.post('/', authorize('admin'), departmentController.createDepartment);

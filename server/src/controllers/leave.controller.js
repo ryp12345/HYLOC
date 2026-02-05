@@ -445,32 +445,18 @@ exports.approveLeave = async (req, res, next) => {
     const roleResult = await db.query(roleQuery, [leave.user_id]);
     const applicantRole = roleResult.rows[0]?.role_name;
     
-    // If leave is from a Manager, only Management can approve (no duration restriction)
-    if (applicantRole === 'Manager') {
-      if (userRole !== 'Management') {
+    // Management can approve any leave (Manager or Employee)
+    if (userRole === 'Management') {
+      // proceed
+    } else if (userRole === 'Manager') {
+      // Manager can only approve Employee leaves
+      if (applicantRole !== 'Employee') {
         return res.status(403).json({
           success: false,
-          message: 'Only Management can approve Manager\'s leaves'
+          message: 'Manager can only approve leaves of Employees.'
         });
       }
-      // Management approving Manager's leave - no duration restriction, proceed
-    } else if (applicantRole === 'Employee') {
-      // Leave is from Employee - apply duration-based rules
-      // Manager can only approve leaves <= 2 days
-      if (userRole === 'Manager' && parseFloat(leave.credited_days) > 2) {
-        return res.status(403).json({
-          success: false,
-          message: 'Manager can only approve leaves of 2 days or less. This leave requires Management approval.'
-        });
-      }
-      
-      // Management can only approve leaves > 2 days
-      if (userRole === 'Management' && parseFloat(leave.credited_days) <= 2) {
-        return res.status(403).json({
-          success: false,
-          message: 'Management approves leaves greater than 2 days only. This leave should be approved by Manager.'
-        });
-      }
+      // proceed
     }
     
     const approvedLeave = await leaveModel.approveLeave(leaveId, approverId);
@@ -530,31 +516,18 @@ exports.rejectLeave = async (req, res, next) => {
     const roleResult = await db.query(roleQuery, [leave.user_id]);
     const applicantRole = roleResult.rows[0]?.role_name;
     
-    // If leave is from a Manager, only Management can reject (no duration restriction)
-    if (applicantRole === 'Manager') {
-      if (userRole !== 'Management') {
+    // Management can reject any leave (Manager or Employee)
+    if (userRole === 'Management') {
+      // proceed
+    } else if (userRole === 'Manager') {
+      // Manager can only reject Employee leaves
+      if (applicantRole !== 'Employee') {
         return res.status(403).json({
           success: false,
-          message: 'Only Management can reject Manager\'s leaves'
+          message: 'Manager can only reject leaves of Employees.'
         });
       }
-      // Management rejecting Manager's leave - no duration restriction, proceed
-    } else if (applicantRole === 'Employee') {
-      // Leave is from Employee - apply duration-based rules
-      // Same approval rules apply for rejection
-      if (userRole === 'Manager' && parseFloat(leave.credited_days) > 2) {
-        return res.status(403).json({
-          success: false,
-          message: 'Manager can only handle leaves of 2 days or less.'
-        });
-      }
-      
-      if (userRole === 'Management' && parseFloat(leave.credited_days) <= 2) {
-        return res.status(403).json({
-          success: false,
-          message: 'Management handles leaves greater than 2 days only.'
-        });
-      }
+      // proceed
     }
     
     const rejectedLeave = await leaveModel.rejectLeave(leaveId, rejectorId);

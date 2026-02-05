@@ -12,6 +12,17 @@ const ManagementCalendar = () => {
 	const [selectedLeaveDate, setSelectedLeaveDate] = useState(null);
 	const [selectedDateLeaves, setSelectedDateLeaves] = useState([]);
 
+	// Filter state
+	const [showFilteredTable, setShowFilteredTable] = useState(false);
+	const [filter, setFilter] = useState({
+		from: '',
+		to: '',
+		department: '',
+		username: '',
+	});
+	const [currentPage, setCurrentPage] = useState(1);
+	const itemsPerPage = 10;
+
 	useEffect(() => {
 		loadData();
 	}, [currentDate]);
@@ -203,6 +214,73 @@ const ManagementCalendar = () => {
 		const toDate = parseDateOnly(leave.to_date);
 		if (!fromDate || !toDate) return false;
 		return fromDate <= monthEnd && toDate >= monthStart;
+	};
+
+
+	// State for all departments
+	const [allDepartments, setAllDepartments] = useState([]);
+
+	// Fetch all departments on mount
+	useEffect(() => {
+		const fetchDepartments = async () => {
+			try {
+				// Import the API dynamically to avoid top-level import issues
+				const { getDepartments } = await import('../../../api/departmentApi');
+				const response = await getDepartments();
+				console.log('Departments API response:', response);
+				// Try multiple response structures
+				const departments = response.data?.data || response.data || [];
+				console.log('Parsed departments:', departments);
+				setAllDepartments(departments);
+			} catch (err) {
+				console.error('Error fetching departments:', err);
+			}
+		};
+		fetchDepartments();
+	}, []);
+
+	// Build department options from allDepartments
+	const departmentOptions = useMemo(() => {
+		const options = allDepartments
+			.map(d => {
+				// Try different property names (name, department_name, department_name)
+				return d.name || d.department_name || d.departmentName || '';
+			})
+			.filter(name => name) // Remove empty strings
+			.sort();
+		console.log('Department options:', options);
+		return options;
+	}, [allDepartments]);
+
+	// Filter all org leaves based on filter criteria
+	const filteredOrgLeaves = React.useMemo(() => {
+		let leaves = allOrgLeaves;
+		if (filter.from) {
+			leaves = leaves.filter(l => new Date(l.from_date) >= new Date(filter.from));
+		}
+		if (filter.to) {
+			leaves = leaves.filter(l => new Date(l.to_date) <= new Date(filter.to));
+		}
+		if (filter.department) {
+			leaves = leaves.filter(l => l.department_name === filter.department);
+		}
+		if (filter.username) {
+			leaves = leaves.filter(l => (l.user_name || '').toLowerCase().includes(filter.username.toLowerCase()));
+		}
+		return leaves;
+	}, [allOrgLeaves, filter]);
+
+	// Pagination for filtered leaves
+	const totalPages = Math.ceil(filteredOrgLeaves.length / itemsPerPage);
+	const paginatedOrgLeaves = filteredOrgLeaves.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+	// Format date helper
+	const formatDateDisplay = (dateStr) => {
+		return new Date(dateStr).toLocaleDateString('en-US', { 
+			year: 'numeric', 
+			month: 'short', 
+			day: 'numeric' 
+		});
 	};
 
 	const monthDays = getMonthDays(currentDate);
@@ -413,64 +491,205 @@ const ManagementCalendar = () => {
 				)}
 			</div>
 
-			{showLeaveModal && selectedLeaveDate && (
-				<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-					<div className="bg-white rounded-lg shadow-xl w-full max-w-5xl max-h-[90vh] overflow-y-auto">
-						<div className="p-6">
-							<div className="flex items-center justify-between mb-4">
-								<h3 className="text-xl font-bold text-gray-800">
-									Leave Details - {formatFullDate(selectedLeaveDate)}
-								</h3>
-								<button
-									onClick={closeLeaveModal}
-									className="text-gray-500 hover:text-gray-700 text-2xl"
-								>
-									×
-								</button>
-							</div>
+		{/* Filter Section for All Org Leaves */}
+		<div className="bg-white rounded-lg shadow-lg p-6">
+			
+			<div className="flex flex-wrap gap-4 items-end mb-4">
+				<div>
+					<label className="block text-xs font-semibold text-gray-600 mb-1">From Date</label>
+					<input 
+						type="date" 
+						className="border rounded px-3 py-2" 
+						value={filter.from} 
+						onChange={e => { setFilter(f => ({ ...f, from: e.target.value })); setCurrentPage(1); }}
+					/>
+				</div>
+				<div>
+					<label className="block text-xs font-semibold text-gray-600 mb-1">To Date</label>
+					<input 
+						type="date" 
+						className="border rounded px-3 py-2" 
+						value={filter.to} 
+						onChange={e => { setFilter(f => ({ ...f, to: e.target.value })); setCurrentPage(1); }}
+					/>
+				</div>
+				<div>
+					<label className="block text-xs font-semibold text-gray-600 mb-1">Department</label>
+					<select 
+						className="border rounded px-3 py-2" 
+						value={filter.department} 
+						onChange={e => { setFilter(f => ({ ...f, department: e.target.value })); setCurrentPage(1); }}
+					>
+						<option value="">All Departments</option>
+						{departmentOptions.map(dept => (
+							<option key={dept} value={dept}>{dept}</option>
+						))}
+					</select>
+				</div>
+				<div>
+					<label className="block text-xs font-semibold text-gray-600 mb-1">Username</label>
+					<input 
+						type="text" 
+						className="border rounded px-3 py-2" 
+						placeholder="Search by username" 
+						value={filter.username} 
+						onChange={e => { setFilter(f => ({ ...f, username: e.target.value })); setCurrentPage(1); }}
+					/>
+				</div>
+				<button
+					className="bg-blue-600 text-white px-6 py-2 rounded font-semibold hover:bg-blue-700 transition"
+					onClick={() => {
+						if (filter.from || filter.to || filter.department || filter.username) {
+							setShowFilteredTable(true);
+							setCurrentPage(1);
+						} else {
+							setShowFilteredTable(false);
+							alert('Please fill at least one filter to search.');
+						}
+					}}
+				>
+					Search
+				</button>
+				{showFilteredTable && (
+					<button
+						className="ml-2 bg-gray-200 text-gray-700 px-4 py-2 rounded font-semibold hover:bg-gray-300 transition"
+						onClick={() => {
+							setShowFilteredTable(false);
+							setFilter({ from: '', to: '', department: '', username: '' });
+							setCurrentPage(1);
+						}}
+					>
+						Reset
+					</button>
+				)}
+			</div>
 
-							{selectedDateLeaves.length === 0 ? (
-								<div className="text-center text-gray-500 py-8">No leaves for this date</div>
-							) : (
-								<div className="overflow-x-auto">
-									<table className="min-w-full text-sm border">
-										<thead className="bg-gray-100 text-gray-700">
-											<tr>
-												<th className="text-left px-4 py-2 border">User Name</th>
-												<th className="text-left px-4 py-2 border">Role</th>
-												<th className="text-left px-4 py-2 border">From Date</th>
-												<th className="text-left px-4 py-2 border">To Date</th>
-												<th className="text-left px-4 py-2 border">Leave Reason</th>
-												<th className="text-left px-4 py-2 border">Alternate</th>
-												<th className="text-left px-4 py-2 border">Status</th>
-											</tr>
-										</thead>
-										<tbody>
-											{selectedDateLeaves.map((leave) => (
-												<tr key={leave.id} className="border-t">
-													<td className="px-4 py-2 border">{leave.user_name}</td>
-													<td className="px-4 py-2 border">{leave.user_role || '—'}</td>
-											<td className="px-4 py-2 border">{formatFullDate(parseDateOnly(leave.from_date))}</td>
-											<td className="px-4 py-2 border">{formatFullDate(parseDateOnly(leave.to_date))}</td>
-													<td className="px-4 py-2 border">{leave.leave_reason || '—'}</td>
-													<td className="px-4 py-2 border">{formatAlternate(leave)}</td>
-													<td className="px-4 py-2 border">
-														<span className={`px-2 py-1 rounded text-xs font-semibold ${getLeaveBadgeColor(leave.status)}`}>
-															{leave.status}
-														</span>
-													</td>
-												</tr>
-											))}
-										</tbody>
-									</table>
-								</div>
-							)}
-						</div>
+			{/* Filtered Table */}
+			{showFilteredTable && (
+				<div className="mt-6 overflow-hidden bg-white shadow-xl rounded-xl">
+					<div className="overflow-x-auto">
+						<table className="min-w-full divide-y divide-gray-200">
+							<thead className="bg-blue-600">
+								<tr>
+									<th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">S.No</th>
+									<th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Name</th>
+									<th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Role</th>
+									<th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Department</th>
+									<th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Date Range</th>
+									<th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Duration</th>
+									<th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Reason</th>
+									<th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Status</th>
+								</tr>
+							</thead>
+							<tbody className="bg-white divide-y divide-gray-200">
+								{loading ? (
+									<tr><td colSpan="8" className="p-8 text-center text-gray-500">Loading...</td></tr>
+								) : paginatedOrgLeaves.length === 0 ? (
+									<tr><td colSpan="8" className="p-8 text-center text-gray-500">No leaves found matching the filters</td></tr>
+								) : (
+									paginatedOrgLeaves.map((leave, idx) => (
+										<tr key={leave.id} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-colors duration-150`}>
+											<td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{(currentPage - 1) * itemsPerPage + idx + 1}</td>
+											<td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{leave.user_name || '-'}</td>
+											<td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{leave.user_role || '-'}</td>
+											<td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{leave.department_name || '-'}</td>
+											<td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{formatDateDisplay(leave.from_date)} - {formatDateDisplay(leave.to_date)}</td>
+											<td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{leave.credited_days} day(s)</td>
+											<td className="px-6 py-4 text-sm text-gray-900">{leave.leave_reason || '-'}</td>
+											<td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+												<span className={`px-3 py-1 rounded-full text-xs font-medium ${
+													leave.status === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
+													leave.status === 'Approved' ? 'bg-green-100 text-green-800' :
+													'bg-red-100 text-red-800'
+												}`}>
+													{leave.status}
+												</span>
+											</td>
+										</tr>
+									))
+								)}
+							</tbody>
+						</table>
 					</div>
+
+					{/* Pagination */}
+					{totalPages > 1 && (
+						<div className="flex justify-end items-center gap-2 p-4">
+							<button
+								className="px-3 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50"
+								disabled={currentPage === 1}
+								onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+							>Prev</button>
+							<span className="text-sm">Page {currentPage} of {totalPages}</span>
+							<button
+								className="px-3 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50"
+								disabled={currentPage === totalPages}
+								onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+							>Next</button>
+						</div>
+					)}
 				</div>
 			)}
 		</div>
-	);
+
+		{showLeaveModal && selectedLeaveDate && (
+			<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+				<div className="bg-white rounded-lg shadow-xl w-full max-w-5xl max-h-[90vh] overflow-y-auto">
+					<div className="p-6">
+						<div className="flex items-center justify-between mb-4">
+							<h3 className="text-xl font-bold text-gray-800">
+								Leave Details - {formatFullDate(selectedLeaveDate)}
+							</h3>
+							<button
+								onClick={closeLeaveModal}
+								className="text-gray-500 hover:text-gray-700 text-2xl"
+							>
+								×
+							</button>
+						</div>
+
+						{selectedDateLeaves.length === 0 ? (
+							<div className="text-center text-gray-500 py-8">No leaves for this date</div>
+						) : (
+							<div className="overflow-x-auto">
+								<table className="min-w-full text-sm border">
+									<thead className="bg-gray-100 text-gray-700">
+										<tr>
+											<th className="text-left px-4 py-2 border">User Name</th>
+											<th className="text-left px-4 py-2 border">Role</th>
+											<th className="text-left px-4 py-2 border">From Date</th>
+											<th className="text-left px-4 py-2 border">To Date</th>
+											<th className="text-left px-4 py-2 border">Leave Reason</th>
+											<th className="text-left px-4 py-2 border">Alternate</th>
+											<th className="text-left px-4 py-2 border">Status</th>
+										</tr>
+									</thead>
+									<tbody>
+										{selectedDateLeaves.map((leave) => (
+											<tr key={leave.id} className="border-t">
+												<td className="px-4 py-2 border">{leave.user_name}</td>
+												<td className="px-4 py-2 border">{leave.user_role || '—'}</td>
+												<td className="px-4 py-2 border">{formatFullDate(parseDateOnly(leave.from_date))}</td>
+												<td className="px-4 py-2 border">{formatFullDate(parseDateOnly(leave.to_date))}</td>
+												<td className="px-4 py-2 border">{leave.leave_reason || '—'}</td>
+												<td className="px-4 py-2 border">{formatAlternate(leave)}</td>
+												<td className="px-4 py-2 border">
+													<span className={`px-2 py-1 rounded text-xs font-semibold ${getLeaveBadgeColor(leave.status)}`}>
+														{leave.status}
+													</span>
+												</td>
+											</tr>
+										))}
+									</tbody>
+								</table>
+							</div>
+						)}
+					</div>
+				</div>
+			</div>
+		)}
+	</div>
+);
 };
 
 export default ManagementCalendar;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../../../context/AuthContext';
 import { 
   applyLeave, 
@@ -17,7 +17,7 @@ const ManagerCalendar = ({ joinDate }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState('month'); // 'month', 'week', 'list'
   const [selectedDate, setSelectedDate] = useState(new Date());
-  
+
   // Leave management state
   const [leaves, setLeaves] = useState([]);
   const [leaveBalance, setLeaveBalance] = useState(null);
@@ -29,7 +29,7 @@ const ManagerCalendar = ({ joinDate }) => {
   const [showCalendarLeaveModal, setShowCalendarLeaveModal] = useState(false);
   const [selectedCalendarDate, setSelectedCalendarDate] = useState(null);
   const [selectedCalendarLeaves, setSelectedCalendarLeaves] = useState([]);
-  
+
   // Form state
   const [showLeaveForm, setShowLeaveForm] = useState(false);
   const [editingLeave, setEditingLeave] = useState(null);
@@ -45,6 +45,17 @@ const ManagerCalendar = ({ joinDate }) => {
     additional_alternate: '',
     available_on_phone: true
   });
+
+  // Search state
+  const [showFilteredTable, setShowFilteredTable] = useState(false);
+  const [filter, setFilter] = useState({
+    from: '',
+    to: '',
+    department: '',
+    username: '',
+  });
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   // Load data on component mount
   useEffect(() => {
@@ -71,9 +82,6 @@ const ManagerCalendar = ({ joinDate }) => {
       
       // Load department colleagues
       const colleaguesResponse = await getDepartmentColleagues();
-      console.log('Colleagues response:', colleaguesResponse);
-      console.log('Colleagues data:', colleaguesResponse.data.data);
-      console.log('Colleagues count:', colleaguesResponse.data.data?.length);
       setColleagues(colleaguesResponse.data.data || []);
 
       const departmentLeavesResponse = await getDepartmentLeaves({ year });
@@ -154,11 +162,36 @@ const ManagerCalendar = ({ joinDate }) => {
 
   // Open leave form for editing
   const openEditForm = (leave) => {
+    // Format dates for input type="date"
+    function parseToDateObj(dateStr) {
+      if (!dateStr) return null;
+      // If already yyyy-mm-dd, parse directly
+      if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return new Date(dateStr);
+      // If dd/mm/yyyy, convert
+      const match = dateStr.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+      if (match) {
+        const [, dd, mm, yyyy] = match;
+        return new Date(`${yyyy}-${mm}-${dd}`);
+      }
+      // Fallback: try Date parsing
+      const d = new Date(dateStr);
+      if (!isNaN(d)) return d;
+      return null;
+    }
+    let duration = 1;
+    const fromObj = parseToDateObj(leave.from_date);
+    const toObj = parseToDateObj(leave.to_date);
+    const formattedFrom = fromObj ? formatDateForInput(fromObj) : '';
+    const formattedTo = toObj ? formatDateForInput(toObj) : '';
+    if (fromObj && toObj) {
+      duration = Math.round((toObj - fromObj) / (1000 * 60 * 60 * 24)) + 1;
+    }
     setLeaveForm({
-      from_date: leave.from_date,
-      to_date: leave.to_date,
+      from_date: formattedFrom,
+      to_date: formattedTo,
       leave_duration: leave.leave_duration,
       leave_reason: leave.leave_reason,
+      duration,
       alternate_person: leave.alternate_person || '',
       additional_alternate: leave.additional_alternate || '',
       available_on_phone: leave.available_on_phone !== false
@@ -442,6 +475,65 @@ const ManagerCalendar = ({ joinDate }) => {
 
   const monthDays = getMonthDays(currentDate);
   const weekDays = getWeekDays(currentDate);
+
+  // State for all departments
+  const [allDepartments, setAllDepartments] = useState([]);
+
+  // Fetch all departments on mount
+  useEffect(() => {
+    const fetchDepartments = async () => {
+      try {
+        // Import the API dynamically to avoid top-level import issues
+        const { getDepartments } = await import('../../../api/departmentApi');
+        const response = await getDepartments();
+        // Try multiple response structures
+        const departments = response.data?.data || response.data || [];
+        setAllDepartments(departments);
+      } catch (err) {
+        console.error('Error fetching departments:', err);
+      }
+    };
+    fetchDepartments();
+  }, []);
+
+  // Build department options from allDepartments
+  const departmentOptions = useMemo(() => {
+    return allDepartments
+      .map(d => d.name || d.department_name || d.departmentName || '')
+      .filter(name => name)
+      .sort();
+  }, [allDepartments]);
+
+  // Filter calendar leaves based on filter criteria
+  const filteredCalendarLeaves = React.useMemo(() => {
+    let leaves = calendarLeaves;
+    if (filter.from) {
+      leaves = leaves.filter(l => new Date(l.from_date) >= new Date(filter.from));
+    }
+    if (filter.to) {
+      leaves = leaves.filter(l => new Date(l.to_date) <= new Date(filter.to));
+    }
+    if (filter.department) {
+      leaves = leaves.filter(l => l.department_name === filter.department);
+    }
+    if (filter.username) {
+      leaves = leaves.filter(l => (l.user_name || '').toLowerCase().includes(filter.username.toLowerCase()));
+    }
+    return leaves;
+  }, [calendarLeaves, filter]);
+
+  // Pagination for filtered leaves
+  const totalPages = Math.ceil(filteredCalendarLeaves.length / itemsPerPage);
+  const paginatedLeaves = filteredCalendarLeaves.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  // Format date helper
+  const formatDateDisplay = (dateStr) => {
+    return new Date(dateStr).toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric' 
+    });
+  };
 
   return (
     <div className="w-full space-y-6">
@@ -745,14 +837,22 @@ const ManagerCalendar = ({ joinDate }) => {
                     
                     <div className="flex gap-2">
                       <button
-                        onClick={() => openEditForm(leave)}
-                        className="px-3 py-1 bg-purple-500 text-white rounded hover:bg-purple-600 text-sm"
+                        onClick={() => {
+                          if (leave.status !== 'Approved' && leave.status !== 'Rejected') openEditForm(leave);
+                        }}
+                        className={`px-3 py-1 rounded text-sm ${(leave.status === 'Approved' || leave.status === 'Rejected') ? 'bg-gray-400 text-gray-200 cursor-not-allowed' : 'bg-purple-500 text-white hover:bg-purple-600'}`}
+                        disabled={leave.status === 'Approved' || leave.status === 'Rejected'}
+                        title={(leave.status === 'Approved' || leave.status === 'Rejected') ? 'Cannot edit approved or rejected leave' : 'Edit leave'}
                       >
                         Edit-1
                       </button>
                       <button
-                        onClick={() => handleCancelLeave(leave.id)}
-                        className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 text-sm"
+                        onClick={() => {
+                          if (leave.status !== 'Approved' && leave.status !== 'Rejected') handleCancelLeave(leave.id);
+                        }}
+                        className={`px-3 py-1 rounded text-sm ${(leave.status === 'Approved' || leave.status === 'Rejected') ? 'bg-gray-400 text-gray-200 cursor-not-allowed' : 'bg-red-500 text-white hover:bg-red-600'}`}
+                        disabled={leave.status === 'Approved' || leave.status === 'Rejected'}
+                        title={(leave.status === 'Approved' || leave.status === 'Rejected') ? 'Cannot cancel approved or rejected leave' : 'Cancel leave'}
                       >
                         Cancel
                       </button>
@@ -764,6 +864,147 @@ const ManagerCalendar = ({ joinDate }) => {
           )}
         </div>
       )}
+
+      <hr className="border-t border-gray-200 my-6" />
+
+      {/* Filter Section for Department Leaves */}
+      <div className="bg-white rounded-lg shadow-lg p-6">
+       
+        <div className="flex flex-wrap gap-4 items-end mb-4">
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">From Date</label>
+            <input 
+              type="date" 
+              className="border rounded px-3 py-2" 
+              value={filter.from} 
+              onChange={e => { setFilter(f => ({ ...f, from: e.target.value })); setCurrentPage(1); }}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">To Date</label>
+            <input 
+              type="date" 
+              className="border rounded px-3 py-2" 
+              value={filter.to} 
+              onChange={e => { setFilter(f => ({ ...f, to: e.target.value })); setCurrentPage(1); }}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">Department</label>
+            <select 
+              className="border rounded px-3 py-2" 
+              value={filter.department} 
+              onChange={e => { setFilter(f => ({ ...f, department: e.target.value })); setCurrentPage(1); }}
+            >
+              <option value="">All Departments</option>
+              {departmentOptions.map(dept => (
+                <option key={dept} value={dept}>{dept}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">Username</label>
+            <input 
+              type="text" 
+              className="border rounded px-3 py-2" 
+              placeholder="Search by username" 
+              value={filter.username} 
+              onChange={e => { setFilter(f => ({ ...f, username: e.target.value })); setCurrentPage(1); }}
+            />
+          </div>
+          <button
+            className="bg-blue-600 text-white px-6 py-2 rounded font-semibold hover:bg-blue-700 transition"
+            onClick={() => {
+              if (filter.from || filter.to || filter.department || filter.username) {
+                setShowFilteredTable(true);
+                setCurrentPage(1);
+              } else {
+                setShowFilteredTable(false);
+                alert('Please fill at least one filter to search.');
+              }
+            }}
+          >
+            Search
+          </button>
+          {showFilteredTable && (
+            <button
+              className="ml-2 bg-gray-200 text-gray-700 px-4 py-2 rounded font-semibold hover:bg-gray-300 transition"
+              onClick={() => {
+                setShowFilteredTable(false);
+                setFilter({ from: '', to: '', department: '', username: '' });
+                setCurrentPage(1);
+              }}
+            >
+              Reset
+            </button>
+          )}
+        </div>
+
+        {/* Filtered Table */}
+        {showFilteredTable && (
+          <div className="mt-6 overflow-hidden bg-white shadow-xl rounded-xl">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-blue-600">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">S.No</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Name</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Department</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Date Range</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Duration</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Reason</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {loading ? (
+                    <tr><td colSpan="7" className="p-8 text-center text-gray-500">Loading...</td></tr>
+                  ) : paginatedLeaves.length === 0 ? (
+                    <tr><td colSpan="7" className="p-8 text-center text-gray-500">No leaves found matching the filters</td></tr>
+                  ) : (
+                    paginatedLeaves.map((leave, idx) => (
+                      <tr key={leave.id} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-colors duration-150`}>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{(currentPage - 1) * itemsPerPage + idx + 1}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{leave.user_name || '-'}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{leave.department_name || '-'}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{formatDateDisplay(leave.from_date)} - {formatDateDisplay(leave.to_date)}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{leave.credited_days} day(s)</td>
+                        <td className="px-6 py-4 text-sm text-gray-900">{leave.leave_reason || '-'}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                            leave.status === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
+                            leave.status === 'Approved' ? 'bg-green-100 text-green-800' :
+                            'bg-red-100 text-red-800'
+                          }`}>
+                            {leave.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex justify-end items-center gap-2 p-4">
+                <button
+                  className="px-3 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50"
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                >Prev</button>
+                <span className="text-sm">Page {currentPage} of {totalPages}</span>
+                <button
+                  className="px-3 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50"
+                  disabled={currentPage === totalPages}
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                >Next</button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
 
     {showCalendarLeaveModal && selectedCalendarDate && (
@@ -888,21 +1129,29 @@ const ManagerCalendar = ({ joinDate }) => {
                   <div className="flex gap-2 pt-4">
                     <button
                       onClick={() => {
-                        openEditForm(leave);
-                        handleCloseDateDetail();
+                        if (leave.status !== 'Approved' && leave.status !== 'Rejected') {
+                          openEditForm(leave);
+                          handleCloseDateDetail();
+                        }
                       }}
-                      className="flex-1 px-4 py-2 bg-blue-500 text-white rounded hover:bg-purple-600"
+                      className={`flex-1 px-4 py-2 rounded ${(leave.status === 'Approved' || leave.status === 'Rejected') ? 'bg-gray-400 text-gray-200 cursor-not-allowed' : 'bg-blue-500 text-white hover:bg-purple-600'}`}
+                      disabled={leave.status === 'Approved' || leave.status === 'Rejected'}
+                      title={(leave.status === 'Approved' || leave.status === 'Rejected') ? 'Cannot edit approved or rejected leave' : 'Edit leave'}
                     >
                       Edit
                     </button>
                     <button
                       onClick={() => {
-                        if (window.confirm('Are you sure you want to cancel this leave?')) {
-                          handleCancelLeave(leave.id);
-                          handleCloseDateDetail();
+                        if (leave.status !== 'Approved' && leave.status !== 'Rejected') {
+                          if (window.confirm('Are you sure you want to cancel this leave?')) {
+                            handleCancelLeave(leave.id);
+                            handleCloseDateDetail();
+                          }
                         }
                       }}
-                      className="flex-1 px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+                      className={`flex-1 px-4 py-2 rounded ${(leave.status === 'Approved' || leave.status === 'Rejected') ? 'bg-gray-400 text-gray-200 cursor-not-allowed' : 'bg-red-500 text-white hover:bg-red-600'}`}
+                      disabled={leave.status === 'Approved' || leave.status === 'Rejected'}
+                      title={(leave.status === 'Approved' || leave.status === 'Rejected') ? 'Cannot cancel approved or rejected leave' : 'Cancel leave'}
                     >
                       Cancel Leave
                     </button>
@@ -943,6 +1192,7 @@ const ManagerCalendar = ({ joinDate }) => {
                     onChange={handleFormChange}
                     required
                     className="w-28 px-2 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    style={{minWidth:'10.5rem',maxWidth:'13rem'}}
                   />
                 </div>
                 <div className="col-span-2">
@@ -954,6 +1204,7 @@ const ManagerCalendar = ({ joinDate }) => {
                     onChange={handleFormChange}
                     required
                     className="w-28 px-2 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    style={{minWidth:'10.5rem',maxWidth:'13rem'}}
                   />
                 </div>
                 <div className="col-span-1 flex flex-col">

@@ -149,11 +149,36 @@ const EmployeeCalendar = ({ joinDate }) => {
 
   // Open leave form for editing
   const openEditForm = (leave) => {
+    // Format dates for input type="date"
+    function parseToDateObj(dateStr) {
+      if (!dateStr) return null;
+      // If already yyyy-mm-dd, parse directly
+      if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return new Date(dateStr);
+      // If dd/mm/yyyy, convert
+      const match = dateStr.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+      if (match) {
+        const [, dd, mm, yyyy] = match;
+        return new Date(`${yyyy}-${mm}-${dd}`);
+      }
+      // Fallback: try Date parsing
+      const d = new Date(dateStr);
+      if (!isNaN(d)) return d;
+      return null;
+    }
+    let duration = 1;
+    const fromObj = parseToDateObj(leave.from_date);
+    const toObj = parseToDateObj(leave.to_date);
+    const formattedFrom = fromObj ? formatDateForInput(fromObj) : '';
+    const formattedTo = toObj ? formatDateForInput(toObj) : '';
+    if (fromObj && toObj) {
+      duration = Math.round((toObj - fromObj) / (1000 * 60 * 60 * 24)) + 1;
+    }
     setLeaveForm({
-      from_date: leave.from_date,
-      to_date: leave.to_date,
+      from_date: formattedFrom,
+      to_date: formattedTo,
       leave_duration: leave.leave_duration,
       leave_reason: leave.leave_reason,
+      duration,
       alternate_person: leave.alternate_person || '',
       additional_alternate: leave.additional_alternate || '',
       available_on_phone: leave.available_on_phone !== false
@@ -680,14 +705,22 @@ const EmployeeCalendar = ({ joinDate }) => {
                     
                     <div className="flex gap-2">
                       <button
-                        onClick={() => openEditForm(leave)}
-                        className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm"
+                        onClick={() => {
+                          if (leave.status !== 'Approved' && leave.status !== 'Rejected') openEditForm(leave);
+                        }}
+                        className={`px-3 py-1 rounded text-sm ${(leave.status === 'Approved' || leave.status === 'Rejected') ? 'bg-gray-400 text-gray-200 cursor-not-allowed' : 'bg-blue-500 text-white hover:bg-blue-600'}`}
+                        disabled={leave.status === 'Approved' || leave.status === 'Rejected'}
+                        title={(leave.status === 'Approved' || leave.status === 'Rejected') ? 'Cannot edit approved or rejected leave' : 'Edit leave'}
                       >
                         Edit
                       </button>
                       <button
-                        onClick={() => handleCancelLeave(leave.id)}
-                        className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 text-sm"
+                        onClick={() => {
+                          if (leave.status !== 'Approved' && leave.status !== 'Rejected') handleCancelLeave(leave.id);
+                        }}
+                        className={`px-3 py-1 rounded text-sm ${(leave.status === 'Approved' || leave.status === 'Rejected') ? 'bg-gray-400 text-gray-200 cursor-not-allowed' : 'bg-red-500 text-white hover:bg-red-600'}`}
+                        disabled={leave.status === 'Approved' || leave.status === 'Rejected'}
+                        title={(leave.status === 'Approved' || leave.status === 'Rejected') ? 'Cannot cancel approved or rejected leave' : 'Cancel leave'}
                       >
                         Cancel
                       </button>
@@ -766,21 +799,29 @@ const EmployeeCalendar = ({ joinDate }) => {
                   <div className="flex gap-2 pt-4">
                     <button
                       onClick={() => {
-                        openEditForm(leave);
-                        handleCloseDateDetail();
+                        if (leave.status !== 'Approved' && leave.status !== 'Rejected') {
+                          openEditForm(leave);
+                          handleCloseDateDetail();
+                        }
                       }}
-                      className="flex-1 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                      className={`flex-1 px-4 py-2 rounded ${(leave.status === 'Approved' || leave.status === 'Rejected') ? 'bg-gray-400 text-gray-200 cursor-not-allowed' : 'bg-blue-500 text-white hover:bg-blue-600'}`}
+                      disabled={leave.status === 'Approved' || leave.status === 'Rejected'}
+                      title={(leave.status === 'Approved' || leave.status === 'Rejected') ? 'Cannot edit approved or rejected leave' : 'Edit leave'}
                     >
                       Edit
                     </button>
                     <button
                       onClick={() => {
-                        if (window.confirm('Are you sure you want to cancel this leave?')) {
-                          handleCancelLeave(leave.id);
-                          handleCloseDateDetail();
+                        if (leave.status !== 'Approved' && leave.status !== 'Rejected') {
+                          if (window.confirm('Are you sure you want to cancel this leave?')) {
+                            handleCancelLeave(leave.id);
+                            handleCloseDateDetail();
+                          }
                         }
                       }}
-                      className="flex-1 px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+                      className={`flex-1 px-4 py-2 rounded ${(leave.status === 'Approved' || leave.status === 'Rejected') ? 'bg-gray-400 text-gray-200 cursor-not-allowed' : 'bg-red-500 text-white hover:bg-red-600'}`}
+                      disabled={leave.status === 'Approved' || leave.status === 'Rejected'}
+                      title={(leave.status === 'Approved' || leave.status === 'Rejected') ? 'Cannot cancel approved or rejected leave' : 'Cancel leave'}
                     >
                       Cancel Leave
                     </button>
@@ -822,7 +863,7 @@ const EmployeeCalendar = ({ joinDate }) => {
                     readOnly
                     required
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base bg-gray-100 cursor-not-allowed"
-                    style={{fontVariantNumeric:'tabular-nums'}}
+                    style={{fontVariantNumeric:'tabular-nums', minWidth: '10.5rem', maxWidth: '13rem'}}
                   />
                 </div>
                 <div className="col-span-4">
@@ -835,7 +876,7 @@ const EmployeeCalendar = ({ joinDate }) => {
                     min={leaveForm.from_date}
                     required
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base"
-                    style={{fontVariantNumeric:'tabular-nums'}}
+                    style={{fontVariantNumeric:'tabular-nums', minWidth: '10.5rem', maxWidth: '13rem'}}
                   />
                 </div>
                 <div className="col-span-2">
