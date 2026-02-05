@@ -513,7 +513,7 @@ const ManagerCalendar = ({ joinDate }) => {
     if (filter.to) {
       leaves = leaves.filter(l => new Date(l.to_date) <= new Date(filter.to));
     }
-    if (filter.department) {
+    if (filter.department && filter.department !== 'all') {
       leaves = leaves.filter(l => l.department_name === filter.department);
     }
     if (filter.username) {
@@ -694,7 +694,7 @@ const ManagerCalendar = ({ joinDate }) => {
                               openCalendarLeaveModal(date);
                             }}
                           >
-                            Team Leave
+                            Leave List
                           </button>
                           <div className="text-[10px] text-gray-500 text-center">
                             {dayCalendarLeaves.length} leave(s)
@@ -764,7 +764,7 @@ const ManagerCalendar = ({ joinDate }) => {
                         openCalendarLeaveModal(date);
                       }}
                     >
-                      Team Leave
+                      Leave List
                     </button>
                     <div className="text-[10px] text-gray-500 text-center">
                       {dayCalendarLeaves.length} leave(s)
@@ -896,7 +896,7 @@ const ManagerCalendar = ({ joinDate }) => {
               value={filter.department} 
               onChange={e => { setFilter(f => ({ ...f, department: e.target.value })); setCurrentPage(1); }}
             >
-              <option value="">All Departments</option>
+              <option value="all">All Departments</option>
               {departmentOptions.map(dept => (
                 <option key={dept} value={dept}>{dept}</option>
               ))}
@@ -915,7 +915,11 @@ const ManagerCalendar = ({ joinDate }) => {
           <button
             className="bg-blue-600 text-white px-6 py-2 rounded font-semibold hover:bg-blue-700 transition"
             onClick={() => {
-              if (filter.from || filter.to || filter.department || filter.username) {
+              if (filter.from || filter.to || filter.department !== 'all' || filter.username) {
+                setShowFilteredTable(true);
+                setCurrentPage(1);
+              } else if (filter.department === 'all') {
+                // 'All Departments' is a valid search criteria
                 setShowFilteredTable(true);
                 setCurrentPage(1);
               } else {
@@ -931,7 +935,7 @@ const ManagerCalendar = ({ joinDate }) => {
               className="ml-2 bg-gray-200 text-gray-700 px-4 py-2 rounded font-semibold hover:bg-gray-300 transition"
               onClick={() => {
                 setShowFilteredTable(false);
-                setFilter({ from: '', to: '', department: '', username: '' });
+                setFilter({ from: '', to: '', department: 'all', username: '' });
                 setCurrentPage(1);
               }}
             >

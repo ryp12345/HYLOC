@@ -46,7 +46,7 @@ const ManagementCalendar = () => {
 
 			setLeaves(pendingLeaves);
 			
-			// Store all leaves for Team Leave display (all statuses, all users)
+			// Store all leaves for Leave List display (all statuses, all users)
 			const currentYearLeaves = allLeaves.filter((leave) => {
 				const fromDate = parseDateOnly(leave.from_date);
 				return fromDate && fromDate.getFullYear() === year;
@@ -261,7 +261,7 @@ const ManagementCalendar = () => {
 		if (filter.to) {
 			leaves = leaves.filter(l => new Date(l.to_date) <= new Date(filter.to));
 		}
-		if (filter.department) {
+		if (filter.department && filter.department !== 'all') {
 			leaves = leaves.filter(l => l.department_name === filter.department);
 		}
 		if (filter.username) {
@@ -396,7 +396,7 @@ const ManagementCalendar = () => {
 															className="w-full px-2 py-1 rounded bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-colors"
 															onClick={() => openLeaveModal(date)}
 														>
-															Team Leave
+															Leave List
 														</button>
 														<div className="text-[10px] text-gray-500 text-center">
 															{teamLeaves.length} leave(s)
@@ -435,7 +435,7 @@ const ManagementCalendar = () => {
 																	className="w-full px-2 py-1 rounded bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-colors"
 																	onClick={() => openLeaveModal(date)}
 																>
-																	Team Leave
+																	Leave List
 																</button>
 																<div className="text-[10px] text-gray-500 text-center">
 																	{teamLeaves.length} leave(s)
@@ -520,7 +520,7 @@ const ManagementCalendar = () => {
 						value={filter.department} 
 						onChange={e => { setFilter(f => ({ ...f, department: e.target.value })); setCurrentPage(1); }}
 					>
-						<option value="">All Departments</option>
+						<option value="all">All Departments</option>
 						{departmentOptions.map(dept => (
 							<option key={dept} value={dept}>{dept}</option>
 						))}
@@ -539,7 +539,11 @@ const ManagementCalendar = () => {
 				<button
 					className="bg-blue-600 text-white px-6 py-2 rounded font-semibold hover:bg-blue-700 transition"
 					onClick={() => {
-						if (filter.from || filter.to || filter.department || filter.username) {
+						if (filter.from || filter.to || filter.department !== 'all' || filter.username) {
+							setShowFilteredTable(true);
+							setCurrentPage(1);
+						} else if (filter.department === 'all') {
+							// 'All Departments' is a valid search criteria
 							setShowFilteredTable(true);
 							setCurrentPage(1);
 						} else {
@@ -555,7 +559,7 @@ const ManagementCalendar = () => {
 						className="ml-2 bg-gray-200 text-gray-700 px-4 py-2 rounded font-semibold hover:bg-gray-300 transition"
 						onClick={() => {
 							setShowFilteredTable(false);
-							setFilter({ from: '', to: '', department: '', username: '' });
+							setFilter({ from: '', to: '', department: 'all', username: '' });
 							setCurrentPage(1);
 						}}
 					>

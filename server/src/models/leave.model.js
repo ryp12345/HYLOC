@@ -114,10 +114,12 @@ exports.getAllLeaves = async (filters = {}) => {
            u.firstname || ' ' || u.lastname as user_name,
            u.empid,
            u.department_id,
+           d.department_name,
            COALESCE(user_role.role_name, 'Employee') as user_role,
            approver.firstname || ' ' || approver.lastname as approver_name
     FROM leaves l
     LEFT JOIN users u ON l.user_id = u.id
+    LEFT JOIN departments d ON u.department_id = d.id
     LEFT JOIN LATERAL (
       SELECT r.role_name
       FROM user_roles ur
