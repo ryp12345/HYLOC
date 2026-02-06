@@ -8,6 +8,10 @@ const router = express.Router();
 router.post('/register', authController.register);
 router.post('/login', authController.login);
 router.post('/refresh-token', authController.refreshToken);
+// Forgot password OTP endpoints
+router.post('/request-password-reset', authController.requestPasswordReset);
+router.post('/verify-otp', authController.verifyOTP);
+router.post('/reset-password', authController.resetPassword);
 
 // Protected routes
 router.get('/profile', authenticate, authController.getProfile);

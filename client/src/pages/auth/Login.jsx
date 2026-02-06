@@ -176,6 +176,18 @@ function Login() {
           >
             {loading ? 'Loading...' : (isLogin ? 'Login' : 'Register')}
           </button>
+
+          {isLogin && (
+            <div className="mt-3 text-center">
+              <button
+                type="button"
+                onClick={() => navigate('/forgot-password')}
+                className="text-sm text-blue-600 hover:underline"
+              >
+                Forgot password?
+              </button>
+            </div>
+          )}
         </form>
 
         {/* <div className="mt-6 pt-6 border-t border-gray-200 text-center">
@@ -201,6 +213,7 @@ function Login() {
             </button>
           </p>
         </div> */}
+        
       </div>
     </div>
   );

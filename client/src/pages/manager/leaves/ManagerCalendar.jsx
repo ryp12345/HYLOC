@@ -48,11 +48,13 @@ const ManagerCalendar = ({ joinDate }) => {
 
   // Search state
   const [showFilteredTable, setShowFilteredTable] = useState(false);
+  const currentYear = new Date().getFullYear();
   const [filter, setFilter] = useState({
     from: '',
     to: '',
     department: '',
     username: '',
+    year: currentYear,
   });
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
@@ -62,31 +64,68 @@ const ManagerCalendar = ({ joinDate }) => {
     loadData();
   }, [currentDate]);
 
+  // Load data when year filter changes
+  useEffect(() => {
+    loadData();
+  }, [filter.year]);
+
   const loadData = async () => {
     setLoading(true);
     setError(null);
     try {
-      const year = currentDate.getFullYear();
+      const year = filter.year || currentYear;
+      console.log('Loading data for year:', year);
       
       // Load leaves for current year
-      const leavesResponse = await getMyLeaves({ year });
-      setLeaves(leavesResponse.data.data || []);
+      try {
+        const leavesResponse = await getMyLeaves({ year });
+        console.log('My leaves response:', leavesResponse);
+        setLeaves(leavesResponse.data.data || []);
+      } catch (err) {
+        console.error('Error loading my leaves:', err);
+        throw err;
+      }
       
       // Load leave balance
-      const balanceResponse = await getMyLeaveBalance(year);
-      setLeaveBalance(balanceResponse.data.data);
+      try {
+        const balanceResponse = await getMyLeaveBalance(year);
+        console.log('Balance response:', balanceResponse);
+        setLeaveBalance(balanceResponse.data.data);
+      } catch (err) {
+        console.error('Error loading balance:', err);
+        throw err;
+      }
       
       // Check eligibility
-      const eligibilityResponse = await checkLeaveEligibility();
-      setEligibility(eligibilityResponse.data.data);
+      try {
+        const eligibilityResponse = await checkLeaveEligibility();
+        console.log('Eligibility response:', eligibilityResponse);
+        setEligibility(eligibilityResponse.data.data);
+      } catch (err) {
+        console.error('Error checking eligibility:', err);
+        throw err;
+      }
       
       // Load department colleagues
-      const colleaguesResponse = await getDepartmentColleagues();
-      setColleagues(colleaguesResponse.data.data || []);
-
-      const departmentLeavesResponse = await getDepartmentLeaves({ year });
-      const departmentLeaves = departmentLeavesResponse.data.data || [];
-      setCalendarLeaves(departmentLeaves);
+      try {
+        const colleaguesResponse = await getDepartmentColleagues();
+        console.log('Colleagues response:', colleaguesResponse);
+        setColleagues(colleaguesResponse.data.data || []);
+      } catch (err) {
+        console.error('Error loading colleagues:', err);
+        throw err;
+      }
+      
+      // Load department leaves
+      try {
+        const departmentLeavesResponse = await getDepartmentLeaves({ year });
+        console.log('Department leaves response:', departmentLeavesResponse);
+        const departmentLeaves = departmentLeavesResponse.data.data || [];
+        setCalendarLeaves(departmentLeaves);
+      } catch (err) {
+        console.error('Error loading department leaves:', err);
+        throw err;
+      }
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to load data');
       console.error('Error loading data:', err);
@@ -891,9 +930,9 @@ const ManagerCalendar = ({ joinDate }) => {
                     <select
                       className="border rounded px-3 py-2 w-full max-w-[120px] text-left"
                       value={filter.year}
-                      onChange={e => { setFilter(f => ({ ...f, year: e.target.value })); setCurrentPage(1); }}
+                      onChange={e => { setFilter(f => ({ ...f, year: Number(e.target.value) })); setCurrentPage(1); }}
                     >
-                      {[(new Date().getFullYear() - 1), new Date().getFullYear()].map(y => (
+                      {[(currentYear - 1), currentYear, (currentYear + 1)].map(y => (
                         <option key={y} value={y}>{y}</option>
                       ))}
                     </select>

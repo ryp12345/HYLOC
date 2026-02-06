@@ -55,8 +55,9 @@ module.exports = {
     refreshSecret: process.env.JWT_REFRESH_SECRET || 'supersecret_refresh_please_change',
     refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES || '7d'
   },
+  // In development allow all origins to simplify local/network testing.
   cors: {
-    origin: getAllowedOrigins(),
+    origin: process.env.NODE_ENV === 'development' ? true : getAllowedOrigins(),
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']

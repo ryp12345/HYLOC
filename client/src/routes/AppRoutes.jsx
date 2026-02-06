@@ -30,6 +30,7 @@ import EmployeeLeavesPage from '../pages/employee/leaves/LeavesPage';
 import ManagerLeavesPage from '../pages/manager/leaves/LeavesPage';
 import ManagerLeaveApprovalPage from '../pages/manager/leaves/LeaveApprovalPage';
 import ManagementLeaveApprovalPage from '../pages/management/leaves/LeaveApprovalPage';
+import ForgotPasswordPage from '../pages/auth/ForgotPasswordPage';
 
 // Layouts & Route Guards
 import ProtectedRoute from './ProtectedRoute';
@@ -167,6 +168,14 @@ const AppRoutes = () => {
             element={
               <AuthRoute>
                 <Register />
+              </AuthRoute>
+            }
+          />
+          <Route
+            path="/forgot-password"
+            element={
+              <AuthRoute>
+                <ForgotPasswordPage />
               </AuthRoute>
             }
           />

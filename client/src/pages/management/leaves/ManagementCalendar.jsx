@@ -29,12 +29,22 @@ const ManagementCalendar = () => {
 		loadData();
 	}, [currentDate]);
 
+	// Load data on component mount
+	useEffect(() => {
+		loadData();
+	}, [currentDate]);
+
+	// Load data when year filter changes
+	useEffect(() => {
+		loadData();
+	}, [filter.year]);
+
 	const loadData = async () => {
 		setLoading(true);
 		setError(null);
 		try {
-			const year = currentDate.getFullYear();
-			const response = await getAllLeaves({});
+			const year = filter.year || currentYear;
+			const response = await getAllLeaves({ year });
 			const allLeaves = response.data.data || [];
 
 			const pendingLeaves = allLeaves.filter((leave) => {
@@ -47,7 +57,6 @@ const ManagementCalendar = () => {
 			});
 
 			setLeaves(pendingLeaves);
-			
 			// Store all leaves for Leave List display (all statuses, all users)
 			const currentYearLeaves = allLeaves.filter((leave) => {
 				const fromDate = parseDateOnly(leave.from_date);
@@ -536,9 +545,9 @@ const ManagementCalendar = () => {
 									<select
 										className="border rounded px-3 py-2 w-full max-w-[120px] text-left"
 										value={filter.year}
-										onChange={e => { setFilter(f => ({ ...f, year: e.target.value })); setCurrentPage(1); }}
+										onChange={e => { setFilter(f => ({ ...f, year: Number(e.target.value) })); setCurrentPage(1); }}
 									>
-										{[currentYear - 1, currentYear].map(y => (
+										{[currentYear - 1, currentYear, currentYear + 1].map(y => (
 											<option key={y} value={y}>{y}</option>
 										))}
 									</select>
@@ -642,7 +651,7 @@ const ManagementCalendar = () => {
 											<td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{leave.credited_days} day(s)</td>
 											<td className="px-6 py-4 text-sm text-gray-900">{leave.leave_reason || '-'}</td>
 											<td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-												<span className={`px-3 py-1 rounded-full text-xs font-medium ${
+												<span className={`px-3 py-1 rounded-full text-xs font-semibold ${
 													leave.status === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
 													leave.status === 'Approved' ? 'bg-green-100 text-green-800' :
 													'bg-red-100 text-red-800'
