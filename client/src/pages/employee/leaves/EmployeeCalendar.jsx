@@ -654,80 +654,73 @@ const EmployeeCalendar = ({ joinDate }) => {
 
       {/* List View */}
       {viewMode === 'list' && (
-        <div>
+        <div className="flex flex-col items-center">
           <h3 className="text-xl font-semibold text-gray-800 mb-4">My Leaves</h3>
-          
           {leaves.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
               No leaves applied yet
             </div>
           ) : (
-            <div className="space-y-3">
-              {leaves.map((leave) => (
-                <div
-                  key={leave.id}
-                  className="border rounded-lg p-4 hover:shadow-md transition-shadow"
-                >
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className={`px-3 py-1 rounded text-white text-sm ${getLeaveBadgeColor(leave.status)}`}>
-                          {leave.status}
-                        </span>
-                        <span className="text-sm text-gray-600">
-                          {leave.leave_duration}
-                        </span>
-                        <span className="text-sm font-semibold text-gray-700">
-                          {leave.credited_days} day(s)
-                        </span>
-                      </div>
-                      
-                      <div className="text-gray-800 mb-1">
-                        <strong>Duration:</strong> {leave.leave_duration}
-                      </div>
-                      
-                      <div className="text-gray-700 mb-2">
-                        <strong>Reason:</strong> {leave.leave_reason}
-                      </div>
-                      
-                      {leave.alternate_person && (
-                        <div className="text-sm text-gray-600">
-                          <strong>Alternate:</strong> {leave.alternate_person}
+            <div className="overflow-x-auto w-full max-w-3xl">
+              <table className="min-w-full bg-white border rounded-lg shadow">
+                <thead>
+                  <tr className="bg-blue-100 text-blue-800">
+                    <th className="py-2 px-4 text-center">Status</th>
+                    <th className="py-2 px-4 text-center">Duration</th>
+                    <th className="py-2 px-4 text-center">Reason</th>
+                    <th className="py-2 px-4 text-center">Alternate</th>
+                    <th className="py-2 px-4 text-center">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {leaves.map((leave) => (
+                    <tr key={leave.id} className="border-b hover:bg-blue-50">
+                      <td className="py-2 px-4 text-center">
+                        <span className={`px-3 py-1 rounded text-white text-sm ${getLeaveBadgeColor(leave.status)}`}>{leave.status}</span>
+                      </td>
+                      <td className="py-2 px-4 text-center">
+                        {leave.leave_duration} ({leave.duration || leave.credited_days} day{(leave.duration || leave.credited_days) === 1 ? '' : 's'})
+                      </td>
+                      <td className="py-2 px-4 text-center">
+                        {leave.leave_reason}
+                      </td>
+                      <td className="py-2 px-4 text-center">
+                        {formatAlternate(leave)}
+                      </td>
+                      <td className="py-2 px-4 text-center">
+                        <div className="flex justify-center gap-2">
+                          <button
+                            onClick={() => {
+                              if (leave.status !== 'Approved' && leave.status !== 'Rejected') openEditForm(leave);
+                            }}
+                            className={`p-2 rounded ${(leave.status === 'Approved' || leave.status === 'Rejected') ? 'bg-gray-400 text-gray-200 cursor-not-allowed' : 'bg-blue-500 text-white hover:bg-blue-600'}`}
+                            disabled={leave.status === 'Approved' || leave.status === 'Rejected'}
+                            title={(leave.status === 'Approved' || leave.status === 'Rejected') ? 'Cannot edit approved or rejected leave' : 'Edit leave'}
+                          >
+                            {/* Pencil SVG */}
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536M9 13l6.536-6.536a2 2 0 112.828 2.828L11.828 15.828a2 2 0 01-2.828 0L9 13z" />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (leave.status !== 'Approved' && leave.status !== 'Rejected') handleCancelLeave(leave.id);
+                            }}
+                            className={`p-2 rounded ${(leave.status === 'Approved' || leave.status === 'Rejected') ? 'bg-gray-400 text-gray-200 cursor-not-allowed' : 'bg-red-500 text-white hover:bg-red-600'}`}
+                            disabled={leave.status === 'Approved' || leave.status === 'Rejected'}
+                            title={(leave.status === 'Approved' || leave.status === 'Rejected') ? 'Cannot cancel approved or rejected leave' : 'Cancel leave'}
+                          >
+                            {/* Cross SVG */}
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
                         </div>
-                      )}
-                      
-                      {leave.approver_name && (
-                        <div className="text-sm text-gray-600">
-                          <strong>Approved/Rejected by:</strong> {leave.approver_name}
-                        </div>
-                      )}
-                    </div>
-                    
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => {
-                          if (leave.status !== 'Approved' && leave.status !== 'Rejected') openEditForm(leave);
-                        }}
-                        className={`px-3 py-1 rounded text-sm ${(leave.status === 'Approved' || leave.status === 'Rejected') ? 'bg-gray-400 text-gray-200 cursor-not-allowed' : 'bg-blue-500 text-white hover:bg-blue-600'}`}
-                        disabled={leave.status === 'Approved' || leave.status === 'Rejected'}
-                        title={(leave.status === 'Approved' || leave.status === 'Rejected') ? 'Cannot edit approved or rejected leave' : 'Edit leave'}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => {
-                          if (leave.status !== 'Approved' && leave.status !== 'Rejected') handleCancelLeave(leave.id);
-                        }}
-                        className={`px-3 py-1 rounded text-sm ${(leave.status === 'Approved' || leave.status === 'Rejected') ? 'bg-gray-400 text-gray-200 cursor-not-allowed' : 'bg-red-500 text-white hover:bg-red-600'}`}
-                        disabled={leave.status === 'Approved' || leave.status === 'Rejected'}
-                        title={(leave.status === 'Approved' || leave.status === 'Rejected') ? 'Cannot cancel approved or rejected leave' : 'Cancel leave'}
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </div>

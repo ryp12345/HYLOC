@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { getUsers } from '../../api/userApi';
+import { getUsersByDepartment } from '../../api/userApi';
 import { getDepartmentLeaves } from '../../api/leaveApi';
 import api from '../../api/axios';
 
@@ -45,14 +45,10 @@ function ManagerDashboard() {
 				return;
 			}
 
-			// Get all users and filter by department
-			const usersResponse = await getUsers();
-			const allUsers = usersResponse.data?.data || [];
-			
-			// Filter employees in manager's department
-			const departmentEmployees = allUsers.filter(u => 
-				(u.department_id === managerDepartmentId || u.departmentId === managerDepartmentId) &&
-				u.id !== user.userId // Exclude the manager themselves
+			// Get users in manager's department
+			const usersResponse = await getUsersByDepartment(managerDepartmentId);
+			const departmentEmployees = (usersResponse.data?.data || []).filter(
+				u => u.id !== user.userId
 			);
 
 			// Get today's leaves for the department
@@ -89,12 +85,10 @@ function ManagerDashboard() {
 				return;
 			}
 
-			// Get all users in department
-			const usersResponse = await getUsers();
-			const allUsers = usersResponse.data?.data || [];
-			const departmentEmployees = allUsers.filter(u => 
-				(u.department_id === managerDepartmentId || u.departmentId === managerDepartmentId) &&
-				u.id !== user.userId
+			// Get users in manager's department
+			const usersResponse = await getUsersByDepartment(managerDepartmentId);
+			const departmentEmployees = (usersResponse.data?.data || []).filter(
+				u => u.id !== user.userId
 			);
 
 			// Get KPI values for department employees

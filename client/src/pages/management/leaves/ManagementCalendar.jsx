@@ -14,9 +14,11 @@ const ManagementCalendar = () => {
 
 	// Filter state
 	const [showFilteredTable, setShowFilteredTable] = useState(false);
+	const currentYear = new Date().getFullYear();
 	const [filter, setFilter] = useState({
 		from: '',
 		to: '',
+		year: currentYear,
 		department: '',
 		username: '',
 	});
@@ -261,6 +263,12 @@ const ManagementCalendar = () => {
 		if (filter.to) {
 			leaves = leaves.filter(l => new Date(l.to_date) <= new Date(filter.to));
 		}
+		if (filter.year) {
+			leaves = leaves.filter(l => {
+				const fromDate = parseDateOnly(l.from_date);
+				return fromDate && fromDate.getFullYear() === Number(filter.year);
+			});
+		}
 		if (filter.department && filter.department !== 'all') {
 			leaves = leaves.filter(l => l.department_name === filter.department);
 		}
@@ -494,79 +502,112 @@ const ManagementCalendar = () => {
 		{/* Filter Section for All Org Leaves */}
 		<div className="bg-white rounded-lg shadow-lg p-6">
 			
-			<div className="flex flex-wrap gap-4 items-end mb-4">
-				<div>
-					<label className="block text-xs font-semibold text-gray-600 mb-1">From Date</label>
-					<input 
-						type="date" 
-						className="border rounded px-3 py-2" 
-						value={filter.from} 
-						onChange={e => { setFilter(f => ({ ...f, from: e.target.value })); setCurrentPage(1); }}
-					/>
-				</div>
-				<div>
-					<label className="block text-xs font-semibold text-gray-600 mb-1">To Date</label>
-					<input 
-						type="date" 
-						className="border rounded px-3 py-2" 
-						value={filter.to} 
-						onChange={e => { setFilter(f => ({ ...f, to: e.target.value })); setCurrentPage(1); }}
-					/>
-				</div>
-				<div>
-					<label className="block text-xs font-semibold text-gray-600 mb-1">Department</label>
-					<select 
-						className="border rounded px-3 py-2" 
-						value={filter.department} 
-						onChange={e => { setFilter(f => ({ ...f, department: e.target.value })); setCurrentPage(1); }}
-					>
-						<option value="all">All Departments</option>
-						{departmentOptions.map(dept => (
-							<option key={dept} value={dept}>{dept}</option>
-						))}
-					</select>
-				</div>
-				<div>
-					<label className="block text-xs font-semibold text-gray-600 mb-1">Username</label>
-					<input 
-						type="text" 
-						className="border rounded px-3 py-2" 
-						placeholder="Search by username" 
-						value={filter.username} 
-						onChange={e => { setFilter(f => ({ ...f, username: e.target.value })); setCurrentPage(1); }}
-					/>
-				</div>
-				<button
-					className="bg-blue-600 text-white px-6 py-2 rounded font-semibold hover:bg-blue-700 transition"
-					onClick={() => {
-						if (filter.from || filter.to || filter.department !== 'all' || filter.username) {
-							setShowFilteredTable(true);
-							setCurrentPage(1);
-						} else if (filter.department === 'all') {
-							// 'All Departments' is a valid search criteria
-							setShowFilteredTable(true);
-							setCurrentPage(1);
-						} else {
-							setShowFilteredTable(false);
-							alert('Please fill at least one filter to search.');
-						}
-					}}
-				>
-					Search
-				</button>
-				{showFilteredTable && (
-					<button
-						className="ml-2 bg-gray-200 text-gray-700 px-4 py-2 rounded font-semibold hover:bg-gray-300 transition"
-						onClick={() => {
-							setShowFilteredTable(false);
-							setFilter({ from: '', to: '', department: 'all', username: '' });
-							setCurrentPage(1);
-						}}
-					>
-						Reset
-					</button>
-				)}
-			</div>
+			<table className="w-full mb-4 border rounded-lg overflow-hidden">
+				<thead>
+					<tr>
+						<th colSpan="4" className="bg-blue-600 text-white text-lg font-semibold py-2 px-4 text-left">Leave Search Filters</th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr>
+						<td className="py-2 px-2" colSpan="4">
+							<div className="flex flex-row items-end gap-4 w-full">
+								<div className="flex-1 min-w-[160px] max-w-[220px]">
+									<label className="block text-xs font-semibold text-gray-600 mb-1">From Date</label>
+									<input 
+										type="date" 
+										className="border rounded px-3 py-2 w-full" 
+										value={filter.from} 
+										onChange={e => { setFilter(f => ({ ...f, from: e.target.value })); setCurrentPage(1); }}
+									/>
+								</div>
+								<div className="flex-1 min-w-[160px] max-w-[220px]">
+									<label className="block text-xs font-semibold text-gray-600 mb-1">To Date</label>
+									<input 
+										type="date" 
+										className="border rounded px-3 py-2 w-full" 
+										value={filter.to} 
+										onChange={e => { setFilter(f => ({ ...f, to: e.target.value })); setCurrentPage(1); }}
+									/>
+								</div>
+								<div className="flex-grow"></div>
+								<div className="flex-grow-0 min-w-[120px] max-w-[160px] flex flex-col items-start">
+									<label className="block text-xs font-semibold text-gray-600 mb-1">Year</label>
+									<select
+										className="border rounded px-3 py-2 w-full max-w-[120px] text-left"
+										value={filter.year}
+										onChange={e => { setFilter(f => ({ ...f, year: e.target.value })); setCurrentPage(1); }}
+									>
+										{[currentYear - 1, currentYear].map(y => (
+											<option key={y} value={y}>{y}</option>
+										))}
+									</select>
+								</div>
+							</div>
+						</td>
+					</tr>
+					<tr>
+						<td className="py-2 px-2" colSpan="4">
+							<div className="flex flex-row items-end gap-4 w-full">
+								<div className="flex-1 min-w-[160px]">
+									<label className="block text-xs font-semibold text-gray-600 mb-1">Department</label>
+									<select 
+										className="border rounded px-3 py-2 w-full" 
+										value={filter.department} 
+										onChange={e => { setFilter(f => ({ ...f, department: e.target.value })); setCurrentPage(1); }}
+									>
+										<option value="all">All Departments</option>
+										{departmentOptions.map(dept => (
+											<option key={dept} value={dept}>{dept}</option>
+										))}
+									</select>
+								</div>
+								<div className="flex-[3] min-w-[240px]">
+									<label className="block text-xs font-semibold text-gray-600 mb-1">Username</label>
+									<input 
+										type="text" 
+										className="border rounded px-3 py-2 w-full" 
+										placeholder="Search by username" 
+										value={filter.username} 
+										onChange={e => { setFilter(f => ({ ...f, username: e.target.value })); setCurrentPage(1); }}
+									/>
+								</div>
+								<div className="flex flex-row gap-4">
+									<button
+										className="bg-blue-600 text-white px-6 py-2 rounded font-semibold hover:bg-blue-700 transition"
+										onClick={() => {
+											if (filter.from || filter.to || filter.department !== 'all' || filter.username) {
+												setShowFilteredTable(true);
+												setCurrentPage(1);
+											} else if (filter.department === 'all') {
+												setShowFilteredTable(true);
+												setCurrentPage(1);
+											} else {
+												setShowFilteredTable(false);
+												alert('Please fill at least one filter to search.');
+											}
+										}}
+									>
+										Search
+									</button>
+									{showFilteredTable && (
+										<button
+											className="bg-gray-200 text-gray-700 px-4 py-2 rounded font-semibold hover:bg-gray-300 transition"
+											onClick={() => {
+												setShowFilteredTable(false);
+												setFilter({ from: '', to: '', year: currentYear, department: 'all', username: '' });
+												setCurrentPage(1);
+											}}
+										>
+											Reset
+										</button>
+									)}
+								</div>
+							</div>
+						</td>
+					</tr>
+				</tbody>
+			</table>
 
 			{/* Filtered Table */}
 			{showFilteredTable && (

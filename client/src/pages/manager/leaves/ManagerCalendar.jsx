@@ -780,86 +780,73 @@ const ManagerCalendar = ({ joinDate }) => {
 
       {/* List View */}
       {viewMode === 'list' && (
-        <div>
+        <div className="flex flex-col items-center">
           <h3 className="text-xl font-semibold text-gray-800 mb-4">My Leaves</h3>
-          
           {leaves.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
               No leaves applied yet
             </div>
           ) : (
-            <div className="space-y-3">
-              {leaves.map((leave) => (
-                <div
-                  key={leave.id}
-                  className="border rounded-lg p-4 hover:shadow-md transition-shadow"
-                >
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className={`px-3 py-1 rounded text-white text-sm ${getLeaveBadgeColor(leave.status)}`}>
-                          {leave.status}
-                        </span>
-                        <span className="text-sm text-gray-600">
-                          {leave.leave_duration}
-                        </span>
-                        <span className="text-sm font-semibold text-gray-700">
-                          {leave.credited_days} day(s)
-                        </span>
-                      </div>
-                      
-                      <div className="text-gray-800 mb-1">
-                        <strong>Duration:</strong> {leave.leave_duration}
-                      </div>
-                      
-                      <div className="text-gray-700 mb-2">
-                        <strong>Reason:</strong> {leave.leave_reason}
-                      </div>
-                      
-                      {leave.alternate_person && (
-                        <div className="text-sm text-gray-600">
-                          <strong>Alternate:</strong> {leave.alternate_person}
+            <div className="overflow-x-auto w-full max-w-3xl">
+              <table className="min-w-full bg-white border rounded-lg shadow">
+                <thead>
+                  <tr className="bg-purple-100 text-purple-800">
+                    <th className="py-2 px-4 text-center">Status</th>
+                    <th className="py-2 px-4 text-center">Duration</th>
+                    <th className="py-2 px-4 text-center">Reason</th>
+                    <th className="py-2 px-4 text-center">Alternate</th>
+                    <th className="py-2 px-4 text-center">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {leaves.map((leave) => (
+                    <tr key={leave.id} className="border-b hover:bg-purple-50">
+                      <td className="py-2 px-4 text-center">
+                        <span className={`px-3 py-1 rounded text-white text-sm ${getLeaveBadgeColor(leave.status)}`}>{leave.status}</span>
+                      </td>
+                      <td className="py-2 px-4 text-center">
+                        {leave.leave_duration} ({leave.duration || leave.credited_days} day{(leave.duration || leave.credited_days) === 1 ? '' : 's'})
+                      </td>
+                      <td className="py-2 px-4 text-center">
+                        {leave.leave_reason}
+                      </td>
+                      <td className="py-2 px-4 text-center">
+                        {formatAlternate(leave)}
+                      </td>
+                      <td className="py-2 px-4 text-center">
+                        <div className="flex justify-center gap-2">
+                          <button
+                            onClick={() => {
+                              if (leave.status !== 'Approved' && leave.status !== 'Rejected') openEditForm(leave);
+                            }}
+                            className={`p-2 rounded ${(leave.status === 'Approved' || leave.status === 'Rejected') ? 'bg-gray-400 text-gray-200 cursor-not-allowed' : 'bg-purple-500 text-white hover:bg-purple-600'}`}
+                            disabled={leave.status === 'Approved' || leave.status === 'Rejected'}
+                            title={(leave.status === 'Approved' || leave.status === 'Rejected') ? 'Cannot edit approved or rejected leave' : 'Edit leave'}
+                          >
+                            {/* Pencil SVG */}
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536M9 13l6.536-6.536a2 2 0 112.828 2.828L11.828 15.828a2 2 0 01-2.828 0L9 13z" />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (leave.status !== 'Approved' && leave.status !== 'Rejected') handleCancelLeave(leave.id);
+                            }}
+                            className={`p-2 rounded ${(leave.status === 'Approved' || leave.status === 'Rejected') ? 'bg-gray-400 text-gray-200 cursor-not-allowed' : 'bg-red-500 text-white hover:bg-red-600'}`}
+                            disabled={leave.status === 'Approved' || leave.status === 'Rejected'}
+                            title={(leave.status === 'Approved' || leave.status === 'Rejected') ? 'Cannot cancel approved or rejected leave' : 'Cancel leave'}
+                          >
+                            {/* Cross SVG */}
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
                         </div>
-                      )}
-                      
-                      {leave.additional_alternate && (
-                        <div className="text-sm text-gray-600">
-                          <strong>Additional Alternate:</strong> {leave.additional_alternate}
-                        </div>
-                      )}
-                      
-                      {leave.approver_name && (
-                        <div className="text-sm text-gray-600">
-                          <strong>Approved/Rejected by:</strong> {leave.approver_name}
-                        </div>
-                      )}
-                    </div>
-                    
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => {
-                          if (leave.status !== 'Approved' && leave.status !== 'Rejected') openEditForm(leave);
-                        }}
-                        className={`px-3 py-1 rounded text-sm ${(leave.status === 'Approved' || leave.status === 'Rejected') ? 'bg-gray-400 text-gray-200 cursor-not-allowed' : 'bg-purple-500 text-white hover:bg-purple-600'}`}
-                        disabled={leave.status === 'Approved' || leave.status === 'Rejected'}
-                        title={(leave.status === 'Approved' || leave.status === 'Rejected') ? 'Cannot edit approved or rejected leave' : 'Edit leave'}
-                      >
-                        Edit-1
-                      </button>
-                      <button
-                        onClick={() => {
-                          if (leave.status !== 'Approved' && leave.status !== 'Rejected') handleCancelLeave(leave.id);
-                        }}
-                        className={`px-3 py-1 rounded text-sm ${(leave.status === 'Approved' || leave.status === 'Rejected') ? 'bg-gray-400 text-gray-200 cursor-not-allowed' : 'bg-red-500 text-white hover:bg-red-600'}`}
-                        disabled={leave.status === 'Approved' || leave.status === 'Rejected'}
-                        title={(leave.status === 'Approved' || leave.status === 'Rejected') ? 'Cannot cancel approved or rejected leave' : 'Cancel leave'}
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </div>
@@ -868,81 +855,114 @@ const ManagerCalendar = ({ joinDate }) => {
       <hr className="border-t border-gray-200 my-6" />
 
       {/* Filter Section for Department Leaves */}
+
       <div className="bg-white rounded-lg shadow-lg p-6">
-       
-        <div className="flex flex-wrap gap-4 items-end mb-4">
-          <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">From Date</label>
-            <input 
-              type="date" 
-              className="border rounded px-3 py-2" 
-              value={filter.from} 
-              onChange={e => { setFilter(f => ({ ...f, from: e.target.value })); setCurrentPage(1); }}
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">To Date</label>
-            <input 
-              type="date" 
-              className="border rounded px-3 py-2" 
-              value={filter.to} 
-              onChange={e => { setFilter(f => ({ ...f, to: e.target.value })); setCurrentPage(1); }}
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">Department</label>
-            <select 
-              className="border rounded px-3 py-2" 
-              value={filter.department} 
-              onChange={e => { setFilter(f => ({ ...f, department: e.target.value })); setCurrentPage(1); }}
-            >
-              <option value="all">All Departments</option>
-              {departmentOptions.map(dept => (
-                <option key={dept} value={dept}>{dept}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">Username</label>
-            <input 
-              type="text" 
-              className="border rounded px-3 py-2" 
-              placeholder="Search by username" 
-              value={filter.username} 
-              onChange={e => { setFilter(f => ({ ...f, username: e.target.value })); setCurrentPage(1); }}
-            />
-          </div>
-          <button
-            className="bg-blue-600 text-white px-6 py-2 rounded font-semibold hover:bg-blue-700 transition"
-            onClick={() => {
-              if (filter.from || filter.to || filter.department !== 'all' || filter.username) {
-                setShowFilteredTable(true);
-                setCurrentPage(1);
-              } else if (filter.department === 'all') {
-                // 'All Departments' is a valid search criteria
-                setShowFilteredTable(true);
-                setCurrentPage(1);
-              } else {
-                setShowFilteredTable(false);
-                alert('Please fill at least one filter to search.');
-              }
-            }}
-          >
-            Search
-          </button>
-          {showFilteredTable && (
-            <button
-              className="ml-2 bg-gray-200 text-gray-700 px-4 py-2 rounded font-semibold hover:bg-gray-300 transition"
-              onClick={() => {
-                setShowFilteredTable(false);
-                setFilter({ from: '', to: '', department: 'all', username: '' });
-                setCurrentPage(1);
-              }}
-            >
-              Reset
-            </button>
-          )}
-        </div>
+        <table className="w-full mb-4 border rounded-lg overflow-hidden">
+          <thead>
+            <tr>
+              <th colSpan="4" className="bg-blue-600 text-white text-lg font-semibold py-2 px-4 text-left">Leave Search Filters</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td className="py-2 px-2" colSpan="4">
+                <div className="flex flex-row items-end gap-4 w-full">
+                  <div className="flex-1 min-w-[160px] max-w-[220px]">
+                    <label className="block text-xs font-semibold text-gray-600 mb-1">From Date</label>
+                    <input 
+                      type="date" 
+                      className="border rounded px-3 py-2 w-full" 
+                      value={filter.from} 
+                      onChange={e => { setFilter(f => ({ ...f, from: e.target.value })); setCurrentPage(1); }}
+                    />
+                  </div>
+                  <div className="flex-1 min-w-[160px] max-w-[220px]">
+                    <label className="block text-xs font-semibold text-gray-600 mb-1">To Date</label>
+                    <input 
+                      type="date" 
+                      className="border rounded px-3 py-2 w-full" 
+                      value={filter.to} 
+                      onChange={e => { setFilter(f => ({ ...f, to: e.target.value })); setCurrentPage(1); }}
+                    />
+                  </div>
+                  <div className="flex-grow"></div>
+                  <div className="flex-grow-0 min-w-[120px] max-w-[160px] flex flex-col items-start">
+                    <label className="block text-xs font-semibold text-gray-600 mb-1">Year</label>
+                    <select
+                      className="border rounded px-3 py-2 w-full max-w-[120px] text-left"
+                      value={filter.year}
+                      onChange={e => { setFilter(f => ({ ...f, year: e.target.value })); setCurrentPage(1); }}
+                    >
+                      {[(new Date().getFullYear() - 1), new Date().getFullYear()].map(y => (
+                        <option key={y} value={y}>{y}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td className="py-2 px-2" colSpan="4">
+                <div className="flex flex-row items-end gap-4 w-full">
+                  <div className="flex-1 min-w-[160px]">
+                    <label className="block text-xs font-semibold text-gray-600 mb-1">Department</label>
+                    <select 
+                      className="border rounded px-3 py-2 w-full" 
+                      value={filter.department} 
+                      onChange={e => { setFilter(f => ({ ...f, department: e.target.value })); setCurrentPage(1); }}
+                    >
+                      <option value="all">All Departments</option>
+                      {departmentOptions.map(dept => (
+                        <option key={dept} value={dept}>{dept}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex-[3] min-w-[240px]">
+                    <label className="block text-xs font-semibold text-gray-600 mb-1">Username</label>
+                    <input 
+                      type="text" 
+                      className="border rounded px-3 py-2 w-full" 
+                      placeholder="Search by username" 
+                      value={filter.username} 
+                      onChange={e => { setFilter(f => ({ ...f, username: e.target.value })); setCurrentPage(1); }}
+                    />
+                  </div>
+                  <div className="flex flex-row gap-4">
+                    <button
+                      className="bg-blue-600 text-white px-6 py-2 rounded font-semibold hover:bg-blue-700 transition"
+                      onClick={() => {
+                        if (filter.from || filter.to || filter.department !== 'all' || filter.username) {
+                          setShowFilteredTable(true);
+                          setCurrentPage(1);
+                        } else if (filter.department === 'all') {
+                          setShowFilteredTable(true);
+                          setCurrentPage(1);
+                        } else {
+                          setShowFilteredTable(false);
+                          alert('Please fill at least one filter to search.');
+                        }
+                      }}
+                    >
+                      Search
+                    </button>
+                    {showFilteredTable && (
+                      <button
+                        className="bg-gray-200 text-gray-700 px-4 py-2 rounded font-semibold hover:bg-gray-300 transition"
+                        onClick={() => {
+                          setShowFilteredTable(false);
+                          setFilter({ from: '', to: '', year: new Date().getFullYear(), department: 'all', username: '' });
+                          setCurrentPage(1);
+                        }}
+                      >
+                        Reset
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
 
         {/* Filtered Table */}
         {showFilteredTable && (

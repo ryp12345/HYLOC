@@ -310,7 +310,7 @@ export default function UsersPage() {
                       </div>
                       <div>
                         <label className="block mb-2 text-sm font-medium text-gray-700">Phone</label>
-                        <input value={form.phone} onChange={e=>setForm({ ...form, phone: e.target.value })} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="+1234567890" />
+                        <input value={form.phone} onChange={e=>setForm({ ...form, phone: e.target.value })} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="91+ 1234567890" />
                       </div>
                       <div>
                         <label className="block mb-2 text-sm font-medium text-gray-700">Blood Group</label>

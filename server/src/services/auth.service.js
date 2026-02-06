@@ -116,3 +116,20 @@ exports.getUserById = async (userId) => {
   }
   return user;
 };
+
+exports.changePassword = async (userId, currentPassword, newPassword) => {
+  // Need access to user's hashed password
+  const user = await UserModel.findUserWithPasswordById(userId);
+  if (!user) {
+    throw new Error('User not found');
+  }
+
+  const isMatch = await comparePassword(currentPassword, user.password);
+  if (!isMatch) {
+    throw new Error('Current password is incorrect');
+  }
+
+  const hashed = await require('../utils/hash').hashPassword(newPassword);
+  await UserModel.updateUser(userId, { password: hashed });
+  return true;
+};

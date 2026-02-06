@@ -8,6 +8,10 @@ export const getUserById = async (id) => {
   return await axios.get(`/users/${id}`);
 };
 
+export const getUsersByDepartment = async (departmentId) => {
+  return await axios.get(`/users/department/${departmentId}`);
+};
+
 export const createUser = async (data) => {
   return await axios.post('/users', data);
 };

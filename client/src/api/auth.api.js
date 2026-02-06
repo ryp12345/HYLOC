@@ -12,4 +12,8 @@ export const authAPI = {
 
   getProfile: () =>
     axiosInstance.get('/auth/profile')
+  ,
+
+  changePassword: (currentPassword, newPassword) =>
+    axiosInstance.post('/auth/change-password', { currentPassword, newPassword })
 };

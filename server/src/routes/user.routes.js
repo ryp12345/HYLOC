@@ -13,6 +13,7 @@ router.get('/me', userController.getMyProfile);
 
 // Super admin and management routes
 router.get('/', authorize('admin', 'management'), userController.getAllUsers);
+router.get('/department/:id', authorize('admin', 'management', 'manager'), userController.getUsersByDepartment);
 router.get('/:id', authorize('admin', 'management'), userController.getUserById);
 router.post('/', authorize('admin'), userController.createUser);
 router.put('/:id', authorize('admin'), userController.updateUser);

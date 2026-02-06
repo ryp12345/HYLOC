@@ -13,6 +13,18 @@ exports.getAllUsers = async (req, res) => {
   }
 };
 
+// Get users by department (manager-safe)
+exports.getUsersByDepartment = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const users = await userModel.getUsersByDepartmentMinimal(id);
+    return sendSuccess(res, users, 'Department users retrieved successfully');
+  } catch (error) {
+    console.error('Get users by department error:', error);
+    return sendError(res, 'Failed to retrieve department users', 500);
+  }
+};
+
 // Get user by ID
 exports.getUserById = async (req, res) => {
   try {
@@ -141,7 +153,7 @@ exports.deleteUser = async (req, res) => {
     }
 
     // Prevent deleting yourself
-    if (req.user.id === parseInt(id)) {
+    if (req.user.userId === parseInt(id)) {
       return sendError(res, 'You cannot delete your own account', 400);
     }
 
@@ -157,7 +169,7 @@ exports.deleteUser = async (req, res) => {
 // Get current user profile
 exports.getMyProfile = async (req, res) => {
   try {
-    const user = await userModel.findUserById(req.user.id);
+    const user = await userModel.findUserById(req.user.userId);
     return sendSuccess(res, user, 'Profile retrieved successfully');
   } catch (error) {
     console.error('Get profile error:', error);

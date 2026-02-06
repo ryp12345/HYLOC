@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import ChangePasswordModal from '../../pages/auth/ChangePassword';
 
 const Navbar = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isChangePwdOpen, setIsChangePwdOpen] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -73,6 +75,13 @@ const Navbar = () => {
                         </div>
                       </div>
                       <button
+                        onClick={() => { setIsChangePwdOpen(true); setIsProfileOpen(false); }}
+                        className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                      >
+                        Change Password
+                      </button>
+
+                      <button
                         onClick={handleLogout}
                         className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
                       >
@@ -122,6 +131,13 @@ const Navbar = () => {
               {user.role?.toUpperCase()}
             </div>
             <button
+              onClick={() => { setIsChangePwdOpen(true); setIsMenuOpen(false); }}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition duration-200 text-sm font-semibold"
+            >
+              Change Password
+            </button>
+
+            <button
               onClick={handleLogout}
               className="w-full bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition duration-200 text-sm font-semibold"
             >
@@ -129,6 +145,9 @@ const Navbar = () => {
             </button>
           </div>
         )}
+
+        {/* Change Password Modal */}
+        <ChangePasswordModal isOpen={isChangePwdOpen} onClose={() => setIsChangePwdOpen(false)} />
       </div>
     </nav>
   );

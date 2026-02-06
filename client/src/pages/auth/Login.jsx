@@ -178,7 +178,7 @@ function Login() {
           </button>
         </form>
 
-        <div className="mt-6 pt-6 border-t border-gray-200 text-center">
+        {/* <div className="mt-6 pt-6 border-t border-gray-200 text-center">
           <p className="text-gray-600 text-sm">
             {isLogin ? "Don't have an account? " : 'Already have an account? '}
             <button
@@ -200,7 +200,7 @@ function Login() {
               {isLogin ? 'Register' : 'Login'}
             </button>
           </p>
-        </div>
+        </div> */}
       </div>
     </div>
   );

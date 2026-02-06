@@ -43,8 +43,8 @@ const Sidebar = () => {
       name: 'Leave Management', 
       icon: '📋',
       submenu: [
-        { name: 'Leaves', path: '/management/leaves', icon: '📅' },
-        { name: 'Leave Approval', path: '/management/leave-approval', icon: '✅' }
+        { name: 'Calendar', path: '/management/leaves', icon: '📅' },
+        { name: 'Approval/Rejection', path: '/management/leave-approval', icon: '✅' }
       ]
     },
   ];
@@ -55,8 +55,8 @@ const Sidebar = () => {
       name: 'Leave Management', 
       icon: '📋',
       submenu: [
-        { name: 'Leaves', path: '/manager/leaves', icon: '📅' },
-        { name: 'Leave Approval', path: '/manager/leave-approval', icon: '✅' }
+        { name: 'Calendar', path: '/manager/leaves', icon: '📅' },
+        { name: 'Approval/Rejection', path: '/manager/leave-approval', icon: '✅' }
       ]
     }
   ];

@@ -34,12 +34,12 @@ exports.createUser = async (userData) => {
     const roleId = roleIdResult.rows[0]?.id;
     
     if (roleId) {
-      // Insert role in user_roles junction table
+      // Insert role in user_roles junction table (use status column)
       const userRoleQuery = `
-        INSERT INTO user_roles (user_id, role_id, is_active)
-        VALUES ($1, $2, true)
+        INSERT INTO user_roles (user_id, role_id, status, created_at, updated_at)
+        VALUES ($1, $2, $3, NOW(), NOW())
       `;
-      await client.query(userRoleQuery, [user.id, roleId]);
+      await client.query(userRoleQuery, [user.id, roleId, 'active']);
     }
 
     // Create leave entitlement for current year based on joining month
@@ -101,6 +101,16 @@ exports.findUserById = async (id) => {
   return result.rows[0];
 };
 
+exports.findUserWithPasswordById = async (id) => {
+  const query = `
+    SELECT u.*
+    FROM users u
+    WHERE u.id = $1
+  `;
+  const result = await db.query(query, [id]);
+  return result.rows[0];
+};
+
 exports.updateUser = async (id, updates) => {
   const client = await db.connect();
   try {
@@ -146,24 +156,24 @@ exports.updateUser = async (id, updates) => {
       const roleId = roleIdResult.rows[0]?.id;
       
       if (roleId) {
-        // Deactivate existing roles
-        await client.query('UPDATE user_roles SET is_active = false WHERE user_id = $1', [id]);
-        
-        // Insert new role
+        // Mark existing roles inactive
+        await client.query('UPDATE user_roles SET status = $1 WHERE user_id = $2', ['inactive', id]);
+
+        // Insert new role (or update existing) with status active
         const roleQuery = `
-          INSERT INTO user_roles (user_id, role_id, is_active)
-          VALUES ($1, $2, true)
-          ON CONFLICT (user_id, role_id) 
-          DO UPDATE SET is_active = true, assigned_at = NOW()
+          INSERT INTO user_roles (user_id, role_id, status, created_at, updated_at)
+          VALUES ($1, $2, $3, NOW(), NOW())
+          ON CONFLICT (user_id, role_id)
+          DO UPDATE SET status = EXCLUDED.status, updated_at = NOW()
         `;
-        await client.query(roleQuery, [id, roleId]);
+        await client.query(roleQuery, [id, roleId, 'active']);
         user.role = updates.role;
       }
     } else {
       // Get current active role
       const roleResult = await client.query(
-        'SELECT r.role_name as role FROM user_roles ur JOIN roles r ON ur.role_id = r.id WHERE ur.user_id = $1 AND ur.is_active = true ORDER BY ur.assigned_at DESC LIMIT 1',
-        [id]
+        'SELECT r.role_name as role FROM user_roles ur JOIN roles r ON ur.role_id = r.id WHERE ur.user_id = $1 AND ur.status = $2 ORDER BY ur.created_at DESC LIMIT 1',
+        [id, 'active']
       );
       user.role = roleResult.rows[0]?.role || 'employee';
     }
@@ -218,6 +228,22 @@ exports.getUsersByDepartment = async (departmentId) => {
     ORDER BY u.firstname, u.lastname
   `;
   
+  const result = await db.query(query, [departmentId]);
+  return result.rows;
+};
+
+/**
+ * Get minimal users by department ID
+ * @param {number} departmentId - Department ID
+ * @returns {Promise<Array>} Array of users (minimal fields)
+ */
+exports.getUsersByDepartmentMinimal = async (departmentId) => {
+  const query = `
+    SELECT u.id, u.department_id, u.status
+    FROM users u
+    WHERE u.department_id = $1 AND u.status = 'active'
+  `;
+
   const result = await db.query(query, [departmentId]);
   return result.rows;
 };

@@ -83,5 +83,25 @@ exports.getProfile = async (req, res) => {
   }
 };
 
+exports.changePassword = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return sendError(res, 'Both current and new passwords are required', 400);
+    }
+    if (newPassword.length < 6) {
+      return sendError(res, 'New password must be at least 6 characters', 400);
+    }
+
+    await authService.changePassword(userId, currentPassword, newPassword);
+    return sendSuccess(res, null, 'Password changed successfully', 200);
+  } catch (error) {
+    console.error('Change password error:', error.message);
+    return sendError(res, error.message || 'Failed to change password', 400);
+  }
+};
+
 
 
