@@ -46,7 +46,7 @@ const Sidebar = () => {
         { name: 'Calendar', path: '/management/leaves', icon: '📅' },
         { name: 'Approval/Rejection', path: '/management/leave-approval', icon: '✅' }
       ]
-    },
+    }
   ];
 
   const managerLinks = [

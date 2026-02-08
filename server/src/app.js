@@ -16,6 +16,7 @@ const categoryRoutes = require('./routes/category.routes');
 const leaveRoutes = require('./routes/leave.routes');
 const unitMasterRoutes = require('./routes/unitMaster.routes');
 const leaveEntitlementRoutes = require('./routes/leaveEntitlement.routes');
+const devTicketsRoutes = require('./routes/devTickets.routes');
 const { errorHandler, notFoundHandler } = require('./middlewares/error.middleware');
 
 const app = express();
@@ -48,6 +49,7 @@ app.use('/api/kpi-departments', kpiDepartmentRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/leaves', leaveRoutes);
 app.use('/api/unit-master', unitMasterRoutes);
+app.use('/api/dev-tickets', devTicketsRoutes);
 
 // Leave Entitlement routes
 app.use('/api/leave-entitlements', leaveEntitlementRoutes);

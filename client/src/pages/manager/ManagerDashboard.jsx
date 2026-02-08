@@ -48,7 +48,7 @@ function ManagerDashboard() {
 			// Get users in manager's department
 			const usersResponse = await getUsersByDepartment(managerDepartmentId);
 			const departmentEmployees = (usersResponse.data?.data || []).filter(
-				u => u.id !== user.userId
+			u => u.id !== user.id
 			);
 
 			// Get today's leaves for the department
@@ -88,7 +88,7 @@ function ManagerDashboard() {
 			// Get users in manager's department
 			const usersResponse = await getUsersByDepartment(managerDepartmentId);
 			const departmentEmployees = (usersResponse.data?.data || []).filter(
-				u => u.id !== user.userId
+			u => u.id !== user.id
 			);
 
 			// Get KPI values for department employees
