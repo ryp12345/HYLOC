@@ -5,8 +5,8 @@ exports.getAllKPIValues = async () => {
   try {
     const result = await pool.query(
       `SELECT id, data, kpi_id, "data operator", target_required, uom, 
-              kpi_type, piller_id, formula, source_kpi_value_ids, default_target_value, 
-              created_at, updated_at
+              kpi_type, piller_id, formula, source_kpi_value_ids, default_target_value,
+              computation_type, target_formula, target_source_kpi_value_ids, created_at, updated_at
        FROM kpi_values ORDER BY created_at DESC`
     );
     return result.rows;
@@ -21,8 +21,8 @@ exports.getKPIValuesByKPI = async (kpiId) => {
   try {
     const result = await pool.query(
       `SELECT id, data, kpi_id, "data operator", target_required, uom,
-              kpi_type, piller_id, formula, source_kpi_value_ids, default_target_value, 
-              created_at, updated_at
+              kpi_type, piller_id, formula, source_kpi_value_ids, default_target_value,
+              computation_type, target_formula, target_source_kpi_value_ids, created_at, updated_at
        FROM kpi_values WHERE kpi_id = $1 ORDER BY created_at DESC`,
       [kpiId]
     );
@@ -38,8 +38,8 @@ exports.getKPIValueById = async (id) => {
   try {
     const result = await pool.query(
       `SELECT id, data, kpi_id, "data operator", target_required, uom,
-              kpi_type, piller_id, formula, source_kpi_value_ids, default_target_value, 
-              created_at, updated_at
+              kpi_type, piller_id, formula, source_kpi_value_ids, default_target_value,
+              computation_type, target_formula, target_source_kpi_value_ids, created_at, updated_at
        FROM kpi_values WHERE id = $1`,
       [id]
     );
@@ -69,11 +69,10 @@ exports.createKPIValue = async (kpiValue) => {
     const result = await pool.query(
       `INSERT INTO kpi_values 
        (data, kpi_id, "data operator", target_required, uom, kpi_type, piller_id, 
-        formula, source_kpi_value_ids, default_target_value, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
+        formula, source_kpi_value_ids, default_target_value, computation_type, target_formula, target_source_kpi_value_ids, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW(), NOW())
        RETURNING id, data, kpi_id, "data operator", target_required, uom, kpi_type, 
-                 piller_id, formula, source_kpi_value_ids, default_target_value, 
-                 created_at, updated_at`,
+                 piller_id, formula, source_kpi_value_ids, default_target_value, computation_type, target_formula, target_source_kpi_value_ids, created_at, updated_at`,
       [
         data,
         kpi_id,
@@ -84,7 +83,10 @@ exports.createKPIValue = async (kpiValue) => {
         piller_id || null,
         formula || null,
         source_kpi_value_ids || null,
-        default_target_value || null
+        default_target_value || null,
+        kpiValue.computation_type || null,
+        kpiValue.target_formula || null,
+        kpiValue.target_source_kpi_value_ids || null
       ]
     );
     return result.rows[0];
@@ -122,11 +124,13 @@ exports.updateKPIValue = async (id, kpiValue) => {
            formula = $8,
            source_kpi_value_ids = $9,
            default_target_value = $10,
+           computation_type = $11,
+           target_formula = $12,
+           target_source_kpi_value_ids = $13,
            updated_at = NOW()
-       WHERE id = $11
+       WHERE id = $14
        RETURNING id, data, kpi_id, "data operator", target_required, uom, kpi_type, 
-                 piller_id, formula, source_kpi_value_ids, default_target_value, 
-                 created_at, updated_at`,
+                 piller_id, formula, source_kpi_value_ids, default_target_value, computation_type, target_formula, target_source_kpi_value_ids, created_at, updated_at`,
       [
         data || null,
         kpi_id || null,
@@ -138,6 +142,9 @@ exports.updateKPIValue = async (id, kpiValue) => {
         formula || null,
         source_kpi_value_ids || null,
         default_target_value || null,
+        kpiValue.computation_type || null,
+        kpiValue.target_formula || null,
+        kpiValue.target_source_kpi_value_ids || null,
         id
       ]
     );

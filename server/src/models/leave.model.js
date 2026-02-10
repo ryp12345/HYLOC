@@ -64,8 +64,11 @@ exports.getLeaveById = async (id) => {
 exports.getLeavesByUserId = async (userId, filters = {}) => {
   let query = `
     SELECT l.*, 
+           u.firstname || ' ' || u.lastname as user_name,
+           u.empid,
            approver.firstname || ' ' || approver.lastname as approver_name
     FROM leaves l
+    LEFT JOIN users u ON l.user_id = u.id
     LEFT JOIN users approver ON l.approved_by = approver.id
     WHERE l.user_id = $1
   `;

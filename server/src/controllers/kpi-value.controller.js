@@ -150,7 +150,10 @@ exports.createKPIValue = async (req, res) => {
       piller_id,
       formula,
       source_kpi_value_ids,
-      default_target_value
+      default_target_value,
+      computation_type,
+      target_formula,
+      target_source_kpi_value_ids
     } = req.body;
 
     if (!kpi_id || !data) {
@@ -170,7 +173,10 @@ exports.createKPIValue = async (req, res) => {
       piller_id,
       formula,
       source_kpi_value_ids,
-      default_target_value
+      default_target_value,
+      computation_type,
+      target_formula,
+      target_source_kpi_value_ids
     });
 
     res.status(201).json({
@@ -200,7 +206,10 @@ exports.updateKPIValue = async (req, res) => {
       piller_id,
       formula,
       source_kpi_value_ids,
-      default_target_value
+      default_target_value,
+      computation_type,
+      target_formula,
+      target_source_kpi_value_ids
     } = req.body;
 
     const kpiValue = await kpiValueModel.updateKPIValue(id, {
@@ -212,8 +221,11 @@ exports.updateKPIValue = async (req, res) => {
       kpi_type,
       piller_id,
       formula,
-      source_kpi_value_ids,
-      default_target_value
+        source_kpi_value_ids,
+        default_target_value,
+        computation_type,
+        target_formula,
+        target_source_kpi_value_ids
     });
 
     if (!kpiValue) {

@@ -34,8 +34,8 @@ function KmisPage() {
     fin_year: '',
     category_id: '',
     parent_kpi_id: null,
-    department_id: null,
-    emp_id: null
+    department_id: '',
+    emp_id: ''
   });
   const [expandedNodes, setExpandedNodes] = useState(new Set());
   const [notification, setNotification] = useState({ show: false, message: '', type: '' });
@@ -230,8 +230,8 @@ function KmisPage() {
       fin_year: selectedYear,
       category_id: getDefaultCategoryId(categories), // This will be "KMI / GLOBAL OBJECTIVES" category
       parent_kpi_id: null,
-      department_id: null,
-      emp_id: null
+      department_id: '',
+      emp_id: ''
     });
     setShowModal(true);
   };
@@ -287,15 +287,40 @@ function KmisPage() {
     }
   };
 
-  const handleEdit = (kmi) => {
+  const handleEdit = async (kmi) => {
     setEditingKmi(kmi);
+
+    // Try to load existing department mapping for this KPI
+    let deptId = '';
+    try {
+      const resp = await axios.get(`/kpi-departments?kpi_id=${kmi.id}`);
+      const mappings = resp.data?.data || [];
+      if (mappings.length > 0) {
+        deptId = mappings[0].department_id != null ? String(mappings[0].department_id) : '';
+      }
+    } catch (err) {
+      console.debug('No KPI-Department mapping found or failed to fetch', err?.response?.data || err);
+    }
+
+    // Try to load existing employee mapping for this KPI (if any)
+    let empId = '';
+    try {
+      const resp2 = await axios.get(`/kpi-employees?kpi_id=${kmi.id}`);
+      const mappings2 = resp2.data?.data || [];
+      if (mappings2.length > 0) {
+        empId = mappings2[0].emp_id != null ? String(mappings2[0].emp_id) : '';
+      }
+    } catch (err) {
+      console.debug('No KPI-Employee mapping found or failed to fetch', err?.response?.data || err);
+    }
+
     setFormData({
       title: kmi.title || '',
       fin_year: kmi.fin_year || selectedYear,
       category_id: kmi.category_id || getDefaultCategoryId(categories),
       parent_kpi_id: kmi.parent_kpi_id || null,
-      department_id: kmi.department_id || null,
-      emp_id: kmi.emp_id || null
+      department_id: deptId,
+      emp_id: empId
     });
     setShowModal(true);
   };
@@ -307,8 +332,8 @@ function KmisPage() {
       fin_year: parent.fin_year || selectedYear,
       category_id: getNextCategoryId(parent.category_id),
       parent_kpi_id: parent.id,
-      department_id: null,
-      emp_id: null
+      department_id: '',
+      emp_id: ''
     });
     setShowModal(true);
     setExpandedNodes((prev) => new Set(prev).add(parent.id));
@@ -365,11 +390,12 @@ function KmisPage() {
           try {
             await axios.post('/kpi-departments', {
               kpi_id: kpiId,
-              department_id: formData.department_id
+              department_id: Number(formData.department_id)
             });
           } catch (err) {
-            console.error('Failed to save KPI-Department mapping:', err);
-            showNotification('KPI saved but failed to map department', 'error');
+            console.error('Failed to save KPI-Department mapping:', err?.response?.data || err);
+            const serverMsg = err?.response?.data?.message || err?.message || 'Unknown error';
+            showNotification(`KPI saved but failed to map department: ${serverMsg}`, 'error');
           }
         } else {
           showNotification('Please select a department for Department KPI', 'error');
@@ -383,11 +409,12 @@ function KmisPage() {
           try {
             await axios.post('/kpi-employees', {
               kpi_id: kpiId,
-              emp_id: formData.emp_id
+              emp_id: Number(formData.emp_id)
             });
           } catch (err) {
-            console.error('Failed to save KPI-Employee mapping:', err);
-            showNotification('KPI saved but failed to map employee', 'error');
+            console.error('Failed to save KPI-Employee mapping:', err?.response?.data || err);
+            const serverMsg = err?.response?.data?.message || err?.message || 'Unknown error';
+            showNotification(`KPI saved but failed to map employee: ${serverMsg}`, 'error');
           }
         } else {
           showNotification('Please select an employee for Employee KPI', 'error');
@@ -901,7 +928,7 @@ function KmisPage() {
                   >
                     <option value="">Select Department</option>
                     {departments.map((dept) => (
-                      <option key={dept.id} value={dept.id}>{dept.name || dept.department_name}</option>
+                      <option key={dept.id} value={String(dept.id)}>{dept.name || dept.department_name}</option>
                     ))}
                   </select>
                 </div>
@@ -918,7 +945,7 @@ function KmisPage() {
                   >
                     <option value="">Select Employee</option>
                     {employees.map((emp) => (
-                      <option key={emp.id} value={emp.id}>{emp.firstname} {emp.lastname} ({emp.empid})</option>
+                      <option key={emp.id} value={String(emp.id)}>{emp.firstname} {emp.lastname} ({emp.empid})</option>
                     ))}
                   </select>
                 </div>

@@ -433,7 +433,7 @@ function KmiDetail() {
                       <td className="px-4 py-3 text-sm text-gray-600">{getUnitName(value.uom)}</td>
                       <td className="px-4 py-3 text-sm text-gray-600">{getPillerName(value.piller_id)}</td>
                       <td className="px-4 py-3 text-sm text-center">
-                        <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${value.target_required ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
+                        <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${value.target_required ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}`}>
                           {value.target_required ? 'Yes' : 'No'}
                         </span>
                       </td>
@@ -696,30 +696,38 @@ function KmiDetail() {
                   ))}
                 </select>
               </div>
-              <div className="mb-5">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Default Target Value</label>
-                <input
-                  type="text"
-                  name="default_target_value"
-                  value={formData.default_target_value}
-                  onChange={handleChange}
-                  placeholder="e.g., 100, 50%"
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                />
+               <div className="mb-5 flex items-center">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    name="target_required"
+                    checked={formData.target_required}
+                    onChange={handleChange}
+                    className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-2 focus:ring-blue-500"
+                    id="target_required"
+                  />
+                  <label htmlFor="target_required" className="text-sm font-medium text-gray-700 cursor-pointer">
+                    Target Required
+                  </label>
+                </div>
+                <span className={`ml-auto text-sm font-semibold ${formData.target_required ? 'text-green-600' : 'text-blue-600'}`}>
+                  {formData.target_required ? 'Yes' : 'No'}
+                </span>
               </div>
-              <div className="mb-5 flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  name="target_required"
-                  checked={formData.target_required}
-                  onChange={handleChange}
-                  className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-2 focus:ring-blue-500"
-                  id="target_required"
-                />
-                <label htmlFor="target_required" className="text-sm font-medium text-gray-700 cursor-pointer">
-                  Target Required
-                </label>
-              </div>
+              {formData.target_required && (
+                <div className="mb-5">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Default Target Value</label>
+                  <input
+                    type="text"
+                    name="default_target_value"
+                    value={formData.default_target_value}
+                    onChange={handleChange}
+                    placeholder="e.g., 100, 50%"
+                    className="w-full px-3 py-2.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  />
+                </div>
+              )}
+             
               <div className="flex justify-end gap-3 pt-4">
                 <button type="button" className="px-5 py-2.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50" onClick={() => setShowModal(false)}>
                   Cancel

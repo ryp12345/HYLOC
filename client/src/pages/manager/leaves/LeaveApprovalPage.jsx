@@ -293,7 +293,7 @@ const LeaveApprovalPage = () => {
         {(view === 'approve-leaves' || view === 'my-leaves') && ['Pending', 'Approved', 'Rejected'].includes(activeTab) && (
           <div className="mb-8">
             <div className="bg-white rounded-lg shadow-lg p-4 mb-4">
-              <div className="flex flex-wrap gap-4 items-end">
+              <div className="flex flex-nowrap items-end gap-4 w-full">
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1">From Date</label>
                   <input
@@ -325,30 +325,26 @@ const LeaveApprovalPage = () => {
                     ))}
                   </select>
                 </div>
-                <div className="flex-[4] min-w-[360px] relative">
+                <div className="flex-[4] min-w-[360px]">
                   <label className="block text-xs font-semibold text-gray-600 mb-1">Username</label>
-                  <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z" />
-                    </svg>
-                  </span>
-                  <input
-                    type="text"
-                    className="border rounded px-3 py-2 pl-10 pr-10 w-full"
-                    placeholder="Username"
-                    value={filter.username}
-                    onChange={e => setFilter(f => ({ ...f, username: e.target.value }))}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => { setShowFilteredTable(true); setCurrentPage(1); }}
-                    className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
-                    aria-label="Search"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z" />
-                    </svg>
-                  </button>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      className="border rounded px-3 py-2 pr-10 w-full"
+                      value={filter.username}
+                      onChange={e => setFilter(f => ({ ...f, username: e.target.value }))}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => { setShowFilteredTable(true); setCurrentPage(1); }}
+                      className="absolute right-2 inset-y-0 flex items-center text-gray-500 hover:text-gray-700"
+                      aria-label="Search"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z" />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1">Year</label>

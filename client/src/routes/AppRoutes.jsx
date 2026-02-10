@@ -26,6 +26,7 @@ import RolesPage from '../pages/admin/RolesPage';
 import PillersPage from '../pages/admin/PillersPage';
 import KmisPage from '../pages/admin/KmisPage';
 import KmiDetail from '../pages/admin/KmiDetail';
+import UnitMaster from '../pages/admin/UnitMaster';
 import EmployeeLeavesPage from '../pages/employee/leaves/LeavesPage';
 import ManagerLeavesPage from '../pages/manager/leaves/LeavesPage';
 import ManagerLeaveApprovalPage from '../pages/manager/leaves/LeaveApprovalPage';
@@ -278,6 +279,17 @@ const AppRoutes = () => {
               <ProtectedRoute>
                 <DashboardLayout>
                   <KmisPage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/unit-master"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <UnitMaster />
                 </DashboardLayout>
               </ProtectedRoute>
             }

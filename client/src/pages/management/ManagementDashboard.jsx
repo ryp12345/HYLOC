@@ -29,6 +29,13 @@ const Industry40LineChart = ({ title, labels, actuals, targets }) => {
   const getX = (idx) => padding + (idx / (labels.length - 1 || 1)) * plotWidth;
   const getY = (val) => svgHeight - padding - ((val - minVal) / range) * plotHeight;
 
+  const formatVal = (v) => {
+    if (!Number.isFinite(v)) return String(v);
+    if (range < 10) return v.toFixed(1);
+    if (Math.abs(v) >= 1000) return Math.round(v).toString();
+    return Number.isInteger(v) ? v.toString() : v.toFixed(1);
+  };
+
   // Generate line paths
   const actualPath = actuals
     .map((val, idx) => `${idx === 0 ? 'M' : 'L'} ${getX(idx)} ${getY(val)}`)
@@ -41,22 +48,28 @@ const Industry40LineChart = ({ title, labels, actuals, targets }) => {
     <div className="w-full h-full">
       <h2 className="text-base font-semibold text-gray-800 mb-4 text-center">{title}</h2>
       <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="w-full h-auto max-h-[300px]">
-        {/* Grid lines */}
-        {[0, 0.2, 0.4, 0.6, 0.8, 1].map((ratio, i) => {
-          const y = svgHeight - padding - ratio * plotHeight;
-          return (
-            <line
-              key={`grid-${i}`}
-              x1={padding}
-              y1={y}
-              x2={svgWidth - padding}
-              y2={y}
-              stroke="#e5e7eb"
-              strokeWidth="1"
-              strokeDasharray="5,5"
-            />
-          );
-        })}
+        {/* Grid lines + Y ticks */}
+        {(() => {
+          const ticks = 5;
+          const tickValues = Array.from({ length: ticks + 1 }, (_, i) => minVal + (i / ticks) * range);
+          return tickValues.map((tick, i) => {
+            const ratio = (tick - minVal) / (range || 1);
+            const y = svgHeight - padding - ratio * plotHeight;
+            return (
+              <g key={`grid-${i}`}>
+                <line
+                  x1={padding}
+                  y1={y}
+                  x2={svgWidth - padding}
+                  y2={y}
+                  stroke="#e5e7eb"
+                  strokeWidth="1"
+                  strokeDasharray="5,5"
+                />
+              </g>
+            );
+          });
+        })()}
 
         {/* Y-axis line */}
         <line x1={padding} y1={padding} x2={padding} y2={svgHeight - padding} stroke="#1f2937" strokeWidth="2" />
@@ -69,14 +82,20 @@ const Industry40LineChart = ({ title, labels, actuals, targets }) => {
         {/* Actual line (foreground) */}
         <path d={actualPath} stroke="#41aafe" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" />
 
-        {/* Target dots */}
+        {/* Target dots + labels */}
         {targets.map((val, idx) => (
-          <circle key={`target-dot-${idx}`} cx={getX(idx)} cy={getY(val)} r="5" fill="#ffb74d" stroke="white" strokeWidth="2" />
+          <g key={`target-dot-${idx}`}>
+            <circle cx={getX(idx)} cy={getY(val)} r="5" fill="#ffb74d" stroke="white" strokeWidth="2" />
+            <text x={getX(idx)} y={getY(val) - 10} textAnchor="middle" fontSize="10" fontWeight="600" fill="#c97706">{formatVal(Number(val))}</text>
+          </g>
         ))}
 
-        {/* Actual dots */}
+        {/* Actual dots + labels */}
         {actuals.map((val, idx) => (
-          <circle key={`actual-dot-${idx}`} cx={getX(idx)} cy={getY(val)} r="5" fill="#41aafe" stroke="white" strokeWidth="2" />
+          <g key={`actual-dot-${idx}`}>
+            <circle cx={getX(idx)} cy={getY(val)} r="5" fill="#41aafe" stroke="white" strokeWidth="2" />
+            <text x={getX(idx)} y={getY(val) - 18} textAnchor="middle" fontSize="10" fontWeight="700" fill="#0ea5e9">{formatVal(Number(val))}</text>
+          </g>
         ))}
 
         {/* X-axis labels */}
@@ -94,16 +113,22 @@ const Industry40LineChart = ({ title, labels, actuals, targets }) => {
           </text>
         ))}
 
-        {/* Y-axis labels */}
-        {[0, 0.2, 0.4, 0.6, 0.8, 1].map((ratio, i) => {
-          const val = Math.round(minVal + ratio * range);
-          const y = svgHeight - padding - ratio * plotHeight;
-          return (
-            <text key={`y-label-${i}`} x={padding - 15} y={y + 5} textAnchor="end" fontSize="12" fontWeight="500" fill="#4b5563">
-              {val}
-            </text>
-          );
-        })}
+        {/* Y-axis labels (formatted) */}
+        {(() => {
+          const ticks = 5;
+          const tickValues = Array.from({ length: ticks + 1 }, (_, i) => minVal + (i / ticks) * range);
+          const shouldShowDecimals = range < 10;
+          return tickValues.map((tick, i) => {
+            const ratio = (tick - minVal) / (range || 1);
+            const y = svgHeight - padding - ratio * plotHeight;
+            const label = shouldShowDecimals ? tick.toFixed(1) : Math.round(tick).toString();
+            return (
+              <text key={`y-label-${i}`} x={padding - 18} y={y + 5} textAnchor="end" fontSize="12" fontWeight="500" fill="#4b5563">
+                {label}
+              </text>
+            );
+          });
+        })()}
       </svg>
 
       {/* Legend */}
@@ -237,12 +262,19 @@ const GreenFactoryBarChart = ({ title, subtitle, labels, values }) => {
       <h2 className="text-base font-semibold text-gray-800 mb-4 text-center">{title}</h2>
       <p className="text-sm text-gray-600 mb-4 text-center">{subtitle}</p>
       <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="w-full h-auto max-h-[300px]">
-        {[0, 0.2, 0.4, 0.6, 0.8, 1].map((ratio, i) => {
-          const y = svgHeight - padding - ratio * plotHeight;
-          return (
-            <line key={`grid-${i}`} x1={padding} y1={y} x2={svgWidth - padding} y2={y} stroke="#e5e7eb" strokeWidth="1" strokeDasharray="5,5" />
-          );
-        })}
+        {(() => {
+          const ticks = 5;
+          const tickValues = Array.from({ length: ticks + 1 }, (_, i) => minVal + (i / ticks) * range);
+          return tickValues.map((tick, i) => {
+            const ratio = (tick - minVal) / (range || 1);
+            const y = svgHeight - padding - ratio * plotHeight;
+            return (
+              <g key={`grid-${i}`}>
+                <line x1={padding} y1={y} x2={svgWidth - padding} y2={y} stroke="#e5e7eb" strokeWidth="1" strokeDasharray="5,5" />
+              </g>
+            );
+          });
+        })()}
 
         <line x1={padding} y1={padding} x2={padding} y2={svgHeight - padding} stroke="#1f2937" strokeWidth="2" />
         <line x1={padding} y1={svgHeight - padding} x2={svgWidth - padding} y2={svgHeight - padding} stroke="#1f2937" strokeWidth="2" />
@@ -258,17 +290,333 @@ const GreenFactoryBarChart = ({ title, subtitle, labels, values }) => {
           <text key={`x-label-${idx}`} x={padding + (idx * plotWidth) / labels.length + (plotWidth / labels.length / 2)} y={svgHeight - padding + 30} textAnchor="middle" fontSize="11" fontWeight="500" fill="#4b5563">{label}</text>
         ))}
 
-        {[0, 0.2, 0.4, 0.6, 0.8, 1].map((ratio, i) => {
-          const val = Math.round(minVal + ratio * range);
-          const y = svgHeight - padding - ratio * plotHeight;
-          return (
-            <text key={`y-label-${i}`} x={padding - 15} y={y + 5} textAnchor="end" fontSize="12" fontWeight="500" fill="#4b5563">{val}%</text>
-          );
-        })}
+        {(() => {
+          const ticks = 5;
+          const tickValues = Array.from({ length: ticks + 1 }, (_, i) => minVal + (i / ticks) * range);
+          const shouldShowDecimals = range < 10;
+          return tickValues.map((tick, i) => {
+            const ratio = (tick - minVal) / (range || 1);
+            const y = svgHeight - padding - ratio * plotHeight;
+            const label = (shouldShowDecimals ? tick.toFixed(1) : Math.round(tick).toString()) + '%';
+            return (
+              <text key={`y-label-${i}`} x={padding - 18} y={y + 5} textAnchor="end" fontSize="12" fontWeight="500" fill="#4b5563">{label}</text>
+            );
+          });
+        })()}
       </svg>
       <div className="flex justify-center gap-6 mt-4">
         <div className="flex items-center gap-2"><span className="w-3 h-3 bg-[#10b981] rounded"></span><span className="text-sm text-gray-600">Green Factory %</span></div>
       </div>
+    </div>
+  );
+};
+
+// Bar Chart component for Zero Accidents (shows actual vs target per month)
+const ZeroAccidentsBarChart = ({ title, subtitle, labels, actuals, targets }) => {
+  const svgWidth = 900;
+  const svgHeight = 350;
+  const padding = 60;
+  const plotWidth = svgWidth - padding * 2;
+  const plotHeight = svgHeight - padding * 2;
+
+  const maxVal = Math.max(...actuals, ...targets, 1);
+  const minVal = 0;
+  const range = maxVal - minVal;
+  const groupWidth = plotWidth / labels.length;
+  const barWidth = Math.min(24, groupWidth * 0.35);
+  const getX = (idx, which) => {
+    const base = padding + idx * groupWidth + groupWidth / 2;
+    // which: 0 = actual (left), 1 = target (right)
+    return base + (which === 0 ? -barWidth / 1.5 : barWidth / 1.5);
+  };
+  const getY = (val) => svgHeight - padding - ((val - minVal) / (range || 1)) * plotHeight;
+  const getBarHeight = (val) => ((val - minVal) / (range || 1)) * plotHeight;
+
+  return (
+    <div className="w-full h-full">
+      <h2 className="text-base font-semibold text-gray-800 mb-4 text-center">{title}</h2>
+      {subtitle && <p className="text-sm text-gray-600 mb-4 text-center">{subtitle}</p>}
+      <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="w-full h-auto max-h-[300px]">
+        {(() => {
+          // Use integer ticks (0,1,2,3...) when values are small (<=10), otherwise fallback to 5 evenly spaced ticks
+          let tickValues;
+          if (maxVal <= 10) {
+            const maxTick = Math.max(3, Math.ceil(maxVal));
+            tickValues = Array.from({ length: maxTick + 1 }, (_, i) => i);
+          } else {
+            const ticks = 5;
+            tickValues = Array.from({ length: ticks + 1 }, (_, i) => minVal + (i / ticks) * range);
+          }
+          return tickValues.map((tick, i) => {
+            const ratio = (tick - minVal) / (range || 1);
+            const y = svgHeight - padding - ratio * plotHeight;
+            return (
+              <g key={`grid-${i}`}>
+                <line x1={padding} y1={y} x2={svgWidth - padding} y2={y} stroke="#e5e7eb" strokeWidth="1" strokeDasharray="5,5" />
+              </g>
+            );
+          });
+        })()}
+
+        <line x1={padding} y1={padding} x2={padding} y2={svgHeight - padding} stroke="#1f2937" strokeWidth="2" />
+        <line x1={padding} y1={svgHeight - padding} x2={svgWidth - padding} y2={svgHeight - padding} stroke="#1f2937" strokeWidth="2" />
+
+        {labels.map((label, idx) => (
+          <g key={`group-${idx}`}>
+            <rect x={getX(idx, 0)} y={getY(actuals[idx] || 0)} width={barWidth} height={getBarHeight(actuals[idx] || 0)} fill="#41aafe" rx="4" />
+            <rect x={getX(idx, 1)} y={getY(targets[idx] || 0)} width={barWidth} height={getBarHeight(targets[idx] || 0)} fill="#ffb74d" rx="4" />
+
+            <text x={getX(idx, 0) + barWidth / 2} y={getY(actuals[idx] || 0) - 8} textAnchor="middle" fontSize="11" fontWeight="600" fill="#0ea5e9">{(actuals[idx] || 0).toFixed(1)}</text>
+            <text x={getX(idx, 1) + barWidth / 2} y={getY(targets[idx] || 0) - 8} textAnchor="middle" fontSize="11" fontWeight="600" fill="#c97706">{(targets[idx] || 0).toFixed(1)}</text>
+          </g>
+        ))}
+
+        {labels.map((label, idx) => (
+          <text key={`x-label-${idx}`} x={padding + idx * groupWidth + groupWidth / 2} y={svgHeight - padding + 30} textAnchor="middle" fontSize="11" fontWeight="500" fill="#4b5563">{label}</text>
+        ))}
+
+        {(() => {
+          let tickValues;
+          if (maxVal <= 10) {
+            const maxTick = Math.max(3, Math.ceil(maxVal));
+            tickValues = Array.from({ length: maxTick + 1 }, (_, i) => i);
+          } else {
+            const ticks = 5;
+            tickValues = Array.from({ length: ticks + 1 }, (_, i) => minVal + (i / ticks) * range);
+          }
+          return tickValues.map((tick, i) => {
+            const ratio = (tick - minVal) / (range || 1);
+            const y = svgHeight - padding - ratio * plotHeight;
+            const label = Number.isFinite(tick) ? Math.round(tick).toString() : String(tick);
+            return (
+              <text key={`y-label-${i}`} x={padding - 18} y={y + 5} textAnchor="end" fontSize="12" fontWeight="500" fill="#4b5563">{label}</text>
+            );
+          });
+        })()}
+      </svg>
+
+      <div className="flex justify-center gap-6 mt-4">
+        <div className="flex items-center gap-2"><span className="w-3 h-3 bg-[#41aafe] rounded"></span><span className="text-sm text-gray-600">Actual</span></div>
+        <div className="flex items-center gap-2"><span className="w-3 h-3 bg-[#ffb74d] rounded"></span><span className="text-sm text-gray-600">Target</span></div>
+      </div>
+    </div>
+  );
+};
+
+// On Time Delivery grouped bar chart (Target vs Achieved)
+const OnTimeDeliveryBarChart = ({ title, subtitle, labels, actuals, targets }) => {
+  const svgWidth = 900;
+  const svgHeight = 350;
+  const padding = 60;
+  const plotWidth = svgWidth - padding * 2;
+  const plotHeight = svgHeight - padding * 2;
+
+  const maxVal = Math.max(...actuals, ...targets, 1);
+  const minVal = 0;
+  const range = maxVal - minVal;
+
+  const groupWidth = plotWidth / labels.length;
+  const barWidth = Math.min(20, groupWidth * 0.28);
+  const getX = (idx, which) => {
+    const base = padding + idx * groupWidth + groupWidth / 2;
+    return base + (which === 'target' ? -barWidth - 4 : barWidth + 4 - barWidth);
+  };
+  const getY = (val) => svgHeight - padding - ((val - minVal) / (range || 1)) * plotHeight;
+  const getBarHeight = (val) => ((val - minVal) / (range || 1)) * plotHeight;
+
+  return (
+    <div className="w-full h-full">
+      <h2 className="text-base font-semibold text-gray-800 mb-4 text-center">{title}</h2>
+      {subtitle && <p className="text-sm text-gray-600 mb-4 text-center">{subtitle}</p>}
+      <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="w-full h-auto max-h-[300px]">
+        {(() => {
+          const ticks = 5;
+          const tickValues = Array.from({ length: ticks + 1 }, (_, i) => minVal + (i / ticks) * range);
+          return tickValues.map((tick, i) => {
+            const ratio = (tick - minVal) / (range || 1);
+            const y = svgHeight - padding - ratio * plotHeight;
+            return (
+              <g key={`grid-${i}`}>
+                <line x1={padding} y1={y} x2={svgWidth - padding} y2={y} stroke="#e5e7eb" strokeWidth="1" strokeDasharray="5,5" />
+              </g>
+            );
+          });
+        })()}
+
+        <line x1={padding} y1={padding} x2={padding} y2={svgHeight - padding} stroke="#1f2937" strokeWidth="2" />
+        <line x1={padding} y1={svgHeight - padding} x2={svgWidth - padding} y2={svgHeight - padding} stroke="#1f2937" strokeWidth="2" />
+
+        {labels.map((label, idx) => (
+          <g key={`group-${idx}`}>
+            <rect x={getX(idx, 'target')} y={getY(targets[idx] || 0)} width={barWidth} height={getBarHeight(targets[idx] || 0)} fill="#fbbf24" rx="4" />
+            <rect x={getX(idx, 'actual')} y={getY(actuals[idx] || 0)} width={barWidth} height={getBarHeight(actuals[idx] || 0)} fill="#22c55e" rx="4" />
+
+            <text x={getX(idx, 'target') + barWidth / 2} y={getY(targets[idx] || 0) - 8} textAnchor="middle" fontSize="11" fontWeight="600" fill="#92400e">{Math.round(targets[idx] || 0)}</text>
+            <text x={getX(idx, 'actual') + barWidth / 2} y={getY(actuals[idx] || 0) - 8} textAnchor="middle" fontSize="11" fontWeight="600" fill="#166534">{Math.round(actuals[idx] || 0)}</text>
+          </g>
+        ))}
+
+        {labels.map((label, idx) => (
+          <text key={`x-label-${idx}`} x={padding + idx * groupWidth + groupWidth / 2} y={svgHeight - padding + 30} textAnchor="middle" fontSize="11" fontWeight="500" fill="#4b5563">{label}</text>
+        ))}
+
+        {(() => {
+          const ticks = 5;
+          const tickValues = Array.from({ length: ticks + 1 }, (_, i) => minVal + (i / ticks) * range);
+          const shouldShowDecimals = range < 10;
+          return tickValues.map((tick, i) => {
+            const ratio = (tick - minVal) / (range || 1);
+            const y = svgHeight - padding - ratio * plotHeight;
+            const label = shouldShowDecimals ? tick.toFixed(1) : Math.round(tick).toString();
+            return (
+              <text key={`y-label-${i}`} x={padding - 18} y={y + 5} textAnchor="end" fontSize="12" fontWeight="500" fill="#4b5563">{label}</text>
+            );
+          });
+        })()}
+      </svg>
+
+      <div className="flex justify-center gap-6 mt-4">
+        <div className="flex items-center gap-2"><span className="w-3 h-3 bg-[#fbbf24] rounded"></span><span className="text-sm text-gray-600">Target</span></div>
+        <div className="flex items-center gap-2"><span className="w-3 h-3 bg-[#22c55e] rounded"></span><span className="text-sm text-gray-600">Achieved</span></div>
+      </div>
+    </div>
+  );
+};
+
+// Theme (Bar chart) component
+const Box4ThemeBarChart = ({ title, subtitle, labels, values }) => {
+  const svgWidth = 900;
+  const svgHeight = 350;
+  const padding = 60;
+  const plotWidth = svgWidth - padding * 2;
+  const plotHeight = svgHeight - padding * 2;
+
+  const maxVal = Math.max(...values, 1);
+  const minVal = 0;
+  const range = maxVal - minVal;
+
+  const barWidth = plotWidth / (values.length * 1.5);
+  const getX = (idx) => padding + (idx * plotWidth) / values.length + (plotWidth / values.length / 2 - barWidth / 2);
+  const getY = (val) => svgHeight - padding - ((val - minVal) / (range || 1)) * plotHeight;
+  const getBarHeight = (val) => ((val - minVal) / (range || 1)) * plotHeight;
+
+  return (
+    <div className="w-full h-full">
+      <h2 className="text-base font-semibold text-gray-800 mb-4 text-center">{title}</h2>
+      {subtitle && <p className="text-sm text-gray-600 mb-4 text-center">{subtitle}</p>}
+      <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="w-full h-auto max-h-[300px]">
+        {(() => {
+          const ticks = 5;
+          const tickValues = Array.from({ length: ticks + 1 }, (_, i) => minVal + (i / ticks) * range);
+          return tickValues.map((tick, i) => {
+            const ratio = (tick - minVal) / (range || 1);
+            const y = svgHeight - padding - ratio * plotHeight;
+            return (
+              <g key={`grid-${i}`}>
+                <line x1={padding} y1={y} x2={svgWidth - padding} y2={y} stroke="#e5e7eb" strokeWidth="1" strokeDasharray="5,5" />
+              </g>
+            );
+          });
+        })()}
+
+        <line x1={padding} y1={padding} x2={padding} y2={svgHeight - padding} stroke="#1f2937" strokeWidth="2" />
+        <line x1={padding} y1={svgHeight - padding} x2={svgWidth - padding} y2={svgHeight - padding} stroke="#1f2937" strokeWidth="2" />
+
+        {values.map((val, idx) => (
+          <g key={`bar-${idx}`}>
+            <rect x={getX(idx)} y={getY(val)} width={barWidth} height={getBarHeight(val)} fill="#3b82f6" stroke="white" strokeWidth="1" rx="4" />
+            <text x={getX(idx) + barWidth / 2} y={getY(val) - 8} textAnchor="middle" fontSize="11" fontWeight="600" fill="#1e40af">{Math.round(val)}</text>
+          </g>
+        ))}
+
+        {labels.map((label, idx) => (
+          <text key={`x-label-${idx}`} x={padding + (idx * plotWidth) / labels.length + (plotWidth / labels.length / 2)} y={svgHeight - padding + 30} textAnchor="middle" fontSize="11" fontWeight="500" fill="#4b5563">{label}</text>
+        ))}
+
+        {(() => {
+          const ticks = 5;
+          const tickValues = Array.from({ length: ticks + 1 }, (_, i) => minVal + (i / ticks) * range);
+          const shouldShowDecimals = range < 10;
+          return tickValues.map((tick, i) => {
+            const ratio = (tick - minVal) / (range || 1);
+            const y = svgHeight - padding - ratio * plotHeight;
+            const label = (shouldShowDecimals ? tick.toFixed(1) : Math.round(tick).toString());
+            return (
+              <text key={`y-label-${i}`} x={padding - 18} y={y + 5} textAnchor="end" fontSize="12" fontWeight="500" fill="#4b5563">{label}</text>
+            );
+          });
+        })()}
+      </svg>
+    </div>
+  );
+};
+
+// Employees left line chart
+const Box4EmployeesLineChart = ({ title, subtitle, labels, values }) => {
+  const svgWidth = 900;
+  const svgHeight = 350;
+  const padding = 60;
+  const plotWidth = svgWidth - padding * 2;
+  const plotHeight = svgHeight - padding * 2;
+
+  const maxVal = Math.max(...values, 1);
+  const minVal = 0;
+  const range = maxVal - minVal;
+
+  const getX = (idx) => padding + (idx / (labels.length - 1 || 1)) * plotWidth;
+  const getY = (val) => svgHeight - padding - ((val - minVal) / (range || 1)) * plotHeight;
+
+  const path = values.map((val, idx) => `${idx === 0 ? 'M' : 'L'} ${getX(idx)} ${getY(val)}`).join(' ');
+
+  return (
+    <div className="w-full h-full">
+      <h2 className="text-base font-semibold text-gray-800 mb-4 text-center">{title}</h2>
+      {subtitle && <p className="text-sm text-gray-600 mb-4 text-center">{subtitle}</p>}
+      <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="w-full h-auto max-h-[300px]">
+        {(() => {
+          const ticks = 5;
+          const tickValues = Array.from({ length: ticks + 1 }, (_, i) => minVal + (i / ticks) * range);
+          return tickValues.map((tick, i) => {
+            const ratio = (tick - minVal) / (range || 1);
+            const y = svgHeight - padding - ratio * plotHeight;
+            return (
+              <g key={`grid-${i}`}>
+                <line x1={padding} y1={y} x2={svgWidth - padding} y2={y} stroke="#e5e7eb" strokeWidth="1" strokeDasharray="5,5" />
+              </g>
+            );
+          });
+        })()}
+
+        <line x1={padding} y1={padding} x2={padding} y2={svgHeight - padding} stroke="#1f2937" strokeWidth="2" />
+        <line x1={padding} y1={svgHeight - padding} x2={svgWidth - padding} y2={svgHeight - padding} stroke="#1f2937" strokeWidth="2" />
+
+        <path d={path} stroke="#ef4444" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+
+        {values.map((val, idx) => (
+          <g key={`dot-${idx}`}>
+            <circle cx={getX(idx)} cy={getY(val)} r="5" fill="#ef4444" stroke="white" strokeWidth="2" />
+            <text x={getX(idx)} y={getY(val) - 12} textAnchor="middle" fontSize="10" fontWeight="600" fill="#991b1b">{Math.round(val)}</text>
+          </g>
+        ))}
+
+        {labels.map((label, idx) => (
+          <text key={`x-label-${idx}`} x={padding + (idx / (labels.length - 1 || 1)) * plotWidth} y={svgHeight - padding + 30} textAnchor="middle" fontSize="11" fontWeight="500" fill="#4b5563">{label}</text>
+        ))}
+
+        {(() => {
+          const ticks = 5;
+          const tickValues = Array.from({ length: ticks + 1 }, (_, i) => minVal + (i / ticks) * range);
+          const shouldShowDecimals = range < 10;
+          return tickValues.map((tick, i) => {
+            const ratio = (tick - minVal) / (range || 1);
+            const y = svgHeight - padding - ratio * plotHeight;
+            const label = (shouldShowDecimals ? tick.toFixed(1) : Math.round(tick).toString());
+            return (
+              <text key={`y-label-${i}`} x={padding - 18} y={y + 5} textAnchor="end" fontSize="12" fontWeight="500" fill="#4b5563">{label}</text>
+            );
+          });
+        })()}
+      </svg>
     </div>
   );
 };
@@ -306,6 +654,12 @@ function ManagementDashboard() {
   const [greenFactoryLoading, setGreenFactoryLoading] = useState(false);
   const [zeroAccidentsChart, setZeroAccidentsChart] = useState(null);
   const [zeroAccidentsLoading, setZeroAccidentsLoading] = useState(false);
+  const [onTimeDeliveryChart, setOnTimeDeliveryChart] = useState(null);
+  const [onTimeDeliveryLoading, setOnTimeDeliveryLoading] = useState(false);
+  const [themeChart, setThemeChart] = useState(null);
+  const [themeChartLoading, setThemeChartLoading] = useState(false);
+  const [employeesChart, setEmployeesChart] = useState(null);
+  const [employeesChartLoading, setEmployeesChartLoading] = useState(false);
   const [expandedChart, setExpandedChart] = useState(null);
   const [expandedChartData, setExpandedChartData] = useState(null);
 
@@ -371,6 +725,10 @@ function ManagementDashboard() {
       loadPlantEfficiency();
       loadGreenFactoryChart();
       loadZeroAccidentsChart();
+      loadOnTimeDeliveryChart();
+      loadThemeChart();
+      loadEmployeesChart();
+      loadOnTimeDeliveryChart();
     } catch (error) {
       console.error('Error fetching statistics:', error);
     } finally {
@@ -412,7 +770,8 @@ function ManagementDashboard() {
       }
 
       const labels = FISCAL_MONTH_SEQUENCE.map(entry => MONTH_LABELS[entry.month - 1]);
-      setGreenFactoryChart({ title: 'Environment', subtitle: 'Green Factory', labels, values: valuesByMonth });
+      const displayYear = `${FISCAL_MONTH_SEQUENCE[0].year}-${FISCAL_MONTH_SEQUENCE[FISCAL_MONTH_SEQUENCE.length - 1].year}`;
+      setGreenFactoryChart({ title: `Environment (${displayYear})`, subtitle: 'Green Factory', labels, values: valuesByMonth });
     } catch (err) {
       console.error('Failed to load Green Factory chart', err);
       setGreenFactoryChart(null);
@@ -455,13 +814,196 @@ function ManagementDashboard() {
       const labels = FISCAL_MONTH_SEQUENCE.map(entry => MONTH_LABELS[entry.month - 1]);
       const actuals = byMonth.map(d => d.actual);
       const targets = byMonth.map(d => d.target);
-      setZeroAccidentsChart({ title: 'Safety', subtitle: 'Zero Accidents', labels, actuals, targets });
+      const displayYear = `${FISCAL_MONTH_SEQUENCE[0].year}-${FISCAL_MONTH_SEQUENCE[FISCAL_MONTH_SEQUENCE.length - 1].year}`;
+      setZeroAccidentsChart({ title: `Safety (${displayYear})`, subtitle: 'Zero Accidents', labels, actuals, targets });
     } catch (err) {
       console.error('Failed to load Zero Accidents chart', err);
       setZeroAccidentsChart(null);
     } finally {
       setZeroAccidentsLoading(false);
     }
+  };
+
+  const loadOnTimeDeliveryChart = async () => {
+    try {
+      setOnTimeDeliveryLoading(true);
+      const kpisRes = await api.get('/kpis');
+      const kpis = kpisRes.data?.data || [];
+
+      const normalize = (v) => (v || '').toLowerCase();
+      const score = (t) => {
+        const s = normalize(t);
+        let sc = 0;
+        if (s.includes('on time')) sc += 3;
+        if (s.includes('ontime')) sc += 2;
+        if (s.includes('delivery')) sc += 2;
+        return sc;
+      };
+
+      const deliveryKpis = kpis
+        .filter(k => {
+          const t = normalize(k.title);
+          return t.includes('delivery') || t.includes('on time') || t.includes('ontime');
+        })
+        .sort((a, b) => score(b.title) - score(a.title));
+
+      if (!deliveryKpis.length) { setOnTimeDeliveryChart(null); return; }
+
+      let selectedValue = null;
+      for (const kpi of deliveryKpis) {
+        const valuesRes = await api.get(`/kpi-values/kpi/${kpi.id}`);
+        const vals = valuesRes.data?.data || [];
+        if (vals && vals.length > 0) { selectedValue = vals[0]; break; }
+      }
+
+      if (!selectedValue) { setOnTimeDeliveryChart(null); return; }
+
+      const byMonth = [];
+      for (let idx = 0; idx < FISCAL_MONTH_SEQUENCE.length; idx++) {
+        const { month, year } = FISCAL_MONTH_SEQUENCE[idx];
+        try {
+          const resp = await api.get(`/kpi-values/${selectedValue.id}/monthly-data/${year}`);
+          const rows = resp.data?.data || [];
+          const monthRow = rows.find(r => Number(r.month) === month && Number(r.year) === year);
+          if (monthRow) byMonth.push({ actual: Number(monthRow.actual_value || 0), target: Number(monthRow.target_value || 0) });
+          else byMonth.push({ actual: 0, target: 0 });
+        } catch (err) {
+          byMonth.push({ actual: 0, target: 0 });
+        }
+      }
+
+      const labels = FISCAL_MONTH_SEQUENCE.map(entry => MONTH_LABELS[entry.month - 1]);
+      const actuals = byMonth.map(d => d.actual);
+      const targets = byMonth.map(d => d.target);
+      const displayYear = `${FISCAL_MONTH_SEQUENCE[0].year}-${FISCAL_MONTH_SEQUENCE[FISCAL_MONTH_SEQUENCE.length - 1].year}`;
+
+      setOnTimeDeliveryChart({ title: `On Time Delivery (${displayYear})`, subtitle: 'Target vs Achieved', labels, actuals, targets });
+    } catch (err) {
+      console.error('Failed to load On Time Delivery chart', err);
+      setOnTimeDeliveryChart(null);
+    } finally {
+      setOnTimeDeliveryLoading(false);
+    }
+  };
+
+  const loadThemeChart = async () => {
+    try {
+      setThemeChartLoading(true);
+      const kpisRes = await api.get('/kpis');
+      const kpis = kpisRes.data?.data || [];
+
+      const normalize = (v) => (v || '').toLowerCase();
+      const score = (t) => {
+        const s = normalize(t);
+        let sc = 0;
+        if (s.includes('theme')) sc += 3;
+        if (s.includes('unlock')) sc += 2;
+        if (s.includes('power') || s.includes('you')) sc += 1;
+        return sc;
+      };
+
+      const themeKpis = kpis
+        .filter(k => {
+          const t = normalize(k.title);
+          return t.includes('theme') || (t.includes('unlock') && t.includes('power')) || (t.includes('2025') && t.includes('2026'));
+        })
+        .sort((a, b) => score(b.title) - score(a.title));
+
+      if (!themeKpis.length) { setThemeChart(null); return; }
+
+      let selectedValue = null;
+      for (const kpi of themeKpis) {
+        const valuesRes = await api.get(`/kpi-values/kpi/${kpi.id}`);
+        const vals = valuesRes.data?.data || [];
+        if (vals && vals.length > 0) { selectedValue = vals[0]; break; }
+      }
+
+      if (!selectedValue) { setThemeChart(null); return; }
+
+      const rowsByYear = {};
+      const fiscalYears = Array.from(new Set(FISCAL_MONTH_SEQUENCE.map(e => e.year)));
+      for (const year of fiscalYears) {
+        try {
+          const resp = await api.get(`/kpi-values/${selectedValue.id}/monthly-data/${year}`);
+          rowsByYear[year] = resp.data?.data || [];
+        } catch (err) { rowsByYear[year] = []; }
+      }
+
+      const themeByMonth = [];
+      for (let idx = 0; idx < FISCAL_MONTH_SEQUENCE.length; idx++) {
+        const { month, year } = FISCAL_MONTH_SEQUENCE[idx];
+        const rows = rowsByYear[year] || [];
+        const monthRow = rows.find(r => Number(r.month) === month && Number(r.year) === year);
+        if (monthRow) themeByMonth.push(Number(monthRow.actual_value || 0));
+        else themeByMonth.push(0);
+      }
+
+      const labels = FISCAL_MONTH_SEQUENCE.map(entry => MONTH_LABELS[entry.month - 1]);
+      const displayYear = `${FISCAL_MONTH_SEQUENCE[0].year}-${FISCAL_MONTH_SEQUENCE[FISCAL_MONTH_SEQUENCE.length - 1].year}`;
+      setThemeChart({ title: `Theme Of The Year ${displayYear}`, subtitle: 'Unlock The Power of You', labels, values: themeByMonth });
+    } catch (err) {
+      console.error('Failed to load Theme chart', err);
+      setThemeChart(null);
+    } finally { setThemeChartLoading(false); }
+  };
+
+  const loadEmployeesChart = async () => {
+    try {
+      setEmployeesChartLoading(true);
+      const kpisRes = await api.get('/kpis');
+      const kpis = kpisRes.data?.data || [];
+
+      const normalize = (v) => (v || '').toLowerCase();
+      const score = (t) => {
+        const s = normalize(t);
+        let sc = 0;
+        if (s.includes('employee') || s.includes('employees')) sc += 3;
+        if (s.includes('left') || s.includes('attrition')) sc += 2;
+        return sc;
+      };
+
+      const employeeKpis = kpis
+        .filter(k => {
+          const t = normalize(k.title);
+          return (t.includes('employee') || t.includes('employees')) && (t.includes('left') || t.includes('attrition'));
+        })
+        .sort((a, b) => score(b.title) - score(a.title));
+
+      if (!employeeKpis.length) { setEmployeesChart(null); return; }
+
+      let selectedValue = null;
+      for (const kpi of employeeKpis) {
+        const valuesRes = await api.get(`/kpi-values/kpi/${kpi.id}`);
+        const vals = valuesRes.data?.data || [];
+        if (vals && vals.length > 0) { selectedValue = vals[0]; break; }
+      }
+
+      if (!selectedValue) { setEmployeesChart(null); return; }
+
+      const rowsByYear = {};
+      const fiscalYears = Array.from(new Set(FISCAL_MONTH_SEQUENCE.map(e => e.year)));
+      for (const year of fiscalYears) {
+        try {
+          const resp = await api.get(`/kpi-values/${selectedValue.id}/monthly-data/${year}`);
+          rowsByYear[year] = resp.data?.data || [];
+        } catch (err) { rowsByYear[year] = []; }
+      }
+
+      const employeesByMonth = [];
+      for (let idx = 0; idx < FISCAL_MONTH_SEQUENCE.length; idx++) {
+        const { month, year } = FISCAL_MONTH_SEQUENCE[idx];
+        const rows = rowsByYear[year] || [];
+        const monthRow = rows.find(r => Number(r.month) === month && Number(r.year) === year);
+        if (monthRow) employeesByMonth.push(Number(monthRow.actual_value || 0));
+        else employeesByMonth.push(0);
+      }
+
+      const labels = FISCAL_MONTH_SEQUENCE.map(entry => MONTH_LABELS[entry.month - 1]);
+      setEmployeesChart({ title: 'No. of Employees Who Left', subtitle: 'Monthly Attrition', labels, values: employeesByMonth });
+    } catch (err) {
+      console.error('Failed to load Employees chart', err);
+      setEmployeesChart(null);
+    } finally { setEmployeesChartLoading(false); }
   };
 
   const loadPlantEfficiency = async () => {
@@ -615,11 +1157,13 @@ function ManagementDashboard() {
 
       const kpisRes = await api.get('/kpis');
       const kpis = kpisRes.data?.data || [];
-
       const qualityKpis = kpis.filter(k => 
         (k.title || '').toLowerCase().includes('quality') || 
         (k.title || '').toLowerCase().includes('complaint')
       );
+      if (!qualityKpis || qualityKpis.length === 0) {
+        console.warn('No Quality/Complaint KPIs found. Available KPI titles:', kpis.map(k => k.title).slice(0,50));
+      }
       
       if (!qualityKpis || qualityKpis.length === 0) {
         console.warn('Zero Quality Complaints KPI not found');
@@ -632,11 +1176,12 @@ function ManagementDashboard() {
       for (const kpi of qualityKpis) {
         const valuesRes = await api.get(`/kpi-values/kpi/${kpi.id}`);
         const kpiValues = valuesRes.data?.data || [];
-        
-        if (kpiValues && kpiValues.length > 0) {
-          zeroQualityValue = kpiValues[0];
-          break;
+        if (!kpiValues || kpiValues.length === 0) {
+          console.debug(`KPI id ${kpi.id} (${kpi.title}) has no kpi-values`);
+          continue;
         }
+        zeroQualityValue = kpiValues[0];
+        break;
       }
       
       if (!zeroQualityValue) {
@@ -670,7 +1215,7 @@ function ManagementDashboard() {
       }
 
       if (!rows.length) {
-        console.warn('No monthly data for Zero Quality Complaints in any year');
+        console.warn('No monthly data for Zero Quality Complaints in any year. Last fetched rows:', rows);
         setZeroQualityChart(null);
         return;
       }
@@ -1195,8 +1740,8 @@ function ManagementDashboard() {
           </div>
         </div>
       </div>
-      {/* Additional charts: Zero Accidents and Green Factory */}
-      <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+      {/* Combined charts: Zero Accidents, Green Factory, On Time Delivery, Theme, Employees (side-by-side) */}
+      <div className="mt-6 grid grid-cols-1 md:grid-cols-5 gap-6">
         <div className="bg-white rounded-lg shadow border-2 border-blue-500 p-6 h-full" role="button" tabIndex={0}
              onClick={() => openExpandedChart('zeroAccidents', zeroAccidentsChart || { title: 'Safety', subtitle: 'Zero Accidents', labels: FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1]), actuals: Array(12).fill(0), targets: Array(12).fill(0) })}
              onKeyDown={(e)=> e.key === 'Enter' && openExpandedChart('zeroAccidents', zeroAccidentsChart || { title: 'Safety', subtitle: 'Zero Accidents', labels: FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1]), actuals: Array(12).fill(0), targets: Array(12).fill(0) })}>
@@ -1204,9 +1749,9 @@ function ManagementDashboard() {
           {zeroAccidentsLoading ? (
             <div className="flex items-center justify-center p-8 text-gray-500">Loading...</div>
           ) : zeroAccidentsChart ? (
-            <Industry40LineChart title={zeroAccidentsChart.title} subtitle={zeroAccidentsChart.subtitle} labels={zeroAccidentsChart.labels} actuals={zeroAccidentsChart.actuals} targets={zeroAccidentsChart.targets} />
+            <ZeroAccidentsBarChart title={zeroAccidentsChart.title} subtitle={zeroAccidentsChart.subtitle} labels={zeroAccidentsChart.labels} actuals={zeroAccidentsChart.actuals} targets={zeroAccidentsChart.targets} />
           ) : (
-            <Industry40LineChart title="Safety" subtitle="Zero Accidents" labels={FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1])} actuals={Array(12).fill(0)} targets={Array(12).fill(0)} />
+            <ZeroAccidentsBarChart title="Safety" subtitle="Zero Accidents" labels={FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1])} actuals={Array(12).fill(0)} targets={Array(12).fill(0)} />
           )}
         </div>
 
@@ -1220,6 +1765,45 @@ function ManagementDashboard() {
             <GreenFactoryBarChart title={greenFactoryChart.title} subtitle={greenFactoryChart.subtitle} labels={greenFactoryChart.labels} values={greenFactoryChart.values} />
           ) : (
             <GreenFactoryBarChart title="Environment" subtitle="Green Factory" labels={FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1])} values={Array(12).fill(0)} />
+          )}
+        </div>
+
+        <div className="bg-white rounded-lg shadow border-2 border-blue-500 p-6 h-full" role="button" tabIndex={0}
+             onClick={() => openExpandedChart('onTimeDelivery', onTimeDeliveryChart || { title: 'On Time Delivery', subtitle: 'Target vs Achieved', labels: FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1]), actuals: Array(12).fill(0), targets: Array(12).fill(0) })}
+             onKeyDown={(e)=> e.key === 'Enter' && openExpandedChart('onTimeDelivery', onTimeDeliveryChart || { title: 'On Time Delivery', subtitle: 'Target vs Achieved', labels: FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1]), actuals: Array(12).fill(0), targets: Array(12).fill(0) })}>
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">🚚 On Time Delivery</h3>
+          {onTimeDeliveryLoading ? (
+            <div className="flex items-center justify-center p-8 text-gray-500">Loading...</div>
+          ) : onTimeDeliveryChart ? (
+            <OnTimeDeliveryBarChart title={onTimeDeliveryChart.title} subtitle={onTimeDeliveryChart.subtitle} labels={onTimeDeliveryChart.labels} actuals={onTimeDeliveryChart.actuals} targets={onTimeDeliveryChart.targets} />
+          ) : (
+            <OnTimeDeliveryBarChart title="On Time Delivery" subtitle="Target vs Achieved" labels={FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1])} actuals={Array(12).fill(0)} targets={Array(12).fill(0)} />
+          )}
+        </div>
+
+        <div className="bg-white rounded-lg shadow border-2 border-blue-500 p-6 h-full" role="button" tabIndex={0}
+             onClick={() => openExpandedChart('themeChart', themeChart || { title: 'Theme Of The Year', subtitle: 'Unlock The Power of You', labels: FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1]), values: Array(12).fill(0) })}
+             onKeyDown={(e)=> e.key === 'Enter' && openExpandedChart('themeChart', themeChart || { title: 'Theme Of The Year', subtitle: 'Unlock The Power of You', labels: FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1]), values: Array(12).fill(0) })}>
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">🏆 Theme Of The Year</h3>
+          {themeChartLoading ? (
+            <div className="flex items-center justify-center p-8 text-gray-500">Loading...</div>
+          ) : themeChart ? (
+            <Box4ThemeBarChart title={themeChart.title} subtitle={themeChart.subtitle} labels={themeChart.labels} values={themeChart.values} />
+          ) : (
+            <Box4ThemeBarChart title="Theme Of The Year" subtitle="Unlock The Power of You" labels={FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1])} values={Array(12).fill(0)} />
+          )}
+        </div>
+
+        <div className="bg-white rounded-lg shadow border-2 border-blue-500 p-6 h-full" role="button" tabIndex={0}
+             onClick={() => openExpandedChart('employeesChart', employeesChart || { title: 'No. of Employees Who Left', subtitle: 'Monthly Attrition', labels: FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1]), values: Array(12).fill(0) })}
+             onKeyDown={(e)=> e.key === 'Enter' && openExpandedChart('employeesChart', employeesChart || { title: 'No. of Employees Who Left', subtitle: 'Monthly Attrition', labels: FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1]), values: Array(12).fill(0) })}>
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">👥 Employees Left</h3>
+          {employeesChartLoading ? (
+            <div className="flex items-center justify-center p-8 text-gray-500">Loading...</div>
+          ) : employeesChart ? (
+            <Box4EmployeesLineChart title={employeesChart.title} subtitle={employeesChart.subtitle} labels={employeesChart.labels} values={employeesChart.values} />
+          ) : (
+            <Box4EmployeesLineChart title="No. of Employees Who Left" subtitle="Monthly Attrition" labels={FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1])} values={Array(12).fill(0)} />
           )}
         </div>
       </div>
@@ -1277,12 +1861,40 @@ function ManagementDashboard() {
               )}
 
               {expandedChart === 'zeroAccidents' && (
-                <Industry40LineChart
+                <ZeroAccidentsBarChart
                   title={expandedChartData.title}
                   subtitle={expandedChartData.subtitle}
                   labels={expandedChartData.labels}
                   actuals={expandedChartData.actuals}
                   targets={expandedChartData.targets}
+                />
+              )}
+
+              {expandedChart === 'onTimeDelivery' && (
+                <OnTimeDeliveryBarChart
+                  title={expandedChartData.title}
+                  subtitle={expandedChartData.subtitle}
+                  labels={expandedChartData.labels}
+                  actuals={expandedChartData.actuals}
+                  targets={expandedChartData.targets}
+                />
+              )}
+
+              {expandedChart === 'themeChart' && (
+                <Box4ThemeBarChart
+                  title={expandedChartData.title}
+                  subtitle={expandedChartData.subtitle}
+                  labels={expandedChartData.labels}
+                  values={expandedChartData.values}
+                />
+              )}
+
+              {expandedChart === 'employeesChart' && (
+                <Box4EmployeesLineChart
+                  title={expandedChartData.title}
+                  subtitle={expandedChartData.subtitle}
+                  labels={expandedChartData.labels}
+                  values={expandedChartData.values}
                 />
               )}
 

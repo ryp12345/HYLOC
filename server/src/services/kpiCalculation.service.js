@@ -479,23 +479,22 @@ class KPICalculationService {
     try {
       // Get all computed KPI values assigned to this employee
       const computedKPIsResult = await pool.query(
-        `SELECT DISTINCT kv.id, kv.formula, kv.source_kpi_value_ids, kv.data
+        `SELECT DISTINCT kv.id, kv.formula, kv.source_kpi_value_ids, kv.data, kv.target_required, kv.default_target_value
          FROM kpi_values kv
          JOIN kpis k ON k.id = kv.kpi_id
          JOIN kpi_emp ke ON ke.kpi_id = k.id
-         WHERE ke.emp_id = $1 AND kv.kpi_type = 'computed'`,
+         WHERE ke.emp_id = $1 AND LOWER(kv.kpi_type) = 'computed'`,
         [empId]
       );
 
       const computedKPIs = computedKPIsResult.rows;
-      
-      // console.log(`Calculating ${computedKPIs.length} computed KPIs for employee ${empId}`);
 
       for (const kpi of computedKPIs) {
         try {
-          const value = await this.calculateKPIValue(kpi.id, month, year, empId);
+          // Calculate actual value
+          const value = await this.calculateKPIValue(kpi.id, month, year, empId, 'actual');
           
-          // Save the calculated value
+          // Save the calculated actual value
           await pool.query(
             `INSERT INTO kpi_data_value (kpi_value_id, value, value_type, month, year)
              VALUES ($1, $2, 'actual', $3, $4)
@@ -504,7 +503,39 @@ class KPICalculationService {
             [kpi.id, value, month, year]
           );
 
-          // console.log(`Calculated ${kpi.data} = ${value}`);
+          // If target is required, also calculate target value
+          if (kpi.target_required) {
+            try {
+              const targetValue = await this.calculateKPIValue(kpi.id, month, year, empId, 'target');
+              
+              // Use default_target_value only if calculation failed (NaN) or threw error
+              const hasDefaultTarget = kpi.default_target_value !== null && kpi.default_target_value !== undefined;
+              const targetToSave = Number.isNaN(targetValue) && hasDefaultTarget
+                ? parseFloat(kpi.default_target_value)
+                : targetValue;
+              
+              // Save the calculated target value
+              await pool.query(
+                `INSERT INTO kpi_data_value (kpi_value_id, value, value_type, month, year)
+                 VALUES ($1, $2, 'target', $3, $4)
+                 ON CONFLICT (kpi_value_id, month, year, value_type)
+                 DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()`,
+                [kpi.id, targetToSave, month, year]
+              );
+            } catch (error) {
+              console.error(`Failed to calculate target for KPI ${kpi.data}:`, error.message);
+              // If calculation failed and there's a default, use it
+              if (kpi.default_target_value !== null && kpi.default_target_value !== undefined) {
+                await pool.query(
+                  `INSERT INTO kpi_data_value (kpi_value_id, value, value_type, month, year)
+                   VALUES ($1, $2, 'target', $3, $4)
+                   ON CONFLICT (kpi_value_id, month, year, value_type)
+                   DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()`,
+                  [kpi.id, parseFloat(kpi.default_target_value), month, year]
+                );
+              }
+            }
+          }
         } catch (error) {
           console.error(`Failed to calculate KPI ${kpi.data}:`, error.message);
         }

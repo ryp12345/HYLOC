@@ -99,12 +99,25 @@ exports.updateKPI = async (id, title, categoryId, parentKpiId, finYear) => {
 // Delete KPI
 exports.deleteKPI = async (id) => {
   try {
-    const result = await pool.query(
-      'DELETE FROM kpis WHERE id = $1 RETURNING id',
-      [id]
-    );
+    // Delete dependent rows first to avoid FK constraint violations
+    await pool.query('BEGIN');
+
+    // Delete KPI-Department mappings
+    await pool.query('DELETE FROM kpi_departments WHERE kpi_id = $1', [id]);
+
+    // Delete KPI values associated with this KPI
+    await pool.query('DELETE FROM kpi_values WHERE kpi_id = $1', [id]);
+
+    // If there are other dependent tables referencing kpis, delete/update them here
+
+    // Finally delete the KPI
+    const result = await pool.query('DELETE FROM kpis WHERE id = $1 RETURNING id', [id]);
+
+    await pool.query('COMMIT');
+
     return result.rows[0];
   } catch (error) {
+    try { await pool.query('ROLLBACK'); } catch (e) { console.error('Rollback failed', e); }
     console.error('Database error in deleteKPI:', error);
     throw error;
   }
