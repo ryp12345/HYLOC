@@ -70,7 +70,7 @@ export default function MgtKmiPage() {
     });
     const globalObjectivesCategoryId = categories.find((c) => c.category_name === 'KMI / GLOBAL OBJECTIVES')?.id;
     const roots = Array.from(map.values())
-      .filter((node) => !node.parent_kpi_id && node.category_id === globalObjectivesCategoryId)
+      .filter((node) => !node.parent_kpi_id && (!globalObjectivesCategoryId || String(node.category_id) === String(globalObjectivesCategoryId)))
       .sort((a, b) => a.title.localeCompare(b.title));
     const sortChildren = (node) => {
       node.children.sort((a, b) => a.title.localeCompare(b.title));
@@ -82,7 +82,7 @@ export default function MgtKmiPage() {
 
   const kmiTree = useMemo(() => buildTree(kpis, selectedYear), [kpis, categories, selectedYear]);
 
-  const getCategoryNameById = (id) => categories.find((c) => c.id === id)?.category_name || 'Category';
+  const getCategoryNameById = (id) => categories.find((c) => String(c.id) === String(id))?.category_name || 'Category';
 
   const isNodeMatching = (node) => {
     if (node.title.toLowerCase().includes(searchQuery.toLowerCase())) {
@@ -129,7 +129,7 @@ export default function MgtKmiPage() {
       getFilteredTree().forEach(node => collectNodeIds(node));
       setExpandedNodes(nodesToExpand);
     }
-  }, [searchQuery]);
+  }, [searchQuery, kmiTree]);
 
   const toggleExpand = (id) => {
     setExpandedNodes((prev) => {

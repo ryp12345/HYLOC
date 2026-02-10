@@ -23,6 +23,8 @@ function EmpKpiKaiPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedNodes, setExpandedNodes] = useState(new Set());
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [formulaDetailsModal, setFormulaDetailsModal] = useState({ show: false, data: null });
+  const [recentlyUpdatedKPIs, setRecentlyUpdatedKPIs] = useState([]);
 
   // Financial year months (April to March)
   const months = [
@@ -44,10 +46,7 @@ function EmpKpiKaiPage() {
     assignedKPIValues.forEach(value => loadMonthlyData(value.id, year));
   };
 
-  const changeYear = (delta) => {
-    const newYear = selectedYear + delta;
-    updateFinancialYear(newYear);
-  };
+  
 
   const getSelectedFinancialYear = () => `${selectedYear}-${String(selectedYear + 1).slice(-2)}`;
 
@@ -65,6 +64,132 @@ function EmpKpiKaiPage() {
       } else {
         currentKPI = null;
       }
+    }
+
+    // Option 3: Actual manual, target computed using formula
+    function MonthlyDataFormOption3({ month, monthIndex, kpiValueId, initialActual, initialTarget, unitSymbol, targetFormula, onViewFormula, onSubmit }) {
+      const [actualValue, setActualValue] = useState(initialActual);
+      const [isEditing, setIsEditing] = useState(false);
+      const isEmptyValue = (value) => value === '' || value === null || value === undefined;
+
+      // Helper function to format numeric values for display
+      const formatDisplayValue = (value) => {
+        if (value === null || value === undefined || value === '') return '-';
+        const numValue = parseFloat(value);
+        if (isNaN(numValue)) return value;
+        return numValue.toLocaleString('en-IN', {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2
+        });
+      };
+
+      useEffect(() => {
+        setActualValue(initialActual);
+      }, [initialActual]);
+
+      const handleSave = () => {
+        // For Option 3, we only submit the actual value; target will be computed by backend
+        onSubmit(kpiValueId, monthIndex, null, actualValue);
+        setIsEditing(false);
+      };
+
+      return (
+        <div className="rounded-lg border-2 p-4 option3 transition-all bg-white border-slate-200">
+          <div className="flex items-center justify-between mb-3">
+            <h5 className="font-semibold text-slate-900">{month}</h5>
+            {initialTarget !== null && initialTarget !== undefined && initialTarget !== '' && targetFormula && onViewFormula && (
+              <button className="text-sm" onClick={onViewFormula} title="View formula details">👁️</button>
+            )}
+          </div>
+          {isEditing ? (
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Actual Value</label>
+                <input type="text" value={actualValue} onChange={(e) => setActualValue(e.target.value)} placeholder="Enter actual value" className="w-full px-3 py-2 border-2 border-slate-300 rounded-lg text-sm" />
+              </div>
+              <div className="text-xs text-slate-600">
+                <p>📊 Target will be automatically computed using formula</p>
+                <p>Formula: <code>{targetFormula}</code></p>
+              </div>
+              <div className="flex gap-2 mt-2">
+                <button className="flex-1 px-3 py-2 bg-green-600 text-white rounded-lg" onClick={handleSave}>Save</button>
+                <button className="flex-1 px-3 py-2 bg-slate-300 text-slate-700 rounded-lg" onClick={() => setIsEditing(false)}>Cancel</button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-2 text-sm">
+              <p className="text-xs font-bold">Target</p>
+              <p className="text-base font-semibold">{formatDisplayValue(initialTarget)}{unitSymbol && <span className="ml-2">{unitSymbol}</span>} <span className="text-xs text-slate-500">🔧 Computed</span></p>
+              <p className="text-xs font-bold">Actual</p>
+              <p className="text-base font-semibold">{formatDisplayValue(actualValue)}{unitSymbol && <span className="ml-2">{unitSymbol}</span>}</p>
+              <button className="w-full py-2 mt-2 bg-yellow-400 text-white rounded-lg" onClick={() => setIsEditing(true)}>{!isEmptyValue(actualValue) ? 'Edit' : 'Add Data'}</button>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // Option 2: Actual computed, target manual entry
+    function MonthlyDataFormOption2({ month, monthIndex, kpiValueId, initialActual, initialTarget, unitSymbol, formula, onViewFormula, defaultTargetValue, onSubmit }) {
+      const [targetValue, setTargetValue] = useState(initialTarget);
+      const [isEditing, setIsEditing] = useState(false);
+      const isEmptyValue = (value) => value === '' || value === null || value === undefined;
+
+      // Helper function to format numeric values for display
+      const formatDisplayValue = (value) => {
+        if (value === null || value === undefined || value === '') return '-';
+        const numValue = parseFloat(value);
+        if (isNaN(numValue)) return value;
+        return numValue.toLocaleString('en-IN', {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2
+        });
+      };
+
+      useEffect(() => {
+        setTargetValue(isEmptyValue(initialTarget) ? defaultTargetValue : initialTarget);
+      }, [initialTarget, defaultTargetValue]);
+
+      const handleSave = () => {
+        const resolvedTargetValue = isEmptyValue(targetValue) ? (isEmptyValue(defaultTargetValue) ? null : defaultTargetValue) : targetValue;
+        onSubmit(kpiValueId, monthIndex, resolvedTargetValue, null);
+        setIsEditing(false);
+      };
+
+      return (
+        <div className="rounded-lg border-2 p-4 option2 transition-all bg-white border-slate-200">
+          <div className="flex items-center justify-between mb-3">
+            <h5 className="font-semibold text-slate-900">{month}</h5>
+            {initialActual !== null && initialActual !== undefined && initialActual !== '' && formula && onViewFormula && (
+              <button className="text-sm" onClick={onViewFormula} title="View formula details">👁️</button>
+            )}
+          </div>
+          {isEditing ? (
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Target Value</label>
+                <input type="text" value={targetValue} onChange={(e) => setTargetValue(e.target.value)} placeholder={defaultTargetValue ? `Default: ${defaultTargetValue}` : 'Enter target value'} className="w-full px-3 py-2 border-2 border-slate-300 rounded-lg text-sm" />
+              </div>
+              <div className="text-xs text-slate-600">
+                <p>📊 Actual value will be automatically computed using formula</p>
+                <p>Formula: <code>{formula}</code></p>
+              </div>
+              <div className="flex gap-2 mt-2">
+                <button className="flex-1 px-3 py-2 bg-green-600 text-white rounded-lg" onClick={handleSave}>Save</button>
+                <button className="flex-1 px-3 py-2 bg-slate-300 text-slate-700 rounded-lg" onClick={() => setIsEditing(false)}>Cancel</button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-2 text-sm">
+              <p className="text-xs font-bold">Actual</p>
+              <p className="text-base font-semibold">{formatDisplayValue(initialActual)}{unitSymbol && <span className="ml-2">{unitSymbol}</span>} <span className="text-xs text-slate-500">🔧 Computed</span></p>
+              <p className="text-xs font-bold">Target</p>
+              <p className="text-base font-semibold">{formatDisplayValue(targetValue)}{unitSymbol && <span className="ml-2">{unitSymbol}</span>}</p>
+              <button className="w-full py-2 mt-2 bg-yellow-400 text-white rounded-lg" onClick={() => setIsEditing(true)}>{!isEmptyValue(targetValue) ? 'Edit' : 'Add Data'}</button>
+            </div>
+          )}
+        </div>
+      );
     }
     
     return breadcrumb;
@@ -241,26 +366,167 @@ function EmpKpiKaiPage() {
       // For months Jan-Mar (fyMonthIndex 9-11), use next calendar year
       const calendarYear = fyMonthIndex >= 9 ? selectedYear + 1 : selectedYear;
       
+      const isEmptyValue = (value) => value === '' || value === null || value === undefined;
       const payload = {
         kpiValueId,
-        kpiId: selectedKPI.id,
-        empId: user.empid,
+        kpiId: selectedKPI?.id,
+        empId: user?.empid,
         month: calendarMonth,
         year: calendarYear,
-        targetValue: targetValue || null, 
-        actualValue: actualValue || null
+        targetValue: isEmptyValue(targetValue) ? null : targetValue,
+        actualValue: isEmptyValue(actualValue) ? null : actualValue
       };
       
       const response = await api.post('/employees/kpi-data', payload);
-      
-      // console.log('Save response:', response.data);
-      showNotification('Data saved successfully!', 'success');
-      await loadMonthlyData(kpiValueId, selectedYear);
+      showNotification('Data saved successfully! Computing dependent KPIs...', 'success');
+
+      // Store state before reload to compare
+      const previousData = { ...monthlyData };
+
+      // Reload monthly data for ALL assigned KPI values for the year to refresh computed values
+      const reloadPromises = assignedKPIValuesForYear.map(value => loadMonthlyData(value.id, selectedYear));
+      await Promise.all(reloadPromises);
+
+      // Identify computed KPIs that were updated for the same month
+      const updatedComputed = [];
+      for (const kpiValue of assignedKPIValuesForYear) {
+        if (String(kpiValue.kpi_type).toLowerCase() === 'computed') {
+          const newData = monthlyData[kpiValue.id] || [];
+          const oldData = previousData[kpiValue.id] || [];
+
+          const newMonthData = newData.find(d => d.month === calendarMonth);
+          const oldMonthData = oldData.find(d => d.month === calendarMonth);
+
+          if (newMonthData && newMonthData.actual_value !== oldMonthData?.actual_value) {
+            updatedComputed.push({
+              name: kpiValue.data,
+              value: newMonthData.actual_value,
+              unit: unitSymbolById[kpiValue.uom] || ''
+            });
+          }
+        }
+      }
+
+      if (updatedComputed.length > 0) {
+        setRecentlyUpdatedKPIs(updatedComputed);
+        setTimeout(() => setRecentlyUpdatedKPIs([]), 10000);
+      }
+
+      const message = updatedComputed.length > 0
+        ? `✓ Data saved and ${updatedComputed.length} dependent KPI${updatedComputed.length > 1 ? 's have' : ' has'} been computed!`
+        : '✓ Data saved successfully!';
+      showNotification(message, 'success');
     } catch (error) {
       console.error('Failed to save data:', error);
       const errorMsg = error.response?.data?.error || error.message || 'Failed to save data';
       showNotification(errorMsg, 'error');
     }
+  };
+
+  // Extract KPI Value IDs from formula (v123, v456, etc.)
+  const extractSourceKpiIds = (formula) => {
+    if (!formula) return [];
+    const matches = formula.match(/v(\d+)(?::(?:actual|target))?/gi) || [];
+    const ids = matches.map(m => {
+      const idMatch = /v(\d+)/i.exec(m);
+      return idMatch ? parseInt(idMatch[1]) : null;
+    }).filter(id => id !== null);
+    return [...new Set(ids)];
+  };
+
+  // Fetch dependent KPI values for formula display
+  const fetchFormulaDetails = async (kpiValueId, formula, month, monthIndex) => {
+    try {
+      const sourceIds = extractSourceKpiIds(formula);
+      if (sourceIds.length === 0) {
+        setFormulaDetailsModal({
+          show: true,
+          data: { month, formula, dependencies: [], computedFormula: formula }
+        });
+        return;
+      }
+
+      const dependencies = [];
+      const calendarMonth = getCalendarMonth(monthIndex);
+      const calendarYear = monthIndex >= 9 ? selectedYear + 1 : selectedYear;
+
+      for (const sourceId of sourceIds) {
+        try {
+          const kpiValueResponse = await api.get(`/kpi-values/${sourceId}`);
+          const kpiValueData = kpiValueResponse.data.data;
+
+          const monthlyResponse = await api.get(`/kpi-values/${sourceId}/monthly-data/${calendarYear}`);
+          const monthlyDataArray = monthlyResponse.data.data || [];
+          const monthData = monthlyDataArray.find(d => d.month === calendarMonth) || {};
+
+          dependencies.push({
+            id: sourceId,
+            name: kpiValueData?.data || `v${sourceId}`,
+            value: monthData.actual_value,
+            unit: unitSymbolById[kpiValueData?.uom] || '',
+            hasValue: monthData.actual_value !== null && monthData.actual_value !== undefined && monthData.actual_value !== ''
+          });
+        } catch (error) {
+          console.error(`Failed to fetch data for v${sourceId}:`, error);
+          dependencies.push({ id: sourceId, name: `v${sourceId}`, value: null, unit: '', hasValue: false });
+        }
+      }
+
+      let computedFormula = formula;
+      dependencies.forEach(dep => {
+        const vPattern = new RegExp(`v${dep.id}(?::actual)?`, 'gi');
+        const displayValue = dep.hasValue ? String(dep.value) : '?';
+        computedFormula = computedFormula.replace(vPattern, displayValue);
+      });
+
+      setFormulaDetailsModal({ show: true, data: { month, formula, dependencies, computedFormula } });
+    } catch (error) {
+      console.error('Failed to fetch formula details:', error);
+      showNotification('Failed to load formula details', 'error');
+    }
+  };
+
+  // Build formula with values for display inside KPI card
+  const buildFormulaWithValues = (formula, kpiValue, fyMonthIndex) => {
+    if (!formula) return null;
+    const sourceIds = extractSourceKpiIds(formula);
+    if (sourceIds.length === 0) return null;
+
+    const currentMonth = months[fyMonthIndex];
+    const dependencies = [];
+    let readableFormula = formula;
+
+    sourceIds.forEach(sourceId => {
+      const sourceKpiValue = assignedKPIValues.find(kv => String(kv.id) === String(sourceId));
+      if (!sourceKpiValue) {
+        dependencies.push({ id: sourceId, name: `v${sourceId}`, actual: null, unit: '', hasValue: false });
+        return;
+      }
+
+      const monthData = getMonthData(sourceKpiValue.id, fyMonthIndex);
+      const actualValue = monthData.actual_value;
+      const targetValue = monthData.target_value;
+      const kpiName = sourceKpiValue.data || `v${sourceId}`;
+
+      const vPattern = new RegExp(`v${sourceId}(?::actual)?`, 'gi');
+      const displayValue = actualValue !== null && actualValue !== undefined && actualValue !== '' ? String(actualValue) : '?';
+      readableFormula = readableFormula.replace(vPattern, displayValue);
+
+      dependencies.push({ id: sourceId, name: kpiName, actual: actualValue, target: targetValue, unit: unitSymbolById[sourceKpiValue.uom] || '', hasValue: actualValue !== null && actualValue !== undefined && actualValue !== '' });
+    });
+
+    const dependencyList = dependencies.map(dep => {
+      const actualStr = formatValue(dep.actual);
+      const unitStr = dep.unit ? ` ${dep.unit}` : '';
+      const status = dep.hasValue ? '' : ' (No data)';
+      return `  v${dep.id} - ${dep.name}: ${actualStr}${unitStr}${status}`;
+    }).join('\n');
+
+    return {
+      formula,
+      dependencies,
+      formulaDisplay: dependencies.length > 0 ? `${currentMonth}\n\nComputed Formula:\n${readableFormula}\n\nDependent KPIs:\n${dependencyList}` : formula
+    };
   };
 
   const showNotification = (message, type = 'success') => {
@@ -278,7 +544,7 @@ function EmpKpiKaiPage() {
   };
 
   const getMonthData = (kpiValueId, fyMonthIndex) => {
-    const data = monthlyData[kpiValueId] || [];
+    const data = monthlyData[kpiValueId] || monthlyData[String(kpiValueId)] || monthlyData[Number(kpiValueId)] || [];
     const calendarMonth = getCalendarMonth(fyMonthIndex);
     return data.find(d => d.month === calendarMonth) || {};
   };
@@ -296,10 +562,7 @@ function EmpKpiKaiPage() {
     });
   };
 
-  // Helper function to get root KPIs (those with no parent)
-  const getRootKPIs = () => {
-    return visibleKPIsForYear.filter(kpi => !kpi.parent_kpi_id || kpi.parent_kpi_id === null);
-  };
+  
 
   // Build full hierarchy (nodes shaped as { kpi, children: [] }) from visible KPIs
   const fullHierarchy = useMemo(() => {
@@ -355,7 +618,7 @@ function EmpKpiKaiPage() {
       filteredHierarchy.forEach(node => collect(node));
       setExpandedNodes(nodesToExpand);
     }
-  }, [searchQuery, filteredHierarchy]);
+  }, [searchQuery, filteredHierarchy, fullHierarchy]);
 
   const toggleExpand = (id) => {
     setExpandedNodes((prev) => {
@@ -436,17 +699,15 @@ function EmpKpiKaiPage() {
               )}
             </div>
 
-            {/* View Button */}
-            {kpiValues.length > 0 && (
-              <button 
-                className="flex-shrink-0 inline-flex items-center gap-2 px-4 py-2 bg-white hover:bg-slate-100 text-black rounded-lg font-medium transition-colors shadow-sm hover:shadow-md border border-blue-600"
-                type="button" 
-                onClick={() => selectKPI(node.kpi, kpiValues)}
-                title="View KPI details"
-              >
-                👁️ View
-              </button>
-            )}
+            {/* View Button (always visible) */}
+            <button
+              className="p-1.5 hover:bg-gray-100 rounded text-sm"
+              type="button"
+              onClick={() => selectKPI(node.kpi, kpiValues)}
+              title={kpiValues.length > 0 ? 'View KPI details' : 'View KPI (no values)'}
+            >
+              👁️ View
+            </button>
           </div>
         </div>
 
@@ -554,24 +815,72 @@ function EmpKpiKaiPage() {
                         );
                       })}
                     </div>
+                  ) : String(kpiValue.kpi_type).toLowerCase() === 'computed' && (kpiValue.computation_type === 'target_computed' || (kpiValue.target_formula && kpiValue.target_formula.trim() !== '')) ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                      {months.map((month, index) => {
+                        const monthData = getMonthData(kpiValue.id, index);
+                        return (
+                          <MonthlyDataFormOption3
+                            key={index}
+                            month={month}
+                            monthIndex={index}
+                            kpiValueId={kpiValue.id}
+                            initialActual={monthData.actual_value ?? ''}
+                            initialTarget={monthData.target_value ?? ''}
+                            unitSymbol={unitSymbolById[kpiValue.uom]}
+                            targetFormula={kpiValue.target_formula}
+                            onViewFormula={() => fetchFormulaDetails(kpiValue.id, kpiValue.target_formula, month, index)}
+                            onSubmit={handleDataSubmit}
+                          />
+                        );
+                      })}
+                    </div>
+                  ) : String(kpiValue.kpi_type).toLowerCase() === 'computed' && kpiValue.computation_type === 'actual_computed' ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                      {months.map((month, index) => {
+                        const monthData = getMonthData(kpiValue.id, index);
+                        return (
+                          <MonthlyDataFormOption2
+                            key={index}
+                            month={month}
+                            monthIndex={index}
+                            kpiValueId={kpiValue.id}
+                            initialActual={monthData.actual_value ?? ''}
+                            initialTarget={monthData.target_value ?? ''}
+                            unitSymbol={unitSymbolById[kpiValue.uom]}
+                            formula={kpiValue.formula}
+                            onViewFormula={() => fetchFormulaDetails(kpiValue.id, kpiValue.formula, month, index)}
+                            defaultTargetValue={kpiValue.default_target_value}
+                            onSubmit={handleDataSubmit}
+                          />
+                        );
+                      })}
+                    </div>
                   ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                       {months.map((month, index) => {
                         const monthData = getMonthData(kpiValue.id, index);
                         const hasComputedValue = monthData.actual_value !== null && monthData.actual_value !== undefined && monthData.actual_value !== '';
+                        const formulaInfo = buildFormulaWithValues(kpiValue.formula, kpiValue, index);
+                        const missingDependencies = formulaInfo && formulaInfo.dependencies && formulaInfo.dependencies.some(d => !d.hasValue);
+
+                        const containerClass = hasComputedValue
+                          ? 'bg-emerald-50 border-emerald-200'
+                          : missingDependencies
+                            ? 'bg-amber-50 border-amber-200'
+                            : 'bg-slate-50 border-slate-200';
+
                         return (
                           <div
                             key={index}
-                            className={`rounded-lg border-2 p-4 transition-all ${
-                              hasComputedValue
-                                ? 'bg-emerald-50 border-emerald-200'
-                                : 'bg-slate-50 border-slate-200'
-                            }`}
+                            className={`rounded-lg border-2 p-4 transition-all ${containerClass}`}
                           >
-                            <h5 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
-                              <span className="text-blue-600">📍</span>
-                              {month}
-                            </h5>
+                            <div className="flex items-start justify-between mb-2">
+                              <h5 className="font-semibold text-slate-900">{month}</h5>
+                              {hasComputedValue && kpiValue.formula && (
+                                <button className="text-sm" onClick={() => fetchFormulaDetails(kpiValue.id, kpiValue.formula, month, index)} title="View formula details">👁️</button>
+                              )}
+                            </div>
                             <div className="data-display space-y-2 text-sm">
                               {kpiValue.target_required && (
                                 <p className="data-row">
@@ -583,16 +892,32 @@ function EmpKpiKaiPage() {
                                   )}
                                 </p>
                               )}
+
                               <p className="data-row">
-                                <strong>Calculated:</strong> 
-                                <span className={`computed-value text-lg font-bold ${hasComputedValue ? 'text-emerald-700' : 'text-slate-500'}`}>{formatValue(monthData.actual_value)}</span>
-                                {kpiValue.uom && unitSymbolById[kpiValue.uom] && (
-                                  <span className="unit-badge inline-flex items-center gap-2 px-2 py-0.5 bg-orange-50 text-orange-700 rounded-full text-xs font-semibold border border-orange-200 ml-2" title="Unit of Measurement">
-                                    📏 {unitSymbolById[kpiValue.uom]}
-                                  </span>
+                                <strong>Calculated:</strong>
+                                {hasComputedValue ? (
+                                  <>
+                                    <span className={`computed-value text-lg font-bold text-emerald-700`}>{formatValue(monthData.actual_value)}</span>
+                                    {kpiValue.uom && unitSymbolById[kpiValue.uom] && (
+                                      <span className="unit-badge inline-flex items-center gap-2 px-2 py-0.5 bg-orange-50 text-orange-700 rounded-full text-xs font-semibold border border-orange-200 ml-2" title="Unit of Measurement">
+                                        📏 {unitSymbolById[kpiValue.uom]}
+                                      </span>
+                                    )}
+                                  </>
+                                ) : (
+                                  <>
+                                    <span className="computed-value-missing text-slate-600">Not Available</span>
+                                  </>
                                 )}
                               </p>
-                              <p className="computed-note text-xs text-slate-500 mt-2 pt-2 border-t border-slate-200 italic">🔧 Auto-calculated</p>
+
+                              {hasComputedValue ? (
+                                <p className="computed-note text-xs text-slate-500 mt-2 pt-2 border-t border-slate-200 italic">🔧 Auto-calculated</p>
+                              ) : missingDependencies ? (
+                                <p className="computed-note text-xs text-amber-700 mt-2 pt-2 border-t border-amber-200 italic">⚠️ Waiting for dependent KPI values</p>
+                              ) : (
+                                <p className="computed-note text-xs text-slate-500 mt-2 pt-2 border-t border-slate-200 italic">🔧 Auto-calculated</p>
+                              )}
                             </div>
                           </div>
                         );
@@ -624,29 +949,18 @@ function EmpKpiKaiPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-      {/* Notification */}
-      {notification.show && (
-        <div className={`fixed top-4 right-4 z-50 px-6 py-4 rounded-lg shadow-lg flex items-center gap-3 animate-in fade-in slide-in-from-top-2 ${
-          notification.type === 'success' 
-            ? 'bg-emerald-50 border border-emerald-200' 
-            : 'bg-red-50 border border-red-200'
-        }`}>
-          <span className={`text-lg font-bold ${notification.type === 'success' ? 'text-emerald-600' : 'text-red-600'}`}>
-            {notification.type === 'success' ? '✓' : '✕'}
-          </span>
-          <span className={`font-medium ${notification.type === 'success' ? 'text-emerald-700' : 'text-red-700'}`}>
-            {notification.message}
-          </span>
-          <button 
-            className={`ml-2 text-lg font-bold cursor-pointer hover:opacity-70 ${notification.type === 'success' ? 'text-emerald-600' : 'text-red-600'}`}
-            onClick={() => setNotification({ show: false, message: '', type: '' })}
-          >
-            ×
-          </button>
-        </div>
-      )}
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-6 py-8">
+        {/* Inline Notification (matches desired UI) */}
+        {notification.show && (
+          <div className={`notification ${notification.type} mb-6 px-4 py-3 rounded-lg border flex items-center justify-between`}>
+            <div className="flex items-center gap-3">
+              <span className="notification-icon text-lg">{notification.type === 'success' ? '✓' : '✕'}</span>
+              <span className="notification-message font-medium">{notification.message}</span>
+            </div>
+            <button className="notification-close text-lg font-bold" onClick={() => setNotification({ show: false, message: '', type: '' })}>×</button>
+          </div>
+        )}
         {!selectedKPI ? (
           <div className="space-y-6">
             {/* Filters Section */}
@@ -658,6 +972,8 @@ function EmpKpiKaiPage() {
                 My KPIs/KAIs
               </h2>
               
+              
+
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {/* Financial Year Dropdown */}
                 <div className="flex flex-col gap-2">
@@ -742,7 +1058,7 @@ function EmpKpiKaiPage() {
                     ← Back
                   </button>
                   {/* Breadcrumb in colored box */}
-                  <div className="px-4 py-3 rounded-lg"  style={{ backgroundColor: '#0a2a52' }}>
+                  <div className="px-4 py-3 rounded-lg bg-blue-600">
                     <nav className="flex items-center gap-2 flex-wrap">
                       {buildBreadcrumb(selectedKPI).map((kpi, index, array) => (
                         <div key={kpi.id} className="flex items-center gap-2">
@@ -778,6 +1094,20 @@ function EmpKpiKaiPage() {
 
             {/* KPI Details */}
             <div className="space-y-6">
+              {recentlyUpdatedKPIs.length > 0 && (
+                <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
+                  <h3 className="text-sm font-semibold text-emerald-700">✓ Recently Auto-Computed KPIs</h3>
+                  <div className="mt-2">
+                    {recentlyUpdatedKPIs.map((kpi, idx) => (
+                      <div key={idx} className="flex items-center justify-between py-1">
+                        <div className="text-sm font-medium">{kpi.name}</div>
+                        <div className="text-sm font-semibold">{formatValue(kpi.value)}{kpi.unit && <span className="ml-1 text-xs"> {kpi.unit}</span>}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {renderKPIWithValues(buildKPIHierarchy(selectedKPI))}
             </div>
           </div>
@@ -794,6 +1124,80 @@ function EmpKpiKaiPage() {
         >
           ↑
         </button>
+      )}
+      {/* Formula Details Modal */}
+      {formulaDetailsModal.show && formulaDetailsModal.data && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+          onClick={() => setFormulaDetailsModal({ show: false, data: null })}
+        >
+          <div
+            className="bg-white rounded-lg max-w-3xl w-full max-h-[80vh] overflow-auto mx-4 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-6 py-4 rounded-t-lg bg-blue-600">
+              <div className="flex items-center justify-between">
+                <h3 className="text-white text-lg font-semibold">Formula Details - {formulaDetailsModal.data.month}</h3>
+                <button
+                  className="text-white text-2xl leading-none px-3 py-1 rounded hover:bg-white/10"
+                  onClick={() => setFormulaDetailsModal({ show: false, data: null })}
+                  aria-label="Close formula modal"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6 space-y-4 bg-white">
+              <div>
+                <h4 className="text-sm font-semibold mb-1 text-slate-700">Formula:</h4>
+                <pre className="bg-white border border-slate-200 p-3 rounded text-sm overflow-auto"><code className="whitespace-pre-wrap">{formulaDetailsModal.data.formula}</code></pre>
+              </div>
+
+              {formulaDetailsModal.data.dependencies && formulaDetailsModal.data.dependencies.length > 0 && (
+                <>
+                  <div>
+                    <h4 className="text-sm font-semibold mb-1 text-slate-700">Computed With Values:</h4>
+                    <pre className="bg-green-50 border border-green-200 p-3 rounded text-sm overflow-auto"><code className="whitespace-pre-wrap">{formulaDetailsModal.data.computedFormula}</code></pre>
+                  </div>
+
+                  <div>
+                    <h4 className="text-sm font-semibold mb-2 text-slate-700">Dependent KPI Values ({formulaDetailsModal.data.month}):</h4>
+                    <div className="overflow-x-auto rounded-md shadow-sm">
+                      <table className="w-full text-sm border-separate" style={{ borderSpacing: '0 8px' }}>
+                        <thead>
+                          <tr className="bg-blue-600">
+                            <th className="py-3 px-3 align-middle text-white text-xs font-semibold">Variable</th>
+                            <th className="py-3 px-3 align-middle text-white text-xs font-semibold">KPI Name</th>
+                            <th className="py-3 px-3 align-middle text-white text-xs font-semibold">Value</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {formulaDetailsModal.data.dependencies.map((dep, idx) => (
+                            <tr key={idx} className={`${dep.hasValue ? 'bg-white' : 'bg-slate-50'} rounded-md`}>
+                              <td className="py-3 align-top bg-green-50 px-3 rounded-l-md"><code>v{dep.id}</code></td>
+                              <td className="py-3 align-top text-slate-700">{dep.name}</td>
+                              <td className="py-3 align-top">
+                                {dep.hasValue ? (
+                                  <>
+                                    <span className="font-semibold text-slate-900">{formatValue(dep.value)}</span>
+                                    {dep.unit && <span className="ml-2 text-xs text-slate-500">{dep.unit}</span>}
+                                  </>
+                                ) : (
+                                  <span className="text-red-500 italic">No data</span>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

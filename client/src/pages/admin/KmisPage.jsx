@@ -126,12 +126,12 @@ function KmisPage() {
       }
     });
 
-    // Get the category ID for "KMI / GLOBAL OBJECTIVES"
+    // Get the category ID for "KMI / GLOBAL OBJECTIVES" (compare as strings)
     const globalObjectivesCategoryId = categories.find((c) => c.category_name === 'KMI / GLOBAL OBJECTIVES')?.id;
 
-    // Show only root KMIs with "KMI / GLOBAL OBJECTIVES" category
+    // Show only root KMIs with "KMI / GLOBAL OBJECTIVES" category (safe string compare)
     const roots = Array.from(map.values())
-      .filter((node) => !node.parent_kpi_id && node.category_id === globalObjectivesCategoryId)
+      .filter((node) => !node.parent_kpi_id && (!globalObjectivesCategoryId || String(node.category_id) === String(globalObjectivesCategoryId)))
       .sort((a, b) => a.title.localeCompare(b.title));
 
     const sortChildren = (node) => {
@@ -206,21 +206,19 @@ function KmisPage() {
   };
 
   const getDefaultCategoryId = (cats) => (
-    cats.find((c) => c.category_name === 'KMI / GLOBAL OBJECTIVES')?.id ||
-    cats[0]?.id ||
-    ''
+    String(cats.find((c) => c.category_name === 'KMI / GLOBAL OBJECTIVES')?.id ?? cats[0]?.id ?? '')
   );
 
   const getCategoryName = (categoryId) => (
-    categories.find((c) => c.id === categoryId)?.category_name || ''
+    categories.find((c) => String(c.id) === String(categoryId))?.category_name || ''
   );
 
   const getNextCategoryId = (parentCategoryId) => {
     if (!parentCategoryId) return getDefaultCategoryId(categories);
-    const idx = categoryOrder.indexOf(parentCategoryId);
+    const idx = categoryOrder.indexOf(Number(parentCategoryId));
     if (idx === -1) return getDefaultCategoryId(categories);
     const nextIdx = Math.min(idx + 1, categoryOrder.length - 1);
-    return categoryOrder[nextIdx];
+    return String(categoryOrder[nextIdx]);
   };
 
   const handleAddNew = () => {
@@ -317,7 +315,7 @@ function KmisPage() {
     setFormData({
       title: kmi.title || '',
       fin_year: kmi.fin_year || selectedYear,
-      category_id: kmi.category_id || getDefaultCategoryId(categories),
+      category_id: kmi.category_id != null ? String(kmi.category_id) : getDefaultCategoryId(categories),
       parent_kpi_id: kmi.parent_kpi_id || null,
       department_id: deptId,
       emp_id: empId
@@ -368,8 +366,8 @@ function KmisPage() {
         await axios.put(`/kpis/${editingKmi.id}`, {
           title: formData.title,
           fin_year: formData.fin_year,
-          category_id: formData.category_id,
-          parent_kpi_id: formData.parent_kpi_id
+          category_id: Number(formData.category_id),
+          parent_kpi_id: formData.parent_kpi_id ? Number(formData.parent_kpi_id) : null
         });
         kpiId = editingKmi.id;
         showNotification('KPI updated successfully!', 'success');
@@ -377,15 +375,15 @@ function KmisPage() {
         const response = await axios.post('/kpis', {
           title: formData.title,
           fin_year: formData.fin_year,
-          category_id: formData.category_id,
-          parent_kpi_id: formData.parent_kpi_id
+          category_id: Number(formData.category_id),
+          parent_kpi_id: formData.parent_kpi_id ? Number(formData.parent_kpi_id) : null
         });
         kpiId = response.data.data.id;
         showNotification('KMI created successfully!', 'success');
       }
 
       // Save KPI-Department mapping if Department KPI category is selected (category_id = 2)
-      if (formData.category_id === 2 || formData.category_id === '2') {
+      if (String(formData.category_id) === '2') {
         if (formData.department_id) {
           try {
             await axios.post('/kpi-departments', {
@@ -404,7 +402,7 @@ function KmisPage() {
       }
 
       // Save KPI-Employee mapping if Employee KPI category is selected (category_id = 4)
-      if (formData.category_id === 4 || formData.category_id === '4') {
+      if (String(formData.category_id) === '4') {
         if (formData.emp_id) {
           try {
             await axios.post('/kpi-employees', {
@@ -446,7 +444,6 @@ function KmisPage() {
     });
   };
 
-  const getCategoryNameById = (id) => categories.find((c) => c.id === id)?.category_name || 'Category';
 
   // Function to check if a node or its children match the search query
   const isNodeMatching = (node) => {
@@ -487,6 +484,9 @@ function KmisPage() {
   };
 
   // Auto-expand nodes when search is active
+  const getCategoryNameById = (id) => categories.find((c) => String(c.id) === String(id))?.category_name || 'Category';
+
+  // Auto-expand nodes when search is active (also react to tree changes)
   useEffect(() => {
     if (searchQuery.trim()) {
       const nodesToExpand = new Set();
@@ -499,7 +499,7 @@ function KmisPage() {
       getFilteredTree().forEach(node => collectNodeIds(node));
       setExpandedNodes(nodesToExpand);
     }
-  }, [searchQuery]);
+  }, [searchQuery, kpiTree]);
 
   const renderNode = (node, depth = 0) => {
     const isExpanded = expandedNodes.has(node.id);
@@ -721,7 +721,7 @@ function KmisPage() {
         console.log(`✅ Created: "${kpi.title}" newID:${newKpiId}, parent:${newParentId || 'NONE'}`);
 
         // Replicate department mapping if exists
-        if (kpi.category_id === 2 || kpi.category_id === '2') {
+          if (String(kpi.category_id) === '2') {
           try {
             const deptRes = await axios.get(`/kpi-departments?kpi_id=${kpi.id}`);
             const deptMappings = deptRes.data.data || [];
@@ -737,7 +737,7 @@ function KmisPage() {
         }
 
         // Replicate employee mapping if exists
-        if (kpi.category_id === 4 || kpi.category_id === '4') {
+          if (String(kpi.category_id) === '4') {
           try {
             const empRes = await axios.get(`/kpi-employees?kpi_id=${kpi.id}`);
             const empMappings = empRes.data.data || [];
@@ -905,18 +905,18 @@ function KmisPage() {
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Category *</label>
                 <select
                   name="category_id"
-                  value={formData.category_id}
+                    value={formData.category_id}
                   onChange={handleChange}
                   required
                   className="w-full px-3 py-2.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                 >
                   <option value="">Select Category</option>
-                  {categories.map((cat) => (
-                    <option key={cat.id} value={cat.id}>{cat.category_name}</option>
-                  ))}
+                    {categories.map((cat) => (
+                      <option key={cat.id} value={String(cat.id)}>{cat.category_name}</option>
+                    ))}
                 </select>
               </div>
-              {(formData.category_id === 2 || formData.category_id === '2') && (
+                {(String(formData.category_id) === '2') && (
                 <div className="mb-5">
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Department * <span className="text-red-500">(Required for Department KPI)</span></label>
                   <select
@@ -933,7 +933,7 @@ function KmisPage() {
                   </select>
                 </div>
               )}
-              {(formData.category_id === 4 || formData.category_id === '4') && (
+              {(String(formData.category_id) === '4') && (
                 <div className="mb-5">
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Employee * <span className="text-red-500">(Required for Employee KPI)</span></label>
                   <select
@@ -954,7 +954,7 @@ function KmisPage() {
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Parent KPI</label>
                 <input
                   type="text"
-                  value={formData.parent_kpi_id ? (kpis.find((k) => k.id === formData.parent_kpi_id)?.title || `ID ${formData.parent_kpi_id}`) : 'None (Top-level KMI)'}
+                  value={formData.parent_kpi_id ? (kpis.find((k) => k.id === Number(formData.parent_kpi_id))?.title || `ID ${formData.parent_kpi_id}`) : 'None (Top-level KMI)'}
                   readOnly
                   className="w-full px-3 py-2.5 border border-gray-300 rounded-md text-sm bg-gray-50 text-gray-600"
                 />

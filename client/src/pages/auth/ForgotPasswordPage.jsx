@@ -114,14 +114,14 @@ const ForgotPasswordPage = () => {
               <label className="block text-sm font-semibold text-gray-700 mb-2">Email</label>
               <input
                 type="email"
-                className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg bg-gray-50 focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-200"
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg bg-gray-50 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-purple-200"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 required
                 disabled={loading}
               />
             </div>
-            <button type="submit" disabled={loading} className="w-full mt-2 bg-gradient-to-r from-purple-600 to-purple-700 text-white font-bold py-3 rounded-lg">
+            <button type="submit" disabled={loading} className="w-full mt-2 bg-gradient-to-r  text-white font-bold py-3 rounded-lg" style={{ backgroundColor: '#001f3f' }}>
               {loading ? 'Sending OTP...' : 'Send OTP'}
             </button>
           </form>

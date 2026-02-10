@@ -1781,30 +1781,40 @@ function ManagementDashboard() {
           )}
         </div>
 
-        <div className="bg-white rounded-lg shadow border-2 border-blue-500 p-6 h-full" role="button" tabIndex={0}
-             onClick={() => openExpandedChart('themeChart', themeChart || { title: 'Theme Of The Year', subtitle: 'Unlock The Power of You', labels: FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1]), values: Array(12).fill(0) })}
-             onKeyDown={(e)=> e.key === 'Enter' && openExpandedChart('themeChart', themeChart || { title: 'Theme Of The Year', subtitle: 'Unlock The Power of You', labels: FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1]), values: Array(12).fill(0) })}>
-          <h3 className="text-lg font-semibold text-gray-800 mb-4">🏆 Theme Of The Year</h3>
-          {themeChartLoading ? (
-            <div className="flex items-center justify-center p-8 text-gray-500">Loading...</div>
-          ) : themeChart ? (
-            <Box4ThemeBarChart title={themeChart.title} subtitle={themeChart.subtitle} labels={themeChart.labels} values={themeChart.values} />
-          ) : (
-            <Box4ThemeBarChart title="Theme Of The Year" subtitle="Unlock The Power of You" labels={FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1])} values={Array(12).fill(0)} />
-          )}
-        </div>
+        <div className="bg-white rounded-lg shadow border-2 border-blue-500 p-2 md:p-6 h-full md:col-span-2" role="button" tabIndex={0}
+             onClick={() => openExpandedChart('themeEmployees', { themeChart, employeesChart })}
+             onKeyDown={(e)=> e.key === 'Enter' && openExpandedChart('themeEmployees', { themeChart, employeesChart })}>
+          <div className="flex flex-col md:flex-row h-full">
+            <div className="flex-1 p-4 md:border-r border-gray-200 min-w-0">
+              <h4 className="text-xs md:text-sm font-bold text-gray-500 mb-3 md:mb-4 text-center tracking-wide">THEME OF THE YEAR</h4>
+              {themeChartLoading ? (
+                <div className="flex items-center justify-center p-8 text-gray-500">Loading...</div>
+              ) : (
+                <div className="h-full">
+                  {themeChart ? (
+                    <Box4ThemeBarChart title={themeChart.title} subtitle={themeChart.subtitle} labels={themeChart.labels} values={themeChart.values} />
+                  ) : (
+                    <Box4ThemeBarChart title="Theme Of The Year" subtitle="Unlock The Power of You" labels={FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1])} values={Array(12).fill(0)} />
+                  )}
+                </div>
+              )}
+            </div>
 
-        <div className="bg-white rounded-lg shadow border-2 border-blue-500 p-6 h-full" role="button" tabIndex={0}
-             onClick={() => openExpandedChart('employeesChart', employeesChart || { title: 'No. of Employees Who Left', subtitle: 'Monthly Attrition', labels: FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1]), values: Array(12).fill(0) })}
-             onKeyDown={(e)=> e.key === 'Enter' && openExpandedChart('employeesChart', employeesChart || { title: 'No. of Employees Who Left', subtitle: 'Monthly Attrition', labels: FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1]), values: Array(12).fill(0) })}>
-          <h3 className="text-lg font-semibold text-gray-800 mb-4">👥 Employees Left</h3>
-          {employeesChartLoading ? (
-            <div className="flex items-center justify-center p-8 text-gray-500">Loading...</div>
-          ) : employeesChart ? (
-            <Box4EmployeesLineChart title={employeesChart.title} subtitle={employeesChart.subtitle} labels={employeesChart.labels} values={employeesChart.values} />
-          ) : (
-            <Box4EmployeesLineChart title="No. of Employees Who Left" subtitle="Monthly Attrition" labels={FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1])} values={Array(12).fill(0)} />
-          )}
+            <div className="flex-1 p-4 min-w-0">
+              <h4 className="text-xs md:text-sm font-bold text-gray-500 mb-3 md:mb-4 text-center tracking-wide">EMPLOYEES LEFT</h4>
+              {employeesChartLoading ? (
+                <div className="flex items-center justify-center p-8 text-gray-500">Loading...</div>
+              ) : (
+                <div className="h-full">
+                  {employeesChart ? (
+                    <Box4EmployeesLineChart title={employeesChart.title} subtitle={employeesChart.subtitle} labels={employeesChart.labels} values={employeesChart.values} />
+                  ) : (
+                    <Box4EmployeesLineChart title="No. of Employees Who Left" subtitle="Monthly Attrition" labels={FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1])} values={Array(12).fill(0)} />
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1905,6 +1915,30 @@ function ManagementDashboard() {
                   labels={expandedChartData.labels}
                   values={expandedChartData.values}
                 />
+              )}
+
+              {expandedChart === 'themeEmployees' && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <h4 className="font-semibold mb-2">Theme Of The Year</h4>
+                    <Box4ThemeBarChart
+                      title={expandedChartData?.themeChart?.title || 'Theme Of The Year'}
+                      subtitle={expandedChartData?.themeChart?.subtitle || 'Unlock The Power of You'}
+                      labels={expandedChartData?.themeChart?.labels || FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1])}
+                      values={expandedChartData?.themeChart?.values || Array(12).fill(0)}
+                    />
+                  </div>
+
+                  <div>
+                    <h4 className="font-semibold mb-2">Employees Left</h4>
+                    <Box4EmployeesLineChart
+                      title={expandedChartData?.employeesChart?.title || 'No. of Employees Who Left'}
+                      subtitle={expandedChartData?.employeesChart?.subtitle || 'Monthly Attrition'}
+                      labels={expandedChartData?.employeesChart?.labels || FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1])}
+                      values={expandedChartData?.employeesChart?.values || Array(12).fill(0)}
+                    />
+                  </div>
+                </div>
               )}
 
               {expandedChart === 'salesProfit' && (

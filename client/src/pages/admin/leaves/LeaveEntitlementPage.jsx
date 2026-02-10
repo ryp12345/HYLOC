@@ -153,10 +153,23 @@ const LeaveEntitlementPage = ({ token: propToken }) => {
   const BulkAssignModal = () => {
     const [formData, setFormData] = useState({ year, leave_entitled: 12, leaves_accumulated: 0, selectedUsers: [] });
     const [submitting, setSubmitting] = useState(false);
+    const [dropdownOpen, setDropdownOpen] = useState(false);
+    // Helper for checkbox state
+    const allChecked = staff.length > 0 && formData.selectedUsers.length === staff.length;
+    const noneChecked = formData.selectedUsers.length === 0;
+    const partialChecked = !allChecked && !noneChecked && formData.selectedUsers.length > 0;
     const handleChange = e => setFormData({ ...formData, [e.target.name]: e.target.value });
     const handleUserSelect = e => {
-      const id = e.target.value;
-      setFormData(f => ({ ...f, selectedUsers: e.target.checked ? [...f.selectedUsers, id] : f.selectedUsers.filter(u => u !== id) }));
+      const id = String(e.target.value);
+      setFormData(f => {
+        let updated;
+        if (e.target.checked) {
+          updated = [...f.selectedUsers, id].filter((v, i, arr) => arr.indexOf(v) === i);
+        } else {
+          updated = f.selectedUsers.filter(u => u !== id);
+        }
+        return { ...f, selectedUsers: updated };
+      });
     };
     const handleSubmit = async e => {
       e.preventDefault();
@@ -205,11 +218,65 @@ const LeaveEntitlementPage = ({ token: propToken }) => {
                   <input name="leaves_accumulated" type="number" value={formData.leaves_accumulated} onChange={handleChange} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" required min={0} />
                 </div>
                 <div>
-                  <label className="block mb-2 text-sm font-medium text-gray-700">Select Users *</label>
+                  <label className="block mb-2 text-sm font-medium text-gray-700">Users *</label>
+                  <div className="flex items-center mb-2 gap-2">
+                    <div className="relative flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={allChecked}
+                        ref={el => {
+                          if (el) el.indeterminate = partialChecked;
+                        }}
+                        onChange={e => {
+                          if (e.target.checked) {
+                            setFormData(f => ({ ...f, selectedUsers: staff.map(s => String(s.id)) }));
+                          } else {
+                            setFormData(f => ({ ...f, selectedUsers: [] }));
+                          }
+                        }}
+                        className="mr-1"
+                        aria-label="Select all users"
+                      />
+                      <button
+                        type="button"
+                        className="ml-1 p-0 bg-transparent border-none cursor-pointer"
+                        style={{ width: '16px', height: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        onClick={e => {
+                          e.preventDefault();
+                          setDropdownOpen(v => !v);
+                        }}
+                        aria-label="Open selection menu"
+                      >
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M4 6L8 10L12 6" stroke="#333" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </button>
+                      {dropdownOpen && (
+                        <div className="absolute z-10 mt-2 bg-white border rounded shadow-lg" style={{ minWidth: '60px', right: 0 }}>
+                          <button
+                            type="button"
+                            className="block w-full px-2 py-1 text-left hover:bg-gray-100"
+                            onClick={() => {
+                              setFormData(f => ({ ...f, selectedUsers: [] }));
+                              setDropdownOpen(false);
+                            }}
+                          >None</button>
+                          <button
+                            type="button"
+                            className="block w-full px-2 py-1 text-left hover:bg-gray-100"
+                            onClick={() => {
+                              setFormData(f => ({ ...f, selectedUsers: staff.map(s => String(s.id)) }));
+                              setDropdownOpen(false);
+                            }}
+                          >All</button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                   <div className="max-h-32 overflow-y-auto border rounded p-2">
                     {staff.map(s => (
                       <label key={s.id} className="block">
-                        <input type="checkbox" value={s.id} checked={formData.selectedUsers.includes(s.id)} onChange={handleUserSelect} /> {s.firstname} {s.lastname} ({s.empid})
+                        <input type="checkbox" value={s.id} checked={formData.selectedUsers.includes(String(s.id))} onChange={handleUserSelect} /> {s.firstname} {s.lastname} ({s.empid})
                       </label>
                     ))}
                   </div>
