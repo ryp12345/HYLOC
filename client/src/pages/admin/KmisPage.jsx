@@ -162,10 +162,11 @@ function KmisPage() {
     }
   };
 
-  // Fetch KPIs when selected year changes
+  // Fetch KPIs when selected year changes — wait until categories are loaded
   useEffect(() => {
+    if (categories.length === 0) return; // category filter needs category IDs
     loadKpis(selectedYear);
-  }, [selectedYear]);
+  }, [selectedYear, categories]);
 
   const categoryOrder = useMemo(() => [6, 1, 2, 3, 4, 5], []);
 
@@ -661,9 +662,9 @@ function KmisPage() {
         }))
         .sort((a, b) => a.depth - b.depth);
 
-      console.log('=== REPLICATION DEBUG ===');
-      console.log(`Total KPIs to replicate: ${sortedKpis.length}`);
-      console.log('KPIs sorted by depth:', sortedKpis.map(k => `${k.title} (ID:${k.id}, Parent:${k.parent_kpi_id || 'none'}, Depth:${k.depth})`));
+      // console.log('=== REPLICATION DEBUG ===');
+      // console.log(`Total KPIs to replicate: ${sortedKpis.length}`);
+      // console.log('KPIs sorted by depth:', sortedKpis.map(k => `${k.title} (ID:${k.id}, Parent:${k.parent_kpi_id || 'none'}, Depth:${k.depth})`));
 
       for (const kpi of sortedKpis) {
         // Determine new parent_kpi_id using the mapping

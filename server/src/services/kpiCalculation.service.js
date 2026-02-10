@@ -1,6 +1,9 @@
 const pool = require('../config/db');
 const FormulaEvaluator = require('../utils/formulaEvaluator');
 
+// Simple in-memory memoization for CUMSUM within a single process
+const cumsumCache = new Map();
+
 class KPICalculationService {
   /**
    * Compute cumulative sum for a base KPI value from April to the given month within fiscal year.
@@ -10,36 +13,91 @@ class KPICalculationService {
    * @param {number} year - calendar year of the target month
    * @returns {Promise<number>}
    */
-  static async computeCumulativeSumForSource(sourceKpiValueId, month, year) {
-    // Build query conditions for fiscal range
-    let query;
-    let params;
-    if (month >= 4) {
-      // April..target month in same calendar year
-      query = `SELECT COALESCE(SUM(value::numeric), 0) AS total
-               FROM kpi_data_value
-               WHERE kpi_value_id = $1
-                 AND value_type = 'actual'
-                 AND year = $2
-                 AND month BETWEEN 4 AND $3`;
-      params = [sourceKpiValueId, year, month];
-    } else {
-      // April..December of previous year + January..target month of current year
-      query = `SELECT COALESCE(SUM(value::numeric), 0) AS total
-               FROM kpi_data_value
-               WHERE kpi_value_id = $1
-                 AND value_type = 'actual'
-                 AND (
-                   (year = $2 AND month BETWEEN 4 AND 12)
-                   OR (year = $3 AND month BETWEEN 1 AND $4)
-                 )`;
-      params = [sourceKpiValueId, year - 1, year, month];
+  static async computeCumulativeSumForSource(sourceKpiValueId, month, year, valueType = 'actual') {
+    // console.log(`[CUMSUM] ==========================================`);
+    // console.log(`[CUMSUM] Computing cumulative ${valueType} for KPI Value ${sourceKpiValueId}`);
+    // console.log(`[CUMSUM] Target month: ${month}, Target year: ${year}`);
+
+    const cacheKey = `${sourceKpiValueId}:${month}:${year}:${valueType}`;
+    if (cumsumCache.has(cacheKey)) {
+      const cached = cumsumCache.get(cacheKey);
+      console.log(`[CUMSUM] Cache hit for ${cacheKey}: ${cached}`);
+      return cached;
     }
 
+    // First, get the unit_symbol for this KPI value
+    const kpiValueResult = await pool.query(
+      `SELECT k.data, u.symbol as unit_symbol 
+       FROM kpi_values k
+       LEFT JOIN unit_master u ON k.uom = u.id
+       WHERE k.id = $1`,
+      [sourceKpiValueId]
+    );
+
+    const kpiData = kpiValueResult.rows?.[0];
+    const unitSymbol = kpiData?.unit_symbol;
+    const kpiName = kpiData?.data;
+    const isPercentage = unitSymbol === '%' || (unitSymbol && unitSymbol.toLowerCase().includes('percent'));
+
+    console.log(`[CUMSUM] KPI: ${kpiName}, Unit: ${unitSymbol}`);
+
+    // Build query conditions for fiscal range (April to current month)
+    let query;
+    let params;
+
+    if (month >= 4) {
+      // Target month is April-December: sum April..month of same calendar year
+      console.log(`[CUMSUM] Month ${month} is Apr-Dec: Querying April-${month} of year ${year}`);
+      query = `SELECT COALESCE(SUM(value::numeric), 0) AS total
+               FROM kpi_data_value
+               WHERE kpi_value_id = $1
+                 AND value_type = $2
+                 AND year = $3
+                 AND month >= 4
+                 AND month <= $4`;
+      params = [sourceKpiValueId, valueType, year, month];
+    } else {
+      // Target month is Jan-March: sum April..Dec of prev year + Jan..month of current year
+      console.log(`[CUMSUM] Month ${month} is Jan-Mar: Querying April-Dec ${year-1} + Jan-${month} ${year}`);
+      query = `SELECT COALESCE(SUM(value::numeric), 0) AS total
+               FROM kpi_data_value
+               WHERE kpi_value_id = $1
+                 AND value_type = $2
+                 AND (
+                   (year = $3 AND month >= 4)
+                   OR (year = $4 AND month >= 1 AND month <= $5)
+                 )`;
+      params = [sourceKpiValueId, valueType, year - 1, year, month];
+    }
+
+    console.log(`[CUMSUM] SQL Query parameters:`, params);
     const result = await pool.query(query, params);
-    const total = result.rows?.[0]?.total;
-    const num = parseFloat(total);
-    return isNaN(num) ? 0 : num;
+    let total = result.rows?.[0]?.total;
+    let num = parseFloat(total);
+
+    console.log(`[CUMSUM] Raw total from DB: ${total}, parsed: ${num}`);
+
+    // Debug: Show what data exists for this KPI
+    const debugData = await pool.query(
+      `SELECT month, year, value, value_type 
+       FROM kpi_data_value 
+       WHERE kpi_value_id = $1 
+       ORDER BY year, month`,
+      [sourceKpiValueId]
+    );
+    console.log(`[CUMSUM] Available data for KPI ${sourceKpiValueId}:`, debugData.rows);
+
+    // If unit is percentage, divide by 100
+    if (isPercentage && !isNaN(num)) {
+      console.log(`[CUMSUM] Converting percentage: ${num} / 100 = ${num / 100}`);
+      num = num / 100;
+    }
+
+    const finalValue = isNaN(num) ? 0 : num;
+    cumsumCache.set(cacheKey, finalValue);
+    // console.log(`[CUMSUM] ✓ Final cumulative ${valueType} value: ${finalValue}`);
+    // console.log(`[CUMSUM] ==========================================`);
+    return finalValue;
   }
 
   /**
@@ -50,11 +108,13 @@ class KPICalculationService {
    * @param {number} empId - Employee ID
    * @returns {Promise<number>} - Calculated value
    */
-  static async calculateKPIValue(kpiValueId, month, year, empId) {
+  static async calculateKPIValue(kpiValueId, month, year, empId, valueType = 'actual') {
     try {
       // Get the KPI value with its formula and dependencies
       const kpiValueResult = await pool.query(
-        `SELECT id, formula, source_kpi_value_ids, kpi_type, data
+        `SELECT id, formula, source_kpi_value_ids,
+                target_formula, target_source_kpi_value_ids,
+                kpi_type, data, target_required
          FROM kpi_values
          WHERE id = $1`,
         [kpiValueId]
@@ -66,64 +126,142 @@ class KPICalculationService {
         throw new Error(`KPI Value ${kpiValueId} not found`);
       }
 
-      if (kpiValue.kpi_type !== 'computed') {
+      if ((kpiValue.kpi_type || '').toLowerCase() !== 'computed') {
         throw new Error(`KPI Value ${kpiValueId} is not a computed type`);
       }
 
-      if (!kpiValue.formula) {
-        throw new Error(`KPI Value ${kpiValueId} has no formula defined`);
+      // Determine which formula to use based on valueType
+      let formulaToUse;
+      let sourceIdsRaw;
+      
+      if (valueType === 'target' && kpiValue.target_formula) {
+        // Use target-specific formula for target calculation
+        formulaToUse = kpiValue.target_formula;
+        sourceIdsRaw = kpiValue.target_source_kpi_value_ids || [];
+      } else {
+        // Use actual formula for actual calculation or fallback for target
+        formulaToUse = kpiValue.formula;
+        sourceIdsRaw = kpiValue.source_kpi_value_ids || [];
+      }
+
+      if (!formulaToUse) {
+        throw new Error(`KPI Value ${kpiValueId} has no formula defined for ${valueType}`);
       }
 
       // Get the actual values for all source KPI values for this month/year
-      const sourceIds = kpiValue.source_kpi_value_ids || [];
+      let sourceIds = sourceIdsRaw;
+      if (!sourceIds || sourceIds.length === 0) {
+        sourceIds = FormulaEvaluator.extractSourceKpiIds(formulaToUse);
+      }
       
       if (sourceIds.length === 0) {
-        throw new Error(`No source KPI values defined for ${kpiValue.data}`);
+        throw new Error(`No source KPI values defined for ${kpiValue.data} ${valueType}`);
       }
 
-      // Fetch actual values for all dependencies
+      // Fetch values for all dependencies (actual or target based on valueType)
       const valuesMap = {};
       
       for (const sourceId of sourceIds) {
-        const valueResult = await pool.query(
-          `SELECT value
-           FROM kpi_data_value
-           WHERE kpi_value_id = $1 
-             AND month = $2 
-             AND year = $3
-             AND value_type = 'actual'
-           ORDER BY created_at DESC
-           LIMIT 1`,
-          [sourceId, month, year]
-        );
+        // Check if formula explicitly requests both actual and target from this source
+        const needsActual = formulaToUse.match(new RegExp(`v${sourceId}:actual`, 'i'));
+        const needsTarget = formulaToUse.match(new RegExp(`v${sourceId}:target`, 'i'));
+        const needsDefault = formulaToUse.match(new RegExp(`v${sourceId}(?!:)`, 'i'));
+        
+        // Fetch actual value if explicitly requested or if default and valueType is 'actual'
+        if (needsActual || (needsDefault && valueType === 'actual')) {
+          const actualResult = await pool.query(
+            `SELECT value
+             FROM kpi_data_value
+             WHERE kpi_value_id = $1 
+               AND month = $2 
+               AND year = $3
+               AND value_type = 'actual'
+             ORDER BY created_at DESC
+             LIMIT 1`,
+            [sourceId, month, year]
+          );
 
-        if (valueResult.rows.length > 0) {
-          valuesMap[sourceId] = parseFloat(valueResult.rows[0].value) || 0;
-        } else {
-          console.warn(`No data found for KPI Value ${sourceId} for ${month}/${year}`);
-          valuesMap[sourceId] = 0;
+          if (actualResult.rows.length > 0) {
+            const value = parseFloat(actualResult.rows[0].value) || 0;
+            valuesMap[`${sourceId}:actual`] = value;
+            if (!needsTarget && !needsDefault) {
+              valuesMap[sourceId] = value; // For backward compatibility
+            }
+          } else {
+            console.warn(`No actual data found for KPI Value ${sourceId} for ${month}/${year}`);
+            valuesMap[`${sourceId}:actual`] = 0;
+          }
+        }
+        
+        // Fetch target value if explicitly requested or if default and valueType is 'target'
+        if (needsTarget || (needsDefault && valueType === 'target')) {
+          const targetResult = await pool.query(
+            `SELECT value
+             FROM kpi_data_value
+             WHERE kpi_value_id = $1 
+               AND month = $2 
+               AND year = $3
+               AND value_type = 'target'
+             ORDER BY created_at DESC
+             LIMIT 1`,
+            [sourceId, month, year]
+          );
+
+          if (targetResult.rows.length > 0) {
+            const value = parseFloat(targetResult.rows[0].value) || 0;
+            valuesMap[`${sourceId}:target`] = value;
+            if (!needsActual && !needsDefault) {
+              valuesMap[sourceId] = value; // For backward compatibility
+            }
+          } else {
+            console.warn(`No target data found for KPI Value ${sourceId} for ${month}/${year}`);
+            valuesMap[`${sourceId}:target`] = 0;
+          }
+        }
+        
+        // Handle default v<id> pattern (fetch based on valueType)
+        if (needsDefault && !needsActual && !needsTarget) {
+          const valueResult = await pool.query(
+            `SELECT value
+             FROM kpi_data_value
+             WHERE kpi_value_id = $1 
+               AND month = $2 
+               AND year = $3
+               AND value_type = $4
+             ORDER BY created_at DESC
+             LIMIT 1`,
+            [sourceId, month, year, valueType]
+          );
+
+          if (valueResult.rows.length > 0) {
+            const value = parseFloat(valueResult.rows[0].value) || 0;
+            valuesMap[sourceId] = value;
+          } else {
+            console.warn(`No ${valueType} data found for KPI Value ${sourceId} for ${month}/${year}`);
+            valuesMap[sourceId] = 0;
+          }
         }
       }
 
       // Pre-process CUMSUM(v<ID>) expressions to concrete numeric values
-      let processedFormula = kpiValue.formula;
-      const cumsumRegex = /CUMSUM\(\s*v(\d+)\s*\)/gi;
+      let processedFormula = formulaToUse;
+      const cumsumRegex = /CUMSUM\(\s*v?(\d+)\s*\)/gi;
       const cumsumMatches = processedFormula.match(cumsumRegex) || [];
       if (cumsumMatches.length > 0) {
         processedFormula = await (async () => {
           let expr = processedFormula;
           const seen = new Set();
           for (const m of cumsumMatches) {
-            const idMatch = /v(\d+)/i.exec(m);
+            const idMatch = /v?(\d+)/i.exec(m);
             if (!idMatch) continue;
             const sourceId = parseInt(idMatch[1]);
             if (Number.isNaN(sourceId)) continue;
             // Avoid duplicate queries for same sourceId in formula
             if (!seen.has(sourceId)) {
               seen.add(sourceId);
-              const cumVal = await KPICalculationService.computeCumulativeSumForSource(sourceId, month, year);
+              const cumVal = await KPICalculationService.computeCumulativeSumForSource(sourceId, month, year, valueType);
               // Replace all occurrences of this exact CUMSUM(v<id>) token with computed value
-              const tokenRegex = new RegExp(`CUMSUM\\(\\s*v${sourceId}\\s*\\)`, 'gi');
+              const tokenRegex = new RegExp(`CUMSUM\\(\\s*v?${sourceId}\\s*\\)`, 'gi');
               expr = expr.replace(tokenRegex, String(cumVal));
             }
           }
@@ -152,43 +290,181 @@ class KPICalculationService {
    */
   static async recalculateDependentKPIs(sourceKpiValueId, month, year, empId) {
     try {
-      // Find all computed KPIs that depend on this source
-      const dependentResult = await pool.query(
-        `SELECT id, formula, source_kpi_value_ids, data
-         FROM kpi_values
-         WHERE kpi_type = 'computed'
-           AND $1 = ANY(source_kpi_value_ids)`,
-        [sourceKpiValueId]
-      );
-
-      const dependentKPIs = dependentResult.rows;
+      console.log(`[RECALC] ========================================`);
+      console.log(`[RECALC] Starting recalculation for source KPI Value ID: ${sourceKpiValueId}, month: ${month}, year: ${year}, empId: ${empId}`);
+      console.log(`[RECALC] ========================================`);
       
-      // console.log(`Found ${dependentKPIs.length} dependent KPIs to recalculate for source ${sourceKpiValueId}`);
+      // Strategy: Always scan all computed KPIs for dependencies
+      // Check both source_kpi_value_ids arrays AND formula text
+      let dependentKPIs = [];
+      
+      try {
+        const allComputed = await pool.query(
+          `SELECT id, formula, source_kpi_value_ids, data, target_required, default_target_value
+           FROM kpi_values
+           WHERE LOWER(kpi_type) = 'computed'`
+        );
+
+        console.log(`[RECALC] Scanning ${allComputed.rows.length} computed KPIs for dependencies...`);
+        console.log(`[RECALC] Looking for KPIs that depend on source ID: ${sourceKpiValueId}`);
+
+        // Match v153 directly or within CUMSUM(v153) or CUMSUM(153)
+        const vPattern = new RegExp(`\\bv${sourceKpiValueId}\\b`, 'i');
+        const cumsumPattern = new RegExp(`CUMSUM\\s*\\(\\s*v?${sourceKpiValueId}\\s*\\)`, 'i');
+        
+        console.log(`[RECALC] Patterns to match:`);
+        console.log(`[RECALC]   - v pattern: \\bv${sourceKpiValueId}\\b`);
+        console.log(`[RECALC]   - CUMSUM pattern: CUMSUM\\s*\\(\\s*v?${sourceKpiValueId}\\s*\\)`);
+        
+        dependentKPIs = (allComputed.rows || []).filter(kpi => {
+          // Check if sourceId is in dependency arrays
+          const inSourceArray = kpi.source_kpi_value_ids && kpi.source_kpi_value_ids.includes(sourceKpiValueId);
+          
+          // Check if formula contains the pattern
+          const matchesV = kpi.formula ? vPattern.test(kpi.formula) : false;
+          const matchesCumsum = kpi.formula ? cumsumPattern.test(kpi.formula) : false;
+          
+          const matches = inSourceArray || matchesV || matchesCumsum;
+          
+          // Log every KPI checked
+          console.log(`[RECALC] ${matches ? '✓' : '✗'} KPI: ${kpi.data} (ID: ${kpi.id})`);
+          console.log(`[RECALC]     Formula: "${kpi.formula || 'NO FORMULA'}"`);
+          console.log(`[RECALC]     Source array: ${JSON.stringify(kpi.source_kpi_value_ids)}`);
+          console.log(`[RECALC]     In source array: ${inSourceArray}`);
+          console.log(`[RECALC]     Matches v${sourceKpiValueId}: ${matchesV}`);
+          console.log(`[RECALC]     Matches CUMSUM(v${sourceKpiValueId}): ${matchesCumsum}`);
+          
+          return matches;
+        });
+        
+        console.log(`[RECALC] ========================================`);
+        console.log(`[RECALC] Found ${dependentKPIs.length} dependent KPIs total`);
+        if (dependentKPIs.length > 0) {
+          dependentKPIs.forEach(dep => {
+            console.log(`[RECALC]   ✓ ${dep.data} (ID: ${dep.id})`);
+          });
+        } else {
+          console.log(`[RECALC]   ⚠ No dependents found! Check if:`);
+          console.log(`[RECALC]     1. Computed KPIs have formulas containing v${sourceKpiValueId} or CUMSUM(v${sourceKpiValueId})`);
+          console.log(`[RECALC]     2. Source KPI value IDs array includes ${sourceKpiValueId}`);
+        }
+        console.log(`[RECALC] ========================================`);
+      } catch (error) {
+        console.error('[RECALC] Error scanning for dependencies:', error);
+        throw error;
+      }
+      
+      if (!dependentKPIs || dependentKPIs.length === 0) {
+        console.log(`[RECALC] No dependent KPIs found for source ${sourceKpiValueId}`);
+        return;
+      }
+
+      console.log(`[RECALC] Processing ${dependentKPIs.length} dependent KPIs...`);
 
       for (const kpi of dependentKPIs) {
         try {
-          const calculatedValue = await this.calculateKPIValue(kpi.id, month, year, empId);
+          console.log(`[RECALC] ----------------------------------------`);
+          console.log(`[RECALC] Computing ${kpi.data} (ID: ${kpi.id})...`);
+          console.log(`[RECALC] Formula: ${kpi.formula}`);
+          console.log(`[RECALC] Target required: ${kpi.target_required}`);
+          console.log(`[RECALC] Default target: ${kpi.default_target_value}`);
           
-          // Update or insert the calculated value
-          await pool.query(
-            `INSERT INTO kpi_data_value (kpi_value_id, value, value_type, month, year)
-             VALUES ($1, $2, 'actual', $3, $4)
-             ON CONFLICT (kpi_value_id, month, year, value_type)
-             DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()`,
-            [kpi.id, calculatedValue, month, year]
-          );
+          // Calculate actual value
+          const calculatedValue = await this.calculateKPIValue(kpi.id, month, year, empId, 'actual');
+          
+          console.log(`[RECALC] Calculated ${kpi.data} actual value: ${calculatedValue}`);
+          
+          // Only insert if value is valid
+          if (calculatedValue !== null && calculatedValue !== undefined && !Number.isNaN(calculatedValue)) {
+            // Update or insert the calculated actual value
+            const insertResult = await pool.query(
+              `INSERT INTO kpi_data_value (kpi_value_id, value, value_type, month, year)
+               VALUES ($1, $2, 'actual', $3, $4)
+               ON CONFLICT (kpi_value_id, month, year, value_type)
+               DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()
+               RETURNING *`,
+              [kpi.id, calculatedValue, month, year]
+            );
 
-          // console.log(`Recalculated ${kpi.data}: ${calculatedValue}`);
+            console.log(`[RECALC] ✓ Saved ${kpi.data} actual: ${calculatedValue}`);
+            console.log(`[RECALC] DB record ID: ${insertResult.rows[0]?.id}`);
+          } else {
+            console.log(`[RECALC] ✗ Skipped saving actual - invalid value: ${calculatedValue}`);
+          }
+          
+          // If target is required, also calculate target value
+          if (kpi.target_required) {
+            try {
+              console.log(`[RECALC] Calculating target for ${kpi.data}...`);
+              const calculatedTarget = await this.calculateKPIValue(kpi.id, month, year, empId, 'target');
+              
+              console.log(`[RECALC] Calculated ${kpi.data} target value: ${calculatedTarget}`);
+              
+              // Use default_target_value only if calculation failed (NaN) or threw error
+              const hasDefaultTarget = kpi.default_target_value !== null && kpi.default_target_value !== undefined;
+              const targetToSave = Number.isNaN(calculatedTarget) && hasDefaultTarget
+                ? parseFloat(kpi.default_target_value)
+                : calculatedTarget;
+              
+              console.log(`[RECALC] Target to save: ${targetToSave} (calculated: ${calculatedTarget}, hasDefault: ${hasDefaultTarget}, defaultValue: ${kpi.default_target_value})`);
+              
+              // Only insert if targetToSave is valid
+              if (targetToSave !== null && targetToSave !== undefined && !Number.isNaN(targetToSave)) {
+                // Update or insert the calculated target value
+                const targetInsertResult = await pool.query(
+                  `INSERT INTO kpi_data_value (kpi_value_id, value, value_type, month, year)
+                   VALUES ($1, $2, 'target', $3, $4)
+                   ON CONFLICT (kpi_value_id, month, year, value_type)
+                   DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()
+                   RETURNING *`,
+                  [kpi.id, targetToSave, month, year]
+                );
+
+                console.log(`[RECALC] ✓ Saved ${kpi.data} target: ${targetToSave}`);
+                console.log(`[RECALC] DB record ID: ${targetInsertResult.rows[0]?.id}`);
+              } else {
+                console.log(`[RECALC] ✗ Skipped saving target - invalid value: ${targetToSave}`);
+              }
+            } catch (error) {
+              console.error(`[RECALC] Failed to calculate target for KPI ${kpi.data}:`, error.message);
+              console.error(`[RECALC] Target error stack:`, error.stack);
+              // If calculation failed and there's a default, use it
+              if (kpi.default_target_value !== null && kpi.default_target_value !== undefined) {
+                try {
+                  await pool.query(
+                    `INSERT INTO kpi_data_value (kpi_value_id, value, value_type, month, year)
+                     VALUES ($1, $2, 'target', $3, $4)
+                     ON CONFLICT (kpi_value_id, month, year, value_type)
+                     DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()`,
+                    [kpi.id, parseFloat(kpi.default_target_value), month, year]
+                  );
+                  console.log(`[RECALC] ✓ Used default target for ${kpi.data}: ${kpi.default_target_value}`);
+                } catch (defaultError) {
+                  console.error(`[RECALC] Failed to insert default target:`, defaultError.message);
+                }
+              }
+            }
+          }
           
           // Recursively recalculate any KPIs that depend on this one
+          console.log(`[RECALC] Checking for dependencies of ${kpi.data} (ID: ${kpi.id})...`);
           await this.recalculateDependentKPIs(kpi.id, month, year, empId);
+          console.log(`[RECALC] ----------------------------------------`);
         } catch (error) {
-          console.error(`Failed to recalculate KPI ${kpi.data}:`, error.message);
+          console.error(`[RECALC] ✗ Failed to recalculate KPI ${kpi.data}:`, error.message);
+          console.error('[RECALC] Error stack:', error.stack);
+          console.error('[RECALC] Error details:', JSON.stringify(error, null, 2));
+          console.log(`[RECALC] ----------------------------------------`);
           // Continue with other KPIs even if one fails
         }
       }
+
+      console.log(`[RECALC] ========================================`);
+      console.log(`[RECALC] Completed recalculation for source ${sourceKpiValueId}`);
+      console.log(`[RECALC] ========================================`);
     } catch (error) {
-      console.error('Error recalculating dependent KPIs:', error);
+      console.error('[RECALC] ✗ Error recalculating dependent KPIs:', error);
+      console.error('[RECALC] Stack:', error.stack);
       throw error;
     }
   }

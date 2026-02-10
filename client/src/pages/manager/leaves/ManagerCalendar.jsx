@@ -47,39 +47,26 @@ const ManagerCalendar = ({ joinDate }) => {
   });
 
   // Search state
-  const [showFilteredTable, setShowFilteredTable] = useState(false);
   const currentYear = new Date().getFullYear();
-  const [filter, setFilter] = useState({
-    from: '',
-    to: '',
-    department: '',
-    username: '',
-    year: currentYear,
-  });
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
 
   // Load data on component mount
   useEffect(() => {
     loadData();
   }, [currentDate]);
 
-  // Load data when year filter changes
-  useEffect(() => {
-    loadData();
-  }, [filter.year]);
+  // Note: loadData uses currentYear
 
   const loadData = async () => {
     setLoading(true);
     setError(null);
     try {
-      const year = filter.year || currentYear;
+      const year = currentYear;
       console.log('Loading data for year:', year);
       
       // Load leaves for current year
       try {
         const leavesResponse = await getMyLeaves({ year });
-        console.log('My leaves response:', leavesResponse);
+        // console.log('My leaves response:', leavesResponse);
         setLeaves(leavesResponse.data.data || []);
       } catch (err) {
         console.error('Error loading my leaves:', err);
@@ -515,55 +502,7 @@ const ManagerCalendar = ({ joinDate }) => {
   const monthDays = getMonthDays(currentDate);
   const weekDays = getWeekDays(currentDate);
 
-  // State for all departments
-  const [allDepartments, setAllDepartments] = useState([]);
-
-  // Fetch all departments on mount
-  useEffect(() => {
-    const fetchDepartments = async () => {
-      try {
-        // Import the API dynamically to avoid top-level import issues
-        const { getDepartments } = await import('../../../api/departmentApi');
-        const response = await getDepartments();
-        // Try multiple response structures
-        const departments = response.data?.data || response.data || [];
-        setAllDepartments(departments);
-      } catch (err) {
-        console.error('Error fetching departments:', err);
-      }
-    };
-    fetchDepartments();
-  }, []);
-
-  // Build department options from allDepartments
-  const departmentOptions = useMemo(() => {
-    return allDepartments
-      .map(d => d.name || d.department_name || d.departmentName || '')
-      .filter(name => name)
-      .sort();
-  }, [allDepartments]);
-
-  // Filter calendar leaves based on filter criteria
-  const filteredCalendarLeaves = React.useMemo(() => {
-    let leaves = calendarLeaves;
-    if (filter.from) {
-      leaves = leaves.filter(l => new Date(l.from_date) >= new Date(filter.from));
-    }
-    if (filter.to) {
-      leaves = leaves.filter(l => new Date(l.to_date) <= new Date(filter.to));
-    }
-    if (filter.department && filter.department !== 'all') {
-      leaves = leaves.filter(l => l.department_name === filter.department);
-    }
-    if (filter.username) {
-      leaves = leaves.filter(l => (l.user_name || '').toLowerCase().includes(filter.username.toLowerCase()));
-    }
-    return leaves;
-  }, [calendarLeaves, filter]);
-
-  // Pagination for filtered leaves
-  const totalPages = Math.ceil(filteredCalendarLeaves.length / itemsPerPage);
-  const paginatedLeaves = filteredCalendarLeaves.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  // (Removed unused filter/search state and department options per request)
 
   // Format date helper
   const formatDateDisplay = (dateStr) => {
@@ -610,6 +549,7 @@ const ManagerCalendar = ({ joinDate }) => {
 
       {/* Calendar Card */}
       <div className="bg-white rounded-lg shadow-lg p-6">
+        {/* Search filters removed per request */}
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
@@ -622,7 +562,7 @@ const ManagerCalendar = ({ joinDate }) => {
               onClick={() => setViewMode('month')}
               className={`px-4 py-2 rounded transition-colors ${
                 viewMode === 'month'
-                  ? 'bg-purple-600 text-white'
+                  ? 'bg-blue-600 text-white'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
@@ -632,7 +572,7 @@ const ManagerCalendar = ({ joinDate }) => {
               onClick={() => setViewMode('week')}
               className={`px-4 py-2 rounded transition-colors ${
                 viewMode === 'week'
-                  ? 'bg-purple-600 text-white'
+                  ? 'bg-blue-600 text-white'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
@@ -642,7 +582,7 @@ const ManagerCalendar = ({ joinDate }) => {
               onClick={() => setViewMode('list')}
               className={`px-4 py-2 rounded transition-colors ${
                 viewMode === 'list'
-                  ? 'bg-purple-600 text-white'
+                  ? 'bg-blue-600 text-white'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
@@ -764,7 +704,7 @@ const ManagerCalendar = ({ joinDate }) => {
             {weekDays.map((date) => (
               <div
                 key={date.toISOString()}
-                className="bg-purple-100 text-purple-800 font-semibold text-center py-2 rounded"
+                className="bg-blue-100 text-blue-800 font-semibold text-center py-2 rounded"
               >
                 <div>{dayNames[date.getDay()]}</div>
                 <div className="text-sm">{date.getDate()}</div>
@@ -781,9 +721,9 @@ const ManagerCalendar = ({ joinDate }) => {
                 key={date.toISOString()}
                 className={`min-h-[150px] p-3 rounded border-2 transition-all cursor-pointer ${
                   isToday(date)
-                    ? 'border-purple-600 bg-white'
+                    ? 'border-blue-600 bg-white'
                     : isSelectedDate(date)
-                    ? 'border-purple-500 bg-purple-50'
+                    ? 'border-blue-500 bg-purple-50'
                     : 'border-gray-200 bg-white hover:bg-gray-50'
                 } ${isPastDate(date) ? 'opacity-60' : 'opacity-100'}`}
                 onClick={() => setSelectedDate(date)}
@@ -792,7 +732,7 @@ const ManagerCalendar = ({ joinDate }) => {
                   {date.getDate()}
                 </div>
                 {isToday(date) && (
-                  <div className="text-purple-600 text-xs font-italic">Today</div>
+                  <div className="text-blue-600 text-xs font-italic">Today</div>
                 )}
                 {dayCalendarLeaves.length > 0 && (
                   <div className="mt-2 space-y-1">
@@ -829,7 +769,7 @@ const ManagerCalendar = ({ joinDate }) => {
             <div className="overflow-x-auto w-full max-w-3xl">
               <table className="min-w-full bg-white border rounded-lg shadow">
                 <thead>
-                  <tr className="bg-purple-100 text-purple-800">
+                  <tr className="bg-blue-100 text-blue-800">
                     <th className="py-2 px-4 text-center">Status</th>
                     <th className="py-2 px-4 text-center">Duration</th>
                     <th className="py-2 px-4 text-center">Reason</th>
@@ -893,181 +833,7 @@ const ManagerCalendar = ({ joinDate }) => {
 
       <hr className="border-t border-gray-200 my-6" />
 
-      {/* Filter Section for Department Leaves */}
-
-      <div className="bg-white rounded-lg shadow-lg p-6">
-        <table className="w-full mb-4 border rounded-lg overflow-hidden">
-          <thead>
-            <tr>
-              <th colSpan="4" className="bg-blue-600 text-white text-lg font-semibold py-2 px-4 text-left">Leave Search Filters</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td className="py-2 px-2" colSpan="4">
-                <div className="flex flex-row items-end gap-4 w-full">
-                  <div className="flex-1 min-w-[160px] max-w-[220px]">
-                    <label className="block text-xs font-semibold text-gray-600 mb-1">From Date</label>
-                    <input 
-                      type="date" 
-                      className="border rounded px-3 py-2 w-full" 
-                      value={filter.from} 
-                      onChange={e => { setFilter(f => ({ ...f, from: e.target.value })); setCurrentPage(1); }}
-                    />
-                  </div>
-                  <div className="flex-1 min-w-[160px] max-w-[220px]">
-                    <label className="block text-xs font-semibold text-gray-600 mb-1">To Date</label>
-                    <input 
-                      type="date" 
-                      className="border rounded px-3 py-2 w-full" 
-                      value={filter.to} 
-                      onChange={e => { setFilter(f => ({ ...f, to: e.target.value })); setCurrentPage(1); }}
-                    />
-                  </div>
-                  <div className="flex-grow"></div>
-                  <div className="flex-grow-0 min-w-[120px] max-w-[160px] flex flex-col items-start">
-                    <label className="block text-xs font-semibold text-gray-600 mb-1">Year</label>
-                    <select
-                      className="border rounded px-3 py-2 w-full max-w-[120px] text-left"
-                      value={filter.year}
-                      onChange={e => { setFilter(f => ({ ...f, year: Number(e.target.value) })); setCurrentPage(1); }}
-                    >
-                      {[(currentYear - 1), currentYear, (currentYear + 1)].map(y => (
-                        <option key={y} value={y}>{y}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              </td>
-            </tr>
-            <tr>
-              <td className="py-2 px-2" colSpan="4">
-                <div className="flex flex-row items-end gap-4 w-full">
-                  <div className="flex-1 min-w-[160px]">
-                    <label className="block text-xs font-semibold text-gray-600 mb-1">Department</label>
-                    <select 
-                      className="border rounded px-3 py-2 w-full" 
-                      value={filter.department} 
-                      onChange={e => { setFilter(f => ({ ...f, department: e.target.value })); setCurrentPage(1); }}
-                    >
-                      <option value="all">All Departments</option>
-                      {departmentOptions.map(dept => (
-                        <option key={dept} value={dept}>{dept}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="flex-[3] min-w-[240px]">
-                    <label className="block text-xs font-semibold text-gray-600 mb-1">Username</label>
-                    <input 
-                      type="text" 
-                      className="border rounded px-3 py-2 w-full" 
-                      placeholder="Search by username" 
-                      value={filter.username} 
-                      onChange={e => { setFilter(f => ({ ...f, username: e.target.value })); setCurrentPage(1); }}
-                    />
-                  </div>
-                  <div className="flex flex-row gap-4">
-                    <button
-                      className="bg-blue-600 text-white px-6 py-2 rounded font-semibold hover:bg-blue-700 transition"
-                      onClick={() => {
-                        if (filter.from || filter.to || filter.department !== 'all' || filter.username) {
-                          setShowFilteredTable(true);
-                          setCurrentPage(1);
-                        } else if (filter.department === 'all') {
-                          setShowFilteredTable(true);
-                          setCurrentPage(1);
-                        } else {
-                          setShowFilteredTable(false);
-                          alert('Please fill at least one filter to search.');
-                        }
-                      }}
-                    >
-                      Search
-                    </button>
-                    {showFilteredTable && (
-                      <button
-                        className="bg-gray-200 text-gray-700 px-4 py-2 rounded font-semibold hover:bg-gray-300 transition"
-                        onClick={() => {
-                          setShowFilteredTable(false);
-                          setFilter({ from: '', to: '', year: new Date().getFullYear(), department: 'all', username: '' });
-                          setCurrentPage(1);
-                        }}
-                      >
-                        Reset
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-
-        {/* Filtered Table */}
-        {showFilteredTable && (
-          <div className="mt-6 overflow-hidden bg-white shadow-xl rounded-xl">
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-blue-600">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">S.No</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Name</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Department</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Date Range</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Duration</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Reason</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {loading ? (
-                    <tr><td colSpan="7" className="p-8 text-center text-gray-500">Loading...</td></tr>
-                  ) : paginatedLeaves.length === 0 ? (
-                    <tr><td colSpan="7" className="p-8 text-center text-gray-500">No leaves found matching the filters</td></tr>
-                  ) : (
-                    paginatedLeaves.map((leave, idx) => (
-                      <tr key={leave.id} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-colors duration-150`}>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{(currentPage - 1) * itemsPerPage + idx + 1}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{leave.user_name || '-'}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{leave.department_name || '-'}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{formatDateDisplay(leave.from_date)} - {formatDateDisplay(leave.to_date)}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{leave.credited_days} day(s)</td>
-                        <td className="px-6 py-4 text-sm text-gray-900">{leave.leave_reason || '-'}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                            leave.status === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
-                            leave.status === 'Approved' ? 'bg-green-100 text-green-800' :
-                            'bg-red-100 text-red-800'
-                          }`}>
-                            {leave.status}
-                          </span>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="flex justify-end items-center gap-2 p-4">
-                <button
-                  className="px-3 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50"
-                  disabled={currentPage === 1}
-                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                >Prev</button>
-                <span className="text-sm">Page {currentPage} of {totalPages}</span>
-                <button
-                  className="px-3 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50"
-                  disabled={currentPage === totalPages}
-                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                >Next</button>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
+      {/* ...existing code... */}
     </div>
 
     {showCalendarLeaveModal && selectedCalendarDate && (
@@ -1390,7 +1156,7 @@ const ManagerCalendar = ({ joinDate }) => {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-400"
+                  className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-400"
                 >
                   {loading ? 'Submitting...' : editingLeave ? 'Update Leave' : 'Submit Leave'}
                 </button>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { getAllLeaves, approveLeave, rejectLeave, updateLeave } from '../../../api/leaveApi';
 
 const LeaveApprovalPage = () => {
@@ -9,6 +9,42 @@ const LeaveApprovalPage = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingLeave, setEditingLeave] = useState(null);
   const [editStatus, setEditStatus] = useState('');
+  // Leave Search Filters state
+  const currentYear = new Date().getFullYear();
+  const [filter, setFilter] = useState({
+    from: '',
+    to: '',
+    department: '',
+    username: '',
+    year: currentYear,
+  });
+  const [allDepartments, setAllDepartments] = useState([]);
+  const [showFilteredTable, setShowFilteredTable] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  // Fetch all departments on mount
+  useEffect(() => {
+    const fetchDepartments = async () => {
+      try {
+        const { getDepartments } = await import('../../../api/departmentApi');
+        const response = await getDepartments();
+        const departments = response.data?.data || response.data || [];
+        setAllDepartments(departments);
+      } catch (err) {
+        console.error('Error fetching departments:', err);
+      }
+    };
+    fetchDepartments();
+  }, []);
+
+  // Build department options from allDepartments
+  const departmentOptions = useMemo(() => {
+    return allDepartments
+      .map(d => d.name || d.department_name || d.departmentName || '')
+      .filter(name => name)
+      .sort();
+  }, [allDepartments]);
 
   const loadLeaves = async () => {
     setLoading(true);
@@ -20,18 +56,13 @@ const LeaveApprovalPage = () => {
       const response = await getAllLeaves({});
       const allLeaves = response.data.data || [];
       
-      // Filter: Manager role (any duration) OR Employee role with credited_days > 2
-      // Also include leaves with null role if duration > 2 (treat as Employee for backward compatibility)
-      console.log('All leaves fetched:', allLeaves);
       const filtered = allLeaves.filter(leave => {
         const role = leave.user_role;
         const duration = parseFloat(leave.credited_days);
-        // Show if: Manager (any duration) OR (Employee or null role) with duration > 2
-        const shouldShow = role === 'Manager' || ((role === 'Employee' || role === null) && duration > 2);
-        console.log(`Leave ID ${leave.id}: role=${role}, duration=${duration}, shouldShow=${shouldShow}`);
-        return shouldShow;
+        const isManager = role === 'Manager';
+        const isEmployee = role === 'Employee' && duration > 2;
+        return isManager || isEmployee;
       });
-      console.log('Filtered leaves:', filtered);
       
       setLeaves(filtered);
     } catch (err) {
@@ -112,7 +143,50 @@ const LeaveApprovalPage = () => {
     }
   };
 
-  const filteredLeaves = leaves.filter(leave => leave.status === activeTab);
+  const filteredLeaves = useMemo(() => {
+    let result = leaves.filter(leave => leave.status === activeTab);
+    
+    // Apply filters only if showFilteredTable is true
+    if (showFilteredTable) {
+      // Filter by from date
+      if (filter.from) {
+        result = result.filter(leave => {
+          const leaveToDate = new Date(leave.to_date);
+          const filterFromDate = new Date(filter.from);
+          return leaveToDate >= filterFromDate;
+        });
+      }
+      
+      // Filter by to date
+      if (filter.to) {
+        result = result.filter(leave => {
+          const leaveFromDate = new Date(leave.from_date);
+          const filterToDate = new Date(filter.to);
+          return leaveFromDate <= filterToDate;
+        });
+      }
+      
+      // Filter by department
+      if (filter.department) {
+        result = result.filter(leave => {
+          const leaveDept = leave.department_name || leave.department || '';
+          return leaveDept.toLowerCase().includes(filter.department.toLowerCase());
+        });
+      }
+      
+      // Filter by username
+      if (filter.username) {
+        result = result.filter(leave => {
+          const userName = leave.user_name || leave.employee_name || leave.name || 
+            (leave.firstname && leave.lastname ? `${leave.firstname} ${leave.lastname}` : 
+            leave.firstname || leave.lastname || '');
+          return userName.toLowerCase().includes(filter.username.toLowerCase());
+        });
+      }
+    }
+    
+    return result;
+  }, [leaves, activeTab, filter, showFilteredTable]);
 
   const formatDate = (dateStr) => {
     return new Date(dateStr).toLocaleDateString('en-US', { 
@@ -153,7 +227,100 @@ const LeaveApprovalPage = () => {
           ))}
         </div>
 
-        {/* Leave List */}
+        {/* Leave List with Filters (only for tab selected) */}
+        {['Pending', 'Approved', 'Rejected'].includes(activeTab) && (
+          <div className="mb-8">
+            <div className="bg-white rounded-lg shadow-lg p-4 mb-4">
+              <div className="flex flex-wrap gap-4 items-end">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">From Date</label>
+                  <input
+                    type="date"
+                    className="border rounded px-3 py-2"
+                    value={filter.from}
+                    onChange={e => setFilter(f => ({ ...f, from: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">To Date</label>
+                  <input
+                    type="date"
+                    className="border rounded px-3 py-2"
+                    value={filter.to}
+                    onChange={e => setFilter(f => ({ ...f, to: e.target.value }))}
+                  />
+                </div>
+                <div className="min-w-[320px] max-w-[380px]">
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Department</label>
+                  <select
+                    className="border rounded px-3 py-2 w-full"
+                    value={filter.department || ''}
+                    onChange={e => setFilter(f => ({ ...f, department: e.target.value }))}
+                  >
+                    <option value="">All Departments</option>
+                    {Array.isArray(departmentOptions) && departmentOptions.map(dept => (
+                      <option key={dept} value={dept}>{dept}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex-[4] min-w-[360px] relative">
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Username</label>
+                  <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z" />
+                    </svg>
+                  </span>
+                  <input
+                    type="text"
+                    className="border rounded px-3 py-2 pl-10 pr-10 w-full"
+                    placeholder="Username"
+                    value={filter.username}
+                    onChange={e => setFilter(f => ({ ...f, username: e.target.value }))}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => { setShowFilteredTable(true); setCurrentPage(1); }}
+                    className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                    aria-label="Search"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z" />
+                    </svg>
+                  </button>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Year</label>
+                  <select
+                    className="border rounded px-3 py-2"
+                    value={filter.year}
+                    onChange={e => setFilter(f => ({ ...f, year: Number(e.target.value) }))}
+                  >
+                    {[(currentYear - 1), currentYear, (currentYear + 1)].map(y => (
+                      <option key={y} value={y}>{y}</option>
+                    ))}
+                  </select>
+                </div>
+                {/* Reset Button (shown when results displayed) */}
+                <div className="ml-auto">
+                  {showFilteredTable && (
+                    <button
+                      className="bg-gray-200 text-gray-700 px-4 py-2 rounded font-semibold hover:bg-gray-300 transition"
+                      onClick={() => {
+                        setShowFilteredTable(false);
+                        setFilter({ from: '', to: '', year: new Date().getFullYear(), department: '', username: '' });
+                        setCurrentPage(1);
+                      }}
+                      type="button"
+                    >
+                      Reset
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+        {/* ...existing code... */}
         <div className="mb-10 overflow-hidden bg-white shadow-xl rounded-xl">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">

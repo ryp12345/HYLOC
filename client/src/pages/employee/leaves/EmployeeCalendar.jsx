@@ -1001,21 +1001,20 @@ const EmployeeCalendar = ({ joinDate }) => {
                   </div>
                 )}
               </div>
-
               <div className="flex justify-end gap-3 pt-4">
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-400"
-                >
-                  {loading ? 'Submitting...' : editingLeave ? 'Update Leave' : 'Submit Leave'}
-                </button>
                 <button
                   type="button"
                   onClick={handleCloseLeaveForm}
                   className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
                 >
                   Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-400"
+                >
+                  {loading ? 'Submitting...' : editingLeave ? 'Update Leave' : 'Submit Leave'}
                 </button>
               </div>
             </form>

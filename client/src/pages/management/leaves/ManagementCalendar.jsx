@@ -558,7 +558,7 @@ const ManagementCalendar = () => {
 					<tr>
 						<td className="py-2 px-2" colSpan="4">
 							<div className="flex flex-row items-end gap-4 w-full">
-								<div className="flex-1 min-w-[160px]">
+								<div className="flex-1 min-w-[200px] max-w-[280px]">
 									<label className="block text-xs font-semibold text-gray-600 mb-1">Department</label>
 									<select 
 										className="border rounded px-3 py-2 w-full" 
@@ -571,17 +571,24 @@ const ManagementCalendar = () => {
 										))}
 									</select>
 								</div>
-								<div className="flex-[3] min-w-[240px]">
+								<div className="flex-[4] min-w-[320px]">
 									<label className="block text-xs font-semibold text-gray-600 mb-1">Username</label>
-									<input 
-										type="text" 
-										className="border rounded px-3 py-2 w-full" 
-										placeholder="Search by username" 
-										value={filter.username} 
-										onChange={e => { setFilter(f => ({ ...f, username: e.target.value })); setCurrentPage(1); }}
-									/>
+									<div className="relative">
+										<span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+											<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+												<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 1110.5 3a7.5 7.5 0 016.15 13.65z" />
+											</svg>
+										</span>
+										<input 
+											type="text" 
+											className="border rounded px-3 py-2 pl-10 w-full" 
+											placeholder="Search by username" 
+											value={filter.username} 
+											onChange={e => { setFilter(f => ({ ...f, username: e.target.value })); setCurrentPage(1); }}
+										/>
+									</div>
 								</div>
-								<div className="flex flex-row gap-4">
+								<div className="ml-auto flex flex-row items-end gap-4">
 									<button
 										className="bg-blue-600 text-white px-6 py-2 rounded font-semibold hover:bg-blue-700 transition"
 										onClick={() => {

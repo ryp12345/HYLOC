@@ -9,7 +9,7 @@ const startAnnualLeaveScheduler = () => {
     const year = new Date().getFullYear();
     try {
       const inserted = await grantAnnualEntitlementsForYear(year);
-      console.log(`Annual leave entitlements granted for year ${year}. Inserted: ${inserted}`);
+      //console.log(`Annual leave entitlements granted for year ${year}. Inserted: ${inserted}`);
     } catch (error) {
       console.error('Failed to grant annual leave entitlements:', error);
     }

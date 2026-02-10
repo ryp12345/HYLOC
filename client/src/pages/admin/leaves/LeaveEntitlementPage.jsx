@@ -34,7 +34,7 @@ const LeaveEntitlementPage = ({ token: propToken }) => {
     }
     setLoading(true);
     try {
-      console.log('Loading data with token:', token);
+      // console.log('Loading data with token:', token);
       const [entRes, staffRes] = await Promise.all([
         getEntitlements(year, token),
         getStaffWithStatus(year, token)

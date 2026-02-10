@@ -265,14 +265,14 @@ exports.getDepartmentColleagues = async (req, res, next) => {
   try {
     const userId = req.user.userId;
     
-    console.log('Getting colleagues for userId:', userId);
+    //console.log('Getting colleagues for userId:', userId);
     
     // Get user's department
     const user = await userModel.findUserById(userId);
-    console.log('User found:', user ? `ID: ${user.id}, Dept: ${user.department_id}` : 'Not found');
+    //console.log('User found:', user ? `ID: ${user.id}, Dept: ${user.department_id}` : 'Not found');
     
     if (!user || !user.department_id) {
-      console.log('No department_id found for user');
+     // console.log('No department_id found for user');
       return res.status(200).json({
         success: true,
         data: [],
@@ -282,11 +282,11 @@ exports.getDepartmentColleagues = async (req, res, next) => {
     
     // Get users from same department
     const colleagues = await userModel.getUsersByDepartment(user.department_id);
-    console.log('Colleagues from department', user.department_id, ':', colleagues.length);
+    //console.log('Colleagues from department', user.department_id, ':', colleagues.length);
     
     // Remove current user from list
     const filteredColleagues = colleagues.filter(c => c.id !== userId);
-    console.log('Filtered colleagues:', filteredColleagues.length);
+    //console.log('Filtered colleagues:', filteredColleagues.length);
     
     res.status(200).json({
       success: true,

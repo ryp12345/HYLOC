@@ -215,6 +215,64 @@ const SpeedometerGauge = ({ efficiency, month, year }) => {
   );
 };
 
+// Bar Chart Component for Green Factory
+const GreenFactoryBarChart = ({ title, subtitle, labels, values }) => {
+  const svgWidth = 900;
+  const svgHeight = 350;
+  const padding = 60;
+  const plotWidth = svgWidth - padding * 2;
+  const plotHeight = svgHeight - padding * 2;
+
+  const maxVal = Math.max(...values, 100);
+  const minVal = 0;
+  const range = maxVal - minVal;
+
+  const barWidth = plotWidth / (values.length * 1.5);
+  const getX = (idx) => padding + (idx * plotWidth) / values.length + (plotWidth / values.length / 2 - barWidth / 2);
+  const getY = (val) => svgHeight - padding - ((val - minVal) / range) * plotHeight;
+  const getBarHeight = (val) => ((val - minVal) / range) * plotHeight;
+
+  return (
+    <div className="w-full h-full">
+      <h2 className="text-base font-semibold text-gray-800 mb-4 text-center">{title}</h2>
+      <p className="text-sm text-gray-600 mb-4 text-center">{subtitle}</p>
+      <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="w-full h-auto max-h-[300px]">
+        {[0, 0.2, 0.4, 0.6, 0.8, 1].map((ratio, i) => {
+          const y = svgHeight - padding - ratio * plotHeight;
+          return (
+            <line key={`grid-${i}`} x1={padding} y1={y} x2={svgWidth - padding} y2={y} stroke="#e5e7eb" strokeWidth="1" strokeDasharray="5,5" />
+          );
+        })}
+
+        <line x1={padding} y1={padding} x2={padding} y2={svgHeight - padding} stroke="#1f2937" strokeWidth="2" />
+        <line x1={padding} y1={svgHeight - padding} x2={svgWidth - padding} y2={svgHeight - padding} stroke="#1f2937" strokeWidth="2" />
+
+        {values.map((val, idx) => (
+          <g key={`bar-${idx}`}>
+            <rect x={getX(idx)} y={getY(val)} width={barWidth} height={getBarHeight(val)} fill="#10b981" stroke="white" strokeWidth="1" rx="4" />
+            <text x={getX(idx) + barWidth / 2} y={getY(val) - 8} textAnchor="middle" fontSize="11" fontWeight="600" fill="#10b981">{val.toFixed(1)}%</text>
+          </g>
+        ))}
+
+        {labels.map((label, idx) => (
+          <text key={`x-label-${idx}`} x={padding + (idx * plotWidth) / labels.length + (plotWidth / labels.length / 2)} y={svgHeight - padding + 30} textAnchor="middle" fontSize="11" fontWeight="500" fill="#4b5563">{label}</text>
+        ))}
+
+        {[0, 0.2, 0.4, 0.6, 0.8, 1].map((ratio, i) => {
+          const val = Math.round(minVal + ratio * range);
+          const y = svgHeight - padding - ratio * plotHeight;
+          return (
+            <text key={`y-label-${i}`} x={padding - 15} y={y + 5} textAnchor="end" fontSize="12" fontWeight="500" fill="#4b5563">{val}%</text>
+          );
+        })}
+      </svg>
+      <div className="flex justify-center gap-6 mt-4">
+        <div className="flex items-center gap-2"><span className="w-3 h-3 bg-[#10b981] rounded"></span><span className="text-sm text-gray-600">Green Factory %</span></div>
+      </div>
+    </div>
+  );
+};
+
 function ManagementDashboard() {
   const { user } = useAuth();
   const [kpiStats, setKpiStats] = useState({
@@ -244,6 +302,12 @@ function ManagementDashboard() {
   const [monthlyEfficiency, setMonthlyEfficiency] = useState([]);
   const [efficiencyLoading, setEfficiencyLoading] = useState(false);
   const [selectedFiscalIndex, setSelectedFiscalIndex] = useState(0);
+  const [greenFactoryChart, setGreenFactoryChart] = useState(null);
+  const [greenFactoryLoading, setGreenFactoryLoading] = useState(false);
+  const [zeroAccidentsChart, setZeroAccidentsChart] = useState(null);
+  const [zeroAccidentsLoading, setZeroAccidentsLoading] = useState(false);
+  const [expandedChart, setExpandedChart] = useState(null);
+  const [expandedChartData, setExpandedChartData] = useState(null);
 
   useEffect(() => {
     fetchStatistics();
@@ -259,14 +323,14 @@ function ManagementDashboard() {
         getDepartments()
       ]);
 
-      console.log('KPIs Response:', kpisResponse);
-      console.log('Pillers Response:', pillersResponse);
+      // console.log('KPIs Response:', kpisResponse);
+      // console.log('Pillers Response:', pillersResponse);
 
       if (kpisResponse?.data) {
         const kpisData = kpisResponse.data;
         // Check if data is wrapped in another object (e.g., { data: [...] })
         const kpis = Array.isArray(kpisData) ? kpisData : (Array.isArray(kpisData?.data) ? kpisData.data : []);
-        console.log('KPIs array:', kpis);
+        //console.log('KPIs array:', kpis);
         setKpiStats({
           total: kpis.length
         });
@@ -276,7 +340,7 @@ function ManagementDashboard() {
         const pillersData = pillersResponse.data;
         // Check if data is wrapped in another object (e.g., { data: [...] })
         const pillers = Array.isArray(pillersData) ? pillersData : (Array.isArray(pillersData?.data) ? pillersData.data : []);
-        console.log('Pillers array:', pillers);
+        //console.log('Pillers array:', pillers);
         setPillerStats({
           total: pillers.length,
           pillers: pillers
@@ -305,10 +369,98 @@ function ManagementDashboard() {
       loadSalesChart();
       loadProfitabilityData();
       loadPlantEfficiency();
+      loadGreenFactoryChart();
+      loadZeroAccidentsChart();
     } catch (error) {
       console.error('Error fetching statistics:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadGreenFactoryChart = async () => {
+    try {
+      setGreenFactoryLoading(true);
+      const kpisRes = await api.get('/kpis');
+      const kpis = kpisRes.data?.data || [];
+      const greenKpis = kpis.filter(k => (k.title || '').toLowerCase().includes('green'));
+      if (!greenKpis || greenKpis.length === 0) {
+        setGreenFactoryChart(null);
+        return;
+      }
+
+      let selectedValue = null;
+      for (const kpi of greenKpis) {
+        const valuesRes = await api.get(`/kpi-values/kpi/${kpi.id}`);
+        const vals = valuesRes.data?.data || [];
+        if (vals && vals.length > 0) { selectedValue = vals[0]; break; }
+      }
+
+      if (!selectedValue) { setGreenFactoryChart(null); return; }
+
+      const valuesByMonth = [];
+      for (let idx = 0; idx < FISCAL_MONTH_SEQUENCE.length; idx++) {
+        const { month, year } = FISCAL_MONTH_SEQUENCE[idx];
+        try {
+          const resp = await api.get(`/kpi-values/${selectedValue.id}/monthly-data/${year}`);
+          const rows = resp.data?.data || [];
+          const monthRow = rows.find(r => Number(r.month) === month && Number(r.year) === year);
+          valuesByMonth.push(monthRow ? Number(monthRow.actual_value || 0) : 0);
+        } catch (err) {
+          valuesByMonth.push(0);
+        }
+      }
+
+      const labels = FISCAL_MONTH_SEQUENCE.map(entry => MONTH_LABELS[entry.month - 1]);
+      setGreenFactoryChart({ title: 'Environment', subtitle: 'Green Factory', labels, values: valuesByMonth });
+    } catch (err) {
+      console.error('Failed to load Green Factory chart', err);
+      setGreenFactoryChart(null);
+    } finally {
+      setGreenFactoryLoading(false);
+    }
+  };
+
+  const loadZeroAccidentsChart = async () => {
+    try {
+      setZeroAccidentsLoading(true);
+      const kpisRes = await api.get('/kpis');
+      const kpis = kpisRes.data?.data || [];
+      const accidentKpis = kpis.filter(k => (k.title || '').toLowerCase().includes('accident'));
+      if (!accidentKpis || accidentKpis.length === 0) { setZeroAccidentsChart(null); return; }
+
+      let selectedValue = null;
+      for (const kpi of accidentKpis) {
+        const valuesRes = await api.get(`/kpi-values/kpi/${kpi.id}`);
+        const vals = valuesRes.data?.data || [];
+        if (vals && vals.length > 0) { selectedValue = vals[0]; break; }
+      }
+
+      if (!selectedValue) { setZeroAccidentsChart(null); return; }
+
+      const byMonth = [];
+      for (let idx = 0; idx < FISCAL_MONTH_SEQUENCE.length; idx++) {
+        const { month, year } = FISCAL_MONTH_SEQUENCE[idx];
+        try {
+          const resp = await api.get(`/kpi-values/${selectedValue.id}/monthly-data/${year}`);
+          const rows = resp.data?.data || [];
+          const monthRow = rows.find(r => Number(r.month) === month && Number(r.year) === year);
+          if (monthRow) byMonth.push({ actual: Number(monthRow.actual_value || 0), target: Number(monthRow.target_value || 0) });
+          else byMonth.push({ actual: 0, target: 0 });
+        } catch (err) {
+          byMonth.push({ actual: 0, target: 0 });
+        }
+      }
+
+      const labels = FISCAL_MONTH_SEQUENCE.map(entry => MONTH_LABELS[entry.month - 1]);
+      const actuals = byMonth.map(d => d.actual);
+      const targets = byMonth.map(d => d.target);
+      setZeroAccidentsChart({ title: 'Safety', subtitle: 'Zero Accidents', labels, actuals, targets });
+    } catch (err) {
+      console.error('Failed to load Zero Accidents chart', err);
+      setZeroAccidentsChart(null);
+    } finally {
+      setZeroAccidentsLoading(false);
     }
   };
 
@@ -365,6 +517,16 @@ function ManagementDashboard() {
     } finally {
       setEfficiencyLoading(false);
     }
+  };
+
+  const openExpandedChart = (chartType, data) => {
+    setExpandedChart(chartType);
+    setExpandedChartData(data);
+  };
+
+  const closeExpandedChart = () => {
+    setExpandedChart(null);
+    setExpandedChartData(null);
   };
 
   const loadIndustry40Chart = async () => {
@@ -712,7 +874,13 @@ function ManagementDashboard() {
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-10 gap-6">
           {/* Plant Efficiency Speedometer */}
           <div className="min-h-[400px] xl:col-span-2">
-          <div className="bg-white rounded-lg shadow border-2 border-blue-500 p-6 h-full">
+          <div
+            className="bg-white rounded-lg shadow border-2 border-blue-500 p-6 h-full"
+            role="button"
+            tabIndex={0}
+            onClick={() => openExpandedChart('plantEfficiency', { monthlyEfficiency, selectedFiscalIndex })}
+            onKeyDown={(e) => e.key === 'Enter' && openExpandedChart('plantEfficiency', { monthlyEfficiency, selectedFiscalIndex })}
+          >
             <h3 className="text-lg font-semibold text-gray-800 mb-4">⚡ Plant Efficiency</h3>
             {efficiencyLoading ? (
               <div className="flex items-center justify-center p-8 text-gray-500 text-sm">Loading...</div>
@@ -720,7 +888,8 @@ function ManagementDashboard() {
               <div className="flex items-center justify-center gap-4 relative">
                 <button 
                   className="bg-gray-100 border border-gray-300 rounded-full w-9 h-9 flex items-center justify-center cursor-pointer text-2xl text-gray-600 hover:bg-gray-200 hover:text-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.stopPropagation();
                     if (!monthlyEfficiency.length) return;
                     setSelectedFiscalIndex(selectedFiscalIndex === 0 ? monthlyEfficiency.length - 1 : selectedFiscalIndex - 1);
                   }}
@@ -737,7 +906,8 @@ function ManagementDashboard() {
 
                 <button 
                   className="bg-gray-100 border border-gray-300 rounded-full w-9 h-9 flex items-center justify-center cursor-pointer text-2xl text-gray-600 hover:bg-gray-200 hover:text-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.stopPropagation();
                     if (!monthlyEfficiency.length) return;
                     setSelectedFiscalIndex(selectedFiscalIndex === monthlyEfficiency.length - 1 ? monthlyEfficiency.length - 1 : selectedFiscalIndex + 1);
                   }}
@@ -752,7 +922,13 @@ function ManagementDashboard() {
 
         {/* Industry 4.0 Chart */}
         <div className="min-h-[400px] xl:col-span-2">
-          <div className="bg-white rounded-lg shadow border-2 border-blue-500 p-6 h-full">
+          <div
+            className="bg-white rounded-lg shadow border-2 border-blue-500 p-6 h-full"
+            role="button"
+            tabIndex={0}
+            onClick={() => openExpandedChart('industry40', industry40Chart || { title: 'Industry 4.0 Performance', labels: MONTH_LABELS, actuals: Array(12).fill(0), targets: Array(12).fill(0) })}
+            onKeyDown={(e) => e.key === 'Enter' && openExpandedChart('industry40', industry40Chart || { title: 'Industry 4.0 Performance', labels: MONTH_LABELS, actuals: Array(12).fill(0), targets: Array(12).fill(0) })}
+          >
             {industry40Loading ? (
               <div className="flex items-center justify-center p-8 text-gray-500 text-sm">Loading...</div>
             ) : industry40Chart ? (
@@ -775,7 +951,13 @@ function ManagementDashboard() {
 
         {/* Zero Quality Complaints Chart */}
         <div className="min-h-[400px] xl:col-span-2">
-          <div className="bg-white rounded-lg shadow border-2 border-blue-500 p-6 h-full">
+          <div
+            className="bg-white rounded-lg shadow border-2 border-blue-500 p-6 h-full"
+            role="button"
+            tabIndex={0}
+            onClick={() => openExpandedChart('zeroQuality', zeroQualityChart || { title: 'Zero Quality Complaints', labels: MONTH_LABELS, actuals: Array(12).fill(0), targets: Array(12).fill(0) })}
+            onKeyDown={(e) => e.key === 'Enter' && openExpandedChart('zeroQuality', zeroQualityChart || { title: 'Zero Quality Complaints', labels: MONTH_LABELS, actuals: Array(12).fill(0), targets: Array(12).fill(0) })}
+          >
             {zeroQualityLoading ? (
               <div className="flex items-center justify-center p-8 text-gray-500 text-sm">Loading...</div>
             ) : zeroQualityChart ? (
@@ -798,7 +980,13 @@ function ManagementDashboard() {
 
         {/* Revenue and Profitability Split Chart */}
         <div className="min-h-[400px] xl:col-span-4">
-          <div className="bg-white rounded-lg shadow border-2 border-blue-500 flex flex-col md:flex-row h-full overflow-hidden">
+          <div
+            className="bg-white rounded-lg shadow border-2 border-blue-500 flex flex-col md:flex-row h-full overflow-hidden"
+            role="button"
+            tabIndex={0}
+            onClick={() => openExpandedChart('salesProfit', { monthlySalesData, selectedSalesIndex, monthlyProfitData, selectedProfitIndex })}
+            onKeyDown={(e) => e.key === 'Enter' && openExpandedChart('salesProfit', { monthlySalesData, selectedSalesIndex, monthlyProfitData, selectedProfitIndex })}
+          >
             {/* Revenue Section */}
             <div className="flex-1 p-4 md:p-6 flex flex-col md:border-r border-gray-200 min-w-0">
               <h4 className="text-xs md:text-sm font-bold text-gray-500 mb-3 md:mb-4 text-center tracking-wide">REVENUE</h4>
@@ -808,7 +996,8 @@ function ManagementDashboard() {
                 <div className="flex items-center justify-center gap-2 md:gap-4 flex-1 overflow-hidden">
                   <button 
                     className="bg-gray-100 border border-gray-300 rounded-full w-8 h-8 md:w-9 md:h-9 flex items-center justify-center cursor-pointer text-xl md:text-2xl text-gray-600 hover:bg-gray-200 hover:text-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex-shrink-0"
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.stopPropagation();
                       if (!monthlySalesData.length) return;
                       setSelectedSalesIndex(selectedSalesIndex === 0 ? monthlySalesData.length - 1 : selectedSalesIndex - 1);
                     }}
@@ -888,7 +1077,8 @@ function ManagementDashboard() {
 
                   <button 
                     className="bg-gray-100 border border-gray-300 rounded-full w-8 h-8 md:w-9 md:h-9 flex items-center justify-center cursor-pointer text-xl md:text-2xl text-gray-600 hover:bg-gray-200 hover:text-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex-shrink-0"
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.stopPropagation();
                       if (!monthlySalesData.length) return;
                       setSelectedSalesIndex(selectedSalesIndex === monthlySalesData.length - 1 ? monthlySalesData.length - 1 : selectedSalesIndex + 1);
                     }}
@@ -909,7 +1099,8 @@ function ManagementDashboard() {
                 <div className="flex items-center justify-center gap-2 md:gap-4 flex-1 overflow-hidden">
                   <button 
                     className="bg-gray-100 border border-gray-300 rounded-full w-8 h-8 md:w-9 md:h-9 flex items-center justify-center cursor-pointer text-xl md:text-2xl text-gray-600 hover:bg-gray-200 hover:text-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex-shrink-0"
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.stopPropagation();
                       if (!monthlyProfitData.length) return;
                       setSelectedProfitIndex(selectedProfitIndex === 0 ? monthlyProfitData.length - 1 : selectedProfitIndex - 1);
                     }}
@@ -989,7 +1180,8 @@ function ManagementDashboard() {
 
                   <button 
                     className="bg-gray-100 border border-gray-300 rounded-full w-8 h-8 md:w-9 md:h-9 flex items-center justify-center cursor-pointer text-xl md:text-2xl text-gray-600 hover:bg-gray-200 hover:text-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex-shrink-0"
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.stopPropagation();
                       if (!monthlyProfitData.length) return;
                       setSelectedProfitIndex(selectedProfitIndex === monthlyProfitData.length - 1 ? monthlyProfitData.length - 1 : selectedProfitIndex + 1);
                     }}
@@ -1003,6 +1195,191 @@ function ManagementDashboard() {
           </div>
         </div>
       </div>
+      {/* Additional charts: Zero Accidents and Green Factory */}
+      <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="bg-white rounded-lg shadow border-2 border-blue-500 p-6 h-full" role="button" tabIndex={0}
+             onClick={() => openExpandedChart('zeroAccidents', zeroAccidentsChart || { title: 'Safety', subtitle: 'Zero Accidents', labels: FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1]), actuals: Array(12).fill(0), targets: Array(12).fill(0) })}
+             onKeyDown={(e)=> e.key === 'Enter' && openExpandedChart('zeroAccidents', zeroAccidentsChart || { title: 'Safety', subtitle: 'Zero Accidents', labels: FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1]), actuals: Array(12).fill(0), targets: Array(12).fill(0) })}>
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">🦺 Zero Accidents</h3>
+          {zeroAccidentsLoading ? (
+            <div className="flex items-center justify-center p-8 text-gray-500">Loading...</div>
+          ) : zeroAccidentsChart ? (
+            <Industry40LineChart title={zeroAccidentsChart.title} subtitle={zeroAccidentsChart.subtitle} labels={zeroAccidentsChart.labels} actuals={zeroAccidentsChart.actuals} targets={zeroAccidentsChart.targets} />
+          ) : (
+            <Industry40LineChart title="Safety" subtitle="Zero Accidents" labels={FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1])} actuals={Array(12).fill(0)} targets={Array(12).fill(0)} />
+          )}
+        </div>
+
+        <div className="bg-white rounded-lg shadow border-2 border-blue-500 p-6 h-full" role="button" tabIndex={0}
+             onClick={() => openExpandedChart('greenFactory', greenFactoryChart || { title: 'Environment', subtitle: 'Green Factory', labels: FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1]), values: Array(12).fill(0) })}
+             onKeyDown={(e)=> e.key === 'Enter' && openExpandedChart('greenFactory', greenFactoryChart || { title: 'Environment', subtitle: 'Green Factory', labels: FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1]), values: Array(12).fill(0) })}>
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">🌿 Green Factory</h3>
+          {greenFactoryLoading ? (
+            <div className="flex items-center justify-center p-8 text-gray-500">Loading...</div>
+          ) : greenFactoryChart ? (
+            <GreenFactoryBarChart title={greenFactoryChart.title} subtitle={greenFactoryChart.subtitle} labels={greenFactoryChart.labels} values={greenFactoryChart.values} />
+          ) : (
+            <GreenFactoryBarChart title="Environment" subtitle="Green Factory" labels={FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1])} values={Array(12).fill(0)} />
+          )}
+        </div>
+      </div>
+
+      {expandedChart && expandedChartData && (
+        <div className="expanded-chart-modal-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={closeExpandedChart}>
+          <div className="expanded-chart-modal-content bg-white rounded-lg shadow-lg w-[90%] max-w-6xl max-h-[90vh] overflow-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-4 border-b">
+              <h2 className="text-lg font-semibold">
+                {expandedChart === 'plantEfficiency'
+                  ? 'Plant Efficiency (Apr - Mar)'
+                  : expandedChart === 'industry40'
+                  ? expandedChartData.title || 'Industry 4.0'
+                  : expandedChart === 'zeroQuality'
+                  ? expandedChartData.title || 'Zero Quality Complaints'
+                  : expandedChart === 'zeroAccidents'
+                  ? expandedChartData.title || 'Zero Accidents'
+                  : expandedChart === 'greenFactory'
+                  ? expandedChartData.title || 'Green Factory'
+                  : expandedChart === 'salesProfit'
+                  ? 'Revenue & Profitability'
+                  : 'Chart'}
+              </h2>
+              <button className="text-xl p-1 mr-2" onClick={closeExpandedChart}>✕</button>
+            </div>
+            <div className="p-6">
+              {expandedChart === 'plantEfficiency' && (
+                <div className="flex items-center justify-center gap-6">
+                  <button onClick={(e) => { e.stopPropagation(); if (!monthlyEfficiency.length) return; setSelectedFiscalIndex(selectedFiscalIndex === 0 ? monthlyEfficiency.length - 1 : selectedFiscalIndex - 1); }} className="px-3 py-2">‹</button>
+                  <SpeedometerGauge
+                    efficiency={monthlyEfficiency[selectedFiscalIndex]?.efficiency || 0}
+                    month={MONTH_LABELS[(monthlyEfficiency[selectedFiscalIndex]?.month || 1) - 1]}
+                    year={monthlyEfficiency[selectedFiscalIndex]?.year || ''}
+                  />
+                  <button onClick={(e) => { e.stopPropagation(); if (!monthlyEfficiency.length) return; setSelectedFiscalIndex(selectedFiscalIndex === monthlyEfficiency.length - 1 ? monthlyEfficiency.length - 1 : selectedFiscalIndex + 1); }} className="px-3 py-2">›</button>
+                </div>
+              )}
+
+              {expandedChart === 'industry40' && (
+                <Industry40LineChart
+                  title={expandedChartData.title}
+                  labels={expandedChartData.labels}
+                  actuals={expandedChartData.actuals}
+                  targets={expandedChartData.targets}
+                />
+              )}
+
+              {expandedChart === 'zeroQuality' && (
+                <Industry40LineChart
+                  title={expandedChartData.title}
+                  labels={expandedChartData.labels}
+                  actuals={expandedChartData.actuals}
+                  targets={expandedChartData.targets}
+                />
+              )}
+
+              {expandedChart === 'zeroAccidents' && (
+                <Industry40LineChart
+                  title={expandedChartData.title}
+                  subtitle={expandedChartData.subtitle}
+                  labels={expandedChartData.labels}
+                  actuals={expandedChartData.actuals}
+                  targets={expandedChartData.targets}
+                />
+              )}
+
+              {expandedChart === 'greenFactory' && (
+                <GreenFactoryBarChart
+                  title={expandedChartData.title}
+                  subtitle={expandedChartData.subtitle}
+                  labels={expandedChartData.labels}
+                  values={expandedChartData.values}
+                />
+              )}
+
+              {expandedChart === 'salesProfit' && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <h4 className="font-semibold mb-2">Revenue</h4>
+                    <div className="flex items-center gap-4">
+                      <button onClick={(e) => { e.stopPropagation(); if (!monthlySalesData.length) return; setSelectedSalesIndex(selectedSalesIndex === 0 ? monthlySalesData.length - 1 : selectedSalesIndex - 1); }}>‹</button>
+                      <div>
+                        <h5>{MONTH_LABELS[(monthlySalesData[selectedSalesIndex]?.month || 1) - 1]} {monthlySalesData[selectedSalesIndex]?.year || ''}</h5>
+                        <svg viewBox="0 0 200 200" className="w-full max-w-[300px] h-auto">
+                          {(() => {
+                            const salesData = monthlySalesData[selectedSalesIndex] || { actual: 0, target: 100 };
+                            const radius = 90;
+                            const cx = 100;
+                            const cy = 100;
+                            const actual = salesData.actual;
+                            const target = salesData.target;
+                            const achieved = Math.min(actual, target);
+                            const remaining = Math.max(0, target - actual);
+                            const total = target || 100;
+                            const achievedAngle = (achieved / total) * 360;
+                            const achievedRadians = (achievedAngle * Math.PI) / 180;
+                            const x1 = cx + radius * Math.cos(-Math.PI / 2);
+                            const y1 = cy + radius * Math.sin(-Math.PI / 2);
+                            const x2 = cx + radius * Math.cos(-Math.PI / 2 + achievedRadians);
+                            const y2 = cy + radius * Math.sin(-Math.PI / 2 + achievedRadians);
+                            const largeArc = achievedAngle > 180 ? 1 : 0;
+                            return (
+                              <>
+                                {achieved > 0 && <path d={`M ${cx} ${cy} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2} Z`} fill="#3b82f6" stroke="white" strokeWidth="2" />}
+                                {remaining > 0 && <path d={`M ${cx} ${cy} L ${x2} ${y2} A ${radius} ${radius} 0 ${achievedAngle > 180 ? 0 : 1} 1 ${x1} ${y1} Z`} fill="#e5e7eb" stroke="white" strokeWidth="2" />}
+                                <text x={cx} y={cy - 8} textAnchor="middle" fontSize="24" fontWeight="700" fill="#3b82f6">{actual.toFixed(0)}</text>
+                                <text x={cx} y={cy + 18} textAnchor="middle" fontSize="14" fill="#6b7280">of {target.toFixed(0)} target</text>
+                              </>
+                            );
+                          })()}
+                        </svg>
+                      </div>
+                      <button onClick={(e) => { e.stopPropagation(); if (!monthlySalesData.length) return; setSelectedSalesIndex(selectedSalesIndex === monthlySalesData.length - 1 ? monthlySalesData.length - 1 : selectedSalesIndex + 1); }}>›</button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h4 className="font-semibold mb-2">Profitability</h4>
+                    <div className="flex items-center gap-4">
+                      <button onClick={(e) => { e.stopPropagation(); if (!monthlyProfitData.length) return; setSelectedProfitIndex(selectedProfitIndex === 0 ? monthlyProfitData.length - 1 : selectedProfitIndex - 1); }}>‹</button>
+                      <div>
+                        <h5>{MONTH_LABELS[(monthlyProfitData[selectedProfitIndex]?.month || 1) - 1]} {monthlyProfitData[selectedProfitIndex]?.year || ''}</h5>
+                        <svg viewBox="0 0 200 200" className="w-full max-w-[300px] h-auto">
+                          {(() => {
+                            const profitData = monthlyProfitData[selectedProfitIndex] || { profit: 0, target: 100 };
+                            const radius = 90;
+                            const cx = 100;
+                            const cy = 100;
+                            const profit = profitData.profit;
+                            const target = profitData.target;
+                            const achieved = Math.min(profit, target);
+                            const remaining = Math.max(0, target - profit);
+                            const total = achieved + remaining;
+                            const achievedAngle = (achieved / total) * 360;
+                            const achievedRadians = (achievedAngle * Math.PI) / 180;
+                            const x1 = cx + radius * Math.cos(-Math.PI / 2);
+                            const y1 = cy + radius * Math.sin(-Math.PI / 2);
+                            const x2 = cx + radius * Math.cos(-Math.PI / 2 + achievedRadians);
+                            const y2 = cy + radius * Math.sin(-Math.PI / 2 + achievedRadians);
+                            const largeArc = achievedAngle > 180 ? 1 : 0;
+                            return (
+                              <>
+                                {achieved > 0 && <path d={`M ${cx} ${cy} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2} Z`} fill="#22c55e" stroke="white" strokeWidth="2" />}
+                                {remaining > 0 && <path d={`M ${cx} ${cy} L ${x2} ${y2} A ${radius} ${radius} 0 ${achievedAngle > 180 ? 0 : 1} 1 ${x1} ${y1} Z`} fill="#e5e7eb" stroke="white" strokeWidth="2" />}
+                                <text x={cx} y={cy - 8} textAnchor="middle" fontSize="24" fontWeight="700" fill="#22c55e">{profit.toFixed(1)}%</text>
+                                <text x={cx} y={cy + 18} textAnchor="middle" fontSize="14" fill="#6b7280">of {target}% target</text>
+                              </>
+                            );
+                          })()}
+                        </svg>
+                      </div>
+                      <button onClick={(e) => { e.stopPropagation(); if (!monthlyProfitData.length) return; setSelectedProfitIndex(selectedProfitIndex === monthlyProfitData.length - 1 ? monthlyProfitData.length - 1 : selectedProfitIndex + 1); }}>›</button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
       </div>
     </div>
   );

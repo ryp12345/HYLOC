@@ -36,7 +36,23 @@ const Navbar = () => {
               className="ml-6 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition hidden md:inline-block"
               style={{ marginLeft: '2rem' }}
             >
-              📝 Raise Ticket
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="inline-block w-5 h-5 mr-2"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={1.5}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M21 8v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8" />
+                <path d="M7 8V6a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v2" />
+                <path d="M9 12h6" />
+                <path d="M12 9v6" />
+              </svg>
+              Raise Ticket
             </Link>
           </div>
 

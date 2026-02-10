@@ -58,7 +58,7 @@ exports.login = async (empid, password) => {
   // Use role from database, fallback to 'Employee' if no role assigned
   const userRole = roleResult.rows.length > 0 ? roleResult.rows[0].role_name : 'Employee';
 
-  console.log('Login successful for user:', user.empid, 'Role:', userRole);
+  //console.log('Login successful for user:', user.empid, 'Role:', userRole);
 
   const accessToken = generateAccessToken(user.id, user.email, userRole);
   const refreshToken = generateRefreshToken(user.id);

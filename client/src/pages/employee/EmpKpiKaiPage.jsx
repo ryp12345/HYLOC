@@ -116,7 +116,11 @@ function EmpKpiKaiPage() {
 
     if (!searchQuery.trim()) return base;
     const q = searchQuery.toLowerCase();
-    return base.filter((kpi) => kpi.title?.toLowerCase().includes(q));
+    return base.filter((kpi) => {
+      const titleMatch = kpi.title?.toLowerCase().includes(q);
+      const categoryMatch = getCategoryName(kpi.category_id).toLowerCase().includes(q);
+      return titleMatch || categoryMatch;
+    });
   }, [kpis, assignedKPIIdsForYear, kpiById, selectedYear, searchQuery]);
 
   // Fetch all units on mount
@@ -249,7 +253,7 @@ function EmpKpiKaiPage() {
       
       const response = await api.post('/employees/kpi-data', payload);
       
-      console.log('Save response:', response.data);
+      // console.log('Save response:', response.data);
       showNotification('Data saved successfully!', 'success');
       await loadMonthlyData(kpiValueId, selectedYear);
     } catch (error) {
@@ -296,6 +300,62 @@ function EmpKpiKaiPage() {
   const getRootKPIs = () => {
     return visibleKPIsForYear.filter(kpi => !kpi.parent_kpi_id || kpi.parent_kpi_id === null);
   };
+
+  // Build full hierarchy (nodes shaped as { kpi, children: [] }) from visible KPIs
+  const fullHierarchy = useMemo(() => {
+    const map = new Map();
+    visibleKPIsForYear.forEach(kpi => map.set(kpi.id, { kpi, children: [] }));
+
+    // attach children to parents when parent exists in the visible set
+    map.forEach(node => {
+      const parentId = node.kpi.parent_kpi_id;
+      if (parentId && map.has(parentId)) {
+        map.get(parentId).children.push(node);
+      }
+    });
+
+    // roots are nodes whose parent is not present in the map
+    const roots = Array.from(map.values()).filter(node => !node.kpi.parent_kpi_id || !map.has(node.kpi.parent_kpi_id));
+    // sort children and roots for stable ordering
+    const sortRec = (node) => {
+      node.children.sort((a, b) => (a.kpi.title || '').localeCompare(b.kpi.title || ''));
+      node.children.forEach(sortRec);
+    };
+    roots.forEach(sortRec);
+    return roots;
+  }, [visibleKPIsForYear]);
+
+  // Recursive filter of the hierarchy based on searchQuery (keeps matching nodes and their ancestors)
+  const filteredHierarchy = useMemo(() => {
+    if (!searchQuery.trim()) return fullHierarchy;
+    const q = searchQuery.toLowerCase();
+
+    const filterNode = (node) => {
+      const titleMatch = (node.kpi.title || '').toLowerCase().includes(q);
+      const categoryMatch = getCategoryName(node.kpi.category_id).toLowerCase().includes(q);
+      const children = node.children || [];
+      const filteredChildren = children.map(filterNode).filter(c => c !== null);
+      if (titleMatch || categoryMatch || filteredChildren.length > 0) {
+        return { ...node, children: filteredChildren };
+      }
+      return null;
+    };
+
+    return fullHierarchy.map(n => filterNode(n)).filter(n => n !== null);
+  }, [fullHierarchy, searchQuery]);
+
+  // Auto-expand nodes when search is active so matches are visible
+  useEffect(() => {
+    if (searchQuery.trim()) {
+      const nodesToExpand = new Set();
+      const collect = (node) => {
+        nodesToExpand.add(node.kpi.id);
+        (node.children || []).forEach(collect);
+      };
+      filteredHierarchy.forEach(node => collect(node));
+      setExpandedNodes(nodesToExpand);
+    }
+  }, [searchQuery, filteredHierarchy]);
 
   const toggleExpand = (id) => {
     setExpandedNodes((prev) => {
@@ -663,9 +723,7 @@ function EmpKpiKaiPage() {
               </div>
             ) : (
               <div className="space-y-4">
-                {getRootKPIs().map(rootKPI => 
-                  renderKPINode(buildKPIHierarchy(rootKPI))
-                )}
+                {filteredHierarchy.map(node => renderKPINode(node))}
               </div>
             )}
           </div>

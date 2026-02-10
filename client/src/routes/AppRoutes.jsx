@@ -32,7 +32,6 @@ import ManagerLeaveApprovalPage from '../pages/manager/leaves/LeaveApprovalPage'
 import ManagementLeaveApprovalPage from '../pages/management/leaves/LeaveApprovalPage';
 import ForgotPasswordPage from '../pages/auth/ForgotPasswordPage';
 import RaiseTicket from '../pages/tickets/RaiseTicket';
-import TicketList from '../pages/tickets/TicketList';
 
 // Layouts & Route Guards
 import ProtectedRoute from './ProtectedRoute';
@@ -460,16 +459,7 @@ const AppRoutes = () => {
             }
           />
 
-          <Route
-            path="/tickets"
-            element={
-              <ProtectedRoute>
-                <DashboardLayout>
-                  <TicketList />
-                </DashboardLayout>
-              </ProtectedRoute>
-            }
-          />
+          {/* Removed /tickets route as TicketList is merged into RaiseTicket.jsx */}
 
           {/* Default dashboard redirect */}
           <Route

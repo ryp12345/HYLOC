@@ -37,6 +37,10 @@ export const getKPIValueById = async (id) => {
   return await axios.get(`/kpi-values/${id}`);
 };
 
+export const getKPIValueMonthlyData = async (kpiValueId, year) => {
+  return await axios.get(`/kpi-values/${kpiValueId}/monthly-data/${year}`);
+};
+
 export const getKPIValuesByKPI = async (kpiId) => {
   return await axios.get(`/kpi-values/kpi/${kpiId}`);
 };
@@ -89,6 +93,11 @@ export const getKPIEmployeesByKPI = async (kpiId) => {
 
 export const getKPIEmployeesByEmployee = async (empId) => {
   return await axios.get(`/kpi-employees/employee/${empId}`);
+};
+
+// Employee-specific KPI endpoints
+export const getEmployeeKPIValues = async (empId) => {
+  return await axios.get(`/employees/${empId}/kpi-values`);
 };
 
 export const createKPIEmployee = async (data) => {

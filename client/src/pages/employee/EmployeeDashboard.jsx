@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { getMyLeaveBalance } from '../../api/leaveApi';
-import { getKPIEmployeesByEmployee, getKPIValues, getKPIValuesByKPI } from '../../api/kpiApi';
+import { getKPIValues, getKPIValuesByKPI, getEmployeeKPIValues, getKPIValueMonthlyData } from '../../api/kpiApi';
 
 
 function EmployeeDashboard() {
@@ -17,10 +17,13 @@ function EmployeeDashboard() {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  
 
   useEffect(() => {
     const fetchStats = async () => {
-      if (!user?.id) return;
+      // server expects employee identifier (empid) that matches "data operator"
+      const empIdentifier = user?.empid || user?.id;
+      if (!empIdentifier) return;
       setLoading(true);
       setError(null);
       try {
@@ -34,14 +37,14 @@ function EmployeeDashboard() {
         const allKpiValues = Array.isArray(kpiValuesRes.data?.data) ? kpiValuesRes.data.data : [];
 
         // Fetch assigned KPIs/KAIs
-        const kpiEmpRes = await getKPIEmployeesByEmployee(user.id);
+        const kpiEmpRes = await getEmployeeKPIValues(empIdentifier);
         const assignedKpis = Array.isArray(kpiEmpRes.data?.data) ? kpiEmpRes.data.data : [];
 
-        // Total KPIs/KAIs (all in system)
-        const totalKpis = [...new Set(allKpiValues.map(v => v.kpi_id))].length;
-
         // Assigned to you (distinct KPI IDs assigned to this employee)
-        const assignedKpiIds = [...new Set(assignedKpis.map(k => k.kpi_id))];
+        const assignedKpiIds = [...new Set(assignedKpis.map(k => String(k.kpi_id)))];
+
+        // Total KPIs/KAIs for this logged-in user
+        const totalKpis = assignedKpiIds.length;
 
         // Total Values Assigned (number of KPI values assigned to this employee)
         const valuesAssigned = allKpiValues.filter(v => assignedKpiIds.includes(v.kpi_id)).length;
@@ -49,8 +52,22 @@ function EmployeeDashboard() {
         // Measurement points (number of unique KPI value IDs assigned)
         const measurementPoints = valuesAssigned; // or could be unique value IDs
 
-        // Data Entries (mocked as 32 for now, replace with real API if available)
-        const dataEntries = 32;
+        // Data Entries: count of months with actual/target entries for assigned KPI values for current year
+        let dataEntries = 0;
+        if (assignedKpis.length > 0) {
+          const year = new Date().getFullYear();
+          const promises = assignedKpis.map(kv =>
+            getKPIValueMonthlyData(kv.id, year).then(r => r.data?.data || []).catch(() => [])
+          );
+          const results = await Promise.allSettled(promises);
+          for (const res of results) {
+            if (res.status === 'fulfilled') {
+              const months = res.value;
+              // months is array of { month, year, target_value, actual_value }
+              dataEntries += months.reduce((acc, m) => acc + ((m.target_value != null) + (m.actual_value != null)), 0);
+            }
+          }
+        }
 
         // Monthly records (mocked as 0 for now, replace with real API if available)
         const monthlyRecords = 0;
@@ -64,7 +81,9 @@ function EmployeeDashboard() {
           monthlyRecords
         });
       } catch (err) {
-        setError('Failed to load statistics');
+        console.error('Failed to fetch dashboard statistics', err);
+        const msg = err?.response?.data?.message || err?.message || 'Failed to load statistics';
+        setError(msg);
       } finally {
         setLoading(false);
       }
@@ -87,7 +106,7 @@ function EmployeeDashboard() {
           <div className="bg-white p-6 rounded-lg shadow-lg border-l-4 border-blue-500 flex items-center gap-4">
             <div className="text-4xl">📊</div>
             <div>
-              <div className="text-gray-500 text-sm font-semibold mb-1">Total KPIs/KAIs</div>
+              <div className="text-gray-500 text-sm font-semibold mb-1">My KPIs/KAIs</div>
               <div className="text-3xl font-bold text-gray-800">{loading ? 0 : kpiStats.total}</div>
             </div>
           </div>
@@ -109,6 +128,8 @@ function EmployeeDashboard() {
           </div>
           {/* Removed 'Monthly records' box */}
         </div>
+
+        
 
         {error && (
           <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
