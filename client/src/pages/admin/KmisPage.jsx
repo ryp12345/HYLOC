@@ -209,10 +209,6 @@ function KmisPage() {
     String(cats.find((c) => c.category_name === 'KMI / GLOBAL OBJECTIVES')?.id ?? cats[0]?.id ?? '')
   );
 
-  const getCategoryName = (categoryId) => (
-    categories.find((c) => String(c.id) === String(categoryId))?.category_name || ''
-  );
-
   const getNextCategoryId = (parentCategoryId) => {
     if (!parentCategoryId) return getDefaultCategoryId(categories);
     const idx = categoryOrder.indexOf(Number(parentCategoryId));
@@ -445,16 +441,7 @@ function KmisPage() {
   };
 
 
-  // Function to check if a node or its children match the search query
-  const isNodeMatching = (node) => {
-    if (node.title.toLowerCase().includes(searchQuery.toLowerCase())) {
-      return true;
-    }
-    if (node.children && node.children.length > 0) {
-      return node.children.some(child => isNodeMatching(child));
-    }
-    return false;
-  };
+  // (Removed unused helper `isNodeMatching` and `getCategoryName`)
 
   // Filter tree based on search query
   const getFilteredTree = () => {
@@ -642,30 +629,24 @@ function KmisPage() {
 
     try {
       setReplicateLoading(true);
-      
-      // Map old KPI IDs to new KPI IDs for parent reference updates
+
       const idMapping = {};
+      const kpiValueMapping = {};
       const newKpiIds = [];
-      
-      // Ensure all parent KPIs are included in selection
+
+      // Ensure all parent KPIs are included
       const ensureParentsIncluded = (kpiId, kpiList, included = new Set()) => {
         if (included.has(kpiId)) return;
         const kpi = kpiList.find(k => k.id === kpiId);
         if (!kpi) return;
-        
         included.add(kpiId);
-        if (kpi.parent_kpi_id) {
-          ensureParentsIncluded(kpi.parent_kpi_id, kpiList, included);
-        }
+        if (kpi.parent_kpi_id) ensureParentsIncluded(kpi.parent_kpi_id, kpiList, included);
       };
-      
-      // Build complete set of KPIs to replicate (including all parents)
+
       const completeKpiSet = new Set(selectedKpisToReplicate);
-      selectedKpisToReplicate.forEach(kpiId => {
-        ensureParentsIncluded(kpiId, previousYearKpis, completeKpiSet);
-      });
-      
-      // Calculate depth for each KPI to ensure proper sorting
+      selectedKpisToReplicate.forEach(kpiId => ensureParentsIncluded(kpiId, previousYearKpis, completeKpiSet));
+
+      // Depth calculation
       const calculateDepth = (kpiId, kpiList, memo = {}) => {
         if (memo[kpiId] !== undefined) return memo[kpiId];
         const kpi = kpiList.find(k => k.id === kpiId);
@@ -677,75 +658,121 @@ function KmisPage() {
         memo[kpiId] = depth;
         return depth;
       };
-      
+
       const depthMemo = {};
-      
-      // Sort KPIs by depth (top-level first) to ensure parents are created before children at all levels
       const sortedKpis = previousYearKpis
         .filter(kpi => completeKpiSet.has(kpi.id))
-        .map(kpi => ({
-          ...kpi,
-          depth: calculateDepth(kpi.id, previousYearKpis, depthMemo)
-        }))
+        .map(kpi => ({ ...kpi, depth: calculateDepth(kpi.id, previousYearKpis, depthMemo) }))
         .sort((a, b) => a.depth - b.depth);
 
-      // console.log('=== REPLICATION DEBUG ===');
-      // console.log(`Total KPIs to replicate: ${sortedKpis.length}`);
-      // console.log('KPIs sorted by depth:', sortedKpis.map(k => `${k.title} (ID:${k.id}, Parent:${k.parent_kpi_id || 'none'}, Depth:${k.depth})`));
+      // Pre-fetch KPI values from previous year
+      let allPreviousYearKpiValues = [];
+      try {
+        const allValuesRes = await axios.get('/kpi-values');
+        const allValues = allValuesRes.data.data || [];
+        const previousYearKpiIds = new Set(previousYearKpis.map(k => k.id));
+        allPreviousYearKpiValues = allValues.filter(v => previousYearKpiIds.has(v.kpi_id));
+      } catch (err) {
+        console.error('Failed to fetch previous year KPI values:', err);
+      }
 
       for (const kpi of sortedKpis) {
-        // Determine new parent_kpi_id using the mapping
         let newParentId = null;
         if (kpi.parent_kpi_id) {
           newParentId = idMapping[kpi.parent_kpi_id];
           if (!newParentId) {
-            console.error(`❌ FATAL: Parent KPI ${kpi.parent_kpi_id} not found in mapping for KPI ${kpi.id} (${kpi.title})`);
-            console.error('Available mappings:', idMapping);
-            throw new Error(`Parent KPI not created before child. This should not happen.`);
+            console.error('Parent mapping missing for', kpi.parent_kpi_id, 'while creating', kpi.id);
+            throw new Error('Parent KMI mapping missing');
           }
         }
 
-        console.log(`Creating: "${kpi.title}" (oldID:${kpi.id}) with parent ${newParentId || 'NONE'}`);
-
-        const response = await axios.post('/kpis', {
+        const resp = await axios.post('/kpis', {
           title: kpi.title,
           fin_year: selectedYear,
           category_id: kpi.category_id,
           parent_kpi_id: newParentId
         });
 
-        const newKpiId = response.data.data.id;
+        const newKpiId = resp.data.data.id;
         idMapping[kpi.id] = newKpiId;
         newKpiIds.push(newKpiId);
-        
-        console.log(`✅ Created: "${kpi.title}" newID:${newKpiId}, parent:${newParentId || 'NONE'}`);
 
-        // Replicate department mapping if exists
-          if (String(kpi.category_id) === '2') {
+        // Replicate KPI values for this KPI (create without source refs first)
+        try {
+          const oldValues = allPreviousYearKpiValues.filter(v => v.kpi_id === kpi.id);
+          for (const val of oldValues) {
+            const payload = {
+              data: val.data,
+              kpi_id: newKpiId,
+              data_operator: val.data_operator || null,
+              target_required: val.target_required !== undefined ? val.target_required : true,
+              uom: val.uom || null,
+              kpi_type: val.kpi_type || 'manual',
+              piller_id: val.piller_id || null,
+              default_target_value: val.default_target_value || null,
+              computation_type: val.computation_type || null,
+              formula: val.formula || null,
+              source_kpi_value_ids: null,
+              target_formula: val.target_formula || null,
+              target_source_kpi_value_ids: null
+            };
+
+            const newValRes = await axios.post('/kpi-values', payload);
+            const newValId = newValRes.data.data.id;
+            kpiValueMapping[val.id] = newValId;
+          }
+        } catch (err) {
+          console.error('Failed to replicate KPI values for', kpi.id, err);
+        }
+
+        // Replicate department mapping if exists (avoid duplicates)
+        if (String(kpi.category_id) === '2') {
           try {
             const deptRes = await axios.get(`/kpi-departments?kpi_id=${kpi.id}`);
             const deptMappings = deptRes.data.data || [];
             for (const mapping of deptMappings) {
-              await axios.post('/kpi-departments', {
-                kpi_id: newKpiId,
-                department_id: mapping.department_id
-              });
+              try {
+                const checkRes = await axios.get(`/kpi-departments?kpi_id=${newKpiId}&department_id=${mapping.department_id}`);
+                const existing = checkRes.data?.data || [];
+                if (existing.length > 0) {
+                  continue; // already mapped for this new KPI
+                }
+              } catch (checkErr) {
+                console.warn('Failed to check existing kpi-department mapping (proceeding to create):', checkErr);
+              }
+
+              try {
+                await axios.post('/kpi-departments', { kpi_id: newKpiId, department_id: mapping.department_id });
+              } catch (postErr) {
+                console.error('Failed to create kpi-department mapping:', postErr);
+              }
             }
           } catch (err) {
             console.error('Failed to replicate department mapping:', err);
           }
         }
 
-        // Replicate employee mapping if exists
-          if (String(kpi.category_id) === '4') {
+        // Replicate employee mapping if exists (avoid duplicates)
+        if (String(kpi.category_id) === '4') {
           try {
             const empRes = await axios.get(`/kpi-employees?kpi_id=${kpi.id}`);
             const empMappings = empRes.data.data || [];
             for (const mapping of empMappings) {
-              await axios.post('/kpi-employees', {
-                kpi_id: newKpiId,
-                emp_id: mapping.emp_id
-              });
+              try {
+                const checkRes = await axios.get(`/kpi-employees?kpi_id=${newKpiId}&emp_id=${mapping.emp_id}`);
+                const existing = checkRes.data?.data || [];
+                if (existing.length > 0) {
+                  continue; // already mapped for this new KPI
+                }
+              } catch (checkErr) {
+                console.warn('Failed to check existing kpi-employee mapping (proceeding to create):', checkErr);
+              }
+
+              try {
+                await axios.post('/kpi-employees', { kpi_id: newKpiId, emp_id: mapping.emp_id });
+              } catch (postErr) {
+                console.error('Failed to create kpi-employee mapping:', postErr);
+              }
             }
           } catch (err) {
             console.error('Failed to replicate employee mapping:', err);
@@ -753,35 +780,59 @@ function KmisPage() {
         }
       }
 
-      // Reload KPIs to show new data
-      const response = await axios.get('/kpis');
-      const allKpis = response.data.data || [];
+      // Second pass: update source references in new KPI values
+      try {
+        const allNewValsRes = await axios.get('/kpi-values');
+        const allNewVals = allNewValsRes.data.data || [];
+
+        for (const newKpiId of newKpiIds) {
+          const valuesForKpi = allNewVals.filter(v => v.kpi_id === newKpiId);
+          for (const kv of valuesForKpi) {
+            let needsUpdate = false;
+            let updatedSource = kv.source_kpi_value_ids;
+            let updatedTargetSource = kv.target_source_kpi_value_ids;
+
+            if (Array.isArray(kv.source_kpi_value_ids)) {
+              updatedSource = kv.source_kpi_value_ids.map(old => kpiValueMapping[old] || old);
+              if (JSON.stringify(updatedSource) !== JSON.stringify(kv.source_kpi_value_ids)) needsUpdate = true;
+            }
+            if (Array.isArray(kv.target_source_kpi_value_ids)) {
+              updatedTargetSource = kv.target_source_kpi_value_ids.map(old => kpiValueMapping[old] || old);
+              if (JSON.stringify(updatedTargetSource) !== JSON.stringify(kv.target_source_kpi_value_ids)) needsUpdate = true;
+            }
+
+            if (needsUpdate) {
+              await axios.put(`/kpi-values/${kv.id}`, {
+                source_kpi_value_ids: updatedSource,
+                target_source_kpi_value_ids: updatedTargetSource
+              });
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Failed to update formula references:', err);
+      }
+
+      // Reload KPIs
+      const respAll = await axios.get('/kpis');
+      const allKpis = respAll.data.data || [];
       const yearFilteredKpis = allKpis.filter(k => k.fin_year === selectedYear);
       const tree = buildTree(allKpis, selectedYear);
       setKpis(allKpis);
       setKpiTree(tree);
       setError('');
 
-      // Close modal after refreshing
       setShowReplicateModal(false);
-      
-      // Clear search to show all new KMIs
       setSearchQuery('');
-      
-      // Auto-expand all replicated nodes to show full hierarchy
+
       const newExpandedSet = new Set();
-      
-      // Expand all newly created KMIs that have children
       newKpiIds.forEach(newId => {
         const hasChildren = yearFilteredKpis.some(k => k.parent_kpi_id === newId);
-        if (hasChildren) {
-          newExpandedSet.add(newId);
-        }
+        if (hasChildren) newExpandedSet.add(newId);
       });
-      
       setExpandedNodes(newExpandedSet);
 
-      showNotification(`✅ Successfully replicated ${selectedKpisToReplicate.size} KMI(s) with complete hierarchy for FY ${selectedYear}!`, 'success');
+      showNotification(`✅ Successfully replicated ${selectedKpisToReplicate.size} KMI(s) with KPI values for FY ${selectedYear}!`, 'success');
     } catch (err) {
       const errorMsg = 'Failed to replicate KMIs: ' + (err.response?.data?.error || err.message);
       showNotification(errorMsg, 'error');

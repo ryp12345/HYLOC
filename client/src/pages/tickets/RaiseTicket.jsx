@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+
 import { getTicketCounts, createTicket, getAllTickets, updateTicket } from '../../api/devTicketsApi';
 import { useAuth } from '../../context/AuthContext';
 
@@ -22,7 +23,7 @@ const RaiseTicket = () => {
     total: 0
   });
 
-  const { user } = useAuth() || {};
+  const { user } = useAuth();
   const [showTickets, setShowTickets] = useState(false);
   const [tickets, setTickets] = useState([]);
   const [editingId, setEditingId] = useState(null);
@@ -33,6 +34,8 @@ const RaiseTicket = () => {
   const [showDescModal, setShowDescModal] = useState(false);
   const [descModalTicketId, setDescModalTicketId] = useState(null);
   const [descCanEdit, setDescCanEdit] = useState(false);
+  // Track expanded state for each title cell
+  const [expandedTitles, setExpandedTitles] = useState({});
 
   useEffect(() => {
     fetchTicketCounts();
@@ -256,7 +259,7 @@ const RaiseTicket = () => {
               <table className="min-w-full divide-y divide-gray-200 table-fixed">
                 <thead className="bg-blue-600">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">ID</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">Sl. No</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">Title</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider w-48">Description</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">Priority</th>
@@ -267,10 +270,10 @@ const RaiseTicket = () => {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {tickets.length === 0 ? (
                     <tr><td colSpan="6" className="text-center py-8 text-gray-500">No tickets found</td></tr>
-                  ) : tickets.map(ticket => {
+                  ) : tickets.map((ticket, idx) => {
                     return (
                       <tr key={ticket.id} className={editingId === ticket.id ? 'bg-blue-50' : 'hover:bg-gray-50 transition'}>
-                        <td className="border px-4 py-2 align-top">{ticket.id}</td>
+                        <td className="border px-4 py-2 align-top">{idx + 1}</td>
                         <td className="border px-4 py-2 align-top">
                           {editingId === ticket.id ? (
                             (isDeveloper && !canEditAll(ticket)) ? (
@@ -278,7 +281,28 @@ const RaiseTicket = () => {
                             ) : (
                               <input name="title" value={editForm.title} onChange={handleEditChange} className="border rounded px-2 py-1 w-32 focus:ring-2 focus:ring-blue-500" />
                             )
-                          ) : ticket.title}
+                          ) : (
+                            (() => {
+                              const maxLength = 32;
+                              const expanded = expandedTitles[ticket.id] || false;
+                              if (!ticket.title) return null;
+                              if (expanded) {
+                                return (
+                                  <span className="whitespace-nowrap text-sm text-gray-700">{ticket.title}</span>
+                                );
+                              }
+                              if (ticket.title.length > maxLength) {
+                                const trimmed = ticket.title.slice(0, maxLength);
+                                return (
+                                  <span className="whitespace-nowrap text-sm text-gray-700">
+                                    {trimmed}
+                                    <span className="cursor-pointer text-gray-500 font-bold ml-1" onClick={() => setExpandedTitles(prev => ({ ...prev, [ticket.id]: true }))}>...</span>
+                                  </span>
+                                );
+                              }
+                              return <span className="whitespace-nowrap text-sm text-gray-700">{ticket.title}</span>;
+                            })()
+                          )}
                         </td>
                         <td className="border px-4 py-2 align-top">
                           {editingId === ticket.id ? (
@@ -294,7 +318,22 @@ const RaiseTicket = () => {
                                 )}
                               </div>
                             )
-                          ) : ticket.description}
+                          ) : (
+                            (() => {
+                              const maxLength = 32;
+                              if (!ticket.description) return null;
+                              if (ticket.description.length > maxLength) {
+                                const trimmed = ticket.description.slice(0, maxLength);
+                                return (
+                                  <span className="whitespace-nowrap text-sm text-gray-700">
+                                    {trimmed}
+                                    <span className="cursor-pointer text-gray-500 font-bold ml-1 hover:text-blue-600" onClick={() => { setDescModalTicketId(ticket.id); setDescCanEdit(false); setShowDescModal(true); }}>...</span>
+                                  </span>
+                                );
+                              }
+                              return <span className="whitespace-nowrap text-sm text-gray-700">{ticket.description}</span>;
+                            })()
+                          )}
                         </td>
                         <td className="border px-4 py-2 align-top">
                           {editingId === ticket.id ? (
@@ -423,13 +462,13 @@ const RaiseTicket = () => {
             <div className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" onClick={() => setShowDescModal(false)} />
             <div className="inline-block overflow-hidden text-left align-bottom transition-all transform bg-white rounded-lg shadow-xl sm:my-8 sm:align-middle sm:max-w-md w-full relative">
               <div className="px-6 py-4 bg-blue-600 flex items-center justify-between">
-                <h3 className="text-lg font-medium leading-6 text-white">Full Description</h3>
+                <h3 className="text-lg font-medium leading-6 text-white">Description</h3>
                 <button onClick={() => setShowDescModal(false)} className="text-white hover:text-gray-200 text-2xl font-bold">&times;</button>
               </div>
               <div className="px-6 py-5 bg-white">
                 {descCanEdit ? (
                   <>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Edit Description</label>
+                    
                     <textarea
                       name="description"
                       value={editForm.description}

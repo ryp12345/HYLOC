@@ -65,135 +65,134 @@ function EmpKpiKaiPage() {
         currentKPI = null;
       }
     }
-
-    // Option 3: Actual manual, target computed using formula
-    function MonthlyDataFormOption3({ month, monthIndex, kpiValueId, initialActual, initialTarget, unitSymbol, targetFormula, onViewFormula, onSubmit }) {
-      const [actualValue, setActualValue] = useState(initialActual);
-      const [isEditing, setIsEditing] = useState(false);
-      const isEmptyValue = (value) => value === '' || value === null || value === undefined;
-
-      // Helper function to format numeric values for display
-      const formatDisplayValue = (value) => {
-        if (value === null || value === undefined || value === '') return '-';
-        const numValue = parseFloat(value);
-        if (isNaN(numValue)) return value;
-        return numValue.toLocaleString('en-IN', {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2
-        });
-      };
-
-      useEffect(() => {
-        setActualValue(initialActual);
-      }, [initialActual]);
-
-      const handleSave = () => {
-        // For Option 3, we only submit the actual value; target will be computed by backend
-        onSubmit(kpiValueId, monthIndex, null, actualValue);
-        setIsEditing(false);
-      };
-
-      return (
-        <div className="rounded-lg border-2 p-4 option3 transition-all bg-white border-slate-200">
-          <div className="flex items-center justify-between mb-3">
-            <h5 className="font-semibold text-slate-900">{month}</h5>
-            {initialTarget !== null && initialTarget !== undefined && initialTarget !== '' && targetFormula && onViewFormula && (
-              <button className="text-sm" onClick={onViewFormula} title="View formula details">👁️</button>
-            )}
-          </div>
-          {isEditing ? (
-            <div className="space-y-3">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Actual Value</label>
-                <input type="text" value={actualValue} onChange={(e) => setActualValue(e.target.value)} placeholder="Enter actual value" className="w-full px-3 py-2 border-2 border-slate-300 rounded-lg text-sm" />
-              </div>
-              <div className="text-xs text-slate-600">
-                <p>📊 Target will be automatically computed using formula</p>
-                <p>Formula: <code>{targetFormula}</code></p>
-              </div>
-              <div className="flex gap-2 mt-2">
-                <button className="flex-1 px-3 py-2 bg-green-600 text-white rounded-lg" onClick={handleSave}>Save</button>
-                <button className="flex-1 px-3 py-2 bg-slate-300 text-slate-700 rounded-lg" onClick={() => setIsEditing(false)}>Cancel</button>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-2 text-sm">
-              <p className="text-xs font-bold">Target</p>
-              <p className="text-base font-semibold">{formatDisplayValue(initialTarget)}{unitSymbol && <span className="ml-2">{unitSymbol}</span>} <span className="text-xs text-slate-500">🔧 Computed</span></p>
-              <p className="text-xs font-bold">Actual</p>
-              <p className="text-base font-semibold">{formatDisplayValue(actualValue)}{unitSymbol && <span className="ml-2">{unitSymbol}</span>}</p>
-              <button className="w-full py-2 mt-2 bg-yellow-400 text-white rounded-lg" onClick={() => setIsEditing(true)}>{!isEmptyValue(actualValue) ? 'Edit' : 'Add Data'}</button>
-            </div>
-          )}
-        </div>
-      );
-    }
-
-    // Option 2: Actual computed, target manual entry
-    function MonthlyDataFormOption2({ month, monthIndex, kpiValueId, initialActual, initialTarget, unitSymbol, formula, onViewFormula, defaultTargetValue, onSubmit }) {
-      const [targetValue, setTargetValue] = useState(initialTarget);
-      const [isEditing, setIsEditing] = useState(false);
-      const isEmptyValue = (value) => value === '' || value === null || value === undefined;
-
-      // Helper function to format numeric values for display
-      const formatDisplayValue = (value) => {
-        if (value === null || value === undefined || value === '') return '-';
-        const numValue = parseFloat(value);
-        if (isNaN(numValue)) return value;
-        return numValue.toLocaleString('en-IN', {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2
-        });
-      };
-
-      useEffect(() => {
-        setTargetValue(isEmptyValue(initialTarget) ? defaultTargetValue : initialTarget);
-      }, [initialTarget, defaultTargetValue]);
-
-      const handleSave = () => {
-        const resolvedTargetValue = isEmptyValue(targetValue) ? (isEmptyValue(defaultTargetValue) ? null : defaultTargetValue) : targetValue;
-        onSubmit(kpiValueId, monthIndex, resolvedTargetValue, null);
-        setIsEditing(false);
-      };
-
-      return (
-        <div className="rounded-lg border-2 p-4 option2 transition-all bg-white border-slate-200">
-          <div className="flex items-center justify-between mb-3">
-            <h5 className="font-semibold text-slate-900">{month}</h5>
-            {initialActual !== null && initialActual !== undefined && initialActual !== '' && formula && onViewFormula && (
-              <button className="text-sm" onClick={onViewFormula} title="View formula details">👁️</button>
-            )}
-          </div>
-          {isEditing ? (
-            <div className="space-y-3">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Target Value</label>
-                <input type="text" value={targetValue} onChange={(e) => setTargetValue(e.target.value)} placeholder={defaultTargetValue ? `Default: ${defaultTargetValue}` : 'Enter target value'} className="w-full px-3 py-2 border-2 border-slate-300 rounded-lg text-sm" />
-              </div>
-              <div className="text-xs text-slate-600">
-                <p>📊 Actual value will be automatically computed using formula</p>
-                <p>Formula: <code>{formula}</code></p>
-              </div>
-              <div className="flex gap-2 mt-2">
-                <button className="flex-1 px-3 py-2 bg-green-600 text-white rounded-lg" onClick={handleSave}>Save</button>
-                <button className="flex-1 px-3 py-2 bg-slate-300 text-slate-700 rounded-lg" onClick={() => setIsEditing(false)}>Cancel</button>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-2 text-sm">
-              <p className="text-xs font-bold">Actual</p>
-              <p className="text-base font-semibold">{formatDisplayValue(initialActual)}{unitSymbol && <span className="ml-2">{unitSymbol}</span>} <span className="text-xs text-slate-500">🔧 Computed</span></p>
-              <p className="text-xs font-bold">Target</p>
-              <p className="text-base font-semibold">{formatDisplayValue(targetValue)}{unitSymbol && <span className="ml-2">{unitSymbol}</span>}</p>
-              <button className="w-full py-2 mt-2 bg-yellow-400 text-white rounded-lg" onClick={() => setIsEditing(true)}>{!isEmptyValue(targetValue) ? 'Edit' : 'Add Data'}</button>
-            </div>
-          )}
-        </div>
-      );
-    }
-    
     return breadcrumb;
   };
+
+  // Option 3: Actual manual, target computed using formula
+  function MonthlyDataFormOption3({ month, monthIndex, kpiValueId, initialActual, initialTarget, unitSymbol, targetFormula, onViewFormula, onSubmit }) {
+    const [actualValue, setActualValue] = useState(initialActual);
+    const [isEditing, setIsEditing] = useState(false);
+    const isEmptyValue = (value) => value === '' || value === null || value === undefined;
+
+    // Helper function to format numeric values for display
+    const formatDisplayValue = (value) => {
+      if (value === null || value === undefined || value === '') return '-';
+      const numValue = parseFloat(value);
+      if (isNaN(numValue)) return value;
+      return numValue.toLocaleString('en-IN', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      });
+    };
+
+    useEffect(() => {
+      setActualValue(initialActual);
+    }, [initialActual]);
+
+    const handleSave = () => {
+      // For Option 3, we only submit the actual value; target will be computed by backend
+      onSubmit(kpiValueId, monthIndex, null, actualValue);
+      setIsEditing(false);
+    };
+
+    return (
+      <div className="rounded-lg border-2 p-4 option3 transition-all bg-white border-slate-200">
+        <div className="flex items-center justify-between mb-3">
+          <h5 className="font-semibold text-slate-900">{month}</h5>
+          {initialTarget !== null && initialTarget !== undefined && initialTarget !== '' && targetFormula && onViewFormula && (
+            <button className="text-sm" onClick={onViewFormula} title="View formula details">👁️</button>
+          )}
+        </div>
+        {isEditing ? (
+          <div className="space-y-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Actual Value</label>
+              <input type="text" value={actualValue} onChange={(e) => setActualValue(e.target.value)} placeholder="Enter actual value" className="w-full px-3 py-2 border-2 border-slate-300 rounded-lg text-sm" />
+            </div>
+            <div className="text-xs text-slate-600">
+              <p>📊 Target will be automatically computed using formula</p>
+              <p>Formula: <code>{targetFormula}</code></p>
+            </div>
+            <div className="flex gap-2 mt-2">
+              <button className="flex-1 px-3 py-2 bg-green-600 text-white rounded-lg" onClick={handleSave}>Save</button>
+              <button className="flex-1 px-3 py-2 bg-slate-300 text-slate-700 rounded-lg" onClick={() => setIsEditing(false)}>Cancel</button>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-2 text-sm">
+            <p className="text-xs font-bold">Target</p>
+            <p className="text-base font-semibold">{formatDisplayValue(initialTarget)}{unitSymbol && <span className="ml-2">{unitSymbol}</span>} <span className="text-xs text-slate-500">🔧 Computed</span></p>
+            <p className="text-xs font-bold">Actual</p>
+            <p className="text-base font-semibold">{formatDisplayValue(actualValue)}{unitSymbol && <span className="ml-2">{unitSymbol}</span>}</p>
+            <button className="w-full py-2 mt-2 bg-yellow-400 text-white rounded-lg" onClick={() => setIsEditing(true)}>{!isEmptyValue(actualValue) ? 'Edit' : 'Add Data'}</button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Option 2: Actual computed, target manual entry
+  function MonthlyDataFormOption2({ month, monthIndex, kpiValueId, initialActual, initialTarget, unitSymbol, formula, onViewFormula, defaultTargetValue, onSubmit }) {
+    const [targetValue, setTargetValue] = useState(initialTarget);
+    const [isEditing, setIsEditing] = useState(false);
+    const isEmptyValue = (value) => value === '' || value === null || value === undefined;
+
+    // Helper function to format numeric values for display
+    const formatDisplayValue = (value) => {
+      if (value === null || value === undefined || value === '') return '-';
+      const numValue = parseFloat(value);
+      if (isNaN(numValue)) return value;
+      return numValue.toLocaleString('en-IN', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      });
+    };
+
+    useEffect(() => {
+      setTargetValue(isEmptyValue(initialTarget) ? defaultTargetValue : initialTarget);
+    }, [initialTarget, defaultTargetValue]);
+
+    const handleSave = () => {
+      const resolvedTargetValue = isEmptyValue(targetValue) ? (isEmptyValue(defaultTargetValue) ? null : defaultTargetValue) : targetValue;
+      onSubmit(kpiValueId, monthIndex, resolvedTargetValue, null);
+      setIsEditing(false);
+    };
+
+    return (
+      <div className="rounded-lg border-2 p-4 option2 transition-all bg-white border-slate-200">
+        <div className="flex items-center justify-between mb-3">
+          <h5 className="font-semibold text-slate-900">{month}</h5>
+          {initialActual !== null && initialActual !== undefined && initialActual !== '' && formula && onViewFormula && (
+            <button className="text-sm" onClick={onViewFormula} title="View formula details">👁️</button>
+          )}
+        </div>
+        {isEditing ? (
+          <div className="space-y-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Target Value</label>
+              <input type="text" value={targetValue} onChange={(e) => setTargetValue(e.target.value)} placeholder={defaultTargetValue ? `Default: ${defaultTargetValue}` : 'Enter target value'} className="w-full px-3 py-2 border-2 border-slate-300 rounded-lg text-sm" />
+            </div>
+            <div className="text-xs text-slate-600">
+              <p>📊 Actual value will be automatically computed using formula</p>
+              <p>Formula: <code>{formula}</code></p>
+            </div>
+            <div className="flex gap-2 mt-2">
+              <button className="flex-1 px-3 py-2 bg-green-600 text-white rounded-lg" onClick={handleSave}>Save</button>
+              <button className="flex-1 px-3 py-2 bg-slate-300 text-slate-700 rounded-lg" onClick={() => setIsEditing(false)}>Cancel</button>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-2 text-sm">
+            <p className="text-xs font-bold">Actual</p>
+            <p className="text-base font-semibold">{formatDisplayValue(initialActual)}{unitSymbol && <span className="ml-2">{unitSymbol}</span>} <span className="text-xs text-slate-500">🔧 Computed</span></p>
+            <p className="text-xs font-bold">Target</p>
+            <p className="text-base font-semibold">{formatDisplayValue(targetValue)}{unitSymbol && <span className="ml-2">{unitSymbol}</span>}</p>
+            <button className="w-full py-2 mt-2 bg-yellow-400 text-white rounded-lg" onClick={() => setIsEditing(true)}>{!isEmptyValue(targetValue) ? 'Edit' : 'Add Data'}</button>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   // Get category name from category_id
   const getCategoryName = (categoryId) => {
@@ -349,11 +348,13 @@ function EmpKpiKaiPage() {
       
       // Combine data from both years
       const combinedData = [...data1, ...data2];
-      
+
       setMonthlyData(prev => ({
         ...prev,
         [kpiValueId]: combinedData
       }));
+
+      return combinedData;
     } catch (error) {
       console.error('Failed to load monthly data:', error);
     }
@@ -384,14 +385,16 @@ function EmpKpiKaiPage() {
       const previousData = { ...monthlyData };
 
       // Reload monthly data for ALL assigned KPI values for the year to refresh computed values
-      const reloadPromises = assignedKPIValuesForYear.map(value => loadMonthlyData(value.id, selectedYear));
-      await Promise.all(reloadPromises);
+      const reloadResults = await Promise.all(
+        assignedKPIValuesForYear.map(value => loadMonthlyData(value.id, selectedYear))
+      );
 
-      // Identify computed KPIs that were updated for the same month
+      // Identify computed KPIs that were updated for the same month using returned reload data
       const updatedComputed = [];
-      for (const kpiValue of assignedKPIValuesForYear) {
+      for (let i = 0; i < assignedKPIValuesForYear.length; i++) {
+        const kpiValue = assignedKPIValuesForYear[i];
         if (String(kpiValue.kpi_type).toLowerCase() === 'computed') {
-          const newData = monthlyData[kpiValue.id] || [];
+          const newData = reloadResults[i] || [];
           const oldData = previousData[kpiValue.id] || [];
 
           const newMonthData = newData.find(d => d.month === calendarMonth);
@@ -767,7 +770,7 @@ function EmpKpiKaiPage() {
                     </span>
                     {kpiValue.uom && unitSymbolById[kpiValue.uom] && (
                       <span className="unit-badge inline-flex items-center gap-2 px-3 py-1 bg-orange-50 text-orange-700 rounded-full text-xs font-semibold border border-orange-200" title="Unit of Measurement">
-                        📏 {unitSymbolById[kpiValue.uom]}
+                        📏{unitSymbolById[kpiValue.uom]}
                       </span>
                     )}
                     {kpiValue.target_required && (
@@ -887,7 +890,7 @@ function EmpKpiKaiPage() {
                                   <strong>Target:</strong> {formatValue(monthData.target_value ?? kpiValue.default_target_value)}
                                   {kpiValue.uom && unitSymbolById[kpiValue.uom] && (
                                     <span className="unit-badge inline-flex items-center gap-2 px-2 py-0.5 bg-orange-50 text-orange-700 rounded-full text-xs font-semibold border border-orange-200 ml-2" title="Unit of Measurement">
-                                      📏 {unitSymbolById[kpiValue.uom]}
+                                      {unitSymbolById[kpiValue.uom]}
                                     </span>
                                   )}
                                 </p>
@@ -900,7 +903,7 @@ function EmpKpiKaiPage() {
                                     <span className={`computed-value text-lg font-bold text-emerald-700`}>{formatValue(monthData.actual_value)}</span>
                                     {kpiValue.uom && unitSymbolById[kpiValue.uom] && (
                                       <span className="unit-badge inline-flex items-center gap-2 px-2 py-0.5 bg-orange-50 text-orange-700 rounded-full text-xs font-semibold border border-orange-200 ml-2" title="Unit of Measurement">
-                                        📏 {unitSymbolById[kpiValue.uom]}
+                                        {unitSymbolById[kpiValue.uom]}
                                       </span>
                                     )}
                                   </>
@@ -953,12 +956,14 @@ function EmpKpiKaiPage() {
       <div className="max-w-7xl mx-auto px-6 py-8">
         {/* Inline Notification (matches desired UI) */}
         {notification.show && (
-          <div className={`notification ${notification.type} mb-6 px-4 py-3 rounded-lg border flex items-center justify-between`}>
-            <div className="flex items-center gap-3">
-              <span className="notification-icon text-lg">{notification.type === 'success' ? '✓' : '✕'}</span>
-              <span className="notification-message font-medium">{notification.message}</span>
+          <div className="fixed top-6 right-4 md:right-6 z-50 w-auto max-w-sm">
+            <div className={`w-full px-4 py-3 rounded-lg border flex items-center justify-between shadow-lg ${notification.type === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : notification.type === 'error' ? 'bg-red-50 border-red-200 text-red-800' : 'bg-slate-50 border-slate-200 text-slate-800'}`}>
+              <div className="flex items-center gap-3">
+                <span className="notification-icon text-lg">{notification.type === 'success' ? '✓' : notification.type === 'error' ? '✕' : 'ℹ️'}</span>
+                <span className="notification-message font-medium ml-1">{notification.message}</span>
+              </div>
+              <button className="notification-close text-lg font-bold ml-3" onClick={() => setNotification({ show: false, message: '', type: '' })} aria-label="Close notification">×</button>
             </div>
-            <button className="notification-close text-lg font-bold" onClick={() => setNotification({ show: false, message: '', type: '' })}>×</button>
           </div>
         )}
         {!selectedKPI ? (
@@ -1270,7 +1275,7 @@ function MonthlyDataForm({ month, monthIndex, kpiValueId, targetRequired, initia
             </div>
           )}
           <div>
-            <label className="block text-xs font-semibold text-slate-00 mb-1">Actual</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Actual</label>
             <input
               type="text"
               value={actualValue}
@@ -1303,7 +1308,7 @@ function MonthlyDataForm({ month, monthIndex, kpiValueId, targetRequired, initia
                 {getTargetDisplay()}
                 {unitSymbol && (
                   <span className="unit-badge inline-flex items-center gap-2 px-2 py-0.5 bg-orange-50 text-orange-700 rounded-full text-xs font-semibold border border-orange-200 ml-2" title="Unit of Measurement">
-                    📏 {unitSymbol}
+                    {unitSymbol}
                   </span>
                 )}
               </p>
@@ -1315,7 +1320,7 @@ function MonthlyDataForm({ month, monthIndex, kpiValueId, targetRequired, initia
               {formatDisplayValue(actualValue)}
               {unitSymbol && (
                 <span className="unit-badge inline-flex items-center gap-2 px-2 py-0.5 bg-orange-50 text-orange-700 rounded-full text-xs font-semibold border border-orange-200 ml-2" title="Unit of Measurement">
-                  📏 {unitSymbol}
+                  {unitSymbol}
                 </span>
               )}
             </p>

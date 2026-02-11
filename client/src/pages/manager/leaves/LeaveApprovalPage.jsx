@@ -69,27 +69,15 @@ const LeaveApprovalPage = () => {
     setLoading(true);
     setError(null);
     try {
-      // Manager sees Employee leaves from same department, <= 2 days only
+      // Manager sees ALL Employee leaves from same department (any duration)
       const response = await getAllLeaves({});
       const allLeaves = response.data.data || [];
-      
-      // Get manager's department from user object
       const managerDepartmentId = user?.departmentId || user?.department_id;
-      console.log('Manager department ID:', managerDepartmentId);
-      console.log('Manager user object:', user);
-      
-      // Filter: Employee role with credited_days <= 2 AND same department
       const filtered = allLeaves.filter(leave => {
         const role = leave.user_role;
-        const duration = parseFloat(leave.credited_days);
         const leaveDepartmentId = leave.department_id;
-        const matches = role === 'Employee' && duration <= 2 && leaveDepartmentId === managerDepartmentId;
-        if (role === 'Employee') {
-          console.log(`Leave ${leave.id}: duration=${duration}, dept=${leaveDepartmentId}, matches=${matches}`);
-        }
-        return matches;
+        return role === 'Employee' && leaveDepartmentId === managerDepartmentId;
       });
-      
       setEmployeeLeaves(filtered);
     } catch (err) {
       setError(err.response?.data?.message || err.message || 'Failed to load employee leaves');
@@ -429,26 +417,51 @@ const LeaveApprovalPage = () => {
                       <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
                         {leave.status === 'Pending' && (
                           <div className="flex gap-2 justify-center">
-                            <button
-                              onClick={() => handleApprove(leave.id)}
-                              disabled={loading}
-                              className="p-2 text-white transition-colors duration-200 bg-green-600 rounded-lg hover:bg-green-700 disabled:bg-gray-400"
-                              title="Approve"
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                              </svg>
-                            </button>
-                            <button
-                              onClick={() => handleReject(leave.id)}
-                              disabled={loading}
-                              className="p-2 text-white transition-colors duration-200 bg-red-600 rounded-lg hover:bg-red-700 disabled:bg-gray-400"
-                              title="Reject"
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                              </svg>
-                            </button>
+                            {parseFloat(leave.credited_days) > 2 ? (
+                              <>
+                                <button
+                                  disabled
+                                  className="p-2 text-white bg-gray-400 rounded-lg cursor-not-allowed"
+                                  title="Only Management can approve/reject leaves > 2 days"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                  </svg>
+                                </button>
+                                <button
+                                  disabled
+                                  className="p-2 text-white bg-gray-400 rounded-lg cursor-not-allowed"
+                                  title="Only Management can approve/reject leaves > 2 days"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                  </svg>
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <button
+                                  onClick={() => handleApprove(leave.id)}
+                                  disabled={loading}
+                                  className="p-2 text-white transition-colors duration-200 bg-green-600 rounded-lg hover:bg-green-700 disabled:bg-gray-400"
+                                  title="Approve"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                  </svg>
+                                </button>
+                                <button
+                                  onClick={() => handleReject(leave.id)}
+                                  disabled={loading}
+                                  className="p-2 text-white transition-colors duration-200 bg-red-600 rounded-lg hover:bg-red-700 disabled:bg-gray-400"
+                                  title="Reject"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                  </svg>
+                                </button>
+                              </>
+                            )}
                           </div>
                         )}
                         {['Approved', 'Rejected'].includes(leave.status) && (

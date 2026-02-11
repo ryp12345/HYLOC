@@ -33,7 +33,8 @@ const Sidebar = () => {
     { name: 'Unit Master', path: '/admin/unit-master', icon: '📏' },
     { name: 'Pillars', path: '/admin/pillers', icon: '🏛️' },
     { name: 'User-Roles', path: '/admin/user-roles', icon: '🧩' },
-    { name: 'Leave Entitlement', path: '/admin/leaves/leave-entitlement', icon: '🗓️' }
+    { name: 'Leave Entitlement', path: '/admin/leaves/leave-entitlement', icon: '🗓️' },
+    // Removed Raise Ticket from Sidebar
   ];
 
   const managementLinks = [
@@ -47,7 +48,8 @@ const Sidebar = () => {
         { name: 'Calendar', path: '/management/leaves', icon: '📅' },
         { name: 'Approval/Rejection', path: '/management/leave-approval', icon: '✅' }
       ]
-    }
+    },
+    // Removed Raise Ticket from Sidebar
   ];
 
   const managerLinks = [
@@ -59,13 +61,15 @@ const Sidebar = () => {
         { name: 'Calendar', path: '/manager/leaves', icon: '📅' },
         { name: 'Approval/Rejection', path: '/manager/leave-approval', icon: '✅' }
       ]
-    }
+    },
+    // Removed Raise Ticket from Sidebar
   ];
 
   const employeeLinks = [
     { name: 'Dashboard', path: getDashboardPath(), icon: '📊' },
     { name: 'My KPIs/KAIs', path: '/employee/kpikai', icon: '📈' },
-    { name: 'Leaves', path: '/employee/leaves', icon: '📅' }
+    { name: 'Leaves', path: '/employee/leaves', icon: '📅' },
+    // Removed Raise Ticket from Sidebar
   ];
 
   const roleValue = (
