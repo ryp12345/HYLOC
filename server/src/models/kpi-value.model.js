@@ -4,7 +4,7 @@ const pool = require('../config/db');
 exports.getAllKPIValues = async () => {
   try {
     const result = await pool.query(
-      `SELECT id, data, kpi_id, "data operator", target_required, uom, 
+      `SELECT id, data, kpi_id, "data operator" AS data_operator, target_required, uom, 
               kpi_type, piller_id, formula, source_kpi_value_ids, default_target_value,
               computation_type, target_formula, target_source_kpi_value_ids, created_at, updated_at
        FROM kpi_values ORDER BY created_at DESC`
@@ -20,7 +20,7 @@ exports.getAllKPIValues = async () => {
 exports.getKPIValuesByKPI = async (kpiId) => {
   try {
     const result = await pool.query(
-      `SELECT id, data, kpi_id, "data operator", target_required, uom,
+      `SELECT id, data, kpi_id, "data operator" AS data_operator, target_required, uom,
               kpi_type, piller_id, formula, source_kpi_value_ids, default_target_value,
               computation_type, target_formula, target_source_kpi_value_ids, created_at, updated_at
        FROM kpi_values WHERE kpi_id = $1 ORDER BY created_at DESC`,
@@ -37,7 +37,7 @@ exports.getKPIValuesByKPI = async (kpiId) => {
 exports.getKPIValueById = async (id) => {
   try {
     const result = await pool.query(
-      `SELECT id, data, kpi_id, "data operator", target_required, uom,
+      `SELECT id, data, kpi_id, "data operator" AS data_operator, target_required, uom,
               kpi_type, piller_id, formula, source_kpi_value_ids, default_target_value,
               computation_type, target_formula, target_source_kpi_value_ids, created_at, updated_at
        FROM kpi_values WHERE id = $1`,
@@ -71,7 +71,7 @@ exports.createKPIValue = async (kpiValue) => {
        (data, kpi_id, "data operator", target_required, uom, kpi_type, piller_id, 
         formula, source_kpi_value_ids, default_target_value, computation_type, target_formula, target_source_kpi_value_ids, created_at, updated_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW(), NOW())
-       RETURNING id, data, kpi_id, "data operator", target_required, uom, kpi_type, 
+       RETURNING id, data, kpi_id, "data operator" AS data_operator, target_required, uom, kpi_type, 
                  piller_id, formula, source_kpi_value_ids, default_target_value, computation_type, target_formula, target_source_kpi_value_ids, created_at, updated_at`,
       [
         data,
@@ -115,22 +115,22 @@ exports.updateKPIValue = async (id, kpiValue) => {
     const result = await pool.query(
       `UPDATE kpi_values
        SET data = COALESCE($1, data),
-           kpi_id = COALESCE($2, kpi_id),
-           "data operator" = $3,
-           target_required = COALESCE($4, target_required),
-           uom = $5,
-           kpi_type = COALESCE($6, kpi_type),
-           piller_id = $7,
-           formula = $8,
-           source_kpi_value_ids = $9,
-           default_target_value = $10,
-           computation_type = $11,
-           target_formula = $12,
-           target_source_kpi_value_ids = $13,
-           updated_at = NOW()
+         kpi_id = COALESCE($2, kpi_id),
+         "data operator" = $3,
+         target_required = COALESCE($4, target_required),
+         uom = $5,
+         kpi_type = COALESCE($6, kpi_type),
+         piller_id = $7,
+         formula = $8,
+         source_kpi_value_ids = $9,
+         default_target_value = $10,
+         computation_type = $11,
+         target_formula = $12,
+         target_source_kpi_value_ids = $13,
+         updated_at = NOW()
        WHERE id = $14
-       RETURNING id, data, kpi_id, "data operator", target_required, uom, kpi_type, 
-                 piller_id, formula, source_kpi_value_ids, default_target_value, computation_type, target_formula, target_source_kpi_value_ids, created_at, updated_at`,
+       RETURNING id, data, kpi_id, "data operator" AS data_operator, target_required, uom, kpi_type, 
+           piller_id, formula, source_kpi_value_ids, default_target_value, computation_type, target_formula, target_source_kpi_value_ids, created_at, updated_at`,
       [
         data || null,
         kpi_id || null,

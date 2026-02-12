@@ -163,14 +163,30 @@ export default function UsersPage() {
       if (bTime !== aTime) return bTime - aTime;
       return (b.id || 0) - (a.id || 0);
     });
-    const q = search.toLowerCase();
-    return sorted.filter(r => (
-      r.firstname?.toLowerCase().includes(q) ||
-      r.lastname?.toLowerCase().includes(q) ||
-      r.email?.toLowerCase().includes(q) ||
-      r.role?.toLowerCase().includes(q) ||
-      r.status?.toLowerCase().includes(q)
-    ));
+    const q = String(search || '').trim().toLowerCase();
+    if (!q) return sorted;
+
+    // Tokenize query so multi-word searches (e.g., "John Doe") match when all tokens exist
+    const tokens = q.split(/\s+/).filter(Boolean);
+
+    return sorted.filter(r => {
+      const fields = [
+        (r.empid || '').toLowerCase(),
+        `${r.firstname || ''} ${r.middlename || ''} ${r.lastname || ''}`.toLowerCase(),
+        (r.firstname || '').toLowerCase(),
+        (r.middlename || '').toLowerCase(),
+        (r.lastname || '').toLowerCase(),
+        (r.email || '').toLowerCase(),
+        (r.phone || '').toLowerCase(),
+        (r.department_name || '').toLowerCase(),
+        (r.designation_name || '').toLowerCase(),
+        (r.role || '').toLowerCase(),
+        (r.status || '').toLowerCase()
+      ];
+
+      // All tokens must be present in at least one of the fields
+      return tokens.every(t => fields.some(f => f.includes(t)));
+    });
   }, [rows, search]);
 
   const paginated = useMemo(() => {

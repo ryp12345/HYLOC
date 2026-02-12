@@ -18,7 +18,7 @@ This document describes the features, implementation status, and schema for the 
 - **Details:**
   - The route `/raise-ticket` is defined in the main router.
   - File: `client/src/App.jsx`
-  - Component: `RaiseTicket` (located at `client/src/pages/tickets/RaiseTicket.jsx`)
+  - Component: `RaiseTicket` (located at `client/src/pages/dev-tickets/RaiseTicket.jsx`)
 
 ### 3. "RaiseTicket.jsx" Page with 4 Cards
 - **Status:** Not Implemented
@@ -31,7 +31,7 @@ This document describes the features, implementation status, and schema for the 
 - **Details:**
   - A modal should be available for ticket creation.
   - Required fields: Issue Title (textbox), Description (textarea), Priority (dropdown), Attachment Upload (file input), and other ticket details.
-  - File: `client/src/pages/tickets/RaiseTicket.jsx`
+  - File: `client/src/pages/dev-tickets/RaiseTicket.jsx`
   - Ensure modal supports file upload for attachments.
 
 ### 5. Attachment Upload in Modal
@@ -44,7 +44,7 @@ This document describes the features, implementation status, and schema for the 
 - **Status:** Not Implemented
 - **Details:**
   - After successful ticket creation, display the message "Ticket created successfully!".
-  - File: `client/src/pages/tickets/RaiseTicket.jsx`
+  - File: `client/src/pages/dev-tickets/RaiseTicket.jsx`
 
 ### 7. Backend Support for Ticketing
 - **Status:** Not Implemented
@@ -102,7 +102,7 @@ CREATE TABLE IF NOT EXISTS public.dev_tickets
 ### Frontend
 - Add "Raise Ticket" link to Dashboard (client/src/components/layout/DashboardLayout.jsx)
 - Define /raise-ticket route in main router (client/src/App.jsx, client/src/routes/AppRoutes.jsx)
-- Create RaiseTicket.jsx page (client/src/pages/tickets/RaiseTicket.jsx) with:
+- Create RaiseTicket.jsx page (client/src/pages/dev-tickets/RaiseTicket.jsx) with:
   - 4 cards: Ticket New, Ticket Pending, Ticket Resolved, Total Ticket
   - Modal for ticket creation with required fields and file upload
   - Success message after ticket creation

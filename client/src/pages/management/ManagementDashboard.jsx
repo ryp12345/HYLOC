@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { getKPIs } from '../../api/kpiApi';
 import { getPillers } from '../../api/pillerApi';
@@ -1485,18 +1486,20 @@ function ManagementDashboard() {
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-10 gap-6">
           {/* Plant Efficiency Speedometer */}
           <div className="min-h-[400px] xl:col-span-2">
-          <div
-            className="bg-white rounded-lg shadow border-2 border-blue-500 p-6 h-full"
-            role="button"
-            tabIndex={0}
-            onClick={() => openExpandedChart('plantEfficiency', { monthlyEfficiency, selectedFiscalIndex })}
-            onKeyDown={(e) => e.key === 'Enter' && openExpandedChart('plantEfficiency', { monthlyEfficiency, selectedFiscalIndex })}
-          >
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">⚡ Plant Efficiency</h3>
+          <div className="bg-white rounded-lg shadow border-2 border-blue-500 p-6 h-full">
+            <Link to="/management/plant-efficiency" className="text-lg font-semibold text-gray-800 mb-4 hover:text-blue-600 transition-colors inline-block">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">⚡ Plant Efficiency</h3>
+            </Link>
             {efficiencyLoading ? (
               <div className="flex items-center justify-center p-8 text-gray-500 text-sm">Loading...</div>
             ) : (
-              <div className="flex items-center justify-center gap-4 relative">
+              <div 
+                className="flex items-center justify-center gap-4 relative cursor-pointer"
+                role="button"
+                tabIndex={0}
+                onClick={() => openExpandedChart('plantEfficiency', { monthlyEfficiency, selectedFiscalIndex })}
+                onKeyDown={(e) => e.key === 'Enter' && openExpandedChart('plantEfficiency', { monthlyEfficiency, selectedFiscalIndex })}
+              >
                 <button 
                   className="bg-gray-100 border border-gray-300 rounded-full w-9 h-9 flex items-center justify-center cursor-pointer text-2xl text-gray-600 hover:bg-gray-200 hover:text-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
                   onClick={(e) => {
@@ -1533,78 +1536,106 @@ function ManagementDashboard() {
 
         {/* Industry 4.0 Chart */}
         <div className="min-h-[400px] xl:col-span-2">
-          <div
-            className="bg-white rounded-lg shadow border-2 border-blue-500 p-6 h-full"
-            role="button"
-            tabIndex={0}
-            onClick={() => openExpandedChart('industry40', industry40Chart || { title: 'Industry 4.0 Performance', labels: MONTH_LABELS, actuals: Array(12).fill(0), targets: Array(12).fill(0) })}
-            onKeyDown={(e) => e.key === 'Enter' && openExpandedChart('industry40', industry40Chart || { title: 'Industry 4.0 Performance', labels: MONTH_LABELS, actuals: Array(12).fill(0), targets: Array(12).fill(0) })}
-          >
+          <div className="bg-white rounded-lg shadow border-2 border-blue-500 p-6 h-full">
+            <Link to="/management/industry-4-0" className="hover:text-blue-600 transition-colors inline-block">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">🏭 Industry 4.0</h3>
+            </Link>
             {industry40Loading ? (
               <div className="flex items-center justify-center p-8 text-gray-500 text-sm">Loading...</div>
             ) : industry40Chart ? (
+              <div 
+                className="cursor-pointer"
+                role="button"
+                tabIndex={0}
+                onClick={() => openExpandedChart('industry40', industry40Chart)}
+                onKeyDown={(e) => e.key === 'Enter' && openExpandedChart('industry40', industry40Chart)}
+              >
               <Industry40LineChart
                 title={industry40Chart.title}
                 labels={industry40Chart.labels}
                 actuals={industry40Chart.actuals}
                 targets={industry40Chart.targets}
               />
+              </div>
             ) : (
+              <div 
+                className="cursor-pointer"
+                role="button"
+                tabIndex={0}
+                onClick={() => openExpandedChart('industry40', { title: 'Industry 4.0 Performance', labels: MONTH_LABELS, actuals: Array(12).fill(0), targets: Array(12).fill(0) })}
+                onKeyDown={(e) => e.key === 'Enter' && openExpandedChart('industry40', { title: 'Industry 4.0 Performance', labels: MONTH_LABELS, actuals: Array(12).fill(0), targets: Array(12).fill(0) })}
+              >
               <Industry40LineChart
                 title="Industry 4.0 Performance"
                 labels={MONTH_LABELS}
                 actuals={Array(12).fill(0)}
                 targets={Array(12).fill(0)}
               />
+              </div>
             )}
           </div>
         </div>
 
         {/* Zero Quality Complaints Chart */}
         <div className="min-h-[400px] xl:col-span-2">
-          <div
-            className="bg-white rounded-lg shadow border-2 border-blue-500 p-6 h-full"
-            role="button"
-            tabIndex={0}
-            onClick={() => openExpandedChart('zeroQuality', zeroQualityChart || { title: 'Zero Quality Complaints', labels: MONTH_LABELS, actuals: Array(12).fill(0), targets: Array(12).fill(0) })}
-            onKeyDown={(e) => e.key === 'Enter' && openExpandedChart('zeroQuality', zeroQualityChart || { title: 'Zero Quality Complaints', labels: MONTH_LABELS, actuals: Array(12).fill(0), targets: Array(12).fill(0) })}
-          >
+          <div className="bg-white rounded-lg shadow border-2 border-blue-500 p-6 h-full">
+            <Link to="/management/zero-quality-complaints" className="hover:text-blue-600 transition-colors inline-block">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">✅ Zero Quality Complaints</h3>
+            </Link>
             {zeroQualityLoading ? (
               <div className="flex items-center justify-center p-8 text-gray-500 text-sm">Loading...</div>
             ) : zeroQualityChart ? (
+              <div 
+                className="cursor-pointer"
+                role="button"
+                tabIndex={0}
+                onClick={() => openExpandedChart('zeroQuality', zeroQualityChart)}
+                onKeyDown={(e) => e.key === 'Enter' && openExpandedChart('zeroQuality', zeroQualityChart)}
+              >
               <Industry40LineChart
                 title={zeroQualityChart.title}
                 labels={zeroQualityChart.labels}
                 actuals={zeroQualityChart.actuals}
                 targets={zeroQualityChart.targets}
               />
+              </div>
             ) : (
+              <div 
+                className="cursor-pointer"
+                role="button"
+                tabIndex={0}
+                onClick={() => openExpandedChart('zeroQuality', { title: 'Zero Quality Complaints', labels: MONTH_LABELS, actuals: Array(12).fill(0), targets: Array(12).fill(0) })}
+                onKeyDown={(e) => e.key === 'Enter' && openExpandedChart('zeroQuality', { title: 'Zero Quality Complaints', labels: MONTH_LABELS, actuals: Array(12).fill(0), targets: Array(12).fill(0) })}
+              >
               <Industry40LineChart
                 title="Zero Quality Complaints"
                 labels={MONTH_LABELS}
                 actuals={Array(12).fill(0)}
                 targets={Array(12).fill(0)}
               />
+              </div>
             )}
           </div>
         </div>
 
         {/* Revenue and Profitability Split Chart */}
         <div className="min-h-[400px] xl:col-span-4">
-          <div
-            className="bg-white rounded-lg shadow border-2 border-blue-500 flex flex-col md:flex-row h-full overflow-hidden"
-            role="button"
-            tabIndex={0}
-            onClick={() => openExpandedChart('salesProfit', { monthlySalesData, selectedSalesIndex, monthlyProfitData, selectedProfitIndex })}
-            onKeyDown={(e) => e.key === 'Enter' && openExpandedChart('salesProfit', { monthlySalesData, selectedSalesIndex, monthlyProfitData, selectedProfitIndex })}
-          >
+          <div className="bg-white rounded-lg shadow border-2 border-blue-500 flex flex-col md:flex-row h-full overflow-hidden">
             {/* Revenue Section */}
             <div className="flex-1 p-4 md:p-6 flex flex-col md:border-r border-gray-200 min-w-0">
-              <h4 className="text-xs md:text-sm font-bold text-gray-500 mb-3 md:mb-4 text-center tracking-wide">REVENUE</h4>
+              <Link to="/management/revenue" className="hover:text-blue-600 transition-colors">
+                <h4 className="text-xs md:text-sm font-bold text-gray-500 mb-3 md:mb-4 text-center tracking-wide">REVENUE</h4>
+              </Link>
               {salesLoading ? (
                 <div className="flex items-center justify-center p-4 md:p-8 text-gray-500 text-sm">Loading...</div>
               ) : (
-                <div className="flex items-center justify-center gap-2 md:gap-4 flex-1 overflow-hidden">
+                <div 
+                  className="flex items-center justify-center gap-2 md:gap-4 flex-1 overflow-hidden cursor-pointer"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => openExpandedChart('salesProfit', { monthlySalesData, selectedSalesIndex, monthlyProfitData, selectedProfitIndex })}
+                  onKeyDown={(e) => e.key === 'Enter' && openExpandedChart('salesProfit', { monthlySalesData, selectedSalesIndex, monthlyProfitData, selectedProfitIndex })}
+                >
                   <button 
                     className="bg-gray-100 border border-gray-300 rounded-full w-8 h-8 md:w-9 md:h-9 flex items-center justify-center cursor-pointer text-xl md:text-2xl text-gray-600 hover:bg-gray-200 hover:text-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex-shrink-0"
                     onClick={(e) => {
@@ -1703,11 +1734,19 @@ function ManagementDashboard() {
             
             {/* Profitability Section */}
             <div className="flex-1 p-4 md:p-6 flex flex-col border-t md:border-t-0 min-w-0">
-              <h4 className="text-xs md:text-sm font-bold text-gray-500 mb-3 md:mb-4 text-center tracking-wide">PROFITABILITY (YTD)</h4>
+              <Link to="/management/profitability" className="hover:text-blue-600 transition-colors">
+                <h4 className="text-xs md:text-sm font-bold text-gray-500 mb-3 md:mb-4 text-center tracking-wide">PROFITABILITY (YTD)</h4>
+              </Link>
               {profitabilityLoading ? (
                 <div className="flex items-center justify-center p-4 md:p-8 text-gray-500 text-sm">Loading...</div>
               ) : (
-                <div className="flex items-center justify-center gap-2 md:gap-4 flex-1 overflow-hidden">
+                <div 
+                  className="flex items-center justify-center gap-2 md:gap-4 flex-1 overflow-hidden cursor-pointer"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => openExpandedChart('salesProfit', { monthlySalesData, selectedSalesIndex, monthlyProfitData, selectedProfitIndex })}
+                  onKeyDown={(e) => e.key === 'Enter' && openExpandedChart('salesProfit', { monthlySalesData, selectedSalesIndex, monthlyProfitData, selectedProfitIndex })}
+                >
                   <button 
                     className="bg-gray-100 border border-gray-300 rounded-full w-8 h-8 md:w-9 md:h-9 flex items-center justify-center cursor-pointer text-xl md:text-2xl text-gray-600 hover:bg-gray-200 hover:text-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex-shrink-0"
                     onClick={(e) => {
@@ -1808,55 +1847,109 @@ function ManagementDashboard() {
       </div>
       {/* Combined charts: Zero Accidents, Green Factory, On Time Delivery, Theme, Employees (side-by-side) */}
       <div className="mt-6 grid grid-cols-1 md:grid-cols-5 gap-6">
-        <div className="bg-white rounded-lg shadow border-2 border-blue-500 p-6 h-full" role="button" tabIndex={0}
-             onClick={() => openExpandedChart('zeroAccidents', zeroAccidentsChart || { title: 'Safety', subtitle: 'Zero Accidents', labels: FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1]), actuals: Array(12).fill(0), targets: Array(12).fill(0) })}
-             onKeyDown={(e)=> e.key === 'Enter' && openExpandedChart('zeroAccidents', zeroAccidentsChart || { title: 'Safety', subtitle: 'Zero Accidents', labels: FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1]), actuals: Array(12).fill(0), targets: Array(12).fill(0) })}>
-          <h3 className="text-lg font-semibold text-gray-800 mb-4">🦺 Zero Accidents</h3>
+        <div className="bg-white rounded-lg shadow border-2 border-blue-500 p-6 h-full">
+          <Link to="/management/zero-accidents" className="hover:text-blue-600 transition-colors inline-block">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">🦺 Zero Accidents</h3>
+          </Link>
           {zeroAccidentsLoading ? (
             <div className="flex items-center justify-center p-8 text-gray-500">Loading...</div>
           ) : zeroAccidentsChart ? (
-            <ZeroAccidentsBarChart title={zeroAccidentsChart.title} subtitle={zeroAccidentsChart.subtitle} labels={zeroAccidentsChart.labels} actuals={zeroAccidentsChart.actuals} targets={zeroAccidentsChart.targets} />
+            <div 
+              className="cursor-pointer"
+              role="button"
+              tabIndex={0}
+              onClick={() => openExpandedChart('zeroAccidents', zeroAccidentsChart)}
+              onKeyDown={(e)=> e.key === 'Enter' && openExpandedChart('zeroAccidents', zeroAccidentsChart)}
+            >
+              <ZeroAccidentsBarChart title={zeroAccidentsChart.title} subtitle={zeroAccidentsChart.subtitle} labels={zeroAccidentsChart.labels} actuals={zeroAccidentsChart.actuals} targets={zeroAccidentsChart.targets} />
+            </div>
           ) : (
-            <ZeroAccidentsBarChart title="Safety" subtitle="Zero Accidents" labels={FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1])} actuals={Array(12).fill(0)} targets={Array(12).fill(0)} />
+            <div 
+              className="cursor-pointer"
+              role="button"
+              tabIndex={0}
+              onClick={() => openExpandedChart('zeroAccidents', { title: 'Safety', subtitle: 'Zero Accidents', labels: FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1]), actuals: Array(12).fill(0), targets: Array(12).fill(0) })}
+              onKeyDown={(e)=> e.key === 'Enter' && openExpandedChart('zeroAccidents', { title: 'Safety', subtitle: 'Zero Accidents', labels: FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1]), actuals: Array(12).fill(0), targets: Array(12).fill(0) })}
+            >
+              <ZeroAccidentsBarChart title="Safety" subtitle="Zero Accidents" labels={FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1])} actuals={Array(12).fill(0)} targets={Array(12).fill(0)} />
+            </div>
           )}
         </div>
 
-        <div className="bg-white rounded-lg shadow border-2 border-blue-500 p-6 h-full" role="button" tabIndex={0}
-             onClick={() => openExpandedChart('greenFactory', greenFactoryChart || { title: 'Environment', subtitle: 'Green Factory', labels: FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1]), values: Array(12).fill(0) })}
-             onKeyDown={(e)=> e.key === 'Enter' && openExpandedChart('greenFactory', greenFactoryChart || { title: 'Environment', subtitle: 'Green Factory', labels: FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1]), values: Array(12).fill(0) })}>
-          <h3 className="text-lg font-semibold text-gray-800 mb-4">🌿 Green Factory</h3>
+        <div className="bg-white rounded-lg shadow border-2 border-blue-500 p-6 h-full">
+          <Link to="/management/green-factory" className="hover:text-blue-600 transition-colors inline-block">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">🌿 Green Factory</h3>
+          </Link>
           {greenFactoryLoading ? (
             <div className="flex items-center justify-center p-8 text-gray-500">Loading...</div>
           ) : greenFactoryChart ? (
-            <GreenFactoryBarChart title={greenFactoryChart.title} subtitle={greenFactoryChart.subtitle} labels={greenFactoryChart.labels} values={greenFactoryChart.values} />
+            <div 
+              className="cursor-pointer"
+              role="button"
+              tabIndex={0}
+              onClick={() => openExpandedChart('greenFactory', greenFactoryChart)}
+              onKeyDown={(e)=> e.key === 'Enter' && openExpandedChart('greenFactory', greenFactoryChart)}
+            >
+              <GreenFactoryBarChart title={greenFactoryChart.title} subtitle={greenFactoryChart.subtitle} labels={greenFactoryChart.labels} values={greenFactoryChart.values} />
+            </div>
           ) : (
-            <GreenFactoryBarChart title="Environment" subtitle="Green Factory" labels={FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1])} values={Array(12).fill(0)} />
+            <div 
+              className="cursor-pointer"
+              role="button"
+              tabIndex={0}
+              onClick={() => openExpandedChart('greenFactory', { title: 'Environment', subtitle: 'Green Factory', labels: FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1]), values: Array(12).fill(0) })}
+              onKeyDown={(e)=> e.key === 'Enter' && openExpandedChart('greenFactory', { title: 'Environment', subtitle: 'Green Factory', labels: FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1]), values: Array(12).fill(0) })}
+            >
+              <GreenFactoryBarChart title="Environment" subtitle="Green Factory" labels={FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1])} values={Array(12).fill(0)} />
+            </div>
           )}
         </div>
 
-        <div className="bg-white rounded-lg shadow border-2 border-blue-500 p-6 h-full" role="button" tabIndex={0}
-             onClick={() => openExpandedChart('onTimeDelivery', onTimeDeliveryChart || { title: 'On Time Delivery', subtitle: 'Target vs Achieved', labels: FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1]), actuals: Array(12).fill(0), targets: Array(12).fill(0) })}
-             onKeyDown={(e)=> e.key === 'Enter' && openExpandedChart('onTimeDelivery', onTimeDeliveryChart || { title: 'On Time Delivery', subtitle: 'Target vs Achieved', labels: FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1]), actuals: Array(12).fill(0), targets: Array(12).fill(0) })}>
-          <h3 className="text-lg font-semibold text-gray-800 mb-4">🚚 On Time Delivery</h3>
+        <div className="bg-white rounded-lg shadow border-2 border-blue-500 p-6 h-full">
+          <Link to="/management/on-time-delivery" className="hover:text-blue-600 transition-colors inline-block">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">🚚 On Time Delivery</h3>
+          </Link>
           {onTimeDeliveryLoading ? (
             <div className="flex items-center justify-center p-8 text-gray-500">Loading...</div>
           ) : onTimeDeliveryChart ? (
-            <OnTimeDeliveryBarChart title={onTimeDeliveryChart.title} subtitle={onTimeDeliveryChart.subtitle} labels={onTimeDeliveryChart.labels} actuals={onTimeDeliveryChart.actuals} targets={onTimeDeliveryChart.targets} />
+            <div 
+              className="cursor-pointer"
+              role="button"
+              tabIndex={0}
+              onClick={() => openExpandedChart('onTimeDelivery', onTimeDeliveryChart)}
+              onKeyDown={(e)=> e.key === 'Enter' && openExpandedChart('onTimeDelivery', onTimeDeliveryChart)}
+            >
+              <OnTimeDeliveryBarChart title={onTimeDeliveryChart.title} subtitle={onTimeDeliveryChart.subtitle} labels={onTimeDeliveryChart.labels} actuals={onTimeDeliveryChart.actuals} targets={onTimeDeliveryChart.targets} />
+            </div>
           ) : (
-            <OnTimeDeliveryBarChart title="On Time Delivery" subtitle="Target vs Achieved" labels={FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1])} actuals={Array(12).fill(0)} targets={Array(12).fill(0)} />
+            <div 
+              className="cursor-pointer"
+              role="button"
+              tabIndex={0}
+              onClick={() => openExpandedChart('onTimeDelivery', { title: 'On Time Delivery', subtitle: 'Target vs Achieved', labels: FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1]), actuals: Array(12).fill(0), targets: Array(12).fill(0) })}
+              onKeyDown={(e)=> e.key === 'Enter' && openExpandedChart('onTimeDelivery', { title: 'On Time Delivery', subtitle: 'Target vs Achieved', labels: FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1]), actuals: Array(12).fill(0), targets: Array(12).fill(0) })}
+            >
+              <OnTimeDeliveryBarChart title="On Time Delivery" subtitle="Target vs Achieved" labels={FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1])} actuals={Array(12).fill(0)} targets={Array(12).fill(0)} />
+            </div>
           )}
         </div>
 
-        <div className="bg-white rounded-lg shadow border-2 border-blue-500 p-2 md:p-6 h-full md:col-span-2" role="button" tabIndex={0}
-             onClick={() => openExpandedChart('themeEmployees', { themeChart, employeesChart })}
-             onKeyDown={(e)=> e.key === 'Enter' && openExpandedChart('themeEmployees', { themeChart, employeesChart })}>
+        <div className="bg-white rounded-lg shadow border-2 border-blue-500 p-2 md:p-6 h-full md:col-span-2">
           <div className="flex flex-col md:flex-row h-full">
             <div className="flex-1 p-4 md:border-r border-gray-200 min-w-0">
-              <h4 className="text-xs md:text-sm font-bold text-gray-500 mb-3 md:mb-4 text-center tracking-wide">THEME OF THE YEAR</h4>
+              <Link to="/management/theme-of-the-year" className="hover:text-blue-600 transition-colors">
+                <h4 className="text-xs md:text-sm font-bold text-gray-500 mb-3 md:mb-4 text-center tracking-wide">THEME OF THE YEAR</h4>
+              </Link>
               {themeChartLoading ? (
                 <div className="flex items-center justify-center p-8 text-gray-500">Loading...</div>
               ) : (
-                <div className="h-full">
+                <div 
+                  className="h-full cursor-pointer"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => openExpandedChart('themeEmployees', { themeChart, employeesChart })}
+                  onKeyDown={(e)=> e.key === 'Enter' && openExpandedChart('themeEmployees', { themeChart, employeesChart })}
+                >
                   {themeChart ? (
                     <Box4ThemeBarChart title={themeChart.title} subtitle={themeChart.subtitle} labels={themeChart.labels} values={themeChart.values} />
                   ) : (
@@ -1867,11 +1960,19 @@ function ManagementDashboard() {
             </div>
 
             <div className="flex-1 p-4 min-w-0">
-              <h4 className="text-xs md:text-sm font-bold text-gray-500 mb-3 md:mb-4 text-center tracking-wide">EMPLOYEES LEFT</h4>
+              <Link to="/management/employees-left" className="hover:text-blue-600 transition-colors">
+                <h4 className="text-xs md:text-sm font-bold text-gray-500 mb-3 md:mb-4 text-center tracking-wide">EMPLOYEES LEFT</h4>
+              </Link>
               {employeesChartLoading ? (
                 <div className="flex items-center justify-center p-8 text-gray-500">Loading...</div>
               ) : (
-                <div className="h-full">
+                <div 
+                  className="h-full cursor-pointer"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => openExpandedChart('themeEmployees', { themeChart, employeesChart })}
+                  onKeyDown={(e)=> e.key === 'Enter' && openExpandedChart('themeEmployees', { themeChart, employeesChart })}
+                >
                   {employeesChart ? (
                     <Box4EmployeesLineChart title={employeesChart.title} subtitle={employeesChart.subtitle} labels={employeesChart.labels} values={employeesChart.values} />
                   ) : (

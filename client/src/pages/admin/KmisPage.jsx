@@ -33,7 +33,8 @@ function KmisPage() {
   const [formData, setFormData] = useState({
     title: '',
     fin_year: '',
-    category_id: '',
+    // allow selecting multiple categories in the Add/Edit form
+    category_ids: [],
     parent_kpi_id: null,
     department_id: '',
     emp_id: ''
@@ -96,7 +97,7 @@ function KmisPage() {
         console.log('Employees loaded:', emps);
         setEmployees(emps);
       } catch (err) {
-        console.error('Failed to load categories, departments or employees', err);
+        console.error('Failed to load categories, departments, or employees', err);
         setError('Failed to load data');
       }
     };
@@ -110,7 +111,8 @@ function KmisPage() {
     const defaultId = getDefaultCategoryId(categories);
     setFormData((prev) => ({
       ...prev,
-      category_id: prev.category_id || defaultId,
+      // initialize category_ids to include the default if none selected
+      category_ids: (prev.category_ids && prev.category_ids.length > 0) ? prev.category_ids : [defaultId],
     }));
   }, [categories]);
 
@@ -210,6 +212,52 @@ function KmisPage() {
     String(cats.find((c) => c.category_name === 'KMI / GLOBAL OBJECTIVES')?.id ?? cats[0]?.id ?? '')
   );
 
+  // Helper function to get employees for a specific department
+  const getEmployeesForDepartment = (deptId) => {
+    if (!deptId) return employees;
+    const deptIdNum = Number(deptId);
+    return employees.filter(emp => emp.department_id === deptIdNum);
+  };
+
+  // Helper function to get KPI title by ID
+  const getKPITitleById = (id) => {
+    if (!id) return 'None (Top-level KMI)';
+    const kpi = kpis.find((k) => k.id === Number(id));
+    return kpi?.title || `ID ${id}`;
+  };
+
+  // State to store parent KPI title when editing
+  const [parentKPITitle, setParentKPITitle] = useState('None (Top-level KMI)');
+
+  // Effect to fetch parent KPI title when form is opened with a parent
+  useEffect(() => {
+    const fetchParentKPITitle = async () => {
+      if (!formData.parent_kpi_id) {
+        setParentKPITitle('None (Top-level KMI)');
+        return;
+      }
+
+      // First, try to find in kpis array
+      const foundKpi = kpis.find((k) => k.id === Number(formData.parent_kpi_id));
+      if (foundKpi) {
+        setParentKPITitle(foundKpi.title);
+        return;
+      }
+
+      // If not found, fetch directly
+      try {
+        const response = await axios.get(`/kpis/${formData.parent_kpi_id}`);
+        const kpi = response.data.data || null;
+        setParentKPITitle(kpi?.title || `ID ${formData.parent_kpi_id}`);
+      } catch (err) {
+        console.debug('Failed to fetch parent KPI:', err);
+        setParentKPITitle(`ID ${formData.parent_kpi_id}`);
+      }
+    };
+
+    fetchParentKPITitle();
+  }, [formData.parent_kpi_id, kpis]);
+
   const getNextCategoryId = (parentCategoryId) => {
     if (!parentCategoryId) return getDefaultCategoryId(categories);
     const idx = categoryOrder.indexOf(Number(parentCategoryId));
@@ -223,7 +271,8 @@ function KmisPage() {
     setFormData({ 
       title: '',
       fin_year: selectedYear,
-      category_id: getDefaultCategoryId(categories), // This will be "KMI / GLOBAL OBJECTIVES" category
+      // default to global objectives category in the array
+      category_ids: [getDefaultCategoryId(categories)], // This will be "KMI / GLOBAL OBJECTIVES" category
       parent_kpi_id: null,
       department_id: '',
       emp_id: ''
@@ -287,11 +336,13 @@ function KmisPage() {
 
     // Try to load existing department mapping for this KPI
     let deptId = '';
+    let hasDepartmentMapping = false;
     try {
       const resp = await axios.get(`/kpi-departments?kpi_id=${kmi.id}`);
       const mappings = resp.data?.data || [];
       if (mappings.length > 0) {
         deptId = mappings[0].department_id != null ? String(mappings[0].department_id) : '';
+        hasDepartmentMapping = true;
       }
     } catch (err) {
       console.debug('No KPI-Department mapping found or failed to fetch', err?.response?.data || err);
@@ -299,20 +350,34 @@ function KmisPage() {
 
     // Try to load existing employee mapping for this KPI (if any)
     let empId = '';
+    let hasEmployeeMapping = false;
     try {
       const resp2 = await axios.get(`/kpi-employees?kpi_id=${kmi.id}`);
       const mappings2 = resp2.data?.data || [];
       if (mappings2.length > 0) {
         empId = mappings2[0].emp_id != null ? String(mappings2[0].emp_id) : '';
+        hasEmployeeMapping = true;
       }
     } catch (err) {
       console.debug('No KPI-Employee mapping found or failed to fetch', err?.response?.data || err);
     }
 
+    // Build category_ids based on primary category and existing mappings
+    const categoryIds = [];
+    if (kmi.category_id != null) {
+      categoryIds.push(String(kmi.category_id));
+    }
+    if (hasDepartmentMapping && !categoryIds.includes('2')) {
+      categoryIds.push('2');
+    }
+    if (hasEmployeeMapping && !categoryIds.includes('4')) {
+      categoryIds.push('4');
+    }
+
     setFormData({
       title: kmi.title || '',
       fin_year: kmi.fin_year || selectedYear,
-      category_id: kmi.category_id != null ? String(kmi.category_id) : getDefaultCategoryId(categories),
+      category_ids: categoryIds.length > 0 ? categoryIds : [getDefaultCategoryId(categories)],
       parent_kpi_id: kmi.parent_kpi_id || null,
       department_id: deptId,
       emp_id: empId
@@ -325,7 +390,7 @@ function KmisPage() {
     setFormData({
       title: '',
       fin_year: parent.fin_year || selectedYear,
-      category_id: getNextCategoryId(parent.category_id),
+      category_ids: [getNextCategoryId(parent.category_id)],
       parent_kpi_id: parent.id,
       department_id: '',
       emp_id: ''
@@ -358,12 +423,16 @@ function KmisPage() {
     
     try {
       let kpiId;
-      
+
+      // Support multiple selected categories in the form; pick the first as primary for backend compatibility
+      const selectedCategoryIds = formData.category_ids || [];
+      const primaryCategoryId = selectedCategoryIds[0] || getDefaultCategoryId(categories);
+
       if (editingKmi) {
         await axios.put(`/kpis/${editingKmi.id}`, {
           title: formData.title,
           fin_year: formData.fin_year,
-          category_id: Number(formData.category_id),
+          category_id: Number(primaryCategoryId),
           parent_kpi_id: formData.parent_kpi_id ? Number(formData.parent_kpi_id) : null
         });
         kpiId = editingKmi.id;
@@ -372,7 +441,7 @@ function KmisPage() {
         const response = await axios.post('/kpis', {
           title: formData.title,
           fin_year: formData.fin_year,
-          category_id: Number(formData.category_id),
+          category_id: Number(primaryCategoryId),
           parent_kpi_id: formData.parent_kpi_id ? Number(formData.parent_kpi_id) : null
         });
         kpiId = response.data.data.id;
@@ -380,7 +449,7 @@ function KmisPage() {
       }
 
       // Save KPI-Department mapping if Department KPI category is selected (category_id = 2)
-      if (String(formData.category_id) === '2') {
+      if ((formData.category_ids || []).includes('2') || String(primaryCategoryId) === '2') {
         if (formData.department_id) {
           try {
             await axios.post('/kpi-departments', {
@@ -399,7 +468,7 @@ function KmisPage() {
       }
 
       // Save KPI-Employee mapping if Employee KPI category is selected (category_id = 4)
-      if (String(formData.category_id) === '4') {
+      if ((formData.category_ids || []).includes('4') || String(primaryCategoryId) === '4') {
         if (formData.emp_id) {
           try {
             await axios.post('/kpi-employees', {
@@ -426,7 +495,24 @@ function KmisPage() {
   };
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setFormData((prev) => {
+      const updated = { ...prev, [name]: value };
+      // Clear employee selection when department changes (to ensure only department employees are selected)
+      if (name === 'department_id') {
+        updated.emp_id = '';
+      }
+      return updated;
+    });
+  };
+
+  const handleCategoryToggle = (catId) => {
+    setFormData((prev) => {
+      const prevArr = prev.category_ids || [];
+      const next = new Set(prevArr);
+      if (next.has(catId)) next.delete(catId); else next.add(catId);
+      return { ...prev, category_ids: Array.from(next) };
+    });
   };
 
   const toggleExpand = (id) => {
@@ -949,20 +1035,22 @@ function KmisPage() {
               </div>
               <div className="mb-5">
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Category *</label>
-                <select
-                  name="category_id"
-                    value={formData.category_id}
-                  onChange={handleChange}
-                  required
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                >
-                  <option value="">Select Category</option>
-                    {categories.map((cat) => (
-                      <option key={cat.id} value={String(cat.id)}>{cat.category_name}</option>
-                    ))}
-                </select>
+                <div className="grid gap-2">
+                  {categories.map((cat) => (
+                    <label key={cat.id} className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={(formData.category_ids || []).includes(String(cat.id))}
+                        onChange={() => handleCategoryToggle(String(cat.id))}
+                        className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-2 focus:ring-blue-500"
+                      />
+                      <span className="text-sm text-gray-700">{cat.category_name}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
-                {(String(formData.category_id) === '2') && (
+
+              {(formData.category_ids || []).includes('2') && (
                 <div className="mb-5">
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Department * <span className="text-red-500">(Required for Department KPI)</span></label>
                   <select
@@ -979,9 +1067,13 @@ function KmisPage() {
                   </select>
                 </div>
               )}
-              {(String(formData.category_id) === '4') && (
+
+              {(formData.category_ids || []).includes('4') && (
                 <div className="mb-5">
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Employee * <span className="text-red-500">(Required for Employee KPI)</span></label>
+                  {(formData.category_ids || []).includes('2') && formData.department_id && (
+                    <p className="text-xs text-blue-600 mb-2">Showing employees from selected department only</p>
+                  )}
                   <select
                     name="emp_id"
                     value={formData.emp_id || ''}
@@ -990,8 +1082,11 @@ function KmisPage() {
                     className="w-full px-3 py-2.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                   >
                     <option value="">Select Employee</option>
-                    {employees.map((emp) => (
-                      <option key={emp.id} value={String(emp.id)}>{emp.firstname} {emp.lastname} ({emp.empid})</option>
+                    {((formData.category_ids || []).includes('2') && formData.department_id
+                      ? getEmployeesForDepartment(formData.department_id)
+                      : employees
+                    ).map((emp) => (
+                      <option key={emp.id} value={String(emp.empid)}>{emp.firstname} {emp.lastname} ({emp.empid})</option>
                     ))}
                   </select>
                 </div>
@@ -1000,7 +1095,7 @@ function KmisPage() {
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Parent KPI</label>
                 <input
                   type="text"
-                  value={formData.parent_kpi_id ? (kpis.find((k) => k.id === Number(formData.parent_kpi_id))?.title || `ID ${formData.parent_kpi_id}`) : 'None (Top-level KMI)'}
+                  value={parentKPITitle}
                   readOnly
                   className="w-full px-3 py-2.5 border border-gray-300 rounded-md text-sm bg-gray-50 text-gray-600"
                 />

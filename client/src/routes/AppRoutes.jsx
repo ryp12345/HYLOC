@@ -8,6 +8,7 @@ import Register from '../pages/auth/Register';
 import AdminDashboard from '../pages/admin/Dashboard';
 
 import ManagementDashboard from '../pages/management/ManagementDashboard';
+import PlantEfficiency from '../pages/management/PlantEfficiency';
 import MgtPiller from '../pages/management/MgtPiller';
 import MgtKmiPage from '../pages/management/MgtKmiPage';
 import MgtKmiDetail from '../pages/management/MgtKmiDetail';
@@ -32,7 +33,7 @@ import ManagerLeavesPage from '../pages/manager/leaves/LeavesPage';
 import ManagerLeaveApprovalPage from '../pages/manager/leaves/LeaveApprovalPage';
 import ManagementLeaveApprovalPage from '../pages/management/leaves/LeaveApprovalPage';
 import ForgotPasswordPage from '../pages/auth/ForgotPasswordPage';
-import RaiseTicket from '../pages/tickets/RaiseTicket';
+import RaiseTicket from '../pages/dev-tickets/RaiseTicket';
 
 // Layouts & Route Guards
 import ProtectedRoute from './ProtectedRoute';
@@ -334,6 +335,18 @@ const AppRoutes = () => {
               <ProtectedRoute>
                 <DashboardLayout>
                   <ManagementDashboard />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Plant Efficiency Page */}
+          <Route
+            path="/management/plant-efficiency"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <PlantEfficiency />
                 </DashboardLayout>
               </ProtectedRoute>
             }

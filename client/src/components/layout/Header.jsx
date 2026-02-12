@@ -31,7 +31,7 @@ const Navbar = () => {
             />
             <h1 className="text-3xl font-bold">Hyloc Hydrotechnic Pvt Ltd</h1>
             {/* Raise Ticket Link */}
-            {/* <Link
+            <Link
               to="/raise-ticket"
               className="ml-6 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition hidden md:inline-block"
               style={{ marginLeft: '2rem' }}
@@ -53,7 +53,7 @@ const Navbar = () => {
                 <path d="M12 9v6" />
               </svg>
               Raise Ticket
-            </Link> */}
+            </Link>
           </div>
 
           {/* User Info & Menu - Right aligned */}
