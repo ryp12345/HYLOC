@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const employeeKpiController = require('../controllers/employee-kpi.controller');
+const employeeKpiController = require('../controllers/employee.controller');
 
 // GET /api/employees/:empId/kpi-values - Get all KPI values for an employee
 router.get('/:empId/kpi-values', employeeKpiController.getEmployeeKPIValues);

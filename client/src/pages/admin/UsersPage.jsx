@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import Notification from '../../components/common/Notification';
 import { getUsers, createUser, updateUser, deleteUser } from '../../api/userApi';
 import { getDepartments } from '../../api/departmentApi';
 import { getDesignations } from '../../api/designationApi';
@@ -31,6 +32,7 @@ export default function UsersPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [departments, setDepartments] = useState([]);
   const [designations, setDesignations] = useState([]);
+  const [notification, setNotification] = useState({ show: false, message: '', type: '' });
 
   const load = async () => {
     try { const res = await getUsers(); setRows(res.data?.data || []); }
@@ -120,12 +122,18 @@ export default function UsersPage() {
               }
             : r
         )));
+        showNotification('User updated successfully!', 'success');
       } else {
         await createUser(payload);
+        showNotification('User created successfully!', 'success');
       }
       await load();
       onClose();
-    } catch (e) { setError(e.response?.data?.message || 'Failed to save'); }
+    } catch (e) {
+      const msg = e.response?.data?.message || 'Failed to save';
+      setError(msg);
+      showNotification(msg, 'error');
+    }
   };
 
   const remove = async (id) => {
@@ -133,7 +141,13 @@ export default function UsersPage() {
     try { 
       await deleteUser(id);
       load(); 
+      showNotification('User deleted successfully!', 'success');
     } catch {}
+  };
+
+  const showNotification = (message, type = 'success') => {
+    setNotification({ show: true, message, type });
+    setTimeout(() => setNotification({ show: false, message: '', type: '' }), 4000);
   };
 
   // Pagination state
@@ -169,6 +183,7 @@ export default function UsersPage() {
   return (
     <div className="min-h-screen px-4 py-12 bg-gradient-to-br from-gray-50 to-gray-100 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
+        <Notification show={notification.show} message={notification.message} type={notification.type} onClose={() => setNotification({ show: false, message: '', type: '' })} />
         <div className="mb-12 text-center">
           <h1 className="mb-2 text-4xl font-extrabold text-gray-900">Users</h1>
           <p className="text-lg text-gray-600">Create, update and manage users</p>

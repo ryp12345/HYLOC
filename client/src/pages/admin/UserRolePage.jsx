@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import Notification from '../../components/common/Notification';
 import { getUserRoles, createUserRole, updateUserRole, deleteUserRole } from '../../api/userRoleApi';
 import { getUsers } from '../../api/userApi';
 import { getRoles } from '../../api/roleApi';
@@ -20,6 +21,7 @@ export default function UserRolePage() {
   const [roles, setRoles] = useState([]);
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 10;
+  const [notification, setNotification] = useState({ show: false, message: '', type: '' });
 
   const load = async () => {
     try { 
@@ -90,13 +92,17 @@ export default function UserRolePage() {
 
       if (editingId) {
         await updateUserRole(editingId, payload);
+        showNotification('User role updated successfully!', 'success');
       } else {
         await createUserRole(payload);
+        showNotification('User role created successfully!', 'success');
       }
       onClose(); 
       load();
     } catch (e) { 
-      setError(e.response?.data?.message || e.message || 'Failed to save'); 
+      const msg = e.response?.data?.message || e.message || 'Failed to save';
+      setError(msg);
+      showNotification(msg, 'error');
     }
   };
 
@@ -105,7 +111,13 @@ export default function UserRolePage() {
     try { 
       await deleteUserRole(id); 
       load(); 
+      showNotification('User role deleted successfully!', 'success');
     } catch {}
+  };
+
+  const showNotification = (message, type = 'success') => {
+    setNotification({ show: true, message, type });
+    setTimeout(() => setNotification({ show: false, message: '', type: '' }), 4000);
   };
 
   const filtered = useMemo(() => {
@@ -136,6 +148,7 @@ export default function UserRolePage() {
   return (
     <div className="min-h-screen px-4 py-12 bg-gradient-to-br from-gray-50 to-gray-100 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
+        <Notification show={notification.show} message={notification.message} type={notification.type} onClose={() => setNotification({ show: false, message: '', type: '' })} />
         <div className="mb-12 text-center">
           <h1 className="mb-2 text-4xl font-extrabold text-gray-900">User Roles</h1>
           <p className="text-lg text-gray-600">Assign and manage user roles</p>

@@ -12,6 +12,9 @@ export default function MgtKmiDetail() {
   const [units, setUnits] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [expandedRows, setExpandedRows] = useState({});
+  const [monthlyData, setMonthlyData] = useState({});
+  const [overallStats, setOverallStats] = useState(null);
 
   useEffect(() => {
     const loadAll = async () => {
@@ -38,10 +41,200 @@ export default function MgtKmiDetail() {
     // eslint-disable-next-line
   }, [id]);
 
+  // Load all monthly data for overview stats
+  useEffect(() => {
+    const loadOverviewStats = async () => {
+      if (!kpiValues.length || !kmi?.fin_year) return;
+
+      try {
+        const dataPromises = kpiValues.map(async (value) => {
+          try {
+            const response = await axios.get(`/kpi-values/${value.id}/monthly-data/${kmi.fin_year}`);
+            return { valueId: value.id, data: response.data.data || [] };
+          } catch {
+            return { valueId: value.id, data: [] };
+          }
+        });
+
+        const allData = await Promise.all(dataPromises);
+        const dataMap = {};
+        allData.forEach(item => {
+          dataMap[item.valueId] = item.data;
+        });
+        setMonthlyData(dataMap);
+
+        // Calculate overall stats
+        let totalAchievementSum = 0;
+        let totalKpiWithData = 0;
+
+        allData.forEach(({ data }, index) => {
+          const value = kpiValues[index];
+          const insights = calculateInsights(data, value?.target_required);
+          if (insights && (insights.monthsWithData > 0 || (!insights.targetRequired && insights.monthsWithActual > 0))) {
+            if (insights.targetRequired && insights.monthsWithData > 0) {
+              totalAchievementSum += insights.overallAchievement;
+              totalKpiWithData++;
+            } else if (!insights.targetRequired && insights.monthsWithActual > 0) {
+              // For non-target KPIs, we can't include in achievement average
+              totalKpiWithData++;
+            }
+          }
+        });
+
+        if (totalKpiWithData > 0) {
+          const kpiWithAchievement = allData.filter(({ data }, index) => {
+            const value = kpiValues[index];
+            const insights = calculateInsights(data, value?.target_required);
+            return insights && insights.targetRequired && insights.monthsWithData > 0;
+          }).length;
+
+          setOverallStats({
+            avgAchievementAcrossKpis: kpiWithAchievement > 0 ? totalAchievementSum / kpiWithAchievement : 0,
+            kpiWithData: totalKpiWithData,
+            totalKpis: kpiValues.length,
+            kpiWithAchievement
+          });
+        }
+      } catch (err) {
+        console.error('Failed to load overview stats:', err);
+      }
+    };
+
+    loadOverviewStats();
+    // eslint-disable-next-line
+  }, [kpiValues, kmi]);
+
   const getPillerName = (pillerId) => pillers.find((p) => p.id === pillerId)?.piller_name || 'N/A';
   const getUnitName = (unitId) => {
     if (unitId == null) return 'N/A';
     return units.find((u) => String(u.id) === String(unitId))?.unit_name || String(unitId);
+  };
+
+  const toggleRow = async (valueId) => {
+    const isExpanded = expandedRows[valueId];
+    setExpandedRows((prev) => ({ ...prev, [valueId]: !isExpanded }));
+
+    // Fetch monthly data if not already loaded
+    if (!isExpanded && monthlyData[valueId] === undefined && kmi?.fin_year) {
+      try {
+        const response = await axios.get(`/kpi-values/${valueId}/monthly-data/${kmi.fin_year}`);
+        setMonthlyData((prev) => ({ ...prev, [valueId]: response.data.data || [] }));
+      } catch (err) {
+        console.error('Failed to load monthly data:', err);
+        setMonthlyData((prev) => ({ ...prev, [valueId]: [] }));
+      }
+    }
+  };
+
+  const getMonthName = (month) => {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return months[month - 1] || month;
+  };
+
+  const calculateInsights = (data, targetRequired = true) => {
+    if (!data || data.length === 0) return null;
+
+    // Check if we have any data at all
+    const hasTarget = data.some(d => d.target_value !== null && d.target_value !== undefined);
+    const hasActual = data.some(d => d.actual_value !== null && d.actual_value !== undefined);
+    
+    if (!hasActual) return null; // At minimum, we need actual values
+
+    // Calculate with whatever data we have
+    const validData = data.filter(d => d.target_value !== null && d.actual_value !== null);
+    const dataWithTarget = data.filter(d => d.target_value !== null && d.target_value !== undefined);
+    const dataWithActual = data.filter(d => d.actual_value !== null && d.actual_value !== undefined);
+
+    let achievements = [];
+    let bestMonth = null;
+    let worstMonth = null;
+    let avgAchievement = 0;
+    let trend = 'stable';
+    let overallAchievement = 0;
+
+    // For KPIs without target requirement, analyze based on actual values only
+    if (!targetRequired) {
+      if (dataWithActual.length > 0) {
+        // Sort by actual value to find best/worst
+        const sortedByActual = [...dataWithActual].sort((a, b) => parseFloat(b.actual_value) - parseFloat(a.actual_value));
+        bestMonth = {
+          month: sortedByActual[0].month,
+          year: sortedByActual[0].year,
+          value: parseFloat(sortedByActual[0].actual_value),
+          isActualBased: true
+        };
+        worstMonth = {
+          month: sortedByActual[sortedByActual.length - 1].month,
+          year: sortedByActual[sortedByActual.length - 1].year,
+          value: parseFloat(sortedByActual[sortedByActual.length - 1].actual_value),
+          isActualBased: true
+        };
+
+        // Calculate trend based on actual values
+        if (dataWithActual.length > 1) {
+          const midPoint = Math.floor(dataWithActual.length / 2);
+          const firstHalfAvg = dataWithActual.slice(0, midPoint).reduce((sum, d) => sum + parseFloat(d.actual_value), 0) / midPoint;
+          const secondHalfAvg = dataWithActual.slice(midPoint).reduce((sum, d) => sum + parseFloat(d.actual_value), 0) / (dataWithActual.length - midPoint);
+          const percentChange = ((secondHalfAvg - firstHalfAvg) / firstHalfAvg) * 100;
+          trend = percentChange > 10 ? 'improving' : percentChange < -10 ? 'declining' : 'stable';
+        }
+      }
+    } else {
+      // For KPIs with target requirement, calculate achievement
+      if (validData.length > 0) {
+        achievements = validData.map(d => ({
+          month: d.month,
+          year: d.year,
+          achievement: d.target_value !== 0 ? (d.actual_value / d.target_value) * 100 : 0,
+          variance: d.actual_value - d.target_value
+        }));
+
+        avgAchievement = achievements.reduce((sum, a) => sum + a.achievement, 0) / achievements.length;
+
+        const sortedByAchievement = [...achievements].sort((a, b) => b.achievement - a.achievement);
+        bestMonth = sortedByAchievement[0];
+        worstMonth = sortedByAchievement[sortedByAchievement.length - 1];
+
+        // Calculate trend
+        if (achievements.length > 1) {
+          const midPoint = Math.floor(achievements.length / 2);
+          const firstHalfAvg = achievements.slice(0, midPoint).reduce((sum, a) => sum + a.achievement, 0) / midPoint;
+          const secondHalfAvg = achievements.slice(midPoint).reduce((sum, a) => sum + a.achievement, 0) / (achievements.length - midPoint);
+          trend = secondHalfAvg > firstHalfAvg + 5 ? 'improving' : secondHalfAvg < firstHalfAvg - 5 ? 'declining' : 'stable';
+        }
+      }
+    }
+
+    const totalTarget = dataWithTarget.reduce((sum, d) => sum + parseFloat(d.target_value || 0), 0);
+    const totalActual = dataWithActual.reduce((sum, d) => sum + parseFloat(d.actual_value || 0), 0);
+    overallAchievement = totalTarget !== 0 ? (totalActual / totalTarget) * 100 : 0;
+
+    return {
+      targetRequired,
+      overallAchievement,
+      avgAchievement,
+      bestMonth,
+      worstMonth,
+      trend,
+      totalTarget,
+      totalActual,
+      monthsWithData: validData.length,
+      monthsWithTarget: dataWithTarget.length,
+      monthsWithActual: dataWithActual.length,
+      hasPartialData: targetRequired && validData.length === 0 && hasTarget && hasActual
+    };
+  };
+
+  const getPerformanceColor = (achievement) => {
+    if (achievement >= 100) return 'bg-green-100 text-green-800';
+    if (achievement >= 80) return 'bg-yellow-100 text-yellow-800';
+    return 'bg-red-100 text-red-800';
+  };
+
+  const getPerformanceStatus = (achievement) => {
+    if (achievement >= 100) return '✓ Exceeds Target';
+    if (achievement >= 80) return '⚠ Near Target';
+    return '✗ Below Target';
   };
 
   if (loading) {
@@ -82,6 +275,55 @@ export default function MgtKmiDetail() {
           </div>
         </div>
       </div>
+
+      {/* Overall Performance Summary */}
+      {overallStats && (
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg shadow p-6 mb-6 border border-blue-200">
+          <h3 className="text-lg font-bold text-gray-800 mb-4">📊 Overall Performance Summary</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-white rounded-lg p-4 shadow-sm">
+              <div className="text-xs font-semibold text-gray-500 uppercase mb-1">Average Achievement</div>
+              {overallStats.kpiWithAchievement > 0 ? (
+                <>
+                  <div className={`text-3xl font-bold ${overallStats.avgAchievementAcrossKpis >= 100 ? 'text-green-600' : overallStats.avgAchievementAcrossKpis >= 80 ? 'text-yellow-600' : 'text-red-600'}`}>
+                    {overallStats.avgAchievementAcrossKpis.toFixed(1)}%
+                  </div>
+                  <div className="text-xs text-gray-600 mt-1">Target-based KPIs only</div>
+                </>
+              ) : (
+                <>
+                  <div className="text-3xl font-bold text-gray-400">-</div>
+                  <div className="text-xs text-gray-600 mt-1">No target-based data</div>
+                </>
+              )}
+            </div>
+            <div className="bg-white rounded-lg p-4 shadow-sm">
+              <div className="text-xs font-semibold text-gray-500 uppercase mb-1">KPI Coverage</div>
+              <div className="text-3xl font-bold text-blue-600">
+                {overallStats.kpiWithData}/{overallStats.totalKpis}
+              </div>
+              <div className="text-xs text-gray-600 mt-1">KPIs with data available</div>
+            </div>
+            <div className="bg-white rounded-lg p-4 shadow-sm">
+              <div className="text-xs font-semibold text-gray-500 uppercase mb-1">Overall Status</div>
+              {overallStats.kpiWithAchievement > 0 ? (
+                <>
+                  <div className={`text-lg font-bold ${overallStats.avgAchievementAcrossKpis >= 100 ? 'text-green-600' : overallStats.avgAchievementAcrossKpis >= 80 ? 'text-yellow-600' : 'text-red-600'}`}>
+                    {overallStats.avgAchievementAcrossKpis >= 100 ? '✓ Exceeding Targets' : overallStats.avgAchievementAcrossKpis >= 80 ? '⚠ On Track' : '✗ Needs Attention'}
+                  </div>
+                  <div className="text-xs text-gray-600 mt-1">Performance indicator</div>
+                </>
+              ) : (
+                <>
+                  <div className="text-lg font-bold text-blue-600">📊 Tracking</div>
+                  <div className="text-xs text-gray-600 mt-1">Monitoring actuals</div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       <div>
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-xl font-bold text-gray-800">KPI Values</h3>
@@ -94,31 +336,326 @@ export default function MgtKmiDetail() {
               <table className="w-full">
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider w-10"></th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Type</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Data</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Unit of Measurement</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Piller</th>
                     <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">Target Required</th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">Performance</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {kpiValues.map((value) => (
-                    <tr key={value.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-4 py-3 text-sm text-gray-800">
-                        <span className="inline-block px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-medium">
-                          {value.kpi_type || 'manual'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-sm font-medium text-gray-900">{value.data}</td>
-                      <td className="px-4 py-3 text-sm text-gray-600">{getUnitName(value.uom)}</td>
-                      <td className="px-4 py-3 text-sm text-gray-600">{getPillerName(value.piller_id)}</td>
-                      <td className="px-4 py-3 text-sm text-center">
-                        <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${value.target_required ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
-                          {value.target_required ? 'Yes' : 'No'}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
+                  {kpiValues.map((value) => {
+                    const valueInsights = monthlyData[value.id] ? calculateInsights(monthlyData[value.id], value.target_required) : null;
+                    return (
+                    <React.Fragment key={value.id}>
+                      <tr className="hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => toggleRow(value.id)}>
+                        <td className="px-4 py-3 text-sm text-gray-500">
+                          <span className={`transform transition-transform ${expandedRows[value.id] ? 'rotate-90' : ''}`}>▶</span>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-800">
+                          <span className="inline-block px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-medium">
+                            {value.kpi_type || 'manual'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-sm font-medium text-gray-900">{value.data}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">{getUnitName(value.uom)}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">{getPillerName(value.piller_id)}</td>
+                        <td className="px-4 py-3 text-sm text-center">
+                          <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${value.target_required ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
+                            {value.target_required ? 'Yes' : 'No'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-center">
+                          {valueInsights ? (
+                            !value.target_required ? (
+                              // For non-target KPIs, show actual trend
+                              valueInsights.monthsWithActual > 0 ? (
+                                <div className="flex flex-col items-center gap-1">
+                                  <span className="inline-block px-2 py-1 rounded text-xs font-bold bg-blue-100 text-blue-800">
+                                    {valueInsights.totalActual.toFixed(1)}
+                                  </span>
+                                  <span className={`text-xs ${valueInsights.trend === 'improving' ? 'text-green-600' : valueInsights.trend === 'declining' ? 'text-red-600' : 'text-gray-500'}`}>
+                                    {valueInsights.trend === 'improving' ? '↗' : valueInsights.trend === 'declining' ? '↘' : '→'}
+                                  </span>
+                                </div>
+                              ) : (
+                                <span className="text-xs text-gray-400">No data</span>
+                              )
+                            ) : (
+                              // For target-required KPIs, show achievement
+                              valueInsights.monthsWithData > 0 ? (
+                                <div className="flex flex-col items-center gap-1">
+                                  <span className={`inline-block px-2 py-1 rounded text-xs font-bold ${getPerformanceColor(valueInsights.overallAchievement)}`}>
+                                    {valueInsights.overallAchievement.toFixed(0)}%
+                                  </span>
+                                  <span className={`text-xs ${valueInsights.trend === 'improving' ? 'text-green-600' : valueInsights.trend === 'declining' ? 'text-red-600' : 'text-gray-500'}`}>
+                                    {valueInsights.trend === 'improving' ? '↗' : valueInsights.trend === 'declining' ? '↘' : '→'}
+                                  </span>
+                                </div>
+                              ) : (
+                                <div className="flex flex-col items-center gap-1">
+                                  <span className="text-xs text-yellow-600 font-medium">Partial</span>
+                                  <span className="text-xs text-gray-500">
+                                    T:{valueInsights.monthsWithTarget} A:{valueInsights.monthsWithActual}
+                                  </span>
+                                </div>
+                              )
+                            )
+                          ) : monthlyData[value.id] !== undefined ? (
+                            <span className="text-xs text-gray-400">No data</span>
+                          ) : (
+                            <span className="text-xs text-gray-400">Click to load</span>
+                          )}
+                        </td>
+                      </tr>
+                      {expandedRows[value.id] && (
+                        <tr>
+                          <td colSpan="6" className="px-4 py-4 bg-gray-50">
+                            <div className="pl-8">
+                              <h4 className="text-sm font-semibold text-gray-700 mb-4">
+                                Analytics for Financial Year {kmi?.fin_year || 'N/A'}
+                              </h4>
+                              {monthlyData[value.id] === undefined ? (
+                                <div className="text-sm text-gray-500">Loading analytics...</div>
+                              ) : monthlyData[value.id]?.length === 0 ? (
+                                <div className="text-sm text-gray-500">No data available for analysis.</div>
+                              ) : (
+                                <>
+                                  {(() => {
+                                    const insights = calculateInsights(monthlyData[value.id], value.target_required);
+                                    return insights ? (
+                                      <div className="space-y-4">
+                                        {/* Data Coverage Info */}
+                                        {insights.hasPartialData && (
+                                          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-3">
+                                            <p className="text-sm text-yellow-800">
+                                              ℹ️ Partial data available: {insights.monthsWithTarget} months with targets, {insights.monthsWithActual} months with actuals. 
+                                              Achievement metrics require both values for the same month.
+                                            </p>
+                                          </div>
+                                        )}
+                                        
+                                        {/* Summary Cards - Different layouts for target vs non-target KPIs */}
+                                        {!value.target_required ? (
+                                          // Non-target KPI summary cards
+                                          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                                            <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
+                                              <div className="text-xs font-semibold text-gray-500 uppercase mb-1">Total Actual</div>
+                                              <div className="text-2xl font-bold text-blue-600">
+                                                {insights.totalActual.toFixed(2)}
+                                              </div>
+                                              <div className="text-xs text-gray-600 mt-1">
+                                                {insights.monthsWithActual} months recorded
+                                              </div>
+                                            </div>
+                                            <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
+                                              <div className="text-xs font-semibold text-gray-500 uppercase mb-1">Average Monthly</div>
+                                              <div className="text-2xl font-bold text-indigo-600">
+                                                {insights.monthsWithActual > 0 ? (insights.totalActual / insights.monthsWithActual).toFixed(2) : '0.00'}
+                                              </div>
+                                              <div className="text-xs text-gray-600 mt-1">
+                                                Per month average
+                                              </div>
+                                            </div>
+                                            <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
+                                              <div className="text-xs font-semibold text-gray-500 uppercase mb-1">Highest Month</div>
+                                              {insights.bestMonth ? (
+                                                <>
+                                                  <div className="text-lg font-bold text-green-600">
+                                                    {getMonthName(insights.bestMonth.month)} '{insights.bestMonth.year % 100}
+                                                  </div>
+                                                  <div className="text-xs text-gray-600 mt-1">
+                                                    Value: {insights.bestMonth.value.toFixed(2)}
+                                                  </div>
+                                                </>
+                                              ) : (
+                                                <div className="text-lg font-bold text-gray-400">-</div>
+                                              )}
+                                            </div>
+                                            <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
+                                              <div className="text-xs font-semibold text-gray-500 uppercase mb-1">Trend</div>
+                                              <div className={`text-lg font-bold ${insights.trend === 'improving' ? 'text-green-600' : insights.trend === 'declining' ? 'text-red-600' : 'text-gray-600'}`}>
+                                                {insights.trend === 'improving' ? '↗ Increasing' : insights.trend === 'declining' ? '↘ Decreasing' : '→ Stable'}
+                                              </div>
+                                              <div className="text-xs text-gray-600 mt-1">
+                                                Based on {insights.monthsWithActual} months
+                                              </div>
+                                            </div>
+                                          </div>
+                                        ) : (
+                                          // Target-based KPI summary cards
+                                          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                                          <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
+                                            <div className="text-xs font-semibold text-gray-500 uppercase mb-1">Overall Achievement</div>
+                                            {insights.monthsWithData > 0 ? (
+                                              <>
+                                                <div className={`text-2xl font-bold ${insights.overallAchievement >= 100 ? 'text-green-600' : insights.overallAchievement >= 80 ? 'text-yellow-600' : 'text-red-600'}`}>
+                                                  {insights.overallAchievement.toFixed(1)}%
+                                                </div>
+                                                <div className="text-xs text-gray-600 mt-1">
+                                                  {insights.totalActual.toFixed(1)} / {insights.totalTarget.toFixed(1)}
+                                                </div>
+                                              </>
+                                            ) : (
+                                              <>
+                                                <div className="text-2xl font-bold text-gray-400">-</div>
+                                                <div className="text-xs text-gray-500 mt-1">Need paired data</div>
+                                              </>
+                                            )}
+                                          </div>
+                                          <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
+                                            <div className="text-xs font-semibold text-gray-500 uppercase mb-1">Avg Monthly Achievement</div>
+                                            {insights.monthsWithData > 0 ? (
+                                              <>
+                                                <div className="text-2xl font-bold text-blue-600">
+                                                  {insights.avgAchievement.toFixed(1)}%
+                                                </div>
+                                                <div className="text-xs text-gray-600 mt-1">
+                                                  {insights.monthsWithData} months paired
+                                                </div>
+                                              </>
+                                            ) : (
+                                              <>
+                                                <div className="text-2xl font-bold text-gray-400">-</div>
+                                                <div className="text-xs text-gray-500 mt-1">No paired data</div>
+                                              </>
+                                            )}
+                                          </div>
+                                          <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
+                                            <div className="text-xs font-semibold text-gray-500 uppercase mb-1">Best Month</div>
+                                            {insights.bestMonth ? (
+                                              <>
+                                                <div className="text-lg font-bold text-green-600">
+                                                  {getMonthName(insights.bestMonth.month)} '{insights.bestMonth.year % 100}
+                                                </div>
+                                                <div className="text-xs text-gray-600 mt-1">
+                                                  {insights.bestMonth.achievement.toFixed(1)}% achievement
+                                                </div>
+                                              </>
+                                            ) : (
+                                              <>
+                                                <div className="text-lg font-bold text-gray-400">-</div>
+                                                <div className="text-xs text-gray-500 mt-1">Need paired data</div>
+                                              </>
+                                            )}
+                                          </div>
+                                          <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
+                                            <div className="text-xs font-semibold text-gray-500 uppercase mb-1">Trend</div>
+                                            {insights.monthsWithData > 0 ? (
+                                              <>
+                                                <div className={`text-lg font-bold ${insights.trend === 'improving' ? 'text-green-600' : insights.trend === 'declining' ? 'text-red-600' : 'text-gray-600'}`}>
+                                                  {insights.trend === 'improving' ? '↗ Improving' : insights.trend === 'declining' ? '↘ Declining' : '→ Stable'}
+                                                </div>
+                                                <div className="text-xs text-gray-600 mt-1">
+                                                  Based on {insights.monthsWithData} months
+                                                </div>
+                                              </>
+                                            ) : (
+                                              <>
+                                                <div className="text-lg font-bold text-gray-400">-</div>
+                                                <div className="text-xs text-gray-500 mt-1">Need paired data</div>
+                                              </>
+                                            )}
+                                          </div>
+                                        </div>
+                                        )}
+
+                                        {/* Monthly Data Table */}
+                                        <div className="overflow-x-auto">
+                                          <table className="min-w-full border border-gray-200 rounded">
+                                            <thead className="bg-white">
+                                              <tr>
+                                                <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 border-b">Month</th>
+                                                {value.target_required && (
+                                                  <th className="px-3 py-2 text-right text-xs font-semibold text-gray-600 border-b">Target</th>
+                                                )}
+                                                <th className="px-3 py-2 text-right text-xs font-semibold text-gray-600 border-b">Actual</th>
+                                                {value.target_required && (
+                                                  <>
+                                                    <th className="px-3 py-2 text-right text-xs font-semibold text-gray-600 border-b">Variance</th>
+                                                    <th className="px-3 py-2 text-right text-xs font-semibold text-gray-600 border-b">Achievement</th>
+                                                    <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border-b">Status</th>
+                                                  </>
+                                                )}
+                                              </tr>
+                                            </thead>
+                                            <tbody className="bg-white divide-y divide-gray-200">
+                                              {monthlyData[value.id].map((data, idx) => {
+                                                const achievement = value.target_required && data.target_value && data.actual_value 
+                                                  ? (data.actual_value / data.target_value) * 100 
+                                                  : null;
+                                                const variance = value.target_required && data.target_value && data.actual_value 
+                                                  ? data.actual_value - data.target_value 
+                                                  : null;
+                                                return (
+                                                  <tr key={idx} className="hover:bg-gray-50">
+                                                    <td className="px-3 py-2 text-sm font-medium text-gray-700">
+                                                      {getMonthName(data.month)} {data.year}
+                                                    </td>
+                                                    {value.target_required && (
+                                                      <td className="px-3 py-2 text-sm text-right text-gray-700">
+                                                        {data.target_value !== null ? parseFloat(data.target_value).toFixed(2) : '-'}
+                                                      </td>
+                                                    )}
+                                                    <td className="px-3 py-2 text-sm text-right font-medium text-gray-900">
+                                                      {data.actual_value !== null ? parseFloat(data.actual_value).toFixed(2) : '-'}
+                                                    </td>
+                                                    {value.target_required && (
+                                                      <>
+                                                        <td className={`px-3 py-2 text-sm text-right font-medium ${variance !== null ? (variance >= 0 ? 'text-green-600' : 'text-red-600') : 'text-gray-500'}`}>
+                                                          {variance !== null ? (variance >= 0 ? '+' : '') + variance.toFixed(2) : '-'}
+                                                        </td>
+                                                        <td className="px-3 py-2 text-sm text-right font-semibold">
+                                                          {achievement !== null ? (
+                                                            <span className={achievement >= 100 ? 'text-green-600' : achievement >= 80 ? 'text-yellow-600' : 'text-red-600'}>
+                                                              {achievement.toFixed(1)}%
+                                                            </span>
+                                                          ) : (
+                                                            <span className="text-gray-500">-</span>
+                                                          )}
+                                                        </td>
+                                                        <td className="px-3 py-2 text-center">
+                                                          {achievement !== null ? (
+                                                            <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${getPerformanceColor(achievement)}`}>
+                                                              {getPerformanceStatus(achievement)}
+                                                            </span>
+                                                          ) : (
+                                                            <span className="text-gray-400 text-xs">No Data</span>
+                                                          )}
+                                                        </td>
+                                                      </>
+                                                    )}
+                                                  </tr>
+                                                );
+                                              })}
+                                            </tbody>
+                                          </table>
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                        <p className="text-sm text-blue-800 font-medium mb-2">📋 Data Entry Status</p>
+                                        <p className="text-sm text-gray-700">
+                                          No monthly data has been entered yet for this KPI value in financial year {kmi?.fin_year || 'N/A'}. 
+                                          {value.target_required 
+                                            ? ' Please ensure both target and actual values are entered for each month to enable performance analytics.'
+                                            : ' Please enter actual values for each month to enable trend analytics.'
+                                          }
+                                        </p>
+                                      </div>
+                                    );
+                                  })()}
+                                </>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  );
+                  })}
                 </tbody>
               </table>
             </div>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import Notification from '../../components/common/Notification';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../api/axios';
@@ -954,18 +955,7 @@ function EmpKpiKaiPage() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-6 py-8">
-        {/* Inline Notification (matches desired UI) */}
-        {notification.show && (
-          <div className="fixed top-6 right-4 md:right-6 z-50 w-auto max-w-sm">
-            <div className={`w-full px-4 py-3 rounded-lg border flex items-center justify-between shadow-lg ${notification.type === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : notification.type === 'error' ? 'bg-red-50 border-red-200 text-red-800' : 'bg-slate-50 border-slate-200 text-slate-800'}`}>
-              <div className="flex items-center gap-3">
-                <span className="notification-icon text-lg">{notification.type === 'success' ? '✓' : notification.type === 'error' ? '✕' : 'ℹ️'}</span>
-                <span className="notification-message font-medium ml-1">{notification.message}</span>
-              </div>
-              <button className="notification-close text-lg font-bold ml-3" onClick={() => setNotification({ show: false, message: '', type: '' })} aria-label="Close notification">×</button>
-            </div>
-          </div>
-        )}
+        <Notification show={notification.show} message={notification.message} type={notification.type} onClose={() => setNotification({ show: false, message: '', type: '' })} />
         {!selectedKPI ? (
           <div className="space-y-6">
             {/* Filters Section */}

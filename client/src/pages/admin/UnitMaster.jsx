@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import Notification from '../../components/common/Notification';
 import { getAllUnitMasters, createUnitMaster, updateUnitMaster, deleteUnitMaster } from '../../api/unitMasterApi';
 
 const initialForm = { unit_name: '', symbol: '' };
@@ -10,6 +11,7 @@ export default function UnitMaster() {
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(initialForm);
   const [error, setError] = useState('');
+  const [notification, setNotification] = useState({ show: false, message: '', type: '' });
 
   const load = async () => {
     try {
@@ -55,13 +57,16 @@ export default function UnitMaster() {
       const payload = { ...form };
       if (editingId) {
         await updateUnitMaster(editingId, payload);
+        showNotification('Unit updated successfully!', 'success');
       } else {
         await createUnitMaster(payload);
+        showNotification('Unit created successfully!', 'success');
       }
       onClose();
       load();
     } catch (e) {
       setError(e.response?.data?.message || 'Failed to save');
+      showNotification(e.response?.data?.message || 'Failed to save', 'error');
     }
   };
 
@@ -70,9 +75,17 @@ export default function UnitMaster() {
     try {
       await deleteUnitMaster(id);
       load();
+      showNotification('Unit deleted successfully!', 'success');
     } catch (e) {
-      alert('Failed to delete unit');
+      const msg = e.response?.data?.message || 'Failed to delete unit';
+      alert(msg);
+      showNotification(msg, 'error');
     }
+  };
+
+  const showNotification = (message, type = 'success') => {
+    setNotification({ show: true, message, type });
+    setTimeout(() => setNotification({ show: false, message: '', type: '' }), 4000);
   };
 
   // Pagination
@@ -102,6 +115,7 @@ export default function UnitMaster() {
   return (
     <div className="min-h-screen px-4 py-12 bg-gradient-to-br from-gray-50 to-gray-100 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
+        <Notification show={notification.show} message={notification.message} type={notification.type} onClose={() => setNotification({ show: false, message: '', type: '' })} />
         <div className="mb-12 text-center">
           <h1 className="mb-2 text-4xl font-extrabold text-gray-900">Unit Master</h1>
           <p className="text-lg text-gray-600">Create, update and manage units</p>

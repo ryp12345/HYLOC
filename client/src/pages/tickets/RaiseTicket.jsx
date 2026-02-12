@@ -279,7 +279,20 @@ const RaiseTicket = () => {
                             (isDeveloper && !canEditAll(ticket)) ? (
                               ticket.title
                             ) : (
-                              <input name="title" value={editForm.title} onChange={handleEditChange} className="border rounded px-2 py-1 w-32 focus:ring-2 focus:ring-blue-500" />
+                              <div className="flex items-center">
+                                <input
+                                  name="title"
+                                  value={editForm.title}
+                                  onChange={handleEditChange}
+                                  className="border rounded px-2 py-1 w-32 focus:ring-2 focus:ring-blue-500"
+                                />
+                                <button
+                                  type="button"
+                                  className="ml-2 text-sm text-blue-600 underline"
+                                >
+                                  more...
+                                </button>
+                              </div>
                             )
                           ) : (
                             (() => {

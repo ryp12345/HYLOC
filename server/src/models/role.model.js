@@ -58,10 +58,14 @@ exports.createRole = async (roleName) => {
 // Update role
 exports.updateRole = async (id, roleName) => {
   try {
-    const result = await pool.query(
-      'UPDATE roles SET role_name = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *',
-      [roleName, id]
+    // Detect actual column name for updated_at (handles casing differences)
+    const colRes = await pool.query(
+      "SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name='roles' AND lower(column_name) = 'updated_at' LIMIT 1"
     );
+    const updatedCol = colRes.rows[0] ? colRes.rows[0].column_name : 'updated_at';
+
+    const query = `UPDATE roles SET role_name = $1, "${updatedCol}" = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *`;
+    const result = await pool.query(query, [roleName, id]);
     return result.rows[0];
   } catch (error) {
     console.error('Database error in updateRole:', error);

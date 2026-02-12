@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import Notification from '../../components/common/Notification';
 import { getDepartments, createDepartment, updateDepartment, deleteDepartment } from '../../api/departmentApi';
 
 const initialForm = { 
@@ -12,6 +13,7 @@ export default function DepartmentsPage() {
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(initialForm);
   const [error, setError] = useState('');
+  const [notification, setNotification] = useState({ show: false, message: '', type: '' });
 
   const load = async () => {
     try { 
@@ -63,14 +65,18 @@ export default function DepartmentsPage() {
 
       if (editingId) {
         await updateDepartment(editingId, payload);
+        showNotification('Department updated successfully!', 'success');
       } else {
         await createDepartment(payload);
+        showNotification('Department created successfully!', 'success');
       }
       
       onClose(); 
       load();
     } catch (e) { 
-      setError(e.response?.data?.message || 'Failed to save'); 
+      const msg = e.response?.data?.message || 'Failed to save';
+      setError(msg);
+      showNotification(msg, 'error');
     }
   };
 
@@ -79,9 +85,17 @@ export default function DepartmentsPage() {
     try { 
       await deleteDepartment(id); 
       load(); 
+      showNotification('Department deleted successfully!', 'success');
     } catch (e) {
-      alert('Failed to delete department');
+      const msg = e.response?.data?.message || 'Failed to delete department';
+      alert(msg);
+      showNotification(msg, 'error');
     }
+  };
+
+  const showNotification = (message, type = 'success') => {
+    setNotification({ show: true, message, type });
+    setTimeout(() => setNotification({ show: false, message: '', type: '' }), 4000);
   };
 
   // Pagination state
@@ -113,6 +127,7 @@ export default function DepartmentsPage() {
   return (
     <div className="min-h-screen px-4 py-12 bg-gradient-to-br from-gray-50 to-gray-100 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
+        <Notification show={notification.show} message={notification.message} type={notification.type} onClose={() => setNotification({ show: false, message: '', type: '' })} />
         <div className="mb-12 text-center">
           <h1 className="mb-2 text-4xl font-extrabold text-gray-900">Departments</h1>
           <p className="text-lg text-gray-600">Create, update and manage departments</p>

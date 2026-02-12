@@ -74,10 +74,10 @@ exports.deleteKPIDepartment = async (id) => {
 exports.deleteKPIDepartmentsByKPI = async (kpiId) => {
   try {
     const result = await pool.query(
-      'DELETE FROM kpi_departments WHERE kpi_id = $1 RETURNING id',
+      'DELETE FROM kpi_departments WHERE kpi_id = $1',
       [kpiId]
     );
-    return result.rows;
+    return result.rowCount;
   } catch (error) {
     console.error('Database error in deleteKPIDepartmentsByKPI:', error);
     throw error;
@@ -88,10 +88,10 @@ exports.deleteKPIDepartmentsByKPI = async (kpiId) => {
 exports.mappingExists = async (kpiId, departmentId) => {
   try {
     const result = await pool.query(
-      'SELECT id FROM kpi_departments WHERE kpi_id = $1 AND department_id = $2',
+      'SELECT 1 FROM kpi_departments WHERE kpi_id = $1 AND department_id = $2 LIMIT 1',
       [kpiId, departmentId]
     );
-    return result.rows.length > 0;
+    return result.rowCount > 0;
   } catch (error) {
     console.error('Database error in mappingExists:', error);
     throw error;

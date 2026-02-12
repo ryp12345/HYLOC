@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import axios from '../../api/axios';
+import Notification from '../../components/common/Notification';
 
 function KmiDetail() {
   const { id } = useParams();
@@ -25,6 +26,9 @@ function KmiDetail() {
     piller_id: null,
     formula: '',
     source_kpi_value_ids: null,
+    computation_type: 'both',
+    target_formula: '',
+    target_source_kpi_value_ids: null,
     default_target_value: ''
   });
   const [notification, setNotification] = useState({ show: false, message: '', type: '' });
@@ -33,6 +37,11 @@ function KmiDetail() {
   const [formulaVars, setFormulaVars] = useState([]); // e.g., ['v1','v2','v3'] in order
   const [varSelections, setVarSelections] = useState({}); // { v1: 123, v2: 456 }
   const [varSearchQueries, setVarSearchQueries] = useState({}); // { v1: 'availability', v2: '' }
+  const [targetFormulaVars, setTargetFormulaVars] = useState([]);
+  const [targetVarSelections, setTargetVarSelections] = useState({});
+  const [targetVarSearchQueries, setTargetVarSearchQueries] = useState({});
+  const [showFormulaHelp, setShowFormulaHelp] = useState(false);
+  const [showComputationTypeHelp, setShowComputationTypeHelp] = useState(false);
 
   useEffect(() => {
     loadKmiDetails();
@@ -165,11 +174,17 @@ function KmiDetail() {
       piller_id: null,
       formula: '',
       source_kpi_value_ids: null,
+      computation_type: 'both',
+      target_formula: '',
+      target_source_kpi_value_ids: null,
       default_target_value: ''
     });
     setFormulaVars([]);
     setVarSelections({});
     setVarSearchQueries({});
+    setTargetFormulaVars([]);
+    setTargetVarSelections({});
+    setTargetVarSearchQueries({});
     setShowModal(true);
   };
 
@@ -182,6 +197,13 @@ function KmiDetail() {
       ? value.source_kpi_value_ids
       : (typeof value.source_kpi_value_ids === 'string'
           ? value.source_kpi_value_ids.split(',').map((x) => Number(x)).filter((n) => !Number.isNaN(n))
+          : []);
+    // Parse target formula and ids if present
+    const targetFormula = value.target_formula || '';
+    const targetSourceIds = Array.isArray(value.target_source_kpi_value_ids)
+      ? value.target_source_kpi_value_ids
+      : (typeof value.target_source_kpi_value_ids === 'string'
+          ? value.target_source_kpi_value_ids.split(',').map((x) => Number(x)).filter((n) => !Number.isNaN(n))
           : []);
     
     // Extract variables from formula
@@ -208,7 +230,34 @@ function KmiDetail() {
     });
     setVarSelections(selections);
     setVarSearchQueries({});
+    // Extract variables from target formula (if any)
+    const tTokens = [];
+    const tSeen = new Set();
+    const tRegex = /v(\d+)/g;
+    let tMatch;
+    while ((tMatch = tRegex.exec(targetFormula)) !== null) {
+      const token = `v${tMatch[1]}`;
+      if (!tSeen.has(token)) {
+        tSeen.add(token);
+        tTokens.push(token);
+      }
+    }
+    setTargetFormulaVars(tTokens);
+    const tSelections = {};
+    tTokens.forEach((tok) => {
+      const idNum = parseInt(tok.substring(1));
+      if (targetSourceIds.includes(idNum)) tSelections[tok] = idNum;
+    });
+    setTargetVarSelections(tSelections);
     
+    // Determine computation type from presence of formulas
+    const hasActualFormula = !!(formula && formula.trim());
+    const hasTargetFormula = !!(targetFormula && targetFormula.trim());
+    let computationType = 'both';
+    if (hasActualFormula && hasTargetFormula) computationType = 'both';
+    else if (hasActualFormula && !hasTargetFormula) computationType = 'actual_computed';
+    else if (!hasActualFormula && hasTargetFormula) computationType = 'target_computed';
+
     setFormData({
       data: value.data || '',
       data_operator: value.data_operator != null ? String(value.data_operator) : (value['data operator'] || ''),
@@ -218,6 +267,9 @@ function KmiDetail() {
       piller_id: value.piller_id || null,
       formula: formula,
       source_kpi_value_ids: sourceIds,
+      computation_type: computationType,
+      target_formula: targetFormula,
+      target_source_kpi_value_ids: targetSourceIds,
       default_target_value: value.default_target_value || ''
     });
     setShowModal(true);
@@ -261,7 +313,20 @@ function KmiDetail() {
       const sel = varSelections[tok];
       if (sel) {
         const safeTok = tok.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const re = new RegExp(safeTok, 'g');
+        const re = new RegExp(`\\b${safeTok}\\b`, 'g');
+        resolved = resolved.replace(re, `v${sel}`);
+      }
+    });
+    return resolved;
+  };
+
+  const resolveTargetFormulaWithSelections = (formula) => {
+    let resolved = formula || '';
+    targetFormulaVars.forEach((tok) => {
+      const sel = targetVarSelections[tok];
+      if (sel) {
+        const safeTok = tok.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const re = new RegExp(`\\b${safeTok}\\b`, 'g');
         resolved = resolved.replace(re, `v${sel}`);
       }
     });
@@ -272,17 +337,30 @@ function KmiDetail() {
     e.preventDefault();
     
     try {
-      // If computed, ensure variable selections are complete and build resolved formula + deps
+      // If computed, ensure variable selections are complete depending on computation type
       if (formData.kpi_type === 'computed') {
-        if (!formData.formula || formData.formula.trim() === '') {
-          showNotification('Formula is required for computed KPI', 'error');
-          return;
-        }
-        // Require selections for each variable present
-        for (const tok of formulaVars) {
-          if (!varSelections[tok]) {
-            showNotification(`Select a KPI value for ${tok}`, 'error');
+        const ct = formData.computation_type || 'both';
+        if (ct === 'target_computed') {
+          if (!formData.target_formula || formData.target_formula.trim() === '') {
+            showNotification('Target formula is required when actual is manual and target is computed', 'error');
             return;
+          }
+          for (const tok of targetFormulaVars) {
+            if (!targetVarSelections[tok]) {
+              showNotification(`Select a KPI value for target formula ${tok}`, 'error');
+              return;
+            }
+          }
+        } else {
+          if (!formData.formula || formData.formula.trim() === '') {
+            showNotification('Formula is required for computed KPI', 'error');
+            return;
+          }
+          for (const tok of formulaVars) {
+            if (!varSelections[tok]) {
+              showNotification(`Select a KPI value for ${tok}`, 'error');
+              return;
+            }
           }
         }
       }
@@ -295,11 +373,20 @@ function KmiDetail() {
         uom: formData.uom ? parseInt(formData.uom) : null,
         kpi_type: formData.kpi_type,
         piller_id: formData.piller_id ? parseInt(formData.piller_id) : null,
-        formula: formData.kpi_type === 'computed'
+        computation_type: formData.kpi_type === 'computed' ? formData.computation_type : null,
+        // actual (formula) is only sent when computation_type is not target_computed
+        formula: (formData.kpi_type === 'computed' && formData.computation_type !== 'target_computed')
           ? resolveFormulaWithSelections(formData.formula)
           : null,
-        source_kpi_value_ids: formData.kpi_type === 'computed'
+        source_kpi_value_ids: (formData.kpi_type === 'computed' && formData.computation_type !== 'target_computed')
           ? formulaVars.map(tok => Number(varSelections[tok])).filter(n => !Number.isNaN(n))
+          : null,
+        // target formula is only sent when computation_type is target_computed (actual manual)
+        target_formula: (formData.kpi_type === 'computed' && formData.computation_type === 'target_computed')
+          ? resolveTargetFormulaWithSelections(formData.target_formula)
+          : null,
+        target_source_kpi_value_ids: (formData.kpi_type === 'computed' && formData.computation_type === 'target_computed')
+          ? targetFormulaVars.map(tok => Number(targetVarSelections[tok])).filter(n => !Number.isNaN(n))
           : null,
         default_target_value: formData.default_target_value || null
       };
@@ -348,6 +435,75 @@ function KmiDetail() {
         return next;
       });
     }
+    // If target formula changed, parse variables like v1, v2, v3 for target
+    if (name === 'target_formula') {
+      const tokens = [];
+      const seen = new Set();
+      const regex = /v(\d+)/g;
+      let match;
+      while ((match = regex.exec(value)) !== null) {
+        const token = `v${match[1]}`;
+        if (!seen.has(token)) {
+          seen.add(token);
+          tokens.push(token);
+        }
+      }
+      setTargetFormulaVars(tokens);
+      // Drop selections for target variables no longer present
+      setTargetVarSelections((prev) => {
+        const next = {};
+        tokens.forEach(t => { if (prev[t] != null) next[t] = prev[t]; });
+        return next;
+      });
+    }
+
+    // If computation type changed, update active vars accordingly
+    if (name === 'computation_type') {
+      const newType = value;
+      if (newType === 'target_computed') {
+        // clear actual formula vars
+        setFormulaVars([]);
+        setVarSelections({});
+        setVarSearchQueries({});
+        // parse existing target formula in formData (if present)
+        const tVal = formData.target_formula || '';
+        const tokens = [];
+        const seen = new Set();
+        const regex = /v(\d+)/g;
+        let match;
+        while ((match = regex.exec(tVal)) !== null) {
+          const token = `v${match[1]}`;
+          if (!seen.has(token)) {
+            seen.add(token);
+            tokens.push(token);
+          }
+        }
+        setTargetFormulaVars(tokens);
+      } else {
+        // both or actual_computed: ensure actual formula tokens are parsed
+        setTargetFormulaVars([]);
+        setTargetVarSelections({});
+        setTargetVarSearchQueries({});
+        setFormData((prev) => ({
+          ...prev,
+          target_formula: '',
+          target_source_kpi_value_ids: null
+        }));
+        const aVal = formData.formula || '';
+        const tokens = [];
+        const seen = new Set();
+        const regex = /v(\d+)/g;
+        let match;
+        while ((match = regex.exec(aVal)) !== null) {
+          const token = `v${match[1]}`;
+          if (!seen.has(token)) {
+            seen.add(token);
+            tokens.push(token);
+          }
+        }
+        setFormulaVars(tokens);
+      }
+    }
   };
 
   if (loading) {
@@ -370,13 +526,7 @@ function KmiDetail() {
   }
   return (
     <div className="w-full max-w-7xl mx-auto p-6">
-      {notification.show && (
-        <div className={`fixed top-5 right-5 ${notification.type === 'success' ? 'bg-green-500' : 'bg-red-500'} text-white px-5 py-3 rounded-lg shadow-lg flex items-center gap-3 z-50`}>
-          <span className="text-lg font-bold">{notification.type === 'success' ? '✓' : '✕'}</span>
-          <span>{notification.message}</span>
-          <button className="ml-4 text-white hover:text-gray-200 font-bold text-xl" onClick={() => setNotification({ show: false, message: '', type: '' })}>×</button>
-        </div>
-      )}
+          <Notification show={notification.show} message={notification.message} type={notification.type} onClose={() => setNotification({ show: false, message: '', type: '' })} />
       <div className="mb-6 flex justify-between items-center">
         <button className="px-5 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-md text-sm font-medium" onClick={() => navigate('/admin/kmis')}>
           ← Back to KMIs
@@ -476,14 +626,14 @@ function KmiDetail() {
             </div>
             <form onSubmit={handleSubmit} className="p-6">
               <div className="mb-5">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Data/Name *</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Data/Name*</label>
                 <input
                   type="text"
                   name="data"
                   value={formData.data}
                   onChange={handleChange}
                   required
-                  placeholder="e.g., Revenue, Customer Count"
+                  placeholder="Enter data Value"
                   className="w-full px-3 py-2.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                 />
               </div>
@@ -498,9 +648,36 @@ function KmiDetail() {
                 >
                   <option value="manual">Manual</option>
                   <option value="computed">Computed</option>
-                  <option value="aggregated">Aggregated</option>
                 </select>
               </div>
+              {formData.kpi_type === 'computed' && (
+                <div className="mb-5">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center justify-between">
+                    <span>Computation Type</span>
+                    <button
+                      type="button"
+                      onClick={() => setShowComputationTypeHelp(true)}
+                      className="ml-2 px-2 py-1 text-xs bg-blue-100 text-blue-600 hover:bg-blue-200 rounded flex items-center gap-1"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      Help
+                    </button>
+                  </label>
+                  <select
+                    name="computation_type"
+                    value={formData.computation_type}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  >
+                    <option value="both">Both actual and target computed using formula</option>
+                    <option value="actual_computed">Actual computed using formula; target uses default</option>
+                    <option value="target_computed">Actual manual; target computed using formula</option>
+                  </select>
+                  <p className="text-xs text-gray-600 mt-2">Option 1: System calculates both values | Option 2: System calculates actual, uses default for target | Option 3: User enters actual, system calculates target</p>
+                </div>
+              )}
               {formData.kpi_type === 'computed' && (
                 <>
                   <div className="mb-5 p-4 bg-blue-50 rounded-md border border-blue-200">
@@ -520,7 +697,7 @@ function KmiDetail() {
                             .map((kv) => (
                               <tr key={kv.id} className="border-b border-blue-100">
                                 <td className="px-2 py-1">
-                                  <code className="bg-gray-100 px-1 rounded">v{kv.id}</code>
+                                  <code className="bg-gray-100 px-1 rounded text-red-600">v{kv.id}</code>
                                 </td>
                                 <td className="px-2 py-1">{kv.data}</td>
                                 <td className="px-2 py-1">
@@ -536,18 +713,119 @@ function KmiDetail() {
                   </div>
 
                   <div className="mb-5">
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Formula *</label>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center justify-between">
+                      <span>Formula (for Actual) {formData.computation_type !== 'target_computed' && '*'}</span>
+                      <button
+                        type="button"
+                        onClick={() => setShowFormulaHelp(true)}
+                        className="ml-2 px-2 py-1 text-xs bg-blue-100 text-blue-600 hover:bg-blue-200 rounded flex items-center gap-1"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Help
+                      </button>
+                    </label>
                     <input
                       type="text"
                       name="formula"
                       value={formData.formula}
                       onChange={handleChange}
-                      placeholder="e.g., v1*v2+v3 or AVERAGE(v1,v2,v3)"
+                      placeholder={formData.computation_type === 'target_computed' ? 'Not required - actual values entered manually' : 'e.g., v1*v2+v3 or AVERAGE(v1,v2,v3)'}
                       className="w-full px-3 py-2.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 font-mono"
-                      required
+                      required={formData.computation_type !== 'target_computed'}
+                      disabled={formData.computation_type === 'target_computed'}
                     />
-                    
-                    {formulaVars.length > 0 && (
+
+                    {formData.computation_type === 'target_computed' && (
+                      <div className="mt-4 p-3 bg-gray-50 rounded-md border border-gray-200">
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Target Formula *</label>
+                        <input
+                          type="text"
+                          name="target_formula"
+                          value={formData.target_formula}
+                          onChange={handleChange}
+                          placeholder="e.g., v1*v2+v3 or AVERAGE(v1,v2,v3)"
+                          className="w-full px-3 py-2.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 font-mono"
+                          required={formData.computation_type === 'target_computed'}
+                        />
+
+                        {targetFormulaVars.length > 0 && (
+                          <div className="mt-3 p-3 bg-white rounded-md border border-gray-200">
+                            <strong className="text-sm text-gray-700 block mb-2">Assign values for target variables:</strong>
+                            <div className="space-y-3">
+                              {targetFormulaVars.map((tok) => {
+                                const searchQuery = targetVarSearchQueries[tok] || '';
+                                const filteredOptions = allowedValuesForYear.filter((kv) => {
+                                  if (!searchQuery) return true;
+                                  const meta = getKpiMeta(kv.kpi_id);
+                                  const label = `v${kv.id} ${kv.data} ${meta.title}`.toLowerCase();
+                                  return label.includes(searchQuery.toLowerCase());
+                                });
+                                const selectedKv = allowedValuesForYear.find(kv => kv.id === targetVarSelections[tok]);
+                                const selectedLabel = selectedKv 
+                                  ? `v${selectedKv.id} - ${selectedKv.data} (${getKpiMeta(selectedKv.kpi_id).title})`
+                                  : '';
+                                return (
+                                  <div key={tok} className="bg-white p-2 rounded border border-gray-300">
+                                    <label className="text-sm font-semibold text-gray-700 mb-1 block">
+                                      {tok} {selectedLabel && <span className="font-normal text-gray-600">→ {selectedLabel}</span>}
+                                    </label>
+                                    <input
+                                      type="text"
+                                      list={`target-datalist-${tok}`}
+                                      placeholder={`Type to search or select ${tok}...`}
+                                      value={searchQuery}
+                                      onChange={(e) => {
+                                        setTargetVarSearchQueries((prev) => ({ ...prev, [tok]: e.target.value }));
+                                        const match = allowedValuesForYear.find(kv => {
+                                          const meta = getKpiMeta(kv.kpi_id);
+                                          const label = `v${kv.id} - ${kv.data} (${meta.title})`;
+                                          return label === e.target.value;
+                                        });
+                                        if (match) {
+                                          setTargetVarSelections((prev) => ({ ...prev, [tok]: match.id }));
+                                        }
+                                      }}
+                                      onBlur={(e) => {
+                                        const selectedKv = allowedValuesForYear.find(kv => kv.id === targetVarSelections[tok]);
+                                        if (selectedKv) {
+                                          const meta = getKpiMeta(selectedKv.kpi_id);
+                                          setTargetVarSearchQueries((prev) => ({ 
+                                            ...prev, 
+                                            [tok]: `v${selectedKv.id} - ${selectedKv.data} (${meta.title})` 
+                                          }));
+                                        }
+                                      }}
+                                      onFocus={(e) => {
+                                        setTargetVarSearchQueries((prev) => ({ ...prev, [tok]: '' }));
+                                      }}
+                                      className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:border-blue-500"
+                                    />
+                                    <datalist id={`target-datalist-${tok}`}>
+                                      {filteredOptions.map((kv) => {
+                                        const meta = getKpiMeta(kv.kpi_id);
+                                        return (
+                                          <option 
+                                            key={kv.id} 
+                                            value={`v${kv.id} - ${kv.data} (${meta.title})`}
+                                          />
+                                        );
+                                      })}
+                                    </datalist>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                            <div className="mt-2 text-xs text-gray-600">
+                              Resolved preview: <code className="bg-gray-100 px-1 rounded">{resolveTargetFormulaWithSelections(formData.target_formula)}</code>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {formData.computation_type !== 'target_computed' && formulaVars.length > 0 && (
                       <div className="mt-3 p-3 bg-gray-50 rounded-md border border-gray-200">
                         <strong className="text-sm text-gray-700 block mb-2">Assign values for variables:</strong>
                         <div className="space-y-3">
@@ -621,17 +899,19 @@ function KmiDetail() {
                         </div>
                       </div>
                     )}
-                    
-                    <div className="mt-2 p-2 bg-gray-50 rounded text-xs text-gray-600">
-                      <p className="font-semibold mb-1">Formula Syntax:</p>
-                      <ul className="list-disc list-inside space-y-0.5">
-                        <li><code>v1, v2, v3</code> - Reference other KPI values</li>
-                        <li><code>v1 + v2 - v3</code> - Basic arithmetic (+, -, *, /, %)</li>
-                        <li><code>CUMSUM(v1)</code> - Cumulative sum from April to current month</li>
-                        <li><code>AVERAGE(v1, v2)</code> - Calculate average</li>
-                      </ul>
-                      <p className="mt-1"><strong>Example:</strong> <code>v2*100/v1</code> (Percentage)</p>
-                    </div>
+
+                    {formData.computation_type !== 'target_computed' && (
+                      <div className="mb-5 p-4 bg-blue-50 rounded-md border border-blue-200" >
+                        <p className="font-semibold mb-1">Formula Syntax:</p>
+                        <ul className="list-disc list-inside space-y-0.5">
+                          <li><code className="text-red-600">v1, v2, v3</code> - Reference other KPI values</li>
+                          <li><code className="text-red-600">v1 + v2 - v3</code> - Basic arithmetic (+, -, *, /, %)</li>
+                          <li><code className="text-red-600">CUMSUM(v1)</code> - Cumulative sum from April to current month</li>
+                          <li><code className="text-red-600">AVERAGE(v1, v2)</code> - Calculate average</li>
+                        </ul>
+                        <p className="mt-1"><strong>Example:</strong> <code className="text-red-600">v2*100/v1</code> (Percentage)</p>
+                      </div>
+                    )}
                   </div>
                 </>
               )}
@@ -737,6 +1017,464 @@ function KmiDetail() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {showFormulaHelp && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-5" onClick={() => setShowFormulaHelp(false)}>
+          <div className="bg-white rounded-lg shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between items-center p-6 border-b border-gray-200 sticky top-0 bg-white">
+              <h3 className="text-xl font-bold text-gray-800">📚 Formula Writing Guide</h3>
+              <button className="text-gray-600 hover:bg-gray-100 w-8 h-8 rounded flex items-center justify-center text-2xl" onClick={() => setShowFormulaHelp(false)}>×</button>
+            </div>
+            <div className="p-6 space-y-6">
+              {/* Basic Syntax */}
+              <section className="border-l-4 border-blue-500 pl-4">
+                <h4 className="text-lg font-bold text-gray-800 mb-3">1️⃣ Basic Syntax & Operators</h4>
+                <div className="bg-blue-50 p-4 rounded-md space-y-2">
+                  <p className="text-sm text-gray-700"><strong>Arithmetic Operators:</strong></p>
+                  <ul className="list-disc list-inside text-sm text-gray-600 space-y-1">
+                    <li><code className="bg-gray-100 px-2 py-1 rounded">+</code> Addition</li>
+                    <li><code className="bg-gray-100 px-2 py-1 rounded">-</code> Subtraction</li>
+                    <li><code className="bg-gray-100 px-2 py-1 rounded">*</code> Multiplication</li>
+                    <li><code className="bg-gray-100 px-2 py-1 rounded">/</code> Division</li>
+                    <li><code className="bg-gray-100 px-2 py-1 rounded">%</code> Modulo (Remainder)</li>
+                  </ul>
+                  <p className="text-sm text-gray-700 mt-3"><strong>Order of Operations:</strong> Follows standard mathematical rules (PEMDAS)</p>
+                </div>
+              </section>
+
+              {/* Variable Reference */}
+              <section className="border-l-4 border-green-500 pl-4">
+                <h4 className="text-lg font-bold text-gray-800 mb-3">2️⃣ Referencing KPI Values</h4>
+                <div className="bg-green-50 p-4 rounded-md space-y-3">
+                  <p className="text-sm text-gray-700"><strong>Variable Notation:</strong> Each KPI value is referenced as <code className="bg-gray-100 px-2 py-1 rounded">v{'{id}'}</code></p>
+                  <div className="bg-white border border-green-200 p-3 rounded text-sm">
+                    <p className="font-semibold text-gray-700 mb-2">Example:</p>
+                    <p className="text-gray-600">If you have KPI values named:</p>
+                    <ul className="list-disc list-inside text-gray-600 mt-1 mb-2">
+                      <li>Sales (ID: 1) → reference as <code className="bg-gray-100 px-1">v1</code></li>
+                      <li>Items Sold (ID: 2) → reference as <code className="bg-gray-100 px-1">v2</code></li>
+                      <li>Target Sales (ID: 3) → reference as <code className="bg-gray-100 px-1">v3</code></li>
+                    </ul>
+                  </div>
+                </div>
+              </section>
+
+              {/* Percentage Examples */}
+              <section className="border-l-4 border-purple-500 pl-4">
+                <h4 className="text-lg font-bold text-gray-800 mb-3">3️⃣ Percentage & Ratio Formulas</h4>
+                <div className="bg-purple-50 p-4 rounded-md space-y-3">
+                  <div className="bg-white border border-purple-200 p-3 rounded text-sm">
+                    <p className="font-semibold text-gray-700 mb-2">📌 Ratio Between Two KPI Values:</p>
+                    <p className="text-gray-600 mb-2"><strong>Formula:</strong> <code className="bg-gray-100 px-2 py-1 rounded">v1*100/v2</code></p>
+                    <p className="text-gray-600"><strong>What it does:</strong> Calculates the ratio of v1 (actual) to v2 (actual) as a percentage. Both v1 and v2 use their actual values.</p>
+                    <p className="text-gray-600 mt-2"><strong>Example:</strong> If v1 (Sales Completed) = 75 actual and v2 (Sales Target) = 100 actual, result = 75%</p>
+                  </div>
+                  <div className="bg-white border border-purple-200 p-3 rounded text-sm">
+                    <p className="font-semibold text-gray-700 mb-2">📌 Actual vs Target of Same KPI:</p>
+                    <p className="text-gray-600 mb-2"><strong>Formula:</strong> <code className="bg-gray-100 px-2 py-1 rounded">v1:actual*100/v1:target</code></p>
+                    <p className="text-gray-600"><strong>What it does:</strong> Compares the actual value against the target value of the same KPI value (v1).</p>
+                    <p className="text-gray-600 mt-2"><strong>Example:</strong> If v1 has actual = 75 and target = 100, result = 75% achievement</p>
+                  </div>
+                  <div className="bg-white border border-purple-200 p-3 rounded text-sm">
+                    <p className="font-semibold text-gray-700 mb-2">📌 Percentage Change/Growth:</p>
+                    <p className="text-gray-600 mb-2"><strong>Formula:</strong> <code className="bg-gray-100 px-2 py-1 rounded">(v2-v1)*100/v1</code></p>
+                    <p className="text-gray-600"><strong>What it does:</strong> Calculates percentage change from v1 (previous/earlier value) to v2 (current/later value)</p>
+                    <p className="text-gray-600 mt-2"><strong>Example:</strong> If v1 = 100 (last month) and v2 = 120 (this month), result = 20% growth</p>
+                  </div>
+                </div>
+              </section>
+
+              {/* Actual vs Target */}
+              <section className="border-l-4 border-orange-500 pl-4">
+                <h4 className="text-lg font-bold text-gray-800 mb-3">4️⃣ Actual vs Target Problems</h4>
+                <div className="bg-orange-50 p-4 rounded-md space-y-3">
+                  <div className="bg-white border border-orange-200 p-3 rounded text-sm">
+                    <p className="font-semibold text-gray-700 mb-2">📌 Performance Against Target (Same KPI):</p>
+                    <p className="text-gray-600 mb-2"><strong>Formula:</strong> <code className="bg-gray-100 px-2 py-1 rounded">v1:actual/v1:target*100</code></p>
+                    <p className="text-gray-600"><strong>What it does:</strong> Shows actual performance as percentage of target for the same KPI value</p>
+                    <p className="text-gray-600 mt-2"><strong>Example:</strong> Revenue (v1) with actual = $80,000 and target = $100,000 | Result = 80%</p>
+                  </div>
+                  <div className="bg-white border border-orange-200 p-3 rounded text-sm">
+                    <p className="font-semibold text-gray-700 mb-2">📌 Variance (Difference from Target):</p>
+                    <p className="text-gray-600 mb-2"><strong>Formula:</strong> <code className="bg-gray-100 px-2 py-1 rounded">v1:actual-v1:target</code></p>
+                    <p className="text-gray-600"><strong>What it does:</strong> Shows absolute difference between actual and target of the same KPI</p>
+                    <p className="text-gray-600 mt-2"><strong>Example:</strong> Actual = 95 | Target = 100 | Result = -5 (shortfall)</p>
+                  </div>
+                  <div className="bg-white border border-orange-200 p-3 rounded text-sm">
+                    <p className="font-semibold text-gray-700 mb-2">📌 Variance Percentage:</p>
+                    <p className="text-gray-600 mb-2"><strong>Formula:</strong> <code className="bg-gray-100 px-2 py-1 rounded">(v1:actual-v1:target)*100/v1:target</code></p>
+                    <p className="text-gray-600"><strong>What it does:</strong> Shows percentage variance from target</p>
+                    <p className="text-gray-600 mt-2"><strong>Example:</strong> Actual = 110 | Target = 100 | Result = 10% (exceeded by 10%)</p>
+                  </div>
+                </div>
+              </section>
+
+              {/* Cumulative Sum */}
+              <section className="border-l-4 border-red-500 pl-4">
+                <h4 className="text-lg font-bold text-gray-800 mb-3">5️⃣ Cumulative Sum Function</h4>
+                <div className="bg-red-50 p-4 rounded-md space-y-3">
+                  <p className="text-sm text-gray-700"><strong>Syntax:</strong> <code className="bg-gray-100 px-2 py-1 rounded">CUMSUM(v{'{id}'})</code></p>
+                  <div className="bg-white border border-red-200 p-3 rounded text-sm">
+                    <p className="font-semibold text-gray-700 mb-2">📌 What it does:</p>
+                    <p className="text-gray-600">Calculates cumulative sum from April (start of financial year) to the current month</p>
+                    <p className="text-gray-600 mt-2"><strong>Example:</strong> If you have monthly sales data:</p>
+                    <ul className="list-disc list-inside text-gray-600 mt-1 text-xs">
+                      <li>April: 1000 → CUMSUM = 1000</li>
+                      <li>May: 1200 → CUMSUM = 2200</li>
+                      <li>June: 1500 → CUMSUM = 3700</li>
+                      <li>July: 2000 → CUMSUM = 5700</li>
+                    </ul>
+                  </div>
+                  <div className="bg-white border border-red-200 p-3 rounded text-sm">
+                    <p className="font-semibold text-gray-700 mb-2">📌 Common Use Cases:</p>
+                    <ul className="list-disc list-inside text-gray-600 text-sm">
+                      <li>Year-to-date totals</li>
+                      <li>Running totals for revenue, production, etc.</li>
+                      <li><strong>Example Formula:</strong> <code className="bg-gray-100 px-1">CUMSUM(v1)</code> for cumulative monthly sales</li>
+                    </ul>
+                  </div>
+                </div>
+              </section>
+
+              {/* Advanced Functions */}
+              <section className="border-l-4 border-indigo-500 pl-4">
+                <h4 className="text-lg font-bold text-gray-800 mb-3">6️⃣ Advanced Functions</h4>
+                <div className="bg-indigo-50 p-4 rounded-md space-y-3">
+                  <div className="bg-white border border-indigo-200 p-3 rounded text-sm">
+                    <p className="font-semibold text-gray-700 mb-2">📌 AVERAGE Function:</p>
+                    <p className="text-gray-600 mb-2"><strong>Syntax:</strong> <code className="bg-gray-100 px-2 py-1 rounded">AVERAGE(v1, v2, v3)</code></p>
+                    <p className="text-gray-600"><strong>What it does:</strong> Calculates the average of multiple KPI values</p>
+                  </div>
+                  <div className="bg-white border border-indigo-200 p-3 rounded text-sm">
+                    <p className="font-semibold text-gray-700 mb-2">📌 Combining Multiple Operations:</p>
+                    <p className="text-gray-600 mb-2"><strong>Example:</strong> <code className="bg-gray-100 px-2 py-1 rounded">(v1+v2)/v3*100</code></p>
+                    <p className="text-gray-600">Complex formulas combining addition, division, and multiplication</p>
+                  </div>
+                </div>
+              </section>
+
+              {/* Quick Reference */}
+              <section className="border-l-4 border-yellow-500 pl-4">
+                <h4 className="text-lg font-bold text-gray-800 mb-3">📋 Quick Reference - Common Scenarios</h4>
+                <div className="bg-yellow-50 p-4 rounded-md space-y-2 text-sm">
+                  <table className="w-full border border-yellow-200">
+                    <thead>
+                      <tr className="bg-yellow-100 border-b border-yellow-200">
+                        <th className="px-3 py-2 text-left font-semibold text-gray-800">Scenario</th>
+                        <th className="px-3 py-2 text-left font-semibold text-gray-800">Formula</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-yellow-200">
+                      <tr>
+                        <td className="px-3 py-2 text-gray-600">Ratio of Two KPI Values</td>
+                        <td className="px-3 py-2 font-mono bg-gray-50">v1*100/v2</td>
+                      </tr>
+                      <tr>
+                        <td className="px-3 py-2 text-gray-600">Performance vs Target</td>
+                        <td className="px-3 py-2 font-mono bg-gray-50">v1:actual/v1:target*100</td>
+                      </tr>
+                      <tr>
+                        <td className="px-3 py-2 text-gray-600">Month-on-Month Growth</td>
+                        <td className="px-3 py-2 font-mono bg-gray-50">(v2-v1)*100/v1</td>
+                      </tr>
+                      <tr>
+                        <td className="px-3 py-2 text-gray-600">Average Achievement</td>
+                        <td className="px-3 py-2 font-mono bg-gray-50">AVERAGE(v1,v2,v3)</td>
+                      </tr>
+                      <tr>
+                        <td className="px-3 py-2 text-gray-600">Year-to-Date Total</td>
+                        <td className="px-3 py-2 font-mono bg-gray-50">CUMSUM(v1)</td>
+                      </tr>
+                      <tr>
+                        <td className="px-3 py-2 text-gray-600">Variance from Target %</td>
+                        <td className="px-3 py-2 font-mono bg-gray-50">(v1:actual-v1:target)*100/v1:target</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+
+              {/* Tips */}
+              <section className="bg-blue-50 border border-blue-200 rounded-md p-4">
+                <h4 className="text-lg font-bold text-gray-800 mb-3">⚙️ Computation Type</h4>
+                <div className="space-y-3 text-sm text-gray-700">
+                  <div className="bg-white border border-blue-200 p-3 rounded">
+                    <p className="font-semibold text-gray-700 mb-2">📌 What is Computation Type?</p>
+                    <p className="text-gray-600">Computation Type determines how the Actual and Target values are calculated for a computed KPI value.</p>
+                  </div>
+                  <div className="bg-white border border-blue-200 p-3 rounded">
+                    <p className="font-semibold text-gray-700 mb-2">📌 Available Options:</p>
+                    <ul className="space-y-2 text-gray-600">
+                      <li>
+                        <strong className="text-gray-700">Both:</strong> Single formula calculates both actual and target values using the same computation logic
+                      </li>
+                      <li>
+                        <strong className="text-gray-700">Actual Only:</strong> Formula computes only the actual value; target value is set manually or inherited
+                      </li>
+                      <li>
+                        <strong className="text-gray-700">Target Only:</strong> Formula computes only the target value; actual value is set manually or inherited
+                      </li>
+                      <li>
+                        <strong className="text-gray-700">Separate:</strong> Use two different formulas - one for actual values and one for target values
+                      </li>
+                    </ul>
+                  </div>
+                  <div className="bg-white border border-blue-200 p-3 rounded">
+                    <p className="font-semibold text-gray-700 mb-2">📌 When to Use Each:</p>
+                    <ul className="space-y-2 text-gray-600">
+                      <li>
+                        <strong className="text-gray-700">Both:</strong> When actual and target use the same calculation. Example: <code className="bg-gray-100 px-1">v1*100/v2</code> applies to both
+                      </li>
+                      <li>
+                        <strong className="text-gray-700">Actual Only:</strong> When you calculate actual from component values but target is a fixed number
+                      </li>
+                      <li>
+                        <strong className="text-gray-700">Target Only:</strong> When target is calculated but actual is manually entered
+                      </li>
+                      <li>
+                        <strong className="text-gray-700">Separate:</strong> Complex scenarios where actual and target need completely different formulas. Example: <strong>Actual:</strong> <code className="bg-gray-100 px-1">v1-v2</code> (variance) <strong>Target:</strong> <code className="bg-gray-100 px-1">0</code> (zero variance target)
+                      </li>
+                    </ul>
+                  </div>
+                  <div className="bg-orange-50 border border-orange-200 p-3 rounded">
+                    <p className="font-semibold text-gray-700 mb-2">💡 Example Scenario:</p>
+                    <p className="text-gray-600 mb-2">You want to track <strong>Achievement Percentage</strong>:</p>
+                    <ul className="list-disc list-inside text-gray-600 text-xs space-y-1 mb-2">
+                      <li>v1 = Actual Sales, v2 = Target Sales</li>
+                      <li>Both use formula: <code className="bg-gray-100 px-1">v1*100/v2</code></li>
+                      <li><strong>Computation Type = Both</strong></li>
+                      <li>Result: Actual Achievement % and a Target Achievement % are both calculated</li>
+                    </ul>
+                  </div>
+                  <div className="bg-green-50 border border-green-200 p-3 rounded">
+                    <p className="font-semibold text-gray-700 mb-2">💡 Example Scenario with Separate:</p>
+                    <p className="text-gray-600 mb-2">You want to track <strong>Variance (Actual - Target)</strong>:</p>
+                    <ul className="list-disc list-inside text-gray-600 text-xs space-y-1 mb-2">
+                      <li>Actual Formula: <code className="bg-gray-100 px-1">v1:actual - v2:actual</code> (difference between two values)</li>
+                      <li>Target Formula: <code className="bg-gray-100 px-1">v1:target - v2:target</code> (expected difference)</li>
+                      <li><strong>Computation Type = Separate</strong></li>
+                      <li>Result: Variance computed separately for actual and target scenarios</li>
+                    </ul>
+                  </div>
+                </div>
+              </section>
+
+              {/* Tips */}
+              <section className="bg-blue-50 border border-blue-200 rounded-md p-4">
+                <h4 className="text-lg font-bold text-gray-800 mb-3">💡 Tips for Success</h4>
+                <ul className="space-y-2 text-sm text-gray-700">
+                  <li className="flex gap-2">
+                    <span className="text-blue-600">✓</span>
+                    <span>Use parentheses to control the order of operations: <code className="bg-gray-100 px-1">(v1+v2)*100/v3</code></span>
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="text-blue-600">✓</span>
+                    <span>Always reference correct KPI value IDs from the table above</span>
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="text-blue-600">✓</span>
+                    <span>For percentages, standard formula is: (part/whole)*100</span>
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="text-blue-600">✓</span>
+                    <span>Test your formula with sample values to ensure it produces expected results</span>
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="text-blue-600">✓</span>
+                    <span>Use consistent variable references - stick to the same KPI value IDs</span>
+                  </li>
+                </ul>
+              </section>
+            </div>
+            <div className="flex justify-end gap-3 p-6 border-t border-gray-200 sticky bottom-0 bg-white">
+              <button
+                type="button"
+                className="px-5 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-md text-sm font-medium"
+                onClick={() => setShowFormulaHelp(false)}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showComputationTypeHelp && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-5" onClick={() => setShowComputationTypeHelp(false)}>
+          <div className="bg-white rounded-lg shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between items-center p-6 border-b border-gray-200 sticky top-0 bg-white">
+              <h3 className="text-xl font-bold text-gray-800">⚙️ Computation Type Guide</h3>
+              <button className="text-gray-600 hover:bg-gray-100 w-8 h-8 rounded flex items-center justify-center text-2xl" onClick={() => setShowComputationTypeHelp(false)}>×</button>
+            </div>
+            <div className="p-6 space-y-6">
+              {/* What is Computation Type */}
+              <section className="border-l-4 border-blue-500 pl-4">
+                <h4 className="text-lg font-bold text-gray-800 mb-3">🎯 What is Computation Type?</h4>
+                <div className="bg-blue-50 p-4 rounded-md space-y-3">
+                  <p className="text-sm text-gray-700">Computation Type determines how the <strong>Actual</strong> and <strong>Target</strong> values are calculated for a computed KPI value.</p>
+                  <p className="text-sm text-gray-700">Each KPI value can have both an <strong>actual value</strong> (what was achieved) and a <strong>target value</strong> (what was planned). Computation Type controls how these are determined.</p>
+                </div>
+              </section>
+
+              {/* Option 1: Both */}
+              <section className="border-l-4 border-green-500 pl-4">
+                <h4 className="text-lg font-bold text-gray-800 mb-3">1️⃣ Both Actual and Target Computed Using Formula</h4>
+                <div className="bg-green-50 p-4 rounded-md space-y-3">
+                  <div className="bg-white border border-green-200 p-3 rounded text-sm">
+                    <p className="font-semibold text-gray-700 mb-2">When to Use:</p>
+                    <p className="text-gray-600">Use this when the same formula applies to both actual and target values, and you want the system to automatically calculate both.</p>
+                  </div>
+                  <div className="bg-white border border-green-200 p-3 rounded text-sm">
+                    <p className="font-semibold text-gray-700 mb-2">How It Works:</p>
+                    <ul className="list-disc list-inside text-gray-600 space-y-1 text-xs">
+                      <li>You provide ONE formula</li>
+                      <li>System calculates <strong>Actual Value</strong> using this formula</li>
+                      <li>System calculates <strong>Target Value</strong> using the same formula</li>
+                    </ul>
+                  </div>
+                  <div className="bg-white border border-green-200 p-3 rounded text-sm">
+                    <p className="font-semibold text-gray-700 mb-2">📌 Example:</p>
+                    <p className="text-gray-600 mb-2"><strong>Achievement Percentage</strong></p>
+                    <ul className="list-disc list-inside text-gray-600 text-xs space-y-1">
+                      <li><strong>Formula:</strong> <code className="bg-gray-100 px-1">v1*100/v2</code> (Actual Sales / Target Sales * 100)</li>
+                      <li><strong>v1 (Actual Sales):</strong> 80,000 | <strong>v2 (Sales Target):</strong> 100,000 → Result: 80%</li>
+                      <li><strong>v1 (Target for Sales):</strong> 90,000 | <strong>v2 (Target for Sales Target):</strong> 100,000 → Result: 90%</li>
+                      <li>Final KPI: Actual = 80%, Target = 90%</li>
+                    </ul>
+                  </div>
+                </div>
+              </section>
+
+              {/* Option 2: Actual Computed */}
+              <section className="border-l-4 border-purple-500 pl-4">
+                <h4 className="text-lg font-bold text-gray-800 mb-3">2️⃣ Actual Computed Using Formula; Target Uses Default</h4>
+                <div className="bg-purple-50 p-4 rounded-md space-y-3">
+                  <div className="bg-white border border-purple-200 p-3 rounded text-sm">
+                    <p className="font-semibold text-gray-700 mb-2">When to Use:</p>
+                    <p className="text-gray-600">Use this when you want to calculate actual values from a formula, but the target is a fixed number (default) that doesn't change.</p>
+                  </div>
+                  <div className="bg-white border border-purple-200 p-3 rounded text-sm">
+                    <p className="font-semibold text-gray-700 mb-2">How It Works:</p>
+                    <ul className="list-disc list-inside text-gray-600 space-y-1 text-xs">
+                      <li>You provide ONE formula for calculating actual values</li>
+                      <li>System calculates <strong>Actual Value</strong> using this formula</li>
+                      <li><strong>Target Value</strong> is set from the "Default Target Value" field (a fixed number)</li>
+                      <li>Target remains constant regardless of actual data</li>
+                    </ul>
+                  </div>
+                  <div className="bg-white border border-purple-200 p-3 rounded text-sm">
+                    <p className="font-semibold text-gray-700 mb-2">📌 Example:</p>
+                    <p className="text-gray-600 mb-2"><strong>Customer Retention Rate</strong></p>
+                    <ul className="list-disc list-inside text-gray-600 text-xs space-y-1">
+                      <li><strong>Formula:</strong> <code className="bg-gray-100 px-1">v1*100/v2</code> (Retained Customers / Total Customers)</li>
+                      <li><strong>Default Target Value:</strong> 95 (fixed target of 95%)</li>
+                      <li><strong>Month 1:</strong> (950 / 1000) * 100 = 95% actual, 95% target</li>
+                      <li><strong>Month 2:</strong> (920 / 1000) * 100 = 92% actual, 95% target (target unchanged)</li>
+                    </ul>
+                  </div>
+                </div>
+              </section>
+
+              {/* Option 3: Target Computed */}
+              <section className="border-l-4 border-orange-500 pl-4">
+                <h4 className="text-lg font-bold text-gray-800 mb-3">3️⃣ Actual Manual; Target Computed Using Formula</h4>
+                <div className="bg-orange-50 p-4 rounded-md space-y-3">
+                  <div className="bg-white border border-orange-200 p-3 rounded text-sm">
+                    <p className="font-semibold text-gray-700 mb-2">When to Use:</p>
+                    <p className="text-gray-600">Use this when actual values are entered manually, and the target is calculated using a formula.</p>
+                  </div>
+                  <div className="bg-white border border-orange-200 p-3 rounded text-sm">
+                    <p className="font-semibold text-gray-700 mb-2">How It Works:</p>
+                    <ul className="list-disc list-inside text-gray-600 space-y-1 text-xs">
+                      <li><strong>Actual Value:</strong> User enters manually (based on data entry form)</li>
+                      <li>You provide ONE formula for calculating target values</li>
+                      <li>System calculates <strong>Target Value</strong> using the formula</li>
+                    </ul>
+                  </div>
+                  <div className="bg-white border border-orange-200 p-3 rounded text-sm">
+                    <p className="font-semibold text-gray-700 mb-2">📌 Example:</p>
+                    <p className="text-gray-600 mb-2"><strong>Quality Score with Variance</strong></p>
+                    <ul className="list-disc list-inside text-gray-600 text-xs space-y-1">
+                      <li><strong>Target Formula:</strong> <code className="bg-gray-100 px-1">v1-v2</code> (Planned Quality - Industry Standard)</li>
+                      <li><strong>Actual Value:</strong> User enters "92" (actual quality score → entered manually)</li>
+                      <li><strong>v1 (Planning data) = 100, v2 (Industry Standard) = 5</strong></li>
+                      <li>System calculates Target = 100 - 5 = 95</li>
+                      <li>Final KPI: Actual = 92, Target = 95</li>
+                    </ul>
+                  </div>
+                </div>
+              </section>
+
+              {/* Comparison Table */}
+              <section className="border-l-4 border-indigo-500 pl-4">
+                <h4 className="text-lg font-bold text-gray-800 mb-3">📊 Quick Comparison</h4>
+                <div className="bg-indigo-50 p-4 rounded-md overflow-x-auto text-xs">
+                  <table className="w-full border border-indigo-200">
+                    <thead>
+                      <tr className="bg-indigo-100 border-b border-indigo-200">
+                        <th className="px-3 py-2 text-left font-semibold">Option</th>
+                        <th className="px-3 py-2 text-left font-semibold">Actual Value</th>
+                        <th className="px-3 py-2 text-left font-semibold">Target Value</th>
+                        <th className="px-3 py-2 text-left font-semibold">Formulas Needed</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-indigo-200">
+                      <tr className="bg-white">
+                        <td className="px-3 py-2">Both</td>
+                        <td className="px-3 py-2">Computed from formula</td>
+                        <td className="px-3 py-2">Computed from same formula</td>
+                        <td className="px-3 py-2">1 formula</td>
+                      </tr>
+                      <tr className="bg-white">
+                        <td className="px-3 py-2">Actual Computed</td>
+                        <td className="px-3 py-2">Computed from formula</td>
+                        <td className="px-3 py-2">Fixed default value</td>
+                        <td className="px-3 py-2">1 formula + default</td>
+                      </tr>
+                      <tr className="bg-white">
+                        <td className="px-3 py-2">Target Computed</td>
+                        <td className="px-3 py-2">Manual entry by user</td>
+                        <td className="px-3 py-2">Computed from formula</td>
+                        <td className="px-3 py-2">1 formula</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+
+              {/* Tips */}
+              <section className="bg-blue-50 border border-blue-200 rounded-md p-4">
+                <h4 className="text-lg font-bold text-gray-800 mb-3">💡 Tips for Choosing</h4>
+                <ul className="space-y-2 text-sm text-gray-700">
+                  <li className="flex gap-2">
+                    <span className="text-blue-600">✓</span>
+                    <span><strong>Both:</strong> Most common choice when you want symmetric actual and target calculations</span>
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="text-blue-600">✓</span>
+                    <span><strong>Actual Computed:</strong> Use when target is a policy/directive that doesn't change with data</span>
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="text-blue-600">✓</span>
+                    <span><strong>Target Computed:</strong> Use when actual is from external sources but target is calculated</span>
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="text-blue-600">✓</span>
+                    <span>Always ensure your formula references valid KPI values available in your KMI</span>
+                  </li>
+                </ul>
+              </section>
+            </div>
+            <div className="flex justify-end gap-3 p-6 border-t border-gray-200 sticky bottom-0 bg-white">
+              <button
+                type="button"
+                className="px-5 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-md text-sm font-medium"
+                onClick={() => setShowComputationTypeHelp(false)}
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

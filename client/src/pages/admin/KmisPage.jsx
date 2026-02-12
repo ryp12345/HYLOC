@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from '../../api/axios';
 import { useAuth } from '../../context/AuthContext';
+import Notification from '../../components/common/Notification';
 
 // Helper function to get current financial year
 const getInitialYear = () => {
@@ -844,13 +845,7 @@ function KmisPage() {
 
   return (
     <div className="w-full max-w-7xl mx-auto">
-      {notification.show && (
-        <div className={`fixed top-5 right-5 p-4 rounded-lg shadow-lg flex items-center gap-3 z-50 min-w-[300px] animate-slide-in ${notification.type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`}>
-          <span className="text-xl font-bold">{notification.type === 'success' ? '✓' : '✕'}</span>
-          <span className="flex-1 text-sm">{notification.message}</span>
-          <button className="text-white text-xl opacity-80 hover:opacity-100 px-1" onClick={() => setNotification({ show: false, message: '', type: '' })}>×</button>
-        </div>
-      )}
+      <Notification show={notification.show} message={notification.message} type={notification.type} onClose={() => setNotification({ show: false, message: '', type: '' })} />
 
       <div className="mb-6">
         <div className="flex justify-between items-center flex-wrap gap-4">
