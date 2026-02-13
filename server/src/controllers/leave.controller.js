@@ -33,7 +33,7 @@ exports.applyLeave = async (req, res, next) => {
     const userId = req.user.userId;
     const userRole = req.user.role;
     
-    // Validate required fields
+    // Validate required fields 
     if (!req.body.from_date || !req.body.leave_reason) {
       return res.status(400).json({
         success: false,
@@ -42,7 +42,31 @@ exports.applyLeave = async (req, res, next) => {
     }
     
     const leaveRecord = await leaveService.applyLeave(userId, req.body, userRole);
-    
+
+    // Send notification to alternate person if present//////////////////////
+    if (req.body.alternate_person) {
+      try {
+        const notificationModel = require('../models/notification.model');
+        const altUser = await userModel.findUserByEmpid(req.body.alternate_person);
+        const applicant = await userModel.findUserById(userId);
+        if (altUser && altUser.id && applicant) {
+          const applicantName = [applicant.firstname, applicant.lastname].filter(Boolean).join(' ');
+          await notificationModel.createNotification({
+            created_by: userId,
+            assigned_to: altUser.id,
+            message: `${applicantName} has applied for leave and assigned you as an alternate person.`,
+            type: 'leave',
+            is_read: false
+          });
+        }
+      } catch (notifyErr) {
+        // Log error but don't block leave application
+        console.error('Notification error:', notifyErr);
+      }
+    }
+    /////////////////////////notification code////////////////////////////
+
+
     res.status(201).json({
       success: true,
       message: 'Leave application submitted successfully',

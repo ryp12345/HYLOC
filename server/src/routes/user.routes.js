@@ -11,6 +11,9 @@ router.use(authenticate);
 // Get current user profile
 router.get('/me', userController.getMyProfile);
 
+// Minimal list of assignable users (any authenticated user)
+router.get('/assignable', userController.getAssignableUsers);
+
 // Super admin and management routes
 router.get('/', authorize('admin', 'management'), userController.getAllUsers);
 router.get('/department/:id', authorize('admin', 'management', 'manager'), userController.getUsersByDepartment);

@@ -15,14 +15,13 @@ CREATE TABLE IF NOT EXISTS public.tickets
     status enum_tickets_status DEFAULT 'Open'::enum_tickets_status,
     category enum_tickets_category DEFAULT 'Other'::enum_tickets_category,
     priority enum_tickets_priority DEFAULT 'Medium'::enum_tickets_priority,
-    created_by integer NOT NULL,
+    user_id integer NOT NULL,
     assigned_to integer,
     created_at timestamp without time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at timestamp without time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
     closed_at timestamp without time zone,
-    resolution text COLLATE pg_catalog."default",
-    attachment_url character varying(255) COLLATE pg_catalog."default",
-    to_complete_date date NOT NULL,
+    attachment character varying(255) COLLATE pg_catalog."default",
+    due_date date NOT NULL,
     CONSTRAINT tickets_pkey PRIMARY KEY (id),
     CONSTRAINT fk_assigned_to FOREIGN KEY (assigned_to)
         REFERENCES public.users (id) MATCH SIMPLE
@@ -183,14 +182,14 @@ There is a `users` table schema is as below
 ### Status Change
 
 - When ticket status changes (e.g., In Progress, Resolved, Closed, Rejected), notifications are sent to:
-  - created_by user
-  - assigned_to user
+  - user_id int
+  - assigned_to int
 - Example: "Ticket [title] status changed to [status] by [user]"
 
 ### Ticket Overdue
 
 - If ticket is not closed by `to_complete_date`, a notification is sent to:
-  - assigned_to staff, created_by
+  - assigned_to int
   - user of Role Management and Manager
 - Example: "Ticket [title] is overdue. Please take action."
 

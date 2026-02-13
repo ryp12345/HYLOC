@@ -247,3 +247,14 @@ exports.getUsersByDepartmentMinimal = async (departmentId) => {
   const result = await db.query(query, [departmentId]);
   return result.rows;
 };
+
+exports.getAssignableUsers = async () => {
+  const query = `
+    SELECT u.id, u.firstname, u.lastname, u.email
+    FROM users u
+    WHERE u.status = 'active'
+    ORDER BY u.firstname, u.lastname
+  `;
+  const result = await db.query(query);
+  return result.rows;
+};

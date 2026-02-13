@@ -101,12 +101,30 @@ const EmployeeCalendar = ({ joinDate }) => {
         updatedForm.duration = 1;
       }
     }
-    // Set duration based on day_type
+    // Set duration and leave_duration based on day_type
     if (name === 'day_type') {
       if (value === 'full') {
         updatedForm.duration = 1;
-      } else if (value === 'morning' || value === 'afternoon') {
+        updatedForm.leave_duration = 'Full Day';
+      } else if (value === 'morning') {
         updatedForm.duration = 0.5;
+        updatedForm.leave_duration = 'Morning Half';
+      } else if (value === 'afternoon') {
+        updatedForm.duration = 0.5;
+        updatedForm.leave_duration = 'Afternoon Half';
+      }
+    }
+    // Also, if from_date and to_date are the same, update leave_duration if day_type is not full
+    if ((name === 'from_date' || name === 'to_date') && updatedForm.from_date === updatedForm.to_date) {
+      if (updatedForm.day_type === 'morning') {
+        updatedForm.leave_duration = 'Morning Half';
+        updatedForm.duration = 0.5;
+      } else if (updatedForm.day_type === 'afternoon') {
+        updatedForm.leave_duration = 'Afternoon Half';
+        updatedForm.duration = 0.5;
+      } else {
+        updatedForm.leave_duration = 'Full Day';
+        updatedForm.duration = 1;
       }
     }
     setLeaveForm(updatedForm);
@@ -907,7 +925,6 @@ const EmployeeCalendar = ({ joinDate }) => {
                   />
                 </div>
               </div>
-
               <p className="text-xs text-gray-500">
                 Note: Half-day leaves are limited to a single day
               </p>
@@ -939,7 +956,7 @@ const EmployeeCalendar = ({ joinDate }) => {
                     <option value="">Select alternate person</option>
                     {colleagues && colleagues.length > 0 ? (
                       colleagues.map((colleague) => (
-                        <option key={colleague.id} value={`${colleague.firstname} ${colleague.lastname}`}>
+                        <option key={colleague.id} value={colleague.empid}>
                           {colleague.firstname} {colleague.lastname} {colleague.empid ? `(EMP: ${colleague.empid})` : ''}
                         </option>
                       ))
@@ -965,7 +982,7 @@ const EmployeeCalendar = ({ joinDate }) => {
                     <option value="">Select additional alternate</option>
                     {colleagues && colleagues.length > 0 ? (
                       colleagues.map((colleague) => (
-                        <option key={colleague.id} value={`${colleague.firstname} ${colleague.lastname}`}>
+                        <option key={colleague.id} value={colleague.empid}>
                           {colleague.firstname} {colleague.lastname} {colleague.empid ? `(EMP: ${colleague.empid})` : ''}
                         </option>
                       ))

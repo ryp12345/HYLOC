@@ -8,6 +8,7 @@ import Register from '../pages/auth/Register';
 import AdminDashboard from '../pages/admin/Dashboard';
 
 import ManagementDashboard from '../pages/management/ManagementDashboard';
+import KPIDetailPage from '../pages/management/KPIDetailPage';
 import PlantEfficiency from '../pages/management/PlantEfficiency';
 import MgtPiller from '../pages/management/MgtPiller';
 import MgtKmiPage from '../pages/management/MgtKmiPage';
@@ -34,6 +35,7 @@ import ManagerLeaveApprovalPage from '../pages/manager/leaves/LeaveApprovalPage'
 import ManagementLeaveApprovalPage from '../pages/management/leaves/LeaveApprovalPage';
 import ForgotPasswordPage from '../pages/auth/ForgotPasswordPage';
 import RaiseTicket from '../pages/dev-tickets/RaiseTicket';
+import TicketsPage from '../pages/tickets/TicketsPage';
 
 // Layouts & Route Guards
 import ProtectedRoute from './ProtectedRoute';
@@ -340,6 +342,18 @@ const AppRoutes = () => {
             }
           />
 
+          {/* KPI Detail Page */}
+          <Route
+            path="/management/kpi/:kpiId"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <KPIDetailPage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+
           {/* Plant Efficiency Page */}
           <Route
             path="/management/plant-efficiency"
@@ -479,6 +493,18 @@ const AppRoutes = () => {
               <ProtectedRoute>
                 <DashboardLayout>
                   <RaiseTicket />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Tickets Page */}
+          <Route
+            path="/tickets"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <TicketsPage />
                 </DashboardLayout>
               </ProtectedRoute>
             }

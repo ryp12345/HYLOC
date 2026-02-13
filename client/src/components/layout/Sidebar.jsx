@@ -34,42 +34,42 @@ const Sidebar = () => {
     { name: 'Pillars', path: '/admin/pillers', icon: '🏛️' },
     { name: 'User-Roles', path: '/admin/user-roles', icon: '🧩' },
     { name: 'Leave Entitlement', path: '/admin/leaves/leave-entitlement', icon: '🗓️' },
-    // Removed Raise Ticket from Sidebar
+    { name: 'Tickets', path: '/tickets', icon: '🎫' },
   ];
 
   const managementLinks = [
     { name: 'Dashboard', path: getDashboardPath(), icon: '📊' },
     { name: 'KMI', path: '/management/mgtkmi', icon: '📚' },
     { name: 'Pillar', path: '/management/mgtpiller', icon: '🏛️' },
-    { 
-      name: 'Leave Management', 
+    {
+      name: 'Leave Management',
       icon: '📋',
       submenu: [
         { name: 'Calendar', path: '/management/leaves', icon: '📅' },
         { name: 'Approval/Rejection', path: '/management/leave-approval', icon: '✅' }
       ]
     },
-    // Removed Raise Ticket from Sidebar
+    { name: 'Tickets', path: '/tickets', icon: '🎫' },
   ];
 
   const managerLinks = [
     { name: 'Dashboard', path: getDashboardPath(), icon: '📊' },
-    { 
-      name: 'Leave Management', 
+    {
+      name: 'Leave Management',
       icon: '📋',
       submenu: [
         { name: 'Calendar', path: '/manager/leaves', icon: '📅' },
         { name: 'Approval/Rejection', path: '/manager/leave-approval', icon: '✅' }
       ]
     },
-    // Removed Raise Ticket from Sidebar
+    { name: 'Tickets', path: '/tickets', icon: '🎫' },
   ];
 
   const employeeLinks = [
     { name: 'Dashboard', path: getDashboardPath(), icon: '📊' },
     { name: 'My KPIs/KAIs', path: '/employee/kpikai', icon: '📈' },
     { name: 'Leaves', path: '/employee/leaves', icon: '📅' },
-    // Removed Raise Ticket from Sidebar
+    { name: 'Tickets', path: '/tickets', icon: '🎫' },
   ];
 
   const roleValue = (
@@ -85,20 +85,30 @@ const Sidebar = () => {
 
   const links = isAdmin ? adminLinks : isManagement ? managementLinks : isManager ? managerLinks : employeeLinks;
 
+  // Check if we need to expand the sidebar when a submenu is open on minimized sidebar
+  const shouldExpandForSubmenu = !isOpen && expandedMenu;
+  const sidebarWidth = isOpen ? 'w-64' : shouldExpandForSubmenu ? 'w-64' : 'w-20';
+
   return (
     <aside
       className={`${
-        isOpen ? 'w-64' : 'w-20'
+        sidebarWidth
       } text-white transition-all duration-300 min-h-screen shadow-lg`}
       style={{ backgroundColor: '#001f3f' }}
     >
       {/* Toggle Button */}
       <div className="flex justify-end p-4">
         <button
-          onClick={() => setIsOpen(!isOpen)}
+          onClick={() => {
+            if (!isOpen && expandedMenu) {
+              setExpandedMenu(null);
+            } else {
+              setIsOpen(!isOpen);
+            }
+          }}
           className="text-gray-400 hover:text-white focus:outline-none"
         >
-          {isOpen ? '◄' : '►'}
+          {isOpen || (!isOpen && expandedMenu) ? '◄' : '►'}
         </button>
       </div>
 
@@ -111,6 +121,7 @@ const Sidebar = () => {
               <div>
                 <button
                   onClick={() => setExpandedMenu(expandedMenu === link.name ? null : link.name)}
+                  title={!isOpen && !expandedMenu ? link.name : ''}
                   className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition duration-200 ${
                     expandedMenu === link.name
                       ? 'bg-blue-500 text-white'
@@ -118,7 +129,7 @@ const Sidebar = () => {
                   }`}
                 >
                   <span className="text-xl">{link.icon}</span>
-                  {isOpen && (
+                  {(isOpen || (!isOpen && expandedMenu)) && (
                     <>
                       <span className="font-medium flex-1 text-left text-sm whitespace-nowrap truncate">{link.name}</span>
                       <span className="text-sm">{expandedMenu === link.name ? '▼' : '▶'}</span>
@@ -127,16 +138,17 @@ const Sidebar = () => {
                 </button>
 
                 {/* Submenu Items */}
-                {expandedMenu === link.name && isOpen && (
+                {expandedMenu === link.name && (
                   <div className="space-y-1 mt-1">
                     {link.submenu.map((subitem) => (
                       <Link
                         key={subitem.path}
                         to={subitem.path}
+                        title={!isOpen && expandedMenu ? subitem.name : ''}
                         className={`flex items-center space-x-3 px-8 py-2 rounded-lg transition duration-200 text-sm ${
                           location.pathname === subitem.path
                             ? 'bg-blue-500 text-white font-semibold'
-                            : 'text-gray-400 hover:text-gray-200'
+                            : 'text-gray-400 hover:text-gray-200 hover:bg-gray-700'
                         }`}
                       >
                         <span className="text-lg">{subitem.icon}</span>
@@ -150,6 +162,7 @@ const Sidebar = () => {
               // Regular menu item
               <Link
                 to={link.path}
+                title={!isOpen ? link.name : ''}
                 className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition duration-200 ${
                   location.pathname === link.path
                     ? 'bg-blue-500 text-white'

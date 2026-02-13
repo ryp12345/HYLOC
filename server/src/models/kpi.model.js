@@ -105,6 +105,9 @@ exports.deleteKPI = async (id) => {
     // Delete KPI-Department mappings
     await pool.query('DELETE FROM kpi_departments WHERE kpi_id = $1', [id]);
 
+    // Delete KPI-Employee mappings
+    await pool.query('DELETE FROM kpi_emp WHERE kpi_id = $1', [id]);
+
     // Delete KPI values associated with this KPI
     await pool.query('DELETE FROM kpi_values WHERE kpi_id = $1', [id]);
 
@@ -133,6 +136,21 @@ exports.hasChildren = async (id) => {
     return parseInt(result.rows[0].count) > 0;
   } catch (error) {
     console.error('Database error in hasChildren:', error);
+    throw error;
+  }
+};
+
+// Get child KPIs
+exports.getChildKPIs = async (parentId) => {
+  try {
+    const result = await pool.query(
+      `SELECT id, title, category_id, parent_kpi_id, fin_year, created_at, updated_at
+       FROM kpis WHERE parent_kpi_id = $1 ORDER BY created_at DESC`,
+      [parentId]
+    );
+    return result.rows;
+  } catch (error) {
+    console.error('Database error in getChildKPIs:', error);
     throw error;
   }
 };

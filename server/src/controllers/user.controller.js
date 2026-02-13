@@ -177,5 +177,16 @@ exports.getMyProfile = async (req, res) => {
   }
 };
 
+// Get minimal list of assignable users (safe for non-admins)
+exports.getAssignableUsers = async (req, res) => {
+  try {
+    const users = await userModel.getAssignableUsers();
+    return sendSuccess(res, users, 'Assignable users retrieved successfully');
+  } catch (error) {
+    console.error('Get assignable users error:', error);
+    return sendError(res, 'Failed to retrieve assignable users', 500);
+  }
+};
+
 
 

@@ -11,6 +11,7 @@ const userRoleRoutes = require('./routes/userRole.routes');
 const pillerRoutes = require('./routes/piller.routes');
 const kpiRoutes = require('./routes/kpi.routes');
 const kpiValueRoutes = require('./routes/kpi-value.routes');
+const kpiDataValueRoutes = require('./routes/kpi-data-value.routes');
 const kpiDepartmentRoutes = require('./routes/kpi-department.routes');
 const kpiEmployeeRoutes = require('./routes/kpi-employee.routes');
 const employeeRoutes = require('./routes/employee.routes');
@@ -19,7 +20,9 @@ const leaveRoutes = require('./routes/leave.routes');
 const unitMasterRoutes = require('./routes/unitMaster.routes');
 const leaveEntitlementRoutes = require('./routes/leaveEntitlement.routes');
 const devTicketsRoutes = require('./routes/devTickets.routes');
+const ticketRoutes = require('./routes/ticket.routes');
 const { errorHandler, notFoundHandler } = require('./middlewares/error.middleware');
+const notificationRoutes = require('./routes/notification.routes');
 
 const app = express();
 
@@ -27,6 +30,10 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cors(config.cors));
+
+const path = require('path');
+// Serve uploaded files
+app.use('/uploads', express.static(path.join(__dirname, '../public/uploads')));
 
 // Request logging middleware
 app.use((req, res, next) => {
@@ -46,12 +53,15 @@ app.use('/api/user-roles', userRoleRoutes);
 app.use('/api/pillers', pillerRoutes);
 app.use('/api/kpis', kpiRoutes);
 app.use('/api/kpi-values', kpiValueRoutes);
+app.use('/api/kpi-data-values', kpiDataValueRoutes);
 app.use('/api/kpi-departments', kpiDepartmentRoutes);
 app.use('/api/kpi-employees', kpiEmployeeRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/leaves', leaveRoutes);
 app.use('/api/unit-master', unitMasterRoutes);
 app.use('/api/dev-tickets', devTicketsRoutes);
+app.use('/api/tickets', ticketRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // Leave Entitlement routes
 app.use('/api/leave-entitlements', leaveEntitlementRoutes);

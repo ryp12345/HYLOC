@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import ChangePasswordModal from '../../pages/auth/ChangePassword';
+import { getNotifications, markNotificationAsRead } from '../../api/notificationApi';
 
 const Navbar = () => {
   const { user, logout } = useAuth();
@@ -9,6 +10,28 @@ const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isChangePwdOpen, setIsChangePwdOpen] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [showNotifications, setShowNotifications] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      fetchNotifications();
+    }
+    // Optionally, poll every 60s
+    // const interval = setInterval(fetchNotifications, 60000);
+    // return () => clearInterval(interval);
+  }, [user]);
+
+  const fetchNotifications = async () => {
+    try {
+      const res = await getNotifications();
+      setNotifications(res.data || []);
+    } catch (err) {
+      setNotifications([]);
+    }
+  };
+
+  const unreadCount = notifications.filter(n => !n.is_read).length;
 
   const handleLogout = () => {
     logout();
@@ -30,34 +53,51 @@ const Navbar = () => {
               className="h-12 w-12"
             />
             <h1 className="text-3xl font-bold">Hyloc Hydrotechnic Pvt Ltd</h1>
-            {/* Raise Ticket Link */}
-            <Link
-              to="/raise-ticket"
-              className="ml-6 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition hidden md:inline-block"
-              style={{ marginLeft: '2rem' }}
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="inline-block w-5 h-5 mr-2"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={1.5}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-              >
-                <path d="M21 8v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8" />
-                <path d="M7 8V6a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v2" />
-                <path d="M9 12h6" />
-                <path d="M12 9v6" />
-              </svg>
-              Raise Ticket
-            </Link>
           </div>
 
           {/* User Info & Menu - Right aligned */}
           <div className="flex-1 flex justify-end items-center space-x-4 relative">
+            {/* Notification Bell */}
+            <div className="relative">
+              <button
+                className="relative p-2 rounded-full hover:bg-gray-100"
+                aria-label="Notifications"
+                onClick={() => setShowNotifications((prev) => !prev)}
+              >
+                <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 15V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v4a2.032 2.032 0 01-.595 1.405L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                </svg>
+                {unreadCount > 0 && (
+                  <span className="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white bg-red-600 rounded-full">
+                    {unreadCount}
+                  </span>
+                )}
+              </button>
+              {showNotifications && (
+                <div className="absolute right-0 mt-2 w-80 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
+                  <div className="p-4 border-b font-semibold text-gray-700">Notifications</div>
+                  {notifications.length === 0 ? (
+                    <div className="p-4 text-gray-500">No notifications</div>
+                  ) : (
+                    notifications.map((n) => (
+                      <div
+                        key={n.id}
+                        className={`px-4 py-3 border-b last:border-b-0 cursor-pointer hover:bg-blue-50 ${n.is_read ? 'text-gray-500' : 'text-gray-900 font-semibold'}`}
+                        onClick={async () => {
+                          if (!n.is_read) {
+                            await markNotificationAsRead(n.id);
+                            fetchNotifications();
+                          }
+                        }}
+                      >
+                        <div>{n.message}</div>
+                        <div className="text-xs text-gray-400 mt-1">{new Date(n.created_at).toLocaleString()}</div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
             {user && (
               <>
                 <div className="hidden md:block relative">

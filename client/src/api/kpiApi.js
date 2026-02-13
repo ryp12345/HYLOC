@@ -8,6 +8,10 @@ export const getKPIById = async (id) => {
   return await axios.get(`/kpis/${id}`);
 };
 
+export const getChildKPIs = async (parentId) => {
+  return await axios.get(`/kpis/${parentId}/children`);
+};
+
 export const getKPIsByCategory = async (categoryId) => {
   return await axios.get(`/kpis/category/${categoryId}`);
 };
@@ -55,6 +59,35 @@ export const updateKPIValue = async (id, data) => {
 
 export const deleteKPIValue = async (id) => {
   return await axios.delete(`/kpi-values/${id}`);
+};
+
+// KPI Data Values
+export const getKPIDataValues = async () => {
+  return await axios.get('/kpi-data-values');
+};
+
+export const getKPIDataValueById = async (id) => {
+  return await axios.get(`/kpi-data-values/${id}`);
+};
+
+export const getMonthlyDataByKPIValue = async (kpiValueId, year) => {
+  return await axios.get(`/kpi-data-values/${kpiValueId}/monthly`, { params: { year } });
+};
+
+export const getMultipleKPIValuesData = async (kpiValueIds, year) => {
+  return await axios.post(`/kpi-data-values/multiple`, { kpiValueIds, year });
+};
+
+export const createKPIDataValue = async (data) => {
+  return await axios.post('/kpi-data-values', data);
+};
+
+export const updateKPIDataValue = async (id, data) => {
+  return await axios.put(`/kpi-data-values/${id}`, data);
+};
+
+export const deleteKPIDataValue = async (id) => {
+  return await axios.delete(`/kpi-data-values/${id}`);
 };
 
 // KPI Departments

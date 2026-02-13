@@ -91,10 +91,10 @@ function KmisPage() {
         ]);
         setCategories(categoriesRes.data.data || []);
         const depts = departmentsRes.data.data || [];
-        console.log('Departments loaded:', depts);
+        //console.log('Departments loaded:', depts);
         setDepartments(depts);
         const emps = usersRes.data.data || [];
-        console.log('Employees loaded:', emps);
+        //console.log('Employees loaded:', emps);
         setEmployees(emps);
       } catch (err) {
         console.error('Failed to load categories, departments, or employees', err);
@@ -120,7 +120,10 @@ function KmisPage() {
     const filtered = year ? list.filter((kpi) => kpi.fin_year === year) : list;
     const map = new Map();
     filtered.forEach((kpi) => {
-      map.set(kpi.id, { ...kpi, children: [] });
+      // ensure category_ids exists for UI display (may include department/employee inferred categories)
+      const baseCat = kpi.category_id != null ? String(kpi.category_id) : '';
+      const catIds = Array.isArray(kpi.category_ids) && kpi.category_ids.length > 0 ? kpi.category_ids : (baseCat ? [baseCat] : []);
+      map.set(kpi.id, { ...kpi, category_ids: catIds, children: [] });
     });
 
     map.forEach((node) => {
@@ -150,7 +153,32 @@ function KmisPage() {
       setLoading(true);
       const response = await axios.get('/kpis');
       const data = response.data.data || [];
-      const tree = buildTree(data, year);
+      // fetch department and employee mappings to infer additional categories
+      let deptMappings = [];
+      let empMappings = [];
+      try {
+        const [deptRes, empRes] = await Promise.all([
+          axios.get('/kpi-departments'),
+          axios.get('/kpi-employees')
+        ]);
+        deptMappings = deptRes.data.data || [];
+        empMappings = empRes.data.data || [];
+      } catch (err) {
+        // non-fatal - mappings may not exist or could fail; continue
+        console.debug('Failed to fetch kpi-department/employee mappings', err);
+      }
+      const deptSet = new Set(deptMappings.map(m => m.kpi_id));
+      const empSet = new Set(empMappings.map(m => m.kpi_id));
+
+      // Attach inferred category_ids to each kpi for UI rendering
+      const enriched = data.map(k => {
+        const ids = [];
+        if (k.category_id != null) ids.push(String(k.category_id));
+        if (deptSet.has(k.id) && !ids.includes('2')) ids.push('2');
+        if (empSet.has(k.id) && !ids.includes('4')) ids.push('4');
+        return { ...k, category_ids: ids };
+      });
+      const tree = buildTree(enriched, year);
       setKpis(data);
       setKpiTree(tree);
       setExpandedNodes(new Set());
@@ -320,8 +348,30 @@ function KmisPage() {
       const response = await axios.get('/kpis');
       const data = response.data.data || [];
       const filtered = data.filter(kpi => kpi.fin_year === year);
-      const tree = buildTree(filtered, year);
-      setPreviousYearKpis(filtered);
+      // fetch mappings for previous year KPIs as well so we can show multiple categories
+      let deptMappings = [];
+      let empMappings = [];
+      try {
+        const [deptRes, empRes] = await Promise.all([
+          axios.get('/kpi-departments'),
+          axios.get('/kpi-employees')
+        ]);
+        deptMappings = deptRes.data.data || [];
+        empMappings = empRes.data.data || [];
+      } catch (err) {
+        console.debug('Failed to fetch previous year kpi mappings', err);
+      }
+      const deptSet = new Set(deptMappings.map(m => m.kpi_id));
+      const empSet = new Set(empMappings.map(m => m.kpi_id));
+      const enriched = filtered.map(k => {
+        const ids = [];
+        if (k.category_id != null) ids.push(String(k.category_id));
+        if (deptSet.has(k.id) && !ids.includes('2')) ids.push('2');
+        if (empSet.has(k.id) && !ids.includes('4')) ids.push('4');
+        return { ...k, category_ids: ids };
+      });
+      const tree = buildTree(enriched, year);
+      setPreviousYearKpis(enriched);
       setPreviousYearTree(tree);
     } catch (err) {
       showNotification('Failed to load previous year KMIs', 'error');
@@ -452,14 +502,27 @@ function KmisPage() {
       if ((formData.category_ids || []).includes('2') || String(primaryCategoryId) === '2') {
         if (formData.department_id) {
           try {
-            await axios.post('/kpi-departments', {
-              kpi_id: kpiId,
-              department_id: Number(formData.department_id)
-            });
+            // check if mapping already exists to avoid duplicate error
+            const checkRes = await axios.get(`/kpi-departments?kpi_id=${kpiId}&department_id=${formData.department_id}`);
+            const existing = checkRes.data?.data || [];
+            if (existing.length === 0) {
+              await axios.post('/kpi-departments', {
+                kpi_id: kpiId,
+                department_id: Number(formData.department_id)
+              });
+            } else {
+              console.debug('KPI-Department mapping already exists, skipping creation');
+            }
           } catch (err) {
-            console.error('Failed to save KPI-Department mapping:', err?.response?.data || err);
-            const serverMsg = err?.response?.data?.message || err?.message || 'Unknown error';
-            showNotification(`KPI saved but failed to map department: ${serverMsg}`, 'error');
+            // if server explicitly says mapping exists, ignore; otherwise report
+            const serverMsg = err?.response?.data?.message || err?.message || '';
+            if (typeof serverMsg === 'string' && serverMsg.toLowerCase().includes('mapping already exists')) {
+              console.debug('KPI-Department mapping exists (server):', serverMsg);
+            } else {
+              console.error('Failed to save KPI-Department mapping:', err?.response?.data || err);
+              const msg = serverMsg || 'Unknown error';
+              showNotification(`KPI saved but failed to map department: ${msg}`, 'error');
+            }
           }
         } else {
           showNotification('Please select a department for Department KPI', 'error');
@@ -471,14 +534,26 @@ function KmisPage() {
       if ((formData.category_ids || []).includes('4') || String(primaryCategoryId) === '4') {
         if (formData.emp_id) {
           try {
-            await axios.post('/kpi-employees', {
-              kpi_id: kpiId,
-              emp_id: Number(formData.emp_id)
-            });
+            // check if mapping already exists to avoid duplicate error
+            const checkRes = await axios.get(`/kpi-employees?kpi_id=${kpiId}&emp_id=${formData.emp_id}`);
+            const existing = checkRes.data?.data || [];
+            if (existing.length === 0) {
+              await axios.post('/kpi-employees', {
+                kpi_id: kpiId,
+                emp_id: Number(formData.emp_id)
+              });
+            } else {
+              console.debug('KPI-Employee mapping already exists, skipping creation');
+            }
           } catch (err) {
-            console.error('Failed to save KPI-Employee mapping:', err?.response?.data || err);
-            const serverMsg = err?.response?.data?.message || err?.message || 'Unknown error';
-            showNotification(`KPI saved but failed to map employee: ${serverMsg}`, 'error');
+            const serverMsg = err?.response?.data?.message || err?.message || '';
+            if (typeof serverMsg === 'string' && serverMsg.toLowerCase().includes('mapping already exists')) {
+              console.debug('KPI-Employee mapping exists (server):', serverMsg);
+            } else {
+              console.error('Failed to save KPI-Employee mapping:', err?.response?.data || err);
+              const msg = serverMsg || 'Unknown error';
+              showNotification(`KPI saved but failed to map employee: ${msg}`, 'error');
+            }
           }
         } else {
           showNotification('Please select an employee for Employee KPI', 'error');
@@ -595,9 +670,11 @@ function KmisPage() {
             <div className="flex-1">
               <div className="font-medium text-gray-800 text-sm">{node.title}</div>
               <div className="flex gap-2 mt-1">
-                <span className="inline-block px-2 py-0.5 bg-blue-100 text-blue-800 rounded text-xs font-medium">
-                  {getCategoryNameById(node.category_id)}
-                </span>
+                {(node.category_ids || [node.category_id]).map((cid) => (
+                  <span key={cid} className="inline-block px-2 py-0.5 bg-blue-100 text-blue-800 rounded text-xs font-medium">
+                    {getCategoryNameById(cid)}
+                  </span>
+                ))}
                 {node.fin_year && (
                   <span className="inline-block px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-xs">
                     FY {node.fin_year}
@@ -692,9 +769,11 @@ function KmisPage() {
             <div className="flex-1 min-w-0">
               <div className="font-medium text-gray-800 text-sm">{node.title}</div>
               <div className="flex gap-2 mt-1">
-                <span className="inline-block px-2 py-0.5 bg-blue-100 text-blue-800 rounded text-xs font-medium">
-                  {getCategoryNameById(node.category_id)}
-                </span>
+                {(node.category_ids || [node.category_id]).map((cid) => (
+                  <span key={cid} className="inline-block px-2 py-0.5 bg-blue-100 text-blue-800 rounded text-xs font-medium">
+                    {getCategoryNameById(cid)}
+                  </span>
+                ))}
               </div>
             </div>
           </div>
@@ -1065,7 +1144,7 @@ function KmisPage() {
                       <option key={dept.id} value={String(dept.id)}>{dept.name || dept.department_name}</option>
                     ))}
                   </select>
-                </div>
+                </div> 
               )}
 
               {(formData.category_ids || []).includes('4') && (

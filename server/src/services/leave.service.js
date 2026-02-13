@@ -1,4 +1,3 @@
-
 const db = require('../config/db');
 const leaveModel = require('../models/leave.model');
 const entitlementModel = require('../models/leaveEntitlement.model');
@@ -190,7 +189,7 @@ exports.applyLeave = async (userId, leaveData, userRole) => {
       leaveRecord = await createLeaveSegment({
         from_date: leaveData.from_date,
         to_date: normalizedToDate,
-        leave_duration: 'Full Day',
+        leave_duration: leaveDuration,
         credited_days: creditedDays,
         leave_type: 'Paid'
       });
@@ -201,7 +200,7 @@ exports.applyLeave = async (userId, leaveData, userRole) => {
       leaveRecord = await createLeaveSegment({
         from_date: leaveData.from_date,
         to_date: normalizedToDate,
-        leave_duration: 'Full Day',
+        leave_duration: leaveDuration,
         credited_days: creditedDays,
         leave_type: 'Unpaid'
       });
@@ -218,7 +217,7 @@ exports.applyLeave = async (userId, leaveData, userRole) => {
         records.push(await createLeaveSegment({
           from_date: currentDate,
           to_date: paidTo,
-          leave_duration: 'Full Day',
+          leave_duration: leaveDuration,
           credited_days: paidDays,
           leave_type: 'Paid'
         }));
@@ -229,7 +228,7 @@ exports.applyLeave = async (userId, leaveData, userRole) => {
         records.push(await createLeaveSegment({
           from_date: currentDate,
           to_date: normalizedToDate,
-          leave_duration: 'Full Day',
+          leave_duration: leaveDuration,
           credited_days: unpaidDays,
           leave_type: 'Unpaid'
         }));
@@ -238,7 +237,7 @@ exports.applyLeave = async (userId, leaveData, userRole) => {
       if (paidDays > 0) {
         await entitlementModel.updateLeavesAvailed(userId, year, paidDays, client);
       }
-      leaveRecord = { split: true, records };
+      leaveRecord = records.length === 1 ? records[0] : { split: true, records };
     }
     
     await client.query('COMMIT');
@@ -390,6 +389,15 @@ exports.cancelLeave = async (leaveId, userId, userRole) => {
     
     // 4. Delete leave
     await leaveModel.deleteLeave(leaveId);
+
+    // 5. Delete related notifications (alternate person)
+    if (existingLeave.alternate_person) {
+      await db.query(
+        'DELETE FROM notifications WHERE created_by = $1 AND assigned_to = (SELECT id FROM users WHERE empid = $2) AND type = $3',
+        [userId, existingLeave.alternate_person, 'leave']
+      );
+    }
+    ////////////////////Notification code///////////////////////////
     
     await client.query('COMMIT');
     

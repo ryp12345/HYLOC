@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { getKPIs } from '../../api/kpiApi';
 import { getPillers } from '../../api/pillerApi';
@@ -8,12 +8,15 @@ import { getDepartments } from '../../api/departmentApi';
 import api from '../../api/axios';
 
 const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-const FISCAL_YEAR_START = 2025;
-const FISCAL_MONTH_SEQUENCE = Array.from({ length: 12 }, (_, i) => {
-  const month = ((3 + i) % 12) + 1; // April (4) through March (3)
-  const year = month >= 4 ? FISCAL_YEAR_START : FISCAL_YEAR_START + 1;
-  return { month, year };
-});
+
+// Generate fiscal month sequence for a given fiscal year (April to March)
+const getFiscalMonthSequence = (fiscalYear) => {
+  return Array.from({ length: 12 }, (_, i) => {
+    const month = ((3 + i) % 12) + 1; // April (4) through March (3)
+    const year = month >= 4 ? fiscalYear : fiscalYear + 1;
+    return { month, year };
+  });
+};
 
 // SVG Line Chart Component for Industry 4.0 KPI
 const Industry40LineChart = ({
@@ -166,14 +169,14 @@ const Industry40LineChart = ({
       </svg>
 
       {/* Legend */}
-      <div className="flex justify-center gap-8 mt-4">
+      <div className="flex flex-col items-center gap-3 mt-4 md:flex-row md:flex-wrap md:justify-center md:gap-6 w-full">
         <div className="flex items-center gap-2">
           <span className="w-[30px] h-[3px] bg-[#41aafe] rounded"></span>
-          <span className="text-sm text-gray-600">Actual Value</span>
+          <span className="text-xs sm:text-sm text-gray-600 whitespace-normal break-words">Actual Value</span>
         </div>
         <div className="flex items-center gap-2">
           <span className="w-[30px] h-[3px] bg-[#ffb74d] rounded"></span>
-          <span className="text-sm text-gray-600">Target Value</span>
+          <span className="text-xs sm:text-sm text-gray-600 whitespace-normal break-words">Target Value</span>
         </div>
       </div>
     </div>
@@ -204,7 +207,7 @@ const SpeedometerGauge = ({ efficiency, month, year }) => {
 
   return (
     <div className="flex flex-col items-center p-4">
-      <h3 className="text-base font-semibold text-gray-800 mb-4">{month} {year}</h3>
+      <h3 className="text-xs sm:text-base font-semibold text-gray-800 mb-4 whitespace-nowrap">{month} {year}</h3>
       <svg viewBox="0 0 300 200" className="w-full max-w-[300px] h-auto">
         {/* Background arc */}
         <path
@@ -344,7 +347,7 @@ const GreenFactoryBarChart = ({ title, subtitle, labels, values, showAxisLabels 
           </>
         )}
       </svg>
-      <div className="flex justify-center gap-6 mt-4">
+      <div className="flex flex-col items-center gap-3 mt-4 md:flex-row md:justify-center md:gap-6">
         <div className="flex items-center gap-2"><span className="w-3 h-3 bg-[#10b981] rounded"></span><span className="text-sm text-gray-600">Green Factory %</span></div>
       </div>
     </div>
@@ -442,9 +445,9 @@ const ZeroAccidentsBarChart = ({ title, subtitle, labels, actuals, targets, show
         )}
       </svg>
 
-      <div className="flex justify-center gap-6 mt-4">
-        <div className="flex items-center gap-2"><span className="w-3 h-3 bg-[#41aafe] rounded"></span><span className="text-sm text-gray-600">Actual</span></div>
-        <div className="flex items-center gap-2"><span className="w-3 h-3 bg-[#ffb74d] rounded"></span><span className="text-sm text-gray-600">Target</span></div>
+      <div className="flex flex-col items-center gap-3 mt-4 md:flex-row md:flex-wrap md:justify-center md:gap-4 w-full">
+        <div className="flex items-center gap-2"><span className="w-3 h-3 bg-[#41aafe] rounded"></span><span className="text-xs sm:text-sm text-gray-600 whitespace-normal break-words">Actual</span></div>
+        <div className="flex items-center gap-2"><span className="w-3 h-3 bg-[#ffb74d] rounded"></span><span className="text-xs sm:text-sm text-gray-600 whitespace-normal break-words">Target</span></div>
       </div>
     </div>
   );
@@ -528,9 +531,9 @@ const OnTimeDeliveryBarChart = ({ title, subtitle, labels, actuals, targets, sho
         )}
       </svg>
 
-      <div className="flex justify-center gap-6 mt-4">
-        <div className="flex items-center gap-2"><span className="w-3 h-3 bg-[#fbbf24] rounded"></span><span className="text-sm text-gray-600">Target</span></div>
-        <div className="flex items-center gap-2"><span className="w-3 h-3 bg-[#22c55e] rounded"></span><span className="text-sm text-gray-600">Achieved</span></div>
+      <div className="flex flex-col items-center gap-3 mt-4 md:flex-row md:flex-wrap md:justify-center md:gap-4 w-full">
+        <div className="flex items-center gap-2"><span className="w-3 h-3 bg-[#fbbf24] rounded"></span><span className="text-xs sm:text-sm text-gray-600 whitespace-normal break-words">Target</span></div>
+        <div className="flex items-center gap-2"><span className="w-3 h-3 bg-[#22c55e] rounded"></span><span className="text-xs sm:text-sm text-gray-600 whitespace-normal break-words">Achieved</span></div>
       </div>
     </div>
   );
@@ -688,6 +691,21 @@ const Box4EmployeesLineChart = ({ title, subtitle, labels, values, showAxisLabel
   );
 };
 
+// Helper function to get current fiscal year (April to March)
+const getCurrentFiscalYear = () => {
+  const today = new Date();
+  const currentMonth = today.getMonth(); // 0-11
+  const currentYear = today.getFullYear();
+  // If current month is Jan-Mar (0-2), fiscal year started last year
+  return currentMonth < 3 ? currentYear - 1 : currentYear;
+};
+
+// Helper function to compare fiscal years (handles both string and number types)
+const isFiscalYearMatch = (kpiFiscalYear, selectedFiscalYear) => {
+  const kpiYear = typeof kpiFiscalYear === 'string' ? parseInt(kpiFiscalYear) : kpiFiscalYear;
+  return kpiYear === selectedFiscalYear;
+};
+
 function ManagementDashboard() {
   const { user } = useAuth();
   const [kpiStats, setKpiStats] = useState({
@@ -729,10 +747,50 @@ function ManagementDashboard() {
   const [employeesChartLoading, setEmployeesChartLoading] = useState(false);
   const [expandedChart, setExpandedChart] = useState(null);
   const [expandedChartData, setExpandedChartData] = useState(null);
+  const [kpiIdMap, setKpiIdMap] = useState({});
+  const navigate = useNavigate();
+  
+  const [selectedFiscalYear, setSelectedFiscalYear] = useState(getCurrentFiscalYear());
+  const [availableFiscalYears, setAvailableFiscalYears] = useState([]);
+  
+  // Computed fiscal month sequence based on selected year
+  const FISCAL_MONTH_SEQUENCE = useMemo(() => getFiscalMonthSequence(selectedFiscalYear), [selectedFiscalYear]);
+
+  // Adjust selected fiscal year if outside available range
+  useEffect(() => {
+    if (availableFiscalYears.length > 0 && !availableFiscalYears.includes(selectedFiscalYear)) {
+      // Find closest available year
+      const closest = availableFiscalYears.reduce((prev, curr) => 
+        Math.abs(curr - selectedFiscalYear) < Math.abs(prev - selectedFiscalYear) ? curr : prev
+      );
+      setSelectedFiscalYear(closest);
+    }
+  }, [availableFiscalYears, selectedFiscalYear]);
 
   useEffect(() => {
-    fetchStatistics();
-  }, []);
+    const loadAllData = async () => {
+      try {
+        await fetchStatistics();
+        await Promise.all([
+          loadIndustry40Chart(),
+          loadZeroQualityChart(),
+          loadSalesChart(),
+          loadProfitabilityData(),
+          loadPlantEfficiency(),
+          loadGreenFactoryChart(),
+          loadZeroAccidentsChart(),
+          loadOnTimeDeliveryChart(),
+          loadThemeChart(),
+          loadEmployeesChart()
+        ]);
+      } catch (error) {
+        console.error('Error loading dashboard data:', error);
+      }
+    };
+    
+    loadAllData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedFiscalYear, FISCAL_MONTH_SEQUENCE]);
 
   const fetchStatistics = async () => {
     try {
@@ -750,11 +808,69 @@ function ManagementDashboard() {
       if (kpisResponse?.data) {
         const kpisData = kpisResponse.data;
         // Check if data is wrapped in another object (e.g., { data: [...] })
-        const kpis = Array.isArray(kpisData) ? kpisData : (Array.isArray(kpisData?.data) ? kpisData.data : []);
-        //console.log('KPIs array:', kpis);
+        const allKpis = Array.isArray(kpisData) ? kpisData : (Array.isArray(kpisData?.data) ? kpisData.data : []);
+        
+        console.log('All KPIs:', allKpis.length, 'Selected Fiscal Year:', selectedFiscalYear);
+        console.log('Sample KPIs fin_year values:', allKpis.slice(0, 5).map(k => ({ title: k.title, fin_year: k.fin_year, type: typeof k.fin_year })));
+        
+        // Extract unique available fiscal years from ALL KPIs
+        const fiscalYears = allKpis
+          .map(kpi => {
+            const year = typeof kpi.fin_year === 'string' ? parseInt(kpi.fin_year) : kpi.fin_year;
+            return year;
+          })
+          .filter(year => year != null && !isNaN(year) && year > 0);
+        
+        if (fiscalYears.length > 0) {
+          const uniqueYears = [...new Set(fiscalYears)].sort((a, b) => a - b);
+          console.log('Available fiscal years:', uniqueYears);
+          setAvailableFiscalYears(uniqueYears);
+        }
+
+        // Filter KPIs by selected fiscal year - handle both string and number comparison
+        const kpis = allKpis.filter(kpi => {
+          const kpiFiscalYear = typeof kpi.fin_year === 'string' ? parseInt(kpi.fin_year) : kpi.fin_year;
+          return kpiFiscalYear === selectedFiscalYear;
+        });
+        
+        console.log('Filtered KPIs for fiscal year', selectedFiscalYear, ':', kpis.length);
+        
         setKpiStats({
           total: kpis.length
         });
+
+        // Build KPI ID map for navigation
+        const idMap = {};
+        kpis.forEach((kpi) => {
+          // Map common chart titles to KPI IDs
+          const titleLower = kpi.title?.toLowerCase() || '';
+          if (titleLower.includes('industry') || titleLower.includes('4.0')) {
+            idMap['Industry 4.0'] = kpi.id;
+          }
+          if (titleLower.includes('green') || titleLower.includes('factory')) {
+            idMap['Green Factory'] = kpi.id;
+          }
+          if (titleLower.includes('zero') || titleLower.includes('accident')) {
+            idMap['Zero Accidents'] = kpi.id;
+          }
+          if (titleLower.includes('quality')) {
+            idMap['Zero Quality'] = kpi.id;
+          }
+          if (titleLower.includes('delivery') || titleLower.includes('on time')) {
+            idMap['On Time Delivery'] = kpi.id;
+          }
+          if (titleLower.includes('plant') || titleLower.includes('efficiency')) {
+            idMap['Plant Efficiency'] = kpi.id;
+          }
+          if (titleLower.includes('cost') || titleLower.includes('revenue') || titleLower.includes('profitability')) {
+            idMap['Cost'] = kpi.id;
+          }
+          if (titleLower.includes('morale') || titleLower.includes('theme') || titleLower.includes('attrition') || titleLower.includes('employee')) {
+            idMap['Morale'] = kpi.id;
+          }
+          idMap[kpi.title] = kpi.id; // Also map by exact title
+        });
+        setKpiIdMap(idMap);
       }
 
       if (pillersResponse?.data) {
@@ -783,19 +899,6 @@ function ManagementDashboard() {
           total: departments.length
         });
       }
-
-      // Load chart data
-      loadIndustry40Chart();
-      loadZeroQualityChart();
-      loadSalesChart();
-      loadProfitabilityData();
-      loadPlantEfficiency();
-      loadGreenFactoryChart();
-      loadZeroAccidentsChart();
-      loadOnTimeDeliveryChart();
-      loadThemeChart();
-      loadEmployeesChart();
-      loadOnTimeDeliveryChart();
     } catch (error) {
       console.error('Error fetching statistics:', error);
     } finally {
@@ -807,8 +910,11 @@ function ManagementDashboard() {
     try {
       setGreenFactoryLoading(true);
       const kpisRes = await api.get('/kpis');
-      const kpis = kpisRes.data?.data || [];
-      const greenKpis = kpis.filter(k => (k.title || '').toLowerCase().includes('green'));
+      const allKpis = kpisRes.data?.data || [];
+      const greenKpis = allKpis.filter(k => 
+        isFiscalYearMatch(k.fin_year, selectedFiscalYear) && 
+        (k.title || '').toLowerCase().includes('green')
+      );
       if (!greenKpis || greenKpis.length === 0) {
         setGreenFactoryChart(null);
         return;
@@ -851,8 +957,11 @@ function ManagementDashboard() {
     try {
       setZeroAccidentsLoading(true);
       const kpisRes = await api.get('/kpis');
-      const kpis = kpisRes.data?.data || [];
-      const accidentKpis = kpis.filter(k => (k.title || '').toLowerCase().includes('accident'));
+      const allKpis = kpisRes.data?.data || [];
+      const accidentKpis = allKpis.filter(k => 
+        isFiscalYearMatch(k.fin_year, selectedFiscalYear) && 
+        (k.title || '').toLowerCase().includes('accident')
+      );
       if (!accidentKpis || accidentKpis.length === 0) { setZeroAccidentsChart(null); return; }
 
       let selectedValue = null;
@@ -895,7 +1004,7 @@ function ManagementDashboard() {
     try {
       setOnTimeDeliveryLoading(true);
       const kpisRes = await api.get('/kpis');
-      const kpis = kpisRes.data?.data || [];
+      const allKpis = kpisRes.data?.data || [];
 
       const normalize = (v) => (v || '').toLowerCase();
       const score = (t) => {
@@ -907,8 +1016,9 @@ function ManagementDashboard() {
         return sc;
       };
 
-      const deliveryKpis = kpis
+      const deliveryKpis = allKpis
         .filter(k => {
+          if (!isFiscalYearMatch(k.fin_year, selectedFiscalYear)) return false;
           const t = normalize(k.title);
           return t.includes('delivery') || t.includes('on time') || t.includes('ontime');
         })
@@ -957,7 +1067,7 @@ function ManagementDashboard() {
     try {
       setThemeChartLoading(true);
       const kpisRes = await api.get('/kpis');
-      const kpis = kpisRes.data?.data || [];
+      const allKpis = kpisRes.data?.data || [];
 
       const normalize = (v) => (v || '').toLowerCase();
       const score = (t) => {
@@ -969,8 +1079,9 @@ function ManagementDashboard() {
         return sc;
       };
 
-      const themeKpis = kpis
+      const themeKpis = allKpis
         .filter(k => {
+          if (!isFiscalYearMatch(k.fin_year, selectedFiscalYear)) return false;
           const t = normalize(k.title);
           return t.includes('theme') || (t.includes('unlock') && t.includes('power')) || (t.includes('2025') && t.includes('2026'));
         })
@@ -1018,7 +1129,7 @@ function ManagementDashboard() {
     try {
       setEmployeesChartLoading(true);
       const kpisRes = await api.get('/kpis');
-      const kpis = kpisRes.data?.data || [];
+      const allKpis = kpisRes.data?.data || [];
 
       const normalize = (v) => (v || '').toLowerCase();
       const score = (t) => {
@@ -1029,8 +1140,9 @@ function ManagementDashboard() {
         return sc;
       };
 
-      const employeeKpis = kpis
+      const employeeKpis = allKpis
         .filter(k => {
+          if (!isFiscalYearMatch(k.fin_year, selectedFiscalYear)) return false;
           const t = normalize(k.title);
           return (t.includes('employee') || t.includes('employees')) && (t.includes('left') || t.includes('attrition'));
         })
@@ -1076,8 +1188,26 @@ function ManagementDashboard() {
   const loadPlantEfficiency = async () => {
     try {
       setEfficiencyLoading(true);
+      
+      // Fetch KPIs and filter by fiscal year
+      const kpisRes = await api.get('/kpis');
+      const allKpis = kpisRes.data?.data || [];
+      const fiscalYearKpis = allKpis.filter(k => isFiscalYearMatch(k.fin_year, selectedFiscalYear));
+      const fiscalYearKpiIds = fiscalYearKpis.map(k => k.id);
+      
+      // Fetch kpi-values only for the fiscal year's KPIs
       const kpiValuesRes = await api.get('/kpi-values');
-      const kpiValues = (kpiValuesRes.data?.data || []).slice(0, 10);
+      const allKpiValues = kpiValuesRes.data?.data || [];
+      const kpiValues = allKpiValues
+        .filter(kv => {
+          // Handle both string and number IDs
+          const kvKpiId = typeof kv.kpi_id === 'string' ? parseInt(kv.kpi_id) : kv.kpi_id;
+          return fiscalYearKpiIds.some(id => {
+            const fiscalId = typeof id === 'string' ? parseInt(id) : id;
+            return fiscalId === kvKpiId;
+          });
+        })
+        .slice(0, 10);
 
       const efficiencyByIndex = {};
 
@@ -1138,13 +1268,26 @@ function ManagementDashboard() {
     setExpandedChartData(null);
   };
 
+  const handleKPITitleClick = (chartTitle) => {
+    const kpiId = kpiIdMap[chartTitle];
+    if (kpiId) {
+      navigate(`/management/kpi/${kpiId}`);
+    } else {
+      console.warn(`No KPI ID found for chart title: ${chartTitle}`);
+    }
+  };
+
   const loadIndustry40Chart = async () => {
     try {
       setIndustry40Loading(true);
-      const currentYear = new Date().getFullYear();
       const kpisRes = await api.get('/kpis');
-      const kpis = kpisRes.data?.data || [];
-      const industryKpis = kpis.filter(k => (k.title || '').toLowerCase().includes('industry'));
+      const allKpis = kpisRes.data?.data || [];
+      
+      // Filter by fiscal year first, then by title
+      const industryKpis = allKpis.filter(k => 
+        isFiscalYearMatch(k.fin_year, selectedFiscalYear) && 
+        (k.title || '').toLowerCase().includes('industry')
+      );
       
       if (!industryKpis || industryKpis.length === 0) {
         console.warn('Industry 4.0 KPI not found');
@@ -1170,38 +1313,31 @@ function ManagementDashboard() {
         return;
       }
 
-      const buildSeries = (rows) => {
-        const byMonth = rows.reduce((acc, row) => {
-          const key = Number(row.month);
-          acc[key] = row;
-          return acc;
-        }, {});
-
-        const labels = MONTH_LABELS.slice();
-        const actuals = labels.map((_, idx) => Number(byMonth[idx + 1]?.actual_value || 0));
-        const targets = labels.map((_, idx) => Number(byMonth[idx + 1]?.target_value || 0));
-        return { labels, actuals, targets };
-      };
-
-      let rows = [];
-      for (const year of [currentYear, currentYear - 1]) {
+      // Fetch data using fiscal month sequence
+      const byMonth = [];
+      for (let idx = 0; idx < FISCAL_MONTH_SEQUENCE.length; idx++) {
+        const { month, year } = FISCAL_MONTH_SEQUENCE[idx];
         try {
           const resp = await api.get(`/kpi-values/${industry40Value.id}/monthly-data/${year}`);
-          rows = resp.data?.data || [];
-          if (rows.length > 0) break;
+          const rows = resp.data?.data || [];
+          const monthRow = rows.find(r => Number(r.month) === month && Number(r.year) === year);
+          if (monthRow) {
+            byMonth.push({ 
+              actual: Number(monthRow.actual_value || 0), 
+              target: Number(monthRow.target_value || 0) 
+            });
+          } else {
+            byMonth.push({ actual: 0, target: 0 });
+          }
         } catch (err) {
-          console.warn(`Failed to fetch Industry40 data for year ${year}`);
+          byMonth.push({ actual: 0, target: 0 });
         }
       }
 
-      if (!rows.length) {
-        console.warn('No monthly data for Industry 4.0 in any year');
-        setIndustry40Chart(null);
-        return;
-      }
-
-      const { labels, actuals, targets } = buildSeries(rows);
-      const displayYear = rows[0]?.year || currentYear;
+      const labels = FISCAL_MONTH_SEQUENCE.map(entry => MONTH_LABELS[entry.month - 1]);
+      const actuals = byMonth.map(d => d.actual);
+      const targets = byMonth.map(d => d.target);
+      const displayYear = `${FISCAL_MONTH_SEQUENCE[0].year}-${FISCAL_MONTH_SEQUENCE[FISCAL_MONTH_SEQUENCE.length - 1].year}`;
 
       setIndustry40Chart({
         title: `Industry 4.0 Performance Trend (${displayYear})`,
@@ -1220,16 +1356,16 @@ function ManagementDashboard() {
   const loadZeroQualityChart = async () => {
     try {
       setZeroQualityLoading(true);
-      const currentYear = new Date().getFullYear();
 
       const kpisRes = await api.get('/kpis');
-      const kpis = kpisRes.data?.data || [];
-      const qualityKpis = kpis.filter(k => 
-        (k.title || '').toLowerCase().includes('quality') || 
-        (k.title || '').toLowerCase().includes('complaint')
+      const allKpis = kpisRes.data?.data || [];
+      const qualityKpis = allKpis.filter(k => 
+        isFiscalYearMatch(k.fin_year, selectedFiscalYear) && 
+        ((k.title || '').toLowerCase().includes('quality') || 
+        (k.title || '').toLowerCase().includes('complaint'))
       );
       if (!qualityKpis || qualityKpis.length === 0) {
-        console.warn('No Quality/Complaint KPIs found. Available KPI titles:', kpis.map(k => k.title).slice(0,50));
+        console.warn('No Quality/Complaint KPIs found. Available KPI titles:', allKpis.map(k => k.title).slice(0,50));
       }
       
       if (!qualityKpis || qualityKpis.length === 0) {
@@ -1257,38 +1393,31 @@ function ManagementDashboard() {
         return;
       }
 
-      const buildSeries = (rows) => {
-        const byMonth = rows.reduce((acc, row) => {
-          const key = Number(row.month);
-          acc[key] = row;
-          return acc;
-        }, {});
-
-        const labels = MONTH_LABELS.slice();
-        const actuals = labels.map((_, idx) => Number(byMonth[idx + 1]?.actual_value || 0));
-        const targets = labels.map((_, idx) => Number(byMonth[idx + 1]?.target_value || 0));
-        return { labels, actuals, targets };
-      };
-
-      let rows = [];
-      for (const year of [currentYear, currentYear - 1]) {
+      // Fetch data using fiscal month sequence
+      const byMonth = [];
+      for (let idx = 0; idx < FISCAL_MONTH_SEQUENCE.length; idx++) {
+        const { month, year } = FISCAL_MONTH_SEQUENCE[idx];
         try {
           const resp = await api.get(`/kpi-values/${zeroQualityValue.id}/monthly-data/${year}`);
-          rows = resp.data?.data || [];
-          if (rows.length > 0) break;
+          const rows = resp.data?.data || [];
+          const monthRow = rows.find(r => Number(r.month) === month && Number(r.year) === year);
+          if (monthRow) {
+            byMonth.push({ 
+              actual: Number(monthRow.actual_value || 0), 
+              target: Number(monthRow.target_value || 0) 
+            });
+          } else {
+            byMonth.push({ actual: 0, target: 0 });
+          }
         } catch (err) {
-          console.warn(`Failed to fetch Quality data for year ${year}`);
+          byMonth.push({ actual: 0, target: 0 });
         }
       }
 
-      if (!rows.length) {
-        console.warn('No monthly data for Zero Quality Complaints in any year. Last fetched rows:', rows);
-        setZeroQualityChart(null);
-        return;
-      }
-
-      const { labels, actuals, targets } = buildSeries(rows);
-      const displayYear = rows[0]?.year || currentYear;
+      const labels = FISCAL_MONTH_SEQUENCE.map(entry => MONTH_LABELS[entry.month - 1]);
+      const actuals = byMonth.map(d => d.actual);
+      const targets = byMonth.map(d => d.target);
+      const displayYear = `${FISCAL_MONTH_SEQUENCE[0].year}-${FISCAL_MONTH_SEQUENCE[FISCAL_MONTH_SEQUENCE.length - 1].year}`;
 
       setZeroQualityChart({
         title: `Zero Quality Complaints (${displayYear})`,
@@ -1309,11 +1438,12 @@ function ManagementDashboard() {
       setSalesLoading(true);
 
       const kpisRes = await api.get('/kpis');
-      const kpis = kpisRes.data?.data || [];
+      const allKpis = kpisRes.data?.data || [];
 
-      const salesKpis = kpis.filter(k => 
-        (k.title || '').toLowerCase().includes('sales') || 
-        (k.title || '').toLowerCase().includes('revenue')
+      const salesKpis = allKpis.filter(k => 
+        isFiscalYearMatch(k.fin_year, selectedFiscalYear) && 
+        ((k.title || '').toLowerCase().includes('sales') || 
+        (k.title || '').toLowerCase().includes('revenue'))
       );
       
       if (!salesKpis || salesKpis.length === 0) {
@@ -1375,11 +1505,12 @@ function ManagementDashboard() {
       setProfitabilityLoading(true);
 
       const kpisRes = await api.get('/kpis');
-      const kpis = kpisRes.data?.data || [];
+      const allKpis = kpisRes.data?.data || [];
 
-      const profitKpis = kpis.filter(k => 
-        (k.title || '').toLowerCase().includes('profit') || 
-        (k.title || '').toLowerCase().includes('pl')
+      const profitKpis = allKpis.filter(k => 
+        isFiscalYearMatch(k.fin_year, selectedFiscalYear) && 
+        ((k.title || '').toLowerCase().includes('profit') || 
+        (k.title || '').toLowerCase().includes('pl'))
       );
       
       if (!profitKpis || profitKpis.length === 0) {
@@ -1440,12 +1571,58 @@ function ManagementDashboard() {
     <div className="space-y-6">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-4xl font-bold text-gray-800 mb-2">
-          Management Dashboard
-        </h1>
-        <p className="text-gray-600">
-          Welcome, {user?.firstName} {user?.lastName}
-        </p>
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <div>
+            <h1 className="text-4xl font-bold text-gray-800 mb-2">
+              Management Dashboard
+            </h1>
+            <p className="text-gray-600">
+              Welcome, {user?.firstName} {user?.lastName}
+            </p>
+          </div>
+          
+          {/* Fiscal Year Selector */}
+          <div className="flex items-center gap-3 bg-white rounded-lg shadow-md px-4 py-3 border border-gray-200">
+            <button
+              onClick={() => {
+                const currentIndex = availableFiscalYears.indexOf(selectedFiscalYear);
+                if (currentIndex > 0) {
+                  setSelectedFiscalYear(availableFiscalYears[currentIndex - 1]);
+                }
+              }}
+              disabled={availableFiscalYears.length === 0 || availableFiscalYears.indexOf(selectedFiscalYear) <= 0}
+              className="px-3 py-1 rounded-md bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-40 disabled:cursor-not-allowed"
+              title="Previous Fiscal Year"
+            >
+              ‹
+            </button>
+            <div className="text-center">
+              <div className="text-xs text-gray-500 font-medium">Fiscal Year</div>
+              <div className="text-lg font-bold text-gray-800">
+                {selectedFiscalYear}-{(selectedFiscalYear + 1).toString().slice(-2)}
+              </div>
+              <div className="text-xs text-gray-400">Apr {selectedFiscalYear} - Mar {selectedFiscalYear + 1}</div>
+              {availableFiscalYears.length > 0 && (
+                <div className="text-xs text-gray-400 mt-1">
+                  ({availableFiscalYears.indexOf(selectedFiscalYear) + 1} of {availableFiscalYears.length})
+                </div>
+              )}
+            </div>
+            <button
+              onClick={() => {
+                const currentIndex = availableFiscalYears.indexOf(selectedFiscalYear);
+                if (currentIndex >= 0 && currentIndex < availableFiscalYears.length - 1) {
+                  setSelectedFiscalYear(availableFiscalYears[currentIndex + 1]);
+                }
+              }}
+              disabled={availableFiscalYears.length === 0 || availableFiscalYears.indexOf(selectedFiscalYear) >= availableFiscalYears.length - 1}
+              className="px-3 py-1 rounded-md bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-40 disabled:cursor-not-allowed"
+              title="Next Fiscal Year"
+            >
+              ›
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Overview Cards */}
@@ -1483,49 +1660,72 @@ function ManagementDashboard() {
       {/* Performance Dashboard Section */}
       <div className="mt-8">
         <h2 className="text-2xl text-center justify-center font-bold text-gray-800 mb-6">📊 Performance Dashboard</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-10 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-10 gap-6">
           {/* Plant Efficiency Speedometer */}
-          <div className="min-h-[400px] xl:col-span-2">
+          <div className="min-h-[400px] sm:col-span-2">
           <div className="bg-white rounded-lg shadow border-2 border-blue-500 p-6 h-full">
-            <Link to="/management/plant-efficiency" className="text-lg font-semibold text-gray-800 mb-4 hover:text-blue-600 transition-colors inline-block">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4">⚡ Plant Efficiency</h3>
-            </Link>
+            <button 
+              type="button"
+              onClick={() => handleKPITitleClick('Plant Efficiency')}
+              className="w-full mb-4 px-2 sm:px-3 md:px-4 py-2 text-sm sm:text-base lg:text-lg font-semibold leading-snug text-blue-900 bg-blue-100 rounded-lg hover:bg-blue-200 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 whitespace-normal break-words"
+              title="Go to Plant Efficiency KPI"
+            >
+              ⚡ Plant Efficiency
+            </button>
             {efficiencyLoading ? (
               <div className="flex items-center justify-center p-8 text-gray-500 text-sm">Loading...</div>
             ) : (
-              <div 
-                className="flex items-center justify-center gap-4 relative cursor-pointer"
-                role="button"
-                tabIndex={0}
-                onClick={() => openExpandedChart('plantEfficiency', { monthlyEfficiency, selectedFiscalIndex })}
-                onKeyDown={(e) => e.key === 'Enter' && openExpandedChart('plantEfficiency', { monthlyEfficiency, selectedFiscalIndex })}
-              >
+              <div className="flex items-center justify-center gap-1 sm:gap-2 md:gap-4 relative w-full min-w-0">
+                {/* Previous Month Button */}
                 <button 
-                  className="bg-gray-100 border border-gray-300 rounded-full w-9 h-9 flex items-center justify-center cursor-pointer text-2xl text-gray-600 hover:bg-gray-200 hover:text-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                  type="button"
+                  className="bg-gray-100 border border-gray-300 rounded-full w-6 h-6 sm:w-8 sm:h-8 md:w-9 md:h-9 flex items-center justify-center cursor-pointer text-sm sm:text-xl md:text-2xl text-gray-600 hover:bg-gray-200 hover:text-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex-shrink-0 relative z-10"
                   onClick={(e) => {
+                    e.preventDefault();
                     e.stopPropagation();
                     if (!monthlyEfficiency.length) return;
                     setSelectedFiscalIndex(selectedFiscalIndex === 0 ? monthlyEfficiency.length - 1 : selectedFiscalIndex - 1);
                   }}
                   disabled={!monthlyEfficiency.length}
+                  title="Previous Month"
                 >
                   ‹
                 </button>
                 
-                <SpeedometerGauge 
-                  efficiency={monthlyEfficiency[selectedFiscalIndex]?.efficiency || 0}
-                  month={MONTH_LABELS[(monthlyEfficiency[selectedFiscalIndex]?.month || 1) - 1]}
-                  year={monthlyEfficiency[selectedFiscalIndex]?.year || ''}
-                />
-
-                <button 
-                  className="bg-gray-100 border border-gray-300 rounded-full w-9 h-9 flex items-center justify-center cursor-pointer text-2xl text-gray-600 hover:bg-gray-200 hover:text-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                {/* Speedometer Gauge - Click to Open Modal */}
+                <div 
+                  className="flex-1 min-w-0 flex justify-center cursor-pointer hover:opacity-80 transition-opacity"
+                  role="button"
+                  tabIndex={0}
                   onClick={(e) => {
+                    if (e.target.closest('button')) return;
+                    openExpandedChart('plantEfficiency', { monthlyEfficiency, selectedFiscalIndex });
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.target.closest('button')) {
+                      openExpandedChart('plantEfficiency', { monthlyEfficiency, selectedFiscalIndex });
+                    }
+                  }}
+                >
+                  <SpeedometerGauge 
+                    efficiency={monthlyEfficiency[selectedFiscalIndex]?.efficiency || 0}
+                    month={MONTH_LABELS[(monthlyEfficiency[selectedFiscalIndex]?.month || 1) - 1]}
+                    year={monthlyEfficiency[selectedFiscalIndex]?.year || ''}
+                  />
+                </div>
+
+                {/* Next Month Button */}
+                <button 
+                  type="button"
+                  className="bg-gray-100 border border-gray-300 rounded-full w-6 h-6 sm:w-8 sm:h-8 md:w-9 md:h-9 flex items-center justify-center cursor-pointer text-sm sm:text-xl md:text-2xl text-gray-600 hover:bg-gray-200 hover:text-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex-shrink-0 relative z-10"
+                  onClick={(e) => {
+                    e.preventDefault();
                     e.stopPropagation();
                     if (!monthlyEfficiency.length) return;
                     setSelectedFiscalIndex(selectedFiscalIndex === monthlyEfficiency.length - 1 ? monthlyEfficiency.length - 1 : selectedFiscalIndex + 1);
                   }}
                   disabled={!monthlyEfficiency.length || selectedFiscalIndex >= monthlyEfficiency.length - 1}
+                  title="Next Month"
                 >
                   ›
                 </button>
@@ -1535,11 +1735,14 @@ function ManagementDashboard() {
         </div>
 
         {/* Industry 4.0 Chart */}
-        <div className="min-h-[400px] xl:col-span-2">
+        <div className="min-h-[400px] sm:col-span-2">
           <div className="bg-white rounded-lg shadow border-2 border-blue-500 p-6 h-full">
-            <Link to="/management/industry-4-0" className="hover:text-blue-600 transition-colors inline-block">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4">🏭 Industry 4.0</h3>
-            </Link>
+            <button 
+              onClick={() => handleKPITitleClick('Industry 4.0')}
+              className="w-full mb-4 px-2 sm:px-3 md:px-4 py-2 text-sm sm:text-base lg:text-lg font-semibold leading-snug text-blue-900 bg-blue-100 rounded-lg hover:bg-blue-200 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 whitespace-normal break-words"
+            >
+              🏭 Industry 4.0
+            </button>
             {industry40Loading ? (
               <div className="flex items-center justify-center p-8 text-gray-500 text-sm">Loading...</div>
             ) : industry40Chart ? (
@@ -1577,11 +1780,14 @@ function ManagementDashboard() {
         </div>
 
         {/* Zero Quality Complaints Chart */}
-        <div className="min-h-[400px] xl:col-span-2">
+        <div className="min-h-[400px] sm:col-span-2">
           <div className="bg-white rounded-lg shadow border-2 border-blue-500 p-6 h-full">
-            <Link to="/management/zero-quality-complaints" className="hover:text-blue-600 transition-colors inline-block">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4">✅ Zero Quality Complaints</h3>
-            </Link>
+            <button 
+              onClick={() => handleKPITitleClick('Zero Quality')}
+              className="w-full mb-4 px-2 sm:px-3 md:px-4 py-2 text-sm sm:text-base lg:text-lg font-semibold leading-snug text-blue-900 bg-blue-100 rounded-lg hover:bg-blue-200 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 whitespace-normal break-words"
+            >
+              ✅ Zero Quality Complaints
+            </button>
             {zeroQualityLoading ? (
               <div className="flex items-center justify-center p-8 text-gray-500 text-sm">Loading...</div>
             ) : zeroQualityChart ? (
@@ -1619,18 +1825,29 @@ function ManagementDashboard() {
         </div>
 
         {/* Revenue and Profitability Split Chart */}
-        <div className="min-h-[400px] xl:col-span-4">
-          <div className="bg-white rounded-lg shadow border-2 border-blue-500 flex flex-col md:flex-row h-full overflow-hidden">
+        <div className="min-h-[400px] sm:col-span-4">
+          <div className="bg-white rounded-lg shadow border-2 border-blue-500 h-full flex flex-col p-6">
+            {/* Group Title */}
+            <button
+              onClick={() => handleKPITitleClick('Cost')}
+              className="w-full mb-4 px-2 sm:px-3 md:px-4 py-2 text-sm sm:text-base lg:text-lg font-semibold leading-snug text-blue-900 bg-blue-100 rounded-lg hover:bg-blue-200 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 whitespace-normal break-words"
+            >
+              💰 Cost
+            </button>
+            <div className="flex flex-col md:flex-row h-full overflow-hidden flex-1">
             {/* Revenue Section */}
             <div className="flex-1 p-4 md:p-6 flex flex-col md:border-r border-gray-200 min-w-0">
-              <Link to="/management/revenue" className="hover:text-blue-600 transition-colors">
-                <h4 className="text-xs md:text-sm font-bold text-gray-500 mb-3 md:mb-4 text-center tracking-wide">REVENUE</h4>
-              </Link>
+              <button 
+                onClick={() => handleKPITitleClick('Revenue')}
+                className="text-xs md:text-sm font-bold text-gray-500 mb-3 md:mb-4 text-center tracking-wide hover:text-blue-600 transition-colors cursor-pointer px-4 py-2 rounded-lg hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-400"
+              >
+                REVENUE
+              </button>
               {salesLoading ? (
                 <div className="flex items-center justify-center p-4 md:p-8 text-gray-500 text-sm">Loading...</div>
               ) : (
                 <div 
-                  className="flex items-center justify-center gap-2 md:gap-4 flex-1 overflow-hidden cursor-pointer"
+                  className="flex items-center justify-center gap-2 md:gap-4 flex-1 cursor-pointer"
                   role="button"
                   tabIndex={0}
                   onClick={() => openExpandedChart('salesProfit', { monthlySalesData, selectedSalesIndex, monthlyProfitData, selectedProfitIndex })}
@@ -1652,7 +1869,7 @@ function ManagementDashboard() {
                     <h5 className="text-xs md:text-sm font-semibold text-gray-800 mb-1 md:mb-2">
                       {MONTH_LABELS[(monthlySalesData[selectedSalesIndex]?.month || 1) - 1]} {monthlySalesData[selectedSalesIndex]?.year || ''}
                     </h5>
-                    <svg viewBox="0 0 200 200" className="w-full max-w-[140px] md:max-w-[180px] h-auto">
+                    <svg viewBox="0 0 200 200" className="w-[140px] md:w-[180px] h-[140px] md:h-[180px]">
                       {(() => {
                         const salesData = monthlySalesData[selectedSalesIndex] || { actual: 0, target: 100 };
                         const radius = 70;
@@ -1734,14 +1951,17 @@ function ManagementDashboard() {
             
             {/* Profitability Section */}
             <div className="flex-1 p-4 md:p-6 flex flex-col border-t md:border-t-0 min-w-0">
-              <Link to="/management/profitability" className="hover:text-blue-600 transition-colors">
-                <h4 className="text-xs md:text-sm font-bold text-gray-500 mb-3 md:mb-4 text-center tracking-wide">PROFITABILITY (YTD)</h4>
-              </Link>
+              <button 
+                onClick={() => handleKPITitleClick('Profitability')}
+                className="text-xs md:text-sm font-bold text-gray-500 mb-3 md:mb-4 text-center tracking-wide hover:text-blue-600 transition-colors cursor-pointer px-4 py-2 rounded-lg hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-400"
+              >
+                PROFITABILITY (YTD)
+              </button>
               {profitabilityLoading ? (
                 <div className="flex items-center justify-center p-4 md:p-8 text-gray-500 text-sm">Loading...</div>
               ) : (
                 <div 
-                  className="flex items-center justify-center gap-2 md:gap-4 flex-1 overflow-hidden cursor-pointer"
+                  className="flex items-center justify-center gap-2 md:gap-4 flex-1 cursor-pointer"
                   role="button"
                   tabIndex={0}
                   onClick={() => openExpandedChart('salesProfit', { monthlySalesData, selectedSalesIndex, monthlyProfitData, selectedProfitIndex })}
@@ -1763,7 +1983,7 @@ function ManagementDashboard() {
                     <h5 className="text-xs md:text-sm font-semibold text-gray-800 mb-1 md:mb-2">
                       {MONTH_LABELS[(monthlyProfitData[selectedProfitIndex]?.month || 1) - 1]} {monthlyProfitData[selectedProfitIndex]?.year || ''}
                     </h5>
-                    <svg viewBox="0 0 200 200" className="w-full max-w-[140px] md:max-w-[180px] h-auto">
+                    <svg viewBox="0 0 200 200" className="w-[140px] md:w-[180px] h-[140px] md:h-[180px]">
                       {(() => {
                         const profitData = monthlyProfitData[selectedProfitIndex] || { profit: 0, target: 100 };
                         const radius = 70;
@@ -1842,15 +2062,19 @@ function ManagementDashboard() {
                 </div>
               )}
             </div>
+            </div>
           </div>
         </div>
       </div>
       {/* Combined charts: Zero Accidents, Green Factory, On Time Delivery, Theme, Employees (side-by-side) */}
       <div className="mt-6 grid grid-cols-1 md:grid-cols-5 gap-6">
         <div className="bg-white rounded-lg shadow border-2 border-blue-500 p-6 h-full">
-          <Link to="/management/zero-accidents" className="hover:text-blue-600 transition-colors inline-block">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">🦺 Zero Accidents</h3>
-          </Link>
+          <button 
+            onClick={() => handleKPITitleClick('Zero Accidents')}
+            className="w-full mb-4 px-4 py-2 text-lg font-semibold text-blue-900 bg-blue-100 rounded-lg hover:bg-blue-200 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            🦺 Zero Accidents
+          </button>
           {zeroAccidentsLoading ? (
             <div className="flex items-center justify-center p-8 text-gray-500">Loading...</div>
           ) : zeroAccidentsChart ? (
@@ -1877,9 +2101,12 @@ function ManagementDashboard() {
         </div>
 
         <div className="bg-white rounded-lg shadow border-2 border-blue-500 p-6 h-full">
-          <Link to="/management/green-factory" className="hover:text-blue-600 transition-colors inline-block">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">🌿 Green Factory</h3>
-          </Link>
+          <button 
+            onClick={() => handleKPITitleClick('Green Factory')}
+            className="w-full mb-4 px-4 py-2 text-lg font-semibold text-blue-900 bg-blue-100 rounded-lg hover:bg-blue-200 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            🌿 Green Factory
+          </button>
           {greenFactoryLoading ? (
             <div className="flex items-center justify-center p-8 text-gray-500">Loading...</div>
           ) : greenFactoryChart ? (
@@ -1906,9 +2133,12 @@ function ManagementDashboard() {
         </div>
 
         <div className="bg-white rounded-lg shadow border-2 border-blue-500 p-6 h-full">
-          <Link to="/management/on-time-delivery" className="hover:text-blue-600 transition-colors inline-block">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">🚚 On Time Delivery</h3>
-          </Link>
+          <button 
+            onClick={() => handleKPITitleClick('On Time Delivery')}
+            className="w-full mb-4 px-4 py-2 text-lg font-semibold text-blue-900 bg-blue-100 rounded-lg hover:bg-blue-200 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            🚚 On Time Delivery
+          </button>
           {onTimeDeliveryLoading ? (
             <div className="flex items-center justify-center p-8 text-gray-500">Loading...</div>
           ) : onTimeDeliveryChart ? (
@@ -1934,12 +2164,22 @@ function ManagementDashboard() {
           )}
         </div>
 
-        <div className="bg-white rounded-lg shadow border-2 border-blue-500 p-2 md:p-6 h-full md:col-span-2">
-          <div className="flex flex-col md:flex-row h-full">
+        <div className="bg-white rounded-lg shadow border-2 border-blue-500 p-2 md:p-6 h-full md:col-span-2 flex flex-col">
+          {/* Group Title */}
+          <button
+            onClick={() => handleKPITitleClick('Morale')}
+            className="w-full mb-4 px-4 py-2 text-lg font-semibold text-blue-900 bg-blue-100 rounded-lg hover:bg-blue-200 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            😊 Morale
+          </button>
+          <div className="flex flex-col md:flex-row h-full flex-1">
             <div className="flex-1 p-4 md:border-r border-gray-200 min-w-0">
-              <Link to="/management/theme-of-the-year" className="hover:text-blue-600 transition-colors">
-                <h4 className="text-xs md:text-sm font-bold text-gray-500 mb-3 md:mb-4 text-center tracking-wide">THEME OF THE YEAR</h4>
-              </Link>
+              <button 
+                onClick={() => handleKPITitleClick('Theme')}
+                className="text-xs md:text-sm font-bold text-gray-500 mb-3 md:mb-4 text-center tracking-wide hover:text-purple-600 transition-colors cursor-pointer px-4 py-2 rounded-lg hover:bg-purple-50 focus:outline-none focus:ring-2 focus:ring-purple-400"
+              >
+                THEME OF THE YEAR
+              </button>
               {themeChartLoading ? (
                 <div className="flex items-center justify-center p-8 text-gray-500">Loading...</div>
               ) : (
@@ -1960,9 +2200,12 @@ function ManagementDashboard() {
             </div>
 
             <div className="flex-1 p-4 min-w-0">
-              <Link to="/management/employees-left" className="hover:text-blue-600 transition-colors">
-                <h4 className="text-xs md:text-sm font-bold text-gray-500 mb-3 md:mb-4 text-center tracking-wide">EMPLOYEES LEFT</h4>
-              </Link>
+              <button 
+                onClick={() => handleKPITitleClick('Employee')}
+                className="text-xs md:text-sm font-bold text-gray-500 mb-3 md:mb-4 text-center tracking-wide hover:text-purple-600 transition-colors cursor-pointer px-4 py-2 rounded-lg hover:bg-purple-50 focus:outline-none focus:ring-2 focus:ring-purple-400"
+              >
+                EMPLOYEES LEFT
+              </button>
               {employeesChartLoading ? (
                 <div className="flex items-center justify-center p-8 text-gray-500">Loading...</div>
               ) : (

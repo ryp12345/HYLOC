@@ -182,5 +182,24 @@ exports.deleteKPI = async (req, res) => {
   }
 };
 
+exports.getChildKPIs = async (req, res) => {
+  try {
+    const { parentId } = req.params;
+    const childKpis = await kpiModel.getChildKPIs(parentId);
+    
+    res.status(200).json({
+      success: true,
+      message: 'Child KPIs retrieved successfully',
+      data: childKpis
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve child KPIs',
+      error: error.message
+    });
+  }
+};
+
 
 

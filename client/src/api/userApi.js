@@ -4,6 +4,10 @@ export const getUsers = async () => {
   return await axios.get('/users');
 };
 
+export const getAssignableUsers = async () => {
+  return await axios.get('/users/assignable');
+};
+
 export const getUserById = async (id) => {
   return await axios.get(`/users/${id}`);
 };
