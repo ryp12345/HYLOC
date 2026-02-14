@@ -250,8 +250,15 @@ exports.updateTicket = async (req, res) => {
 exports.deleteTicket = async (req, res) => {
   try {
     const id = req.params.id;
+    // Fetch the ticket first
+    const ticket = await ticketModel.getTicketById(id);
+    if (!ticket) {
+      return res.status(404).json({ success: false, message: 'Ticket not found' });
+    }
+    if (ticket.status !== 'Closed') {
+      return res.status(403).json({ success: false, message: 'Only tickets with status "Closed" can be deleted' });
+    }
     const deleted = await ticketModel.deleteTicket(id);
-    if (!deleted) return res.status(404).json({ success: false, message: 'Ticket not found' });
     res.status(200).json({ success: true, data: deleted });
   } catch (error) {
     console.error('Delete ticket error:', error);
