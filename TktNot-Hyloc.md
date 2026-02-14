@@ -104,6 +104,16 @@ CREATE TABLE IF NOT EXISTS public.user_notifications
   - Status change:  user(who  created the ticket, and the users of role Manager should be sent a   notification).
   -Only the user of  role Management and only the user who has created the ticket can edit the due_date. Other users can edit only the title, description. 
   -If any user edits a field, a notification is sent to the user who is currently assigned to  the ticket.
+  -Workflow of the ticket
+  1.  
+  Open->Assigned
+  OR
+  Open->Rejected
+  2.  Rejected->Open
+  3.  Assigned-> In Progress->Resolved->Closed
+  ( Point 3 is a sequential workflow and can undergo multiple iterations, since the Rejected->Open transition can occur multiple times, but the order cannot change)
+    
+  Fianlly the user who created the ticket can choose to delete the ticket, if the ticket is in the status Closed.
 
 
 - Notifications are stored and can be marked as read.

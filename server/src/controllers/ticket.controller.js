@@ -110,6 +110,25 @@ exports.getTicketById = async (req, res) => {
 };
 
 exports.updateTicket = async (req, res) => {
+      // Allowed status transitions map
+      const allowedTransitions = {
+        Open: ['Assigned', 'Rejected'],
+        Rejected: ['Open'],
+        Assigned: ['In Progress'],
+        'In Progress': ['Resolved'],
+        Resolved: ['Closed'],
+        Closed: [],
+      };
+
+      // If status is being changed, enforce allowed transitions
+      if (payload.status && payload.status !== existing.status) {
+        const from = existing.status;
+        const to = payload.status;
+        const allowed = allowedTransitions[from] || [];
+        if (!allowed.includes(to)) {
+          return res.status(400).json({ success: false, message: `Invalid status transition: ${from} → ${to}` });
+        }
+      }
   try {
     const id = req.params.id;
     const payload = { ...req.body };

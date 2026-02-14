@@ -717,6 +717,8 @@ const isFiscalYearMatch = (kpiFiscalYear, selectedFiscalYear) => {
   return kpiYear === selectedFiscalYear;
 };
 
+const normalizeText = (value) => (value || '').toString().trim().toLowerCase();
+
 function ManagementDashboard() {
   const { user } = useAuth();
   const [kpiStats, setKpiStats] = useState({
@@ -766,6 +768,33 @@ function ManagementDashboard() {
   
   // Computed fiscal month sequence based on selected year
   const FISCAL_MONTH_SEQUENCE = useMemo(() => getFiscalMonthSequence(selectedFiscalYear), [selectedFiscalYear]);
+
+  const getKpisForFiscalYear = async () => {
+    const kpisRes = await api.get('/kpis');
+    const allKpis = kpisRes.data?.data || [];
+    return allKpis.filter(k => isFiscalYearMatch(k.fin_year, selectedFiscalYear));
+  };
+
+  const getKpiValuesForFiscalYear = async () => {
+    const fiscalKpis = await getKpisForFiscalYear();
+    if (!fiscalKpis.length) return [];
+
+    const valueResponses = await Promise.all(
+      fiscalKpis.map(kpi => api.get(`/kpi-values/kpi/${kpi.id}`))
+    );
+
+    return valueResponses
+      .flatMap(res => res.data?.data || [])
+      .filter(Boolean);
+  };
+
+  const findKpiValueByData = (values, matchers) => {
+    const checks = Array.isArray(matchers) ? matchers : [matchers];
+    return values.find(value => {
+      const dataText = normalizeText(value?.data);
+      return checks.some(check => check(dataText));
+    });
+  };
 
   // Adjust selected fiscal year if outside available range
   useEffect(() => {
@@ -914,35 +943,33 @@ function ManagementDashboard() {
   const loadGreenFactoryChart = async () => {
     try {
       setGreenFactoryLoading(true);
-      const kpisRes = await api.get('/kpis');
-      const allKpis = kpisRes.data?.data || [];
-      const greenKpis = allKpis.filter(k => 
-        isFiscalYearMatch(k.fin_year, selectedFiscalYear) && 
-        (k.title || '').toLowerCase().includes('green')
+      
+      const fiscalValues = await getKpiValuesForFiscalYear();
+      
+      // Match "GREEN FACTORY" exactly
+      const greenFactoryValue = findKpiValueByData(
+        fiscalValues,
+        (text) => text === 'green factory'
       );
-      if (!greenKpis || greenKpis.length === 0) {
+      
+      if (!greenFactoryValue) {
+        console.warn('KPI value not found for GREEN FACTORY');
         setGreenFactoryChart(null);
         return;
       }
-
-      let selectedValue = null;
-      for (const kpi of greenKpis) {
-        const valuesRes = await api.get(`/kpi-values/kpi/${kpi.id}`);
-        const vals = valuesRes.data?.data || [];
-        if (vals && vals.length > 0) { selectedValue = vals[0]; break; }
-      }
-
-      if (!selectedValue) { setGreenFactoryChart(null); return; }
 
       const valuesByMonth = [];
       for (let idx = 0; idx < FISCAL_MONTH_SEQUENCE.length; idx++) {
         const { month, year } = FISCAL_MONTH_SEQUENCE[idx];
         try {
-          const resp = await api.get(`/kpi-values/${selectedValue.id}/monthly-data/${year}`);
+          const resp = await api.get(`/kpi-data-values/${greenFactoryValue.id}/monthly`, {
+            params: { year }
+          });
           const rows = resp.data?.data || [];
           const monthRow = rows.find(r => Number(r.month) === month && Number(r.year) === year);
           valuesByMonth.push(monthRow ? Number(monthRow.actual_value || 0) : 0);
         } catch (err) {
+          console.warn(`Failed to load data for month ${month}, year ${year}:`, err);
           valuesByMonth.push(0);
         }
       }
@@ -961,33 +988,40 @@ function ManagementDashboard() {
   const loadZeroAccidentsChart = async () => {
     try {
       setZeroAccidentsLoading(true);
-      const kpisRes = await api.get('/kpis');
-      const allKpis = kpisRes.data?.data || [];
-      const accidentKpis = allKpis.filter(k => 
-        isFiscalYearMatch(k.fin_year, selectedFiscalYear) && 
-        (k.title || '').toLowerCase().includes('accident')
+      
+      const fiscalValues = await getKpiValuesForFiscalYear();
+      
+      // Match "ZERO ACCIDENTS" exactly
+      const zeroAccidentsValue = findKpiValueByData(
+        fiscalValues,
+        (text) => text === 'zero accidents'
       );
-      if (!accidentKpis || accidentKpis.length === 0) { setZeroAccidentsChart(null); return; }
-
-      let selectedValue = null;
-      for (const kpi of accidentKpis) {
-        const valuesRes = await api.get(`/kpi-values/kpi/${kpi.id}`);
-        const vals = valuesRes.data?.data || [];
-        if (vals && vals.length > 0) { selectedValue = vals[0]; break; }
+      
+      if (!zeroAccidentsValue) {
+        console.warn('KPI value not found for ZERO ACCIDENTS');
+        setZeroAccidentsChart(null);
+        return;
       }
-
-      if (!selectedValue) { setZeroAccidentsChart(null); return; }
 
       const byMonth = [];
       for (let idx = 0; idx < FISCAL_MONTH_SEQUENCE.length; idx++) {
         const { month, year } = FISCAL_MONTH_SEQUENCE[idx];
         try {
-          const resp = await api.get(`/kpi-values/${selectedValue.id}/monthly-data/${year}`);
+          const resp = await api.get(`/kpi-data-values/${zeroAccidentsValue.id}/monthly`, {
+            params: { year }
+          });
           const rows = resp.data?.data || [];
           const monthRow = rows.find(r => Number(r.month) === month && Number(r.year) === year);
-          if (monthRow) byMonth.push({ actual: Number(monthRow.actual_value || 0), target: Number(monthRow.target_value || 0) });
-          else byMonth.push({ actual: 0, target: 0 });
+          if (monthRow) {
+            byMonth.push({ 
+              actual: Number(monthRow.actual_value || 0), 
+              target: Number(monthRow.target_value || 0) 
+            });
+          } else {
+            byMonth.push({ actual: 0, target: 0 });
+          }
         } catch (err) {
+          console.warn(`Failed to load data for month ${month}, year ${year}:`, err);
           byMonth.push({ actual: 0, target: 0 });
         }
       }
@@ -1008,48 +1042,40 @@ function ManagementDashboard() {
   const loadOnTimeDeliveryChart = async () => {
     try {
       setOnTimeDeliveryLoading(true);
-      const kpisRes = await api.get('/kpis');
-      const allKpis = kpisRes.data?.data || [];
-
-      const normalize = (v) => (v || '').toLowerCase();
-      const score = (t) => {
-        const s = normalize(t);
-        let sc = 0;
-        if (s.includes('on time')) sc += 3;
-        if (s.includes('ontime')) sc += 2;
-        if (s.includes('delivery')) sc += 2;
-        return sc;
-      };
-
-      const deliveryKpis = allKpis
-        .filter(k => {
-          if (!isFiscalYearMatch(k.fin_year, selectedFiscalYear)) return false;
-          const t = normalize(k.title);
-          return t.includes('delivery') || t.includes('on time') || t.includes('ontime');
-        })
-        .sort((a, b) => score(b.title) - score(a.title));
-
-      if (!deliveryKpis.length) { setOnTimeDeliveryChart(null); return; }
-
-      let selectedValue = null;
-      for (const kpi of deliveryKpis) {
-        const valuesRes = await api.get(`/kpi-values/kpi/${kpi.id}`);
-        const vals = valuesRes.data?.data || [];
-        if (vals && vals.length > 0) { selectedValue = vals[0]; break; }
+      
+      const fiscalValues = await getKpiValuesForFiscalYear();
+      
+      // Match "ON TIME DELIVERY" exactly
+      const onTimeDeliveryValue = findKpiValueByData(
+        fiscalValues,
+        (text) => text === 'on time delivery'
+      );
+      
+      if (!onTimeDeliveryValue) {
+        console.warn('KPI value not found for ON TIME DELIVERY');
+        setOnTimeDeliveryChart(null);
+        return;
       }
-
-      if (!selectedValue) { setOnTimeDeliveryChart(null); return; }
 
       const byMonth = [];
       for (let idx = 0; idx < FISCAL_MONTH_SEQUENCE.length; idx++) {
         const { month, year } = FISCAL_MONTH_SEQUENCE[idx];
         try {
-          const resp = await api.get(`/kpi-values/${selectedValue.id}/monthly-data/${year}`);
+          const resp = await api.get(`/kpi-data-values/${onTimeDeliveryValue.id}/monthly`, {
+            params: { year }
+          });
           const rows = resp.data?.data || [];
           const monthRow = rows.find(r => Number(r.month) === month && Number(r.year) === year);
-          if (monthRow) byMonth.push({ actual: Number(monthRow.actual_value || 0), target: Number(monthRow.target_value || 0) });
-          else byMonth.push({ actual: 0, target: 0 });
+          if (monthRow) {
+            byMonth.push({ 
+              actual: Number(monthRow.actual_value || 0), 
+              target: Number(monthRow.target_value || 0) 
+            });
+          } else {
+            byMonth.push({ actual: 0, target: 0 });
+          }
         } catch (err) {
+          console.warn(`Failed to load data for month ${month}, year ${year}:`, err);
           byMonth.push({ actual: 0, target: 0 });
         }
       }
@@ -1071,54 +1097,36 @@ function ManagementDashboard() {
   const loadThemeChart = async () => {
     try {
       setThemeChartLoading(true);
-      const kpisRes = await api.get('/kpis');
-      const allKpis = kpisRes.data?.data || [];
-
-      const normalize = (v) => (v || '').toLowerCase();
-      const score = (t) => {
-        const s = normalize(t);
-        let sc = 0;
-        if (s.includes('theme')) sc += 3;
-        if (s.includes('unlock')) sc += 2;
-        if (s.includes('power') || s.includes('you')) sc += 1;
-        return sc;
-      };
-
-      const themeKpis = allKpis
-        .filter(k => {
-          if (!isFiscalYearMatch(k.fin_year, selectedFiscalYear)) return false;
-          const t = normalize(k.title);
-          return t.includes('theme') || (t.includes('unlock') && t.includes('power')) || (t.includes('2025') && t.includes('2026'));
-        })
-        .sort((a, b) => score(b.title) - score(a.title));
-
-      if (!themeKpis.length) { setThemeChart(null); return; }
-
-      let selectedValue = null;
-      for (const kpi of themeKpis) {
-        const valuesRes = await api.get(`/kpi-values/kpi/${kpi.id}`);
-        const vals = valuesRes.data?.data || [];
-        if (vals && vals.length > 0) { selectedValue = vals[0]; break; }
-      }
-
-      if (!selectedValue) { setThemeChart(null); return; }
-
-      const rowsByYear = {};
-      const fiscalYears = Array.from(new Set(FISCAL_MONTH_SEQUENCE.map(e => e.year)));
-      for (const year of fiscalYears) {
-        try {
-          const resp = await api.get(`/kpi-values/${selectedValue.id}/monthly-data/${year}`);
-          rowsByYear[year] = resp.data?.data || [];
-        } catch (err) { rowsByYear[year] = []; }
+      
+      const fiscalValues = await getKpiValuesForFiscalYear();
+      
+      // Match "THEME OF THE YEAR 2025-26 - UNLOCK THE POWER OF "YOU"" exactly
+      const themeValue = findKpiValueByData(
+        fiscalValues,
+        (text) => text.includes('theme of the year') && text.includes('unlock the power of')
+      );
+      
+      if (!themeValue) {
+        console.warn('KPI value not found for THEME OF THE YEAR');
+        setThemeChart(null);
+        return;
       }
 
       const themeByMonth = [];
       for (let idx = 0; idx < FISCAL_MONTH_SEQUENCE.length; idx++) {
         const { month, year } = FISCAL_MONTH_SEQUENCE[idx];
-        const rows = rowsByYear[year] || [];
-        const monthRow = rows.find(r => Number(r.month) === month && Number(r.year) === year);
-        if (monthRow) themeByMonth.push(Number(monthRow.actual_value || 0));
-        else themeByMonth.push(0);
+        try {
+          const resp = await api.get(`/kpi-data-values/${themeValue.id}/monthly`, {
+            params: { year }
+          });
+          const rows = resp.data?.data || [];
+          const monthRow = rows.find(r => Number(r.month) === month && Number(r.year) === year);
+          if (monthRow) themeByMonth.push(Number(monthRow.actual_value || 0));
+          else themeByMonth.push(0);
+        } catch (err) {
+          console.warn(`Failed to load data for month ${month}, year ${year}:`, err);
+          themeByMonth.push(0);
+        }
       }
 
       const labels = FISCAL_MONTH_SEQUENCE.map(entry => MONTH_LABELS[entry.month - 1]);
@@ -1133,53 +1141,36 @@ function ManagementDashboard() {
   const loadEmployeesChart = async () => {
     try {
       setEmployeesChartLoading(true);
-      const kpisRes = await api.get('/kpis');
-      const allKpis = kpisRes.data?.data || [];
-
-      const normalize = (v) => (v || '').toLowerCase();
-      const score = (t) => {
-        const s = normalize(t);
-        let sc = 0;
-        if (s.includes('employee') || s.includes('employees')) sc += 3;
-        if (s.includes('left') || s.includes('attrition')) sc += 2;
-        return sc;
-      };
-
-      const employeeKpis = allKpis
-        .filter(k => {
-          if (!isFiscalYearMatch(k.fin_year, selectedFiscalYear)) return false;
-          const t = normalize(k.title);
-          return (t.includes('employee') || t.includes('employees')) && (t.includes('left') || t.includes('attrition'));
-        })
-        .sort((a, b) => score(b.title) - score(a.title));
-
-      if (!employeeKpis.length) { setEmployeesChart(null); return; }
-
-      let selectedValue = null;
-      for (const kpi of employeeKpis) {
-        const valuesRes = await api.get(`/kpi-values/kpi/${kpi.id}`);
-        const vals = valuesRes.data?.data || [];
-        if (vals && vals.length > 0) { selectedValue = vals[0]; break; }
-      }
-
-      if (!selectedValue) { setEmployeesChart(null); return; }
-
-      const rowsByYear = {};
-      const fiscalYears = Array.from(new Set(FISCAL_MONTH_SEQUENCE.map(e => e.year)));
-      for (const year of fiscalYears) {
-        try {
-          const resp = await api.get(`/kpi-values/${selectedValue.id}/monthly-data/${year}`);
-          rowsByYear[year] = resp.data?.data || [];
-        } catch (err) { rowsByYear[year] = []; }
+      
+      const fiscalValues = await getKpiValuesForFiscalYear();
+      
+      // Match "NO. OF EMPLOYEES WHO LEFT" exactly
+      const employeesValue = findKpiValueByData(
+        fiscalValues,
+        (text) => text === 'no. of employees who left'
+      );
+      
+      if (!employeesValue) {
+        console.warn('KPI value not found for NO. OF EMPLOYEES WHO LEFT');
+        setEmployeesChart(null);
+        return;
       }
 
       const employeesByMonth = [];
       for (let idx = 0; idx < FISCAL_MONTH_SEQUENCE.length; idx++) {
         const { month, year } = FISCAL_MONTH_SEQUENCE[idx];
-        const rows = rowsByYear[year] || [];
-        const monthRow = rows.find(r => Number(r.month) === month && Number(r.year) === year);
-        if (monthRow) employeesByMonth.push(Number(monthRow.actual_value || 0));
-        else employeesByMonth.push(0);
+        try {
+          const resp = await api.get(`/kpi-data-values/${employeesValue.id}/monthly`, {
+            params: { year }
+          });
+          const rows = resp.data?.data || [];
+          const monthRow = rows.find(r => Number(r.month) === month && Number(r.year) === year);
+          if (monthRow) employeesByMonth.push(Number(monthRow.actual_value || 0));
+          else employeesByMonth.push(0);
+        } catch (err) {
+          console.warn(`Failed to load data for month ${month}, year ${year}:`, err);
+          employeesByMonth.push(0);
+        }
       }
 
       const labels = FISCAL_MONTH_SEQUENCE.map(entry => MONTH_LABELS[entry.month - 1]);
@@ -1193,57 +1184,50 @@ function ManagementDashboard() {
   const loadPlantEfficiency = async () => {
     try {
       setEfficiencyLoading(true);
+      const fiscalValues = await getKpiValuesForFiscalYear();
       
-      // Fetch KPIs and filter by fiscal year
-      const kpisRes = await api.get('/kpis');
-      const allKpis = kpisRes.data?.data || [];
-      const fiscalYearKpis = allKpis.filter(k => isFiscalYearMatch(k.fin_year, selectedFiscalYear));
-      const fiscalYearKpiIds = fiscalYearKpis.map(k => k.id);
+      // Debug: log all KPI values to find the exact OPE data field
+      console.log('All fiscal KPI values:', fiscalValues.map(v => ({ id: v.id, data: v.data })));
       
-      // Fetch kpi-values only for the fiscal year's KPIs
-      const kpiValuesRes = await api.get('/kpi-values');
-      const allKpiValues = kpiValuesRes.data?.data || [];
-      const kpiValues = allKpiValues
-        .filter(kv => {
-          // Handle both string and number IDs
-          const kvKpiId = typeof kv.kpi_id === 'string' ? parseInt(kv.kpi_id) : kv.kpi_id;
-          return fiscalYearKpiIds.some(id => {
-            const fiscalId = typeof id === 'string' ? parseInt(id) : id;
-            return fiscalId === kvKpiId;
-          });
-        })
-        .slice(0, 10);
+      // Match "OVERALL PLANT EFFICIENCY (OPE)" exactly
+      const opeValue = findKpiValueByData(
+        fiscalValues,
+        (text) => text === 'overall plant efficiency (ope)'
+      );
+
+      console.log('OPE KPI Value found:', opeValue);
+
+      if (!opeValue) {
+        console.warn('OPE KPI value not found. Available:', fiscalValues.map(v => v.data));
+        setMonthlyEfficiency([]);
+        setSelectedFiscalIndex(0);
+        return;
+      }
 
       const efficiencyByIndex = {};
 
       for (let idx = 0; idx < FISCAL_MONTH_SEQUENCE.length; idx++) {
         const { month, year } = FISCAL_MONTH_SEQUENCE[idx];
-        const monthAchievements = [];
-
-        for (const kv of kpiValues) {
-          try {
-            const resp = await api.get(`/kpi-values/${kv.id}/monthly-data/${year}`);
-            const rows = resp.data?.data || [];
-            const monthRow = rows.find(r => Number(r.month) === month && Number(r.year) === year);
-
-            if (monthRow) {
-              const target = Number(monthRow.target_value || 0);
-              const actual = Number(monthRow.actual_value || 0);
-
-              if (target > 0) {
-                const achievement = Math.min(100, (actual / target) * 100);
-                monthAchievements.push(achievement);
-              }
-            }
-          } catch (err) {
-            // Skip errors for individual KPI values
+        try {
+          const resp = await api.get(`/kpi-data-values/${opeValue.id}/monthly`, {
+            params: { year }
+          });
+          const rows = resp.data?.data || [];
+          console.log(`Month ${month}/${year} - Data rows:`, rows);
+          const monthRow = rows.find(r => Number(r.month) === month && Number(r.year) === year);
+          console.log(`Month ${month}/${year} - Matched row:`, monthRow);
+          if (monthRow) {
+            const target = Number(monthRow.target_value || 0);
+            const actual = Number(monthRow.actual_value || 0);
+            // If target is missing, assume actual is already a percent value.
+            const efficiency = target > 0 ? Math.min(100, (actual / target) * 100) : Math.min(100, actual);
+            efficiencyByIndex[idx] = Math.round(efficiency * 10) / 10;
+            console.log(`Month ${month}/${year} - Efficiency calculated: ${efficiencyByIndex[idx]}% (actual: ${actual}, target: ${target})`);
+          } else {
+            efficiencyByIndex[idx] = 0;
           }
-        }
-
-        if (monthAchievements.length > 0) {
-          const avg = monthAchievements.reduce((a, b) => a + b, 0) / monthAchievements.length;
-          efficiencyByIndex[idx] = Math.round(avg * 10) / 10;
-        } else {
+        } catch (err) {
+          console.warn(`Failed to load efficiency for month ${month}, year ${year}:`, err);
           efficiencyByIndex[idx] = 0;
         }
       }
@@ -1286,12 +1270,10 @@ function ManagementDashboard() {
     try {
       setIndustry40Loading(true);
 
-      // Get KPI value by data field: "INDUSTRY 4.0"
-      const industry40ValueRes = await api.get('/kpi-values/by-data', {
-        params: { dataValue: 'INDUSTRY 4.0' }
-      });
-      
-      const industry40Value = industry40ValueRes.data?.data;
+      const fiscalValues = await getKpiValuesForFiscalYear();
+      const industry40Value = findKpiValueByData(fiscalValues, (text) =>
+        text.includes('industry 4.0') || text.includes('industry4.0') || text.includes('industry4')
+      );
       
       if (!industry40Value) {
         console.warn('KPI value not found for Industry 4.0');
@@ -1348,12 +1330,10 @@ function ManagementDashboard() {
     try {
       setZeroQualityLoading(true);
 
-      // Get KPI value by data field: "ZERO QUALITY COMPLAINTS FROM CUSTOMERS"
-      const qualityValueRes = await api.get('/kpi-values/by-data', {
-        params: { dataValue: 'ZERO QUALITY COMPLAINTS FROM CUSTOMERS' }
-      });
-      
-      const qualityValue = qualityValueRes.data?.data;
+      const fiscalValues = await getKpiValuesForFiscalYear();
+      const qualityValue = findKpiValueByData(fiscalValues, (text) =>
+        text.includes('zero quality') || (text.includes('quality') && text.includes('complaint'))
+      );
       
       if (!qualityValue) {
         console.warn('KPI value not found for ZERO QUALITY COMPLAINTS FROM CUSTOMERS');
@@ -1410,12 +1390,10 @@ function ManagementDashboard() {
     try {
       setSalesLoading(true);
 
-      // Get KPI value by data field: "SALES"
-      const salesValueRes = await api.get('/kpi-values/by-data', {
-        params: { dataValue: 'SALES' }
-      });
-      
-      const salesValue = salesValueRes.data?.data;
+      const fiscalValues = await getKpiValuesForFiscalYear();
+      const salesValue = findKpiValueByData(fiscalValues, (text) =>
+        text === 'sales' || text.includes('sales')
+      );
       
       if (!salesValue) {
         console.warn('KPI value not found for SALES');
@@ -1466,12 +1444,10 @@ function ManagementDashboard() {
     try {
       setProfitabilityLoading(true);
 
-      // Get KPI value by data field: "PROFITABILITY AS PER LATEST P & L STATEMENT"
-      const profitValueRes = await api.get('/kpi-values/by-data', {
-        params: { dataValue: 'PROFITABILITY AS PER LATEST P & L STATEMENT' }
-      });
-      
-      const profitValue = profitValueRes.data?.data;
+      const fiscalValues = await getKpiValuesForFiscalYear();
+      const profitValue = findKpiValueByData(fiscalValues, (text) =>
+        text.includes('profit') || text.includes('p & l') || text.includes('p&l')
+      );
       
       if (!profitValue) {
         console.warn('KPI value not found for PROFITABILITY AS PER LATEST P & L STATEMENT');
@@ -2148,12 +2124,6 @@ function ManagementDashboard() {
           </button>
           <div className="flex flex-col md:flex-row h-full flex-1">
             <div className="flex-1 p-4 md:border-r border-gray-200 min-w-0">
-              <button 
-                onClick={() => handleKPITitleClick('Theme')}
-                className="text-xs md:text-sm font-bold text-gray-500 mb-3 md:mb-4 text-center tracking-wide hover:text-purple-600 transition-colors cursor-pointer px-4 py-2 rounded-lg hover:bg-purple-50 focus:outline-none focus:ring-2 focus:ring-purple-400"
-              >
-                THEME OF THE YEAR
-              </button>
               {themeChartLoading ? (
                 <div className="flex items-center justify-center p-8 text-gray-500">Loading...</div>
               ) : (
@@ -2174,12 +2144,6 @@ function ManagementDashboard() {
             </div>
 
             <div className="flex-1 p-4 min-w-0">
-              <button 
-                onClick={() => handleKPITitleClick('Employee')}
-                className="text-xs md:text-sm font-bold text-gray-500 mb-3 md:mb-4 text-center tracking-wide hover:text-purple-600 transition-colors cursor-pointer px-4 py-2 rounded-lg hover:bg-purple-50 focus:outline-none focus:ring-2 focus:ring-purple-400"
-              >
-                EMPLOYEES LEFT
-              </button>
               {employeesChartLoading ? (
                 <div className="flex items-center justify-center p-8 text-gray-500">Loading...</div>
               ) : (
@@ -2199,6 +2163,7 @@ function ManagementDashboard() {
               )}
             </div>
           </div>
+        </div>
         </div>
       </div>
 
@@ -2327,81 +2292,187 @@ function ManagementDashboard() {
 
               {expandedChart === 'salesProfit' && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <h4 className="font-semibold mb-2">Revenue</h4>
-                    <div className="flex items-center gap-4">
-                      <button onClick={(e) => { e.stopPropagation(); if (!monthlySalesData.length) return; setSelectedSalesIndex(selectedSalesIndex === 0 ? monthlySalesData.length - 1 : selectedSalesIndex - 1); }}>‹</button>
-                      <div>
-                        <h5>{MONTH_LABELS[(monthlySalesData[selectedSalesIndex]?.month || 1) - 1]} {monthlySalesData[selectedSalesIndex]?.year || ''}</h5>
-                        <svg viewBox="0 0 200 200" className="w-full max-w-[300px] h-auto">
-                          {(() => {
-                            const salesData = monthlySalesData[selectedSalesIndex] || { actual: 0, target: 100 };
-                            const radius = 90;
-                            const cx = 100;
-                            const cy = 100;
-                            const actual = salesData.actual;
-                            const target = salesData.target;
-                            const achieved = Math.min(actual, target);
-                            const remaining = Math.max(0, target - actual);
-                            const total = target || 100;
-                            const achievedAngle = (achieved / total) * 360;
-                            const achievedRadians = (achievedAngle * Math.PI) / 180;
-                            const x1 = cx + radius * Math.cos(-Math.PI / 2);
-                            const y1 = cy + radius * Math.sin(-Math.PI / 2);
-                            const x2 = cx + radius * Math.cos(-Math.PI / 2 + achievedRadians);
-                            const y2 = cy + radius * Math.sin(-Math.PI / 2 + achievedRadians);
-                            const largeArc = achievedAngle > 180 ? 1 : 0;
-                            return (
-                              <>
-                                {achieved > 0 && <path d={`M ${cx} ${cy} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2} Z`} fill="#3b82f6" stroke="white" strokeWidth="2" />}
-                                {remaining > 0 && <path d={`M ${cx} ${cy} L ${x2} ${y2} A ${radius} ${radius} 0 ${achievedAngle > 180 ? 0 : 1} 1 ${x1} ${y1} Z`} fill="#e5e7eb" stroke="white" strokeWidth="2" />}
-                                <text x={cx} y={cy - 8} textAnchor="middle" fontSize="24" fontWeight="700" fill="#3b82f6">{actual.toFixed(0)}</text>
-                                <text x={cx} y={cy + 18} textAnchor="middle" fontSize="14" fill="#6b7280">of {target.toFixed(0)} target</text>
-                              </>
-                            );
-                          })()}
-                        </svg>
+                  <div className="flex-1 p-4 rounded-lg border border-gray-100">
+                    <h4 className="font-semibold mb-3 text-center">Revenue</h4>
+                    <div className="flex items-center justify-center gap-3">
+                      <button
+                        className="bg-gray-100 border border-gray-300 rounded-full w-8 h-8 flex items-center justify-center text-lg text-gray-600 hover:bg-gray-200 hover:text-gray-800 disabled:opacity-40 disabled:cursor-not-allowed"
+                        onClick={(e) => { e.stopPropagation(); if (!monthlySalesData.length) return; setSelectedSalesIndex(selectedSalesIndex === 0 ? monthlySalesData.length - 1 : selectedSalesIndex - 1); }}
+                        disabled={!monthlySalesData.length}
+                      >
+                        ‹
+                      </button>
+                      <div className="flex flex-col items-center">
+                        <h5 className="text-sm font-semibold text-gray-800 mb-2">
+                          {MONTH_LABELS[(monthlySalesData[selectedSalesIndex]?.month || 1) - 1]} {monthlySalesData[selectedSalesIndex]?.year || ''}
+                        </h5>
+                        <div className="flex items-center justify-center">
+                          <svg viewBox="0 0 200 200" className="w-[160px] h-[160px]">
+                            <defs>
+                              <filter id="revenueModalTextShadow" x="-50%" y="-50%" width="200%" height="200%">
+                                <feDropShadow dx="0" dy="0" stdDeviation="2" floodOpacity="0.8" floodColor="#000000" />
+                              </filter>
+                            </defs>
+                            {(() => {
+                              const salesData = monthlySalesData[selectedSalesIndex] || { actual: 0, target: 100 };
+                              const radius = 70;
+                              const cx = 100;
+                              const cy = 100;
+                              const actual = salesData.actual;
+                              const target = salesData.target;
+                              const percentageAchieved = target > 0 ? Math.min((actual / target) * 100, 100) : 0;
+                              const achievedAngle = (percentageAchieved / 100) * 360;
+                              const achievedRadians = (achievedAngle * Math.PI) / 180;
+                              const x1 = cx + radius * Math.cos(-Math.PI / 2);
+                              const y1 = cy + radius * Math.sin(-Math.PI / 2);
+                              const x2 = cx + radius * Math.cos(-Math.PI / 2 + achievedRadians);
+                              const y2 = cy + radius * Math.sin(-Math.PI / 2 + achievedRadians);
+                              const largeArc = achievedAngle > 180 ? 1 : 0;
+                              return (
+                                <>
+                                  {percentageAchieved > 0 && (
+                                    <>
+                                      {percentageAchieved >= 99.9 ? (
+                                        <circle cx={cx} cy={cy} r={radius} fill="#0d47a1" stroke="white" strokeWidth="2" />
+                                      ) : (
+                                        <path
+                                          d={`M ${cx} ${cy} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2} Z`}
+                                          fill="#0d47a1"
+                                          stroke="white"
+                                          strokeWidth="2"
+                                        />
+                                      )}
+                                    </>
+                                  )}
+                                  {percentageAchieved < 99.9 && (
+                                    <path
+                                      d={`M ${cx} ${cy} L ${x2} ${y2} A ${radius} ${radius} 0 ${achievedAngle > 180 ? 0 : 1} 1 ${x1} ${y1} Z`}
+                                      fill="#f3f4f6"
+                                      stroke="#d1d5db"
+                                      strokeWidth="2"
+                                    />
+                                  )}
+                                  <text x={cx} y={cy - 8} textAnchor="middle" fontSize="20" fontWeight="700" fill="white" filter="url(#revenueModalTextShadow)">
+                                    {actual.toFixed(0)}
+                                  </text>
+                                  <text x={cx} y={cy + 12} textAnchor="middle" fontSize="10" fill="white" filter="url(#revenueModalTextShadow)">
+                                    of {target.toFixed(0)} target
+                                  </text>
+                                </>
+                              );
+                            })()}
+                          </svg>
+                        </div>
+                        <div className="flex flex-col gap-1 mt-2">
+                          <div className="flex items-center gap-2 text-xs text-gray-600">
+                            <span className="w-3 h-3 bg-[#0d47a1] rounded"></span>
+                            <span>Actual: {(monthlySalesData[selectedSalesIndex]?.actual || 0).toFixed(0)}</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-xs text-gray-600">
+                            <span className="w-3 h-3 bg-[#0d47a1] rounded"></span>
+                            <span>Target: {(monthlySalesData[selectedSalesIndex]?.target || 0).toFixed(0)}</span>
+                          </div>
+                        </div>
                       </div>
-                      <button onClick={(e) => { e.stopPropagation(); if (!monthlySalesData.length) return; setSelectedSalesIndex(selectedSalesIndex === monthlySalesData.length - 1 ? monthlySalesData.length - 1 : selectedSalesIndex + 1); }}>›</button>
+                      <button
+                        className="bg-gray-100 border border-gray-300 rounded-full w-8 h-8 flex items-center justify-center text-lg text-gray-600 hover:bg-gray-200 hover:text-gray-800 disabled:opacity-40 disabled:cursor-not-allowed"
+                        onClick={(e) => { e.stopPropagation(); if (!monthlySalesData.length) return; setSelectedSalesIndex(selectedSalesIndex === monthlySalesData.length - 1 ? monthlySalesData.length - 1 : selectedSalesIndex + 1); }}
+                        disabled={!monthlySalesData.length || selectedSalesIndex >= monthlySalesData.length - 1}
+                      >
+                        ›
+                      </button>
                     </div>
                   </div>
 
-                  <div>
-                    <h4 className="font-semibold mb-2">Profitability</h4>
-                    <div className="flex items-center gap-4">
-                      <button onClick={(e) => { e.stopPropagation(); if (!monthlyProfitData.length) return; setSelectedProfitIndex(selectedProfitIndex === 0 ? monthlyProfitData.length - 1 : selectedProfitIndex - 1); }}>‹</button>
-                      <div>
-                        <h5>{MONTH_LABELS[(monthlyProfitData[selectedProfitIndex]?.month || 1) - 1]} {monthlyProfitData[selectedProfitIndex]?.year || ''}</h5>
-                        <svg viewBox="0 0 200 200" className="w-full max-w-[300px] h-auto">
-                          {(() => {
-                            const profitData = monthlyProfitData[selectedProfitIndex] || { profit: 0, target: 100 };
-                            const radius = 90;
-                            const cx = 100;
-                            const cy = 100;
-                            const profit = profitData.profit;
-                            const target = profitData.target;
-                            const achieved = Math.min(profit, target);
-                            const remaining = Math.max(0, target - profit);
-                            const total = achieved + remaining;
-                            const achievedAngle = (achieved / total) * 360;
-                            const achievedRadians = (achievedAngle * Math.PI) / 180;
-                            const x1 = cx + radius * Math.cos(-Math.PI / 2);
-                            const y1 = cy + radius * Math.sin(-Math.PI / 2);
-                            const x2 = cx + radius * Math.cos(-Math.PI / 2 + achievedRadians);
-                            const y2 = cy + radius * Math.sin(-Math.PI / 2 + achievedRadians);
-                            const largeArc = achievedAngle > 180 ? 1 : 0;
-                            return (
-                              <>
-                                {achieved > 0 && <path d={`M ${cx} ${cy} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2} Z`} fill="#22c55e" stroke="white" strokeWidth="2" />}
-                                {remaining > 0 && <path d={`M ${cx} ${cy} L ${x2} ${y2} A ${radius} ${radius} 0 ${achievedAngle > 180 ? 0 : 1} 1 ${x1} ${y1} Z`} fill="#e5e7eb" stroke="white" strokeWidth="2" />}
-                                <text x={cx} y={cy - 8} textAnchor="middle" fontSize="24" fontWeight="700" fill="#22c55e">{profit.toFixed(1)}%</text>
-                                <text x={cx} y={cy + 18} textAnchor="middle" fontSize="14" fill="#6b7280">of {target}% target</text>
-                              </>
-                            );
-                          })()}
-                        </svg>
+                  <div className="flex-1 p-4 rounded-lg border border-gray-100">
+                    <h4 className="font-semibold mb-3 text-center">Profitability</h4>
+                    <div className="flex items-center justify-center gap-3">
+                      <button
+                        className="bg-gray-100 border border-gray-300 rounded-full w-8 h-8 flex items-center justify-center text-lg text-gray-600 hover:bg-gray-200 hover:text-gray-800 disabled:opacity-40 disabled:cursor-not-allowed"
+                        onClick={(e) => { e.stopPropagation(); if (!monthlyProfitData.length) return; setSelectedProfitIndex(selectedProfitIndex === 0 ? monthlyProfitData.length - 1 : selectedProfitIndex - 1); }}
+                        disabled={!monthlyProfitData.length}
+                      >
+                        ‹
+                      </button>
+                      <div className="flex flex-col items-center">
+                        <h5 className="text-sm font-semibold text-gray-800 mb-2">
+                          {MONTH_LABELS[(monthlyProfitData[selectedProfitIndex]?.month || 1) - 1]} {monthlyProfitData[selectedProfitIndex]?.year || ''}
+                        </h5>
+                        <div className="flex items-center justify-center">
+                          <svg viewBox="0 0 200 200" className="w-[160px] h-[160px]">
+                            <defs>
+                              <filter id="profitModalTextShadow" x="-50%" y="-50%" width="200%" height="200%">
+                                <feDropShadow dx="0" dy="0" stdDeviation="2" floodOpacity="0.8" floodColor="#000000" />
+                              </filter>
+                            </defs>
+                            {(() => {
+                              const profitData = monthlyProfitData[selectedProfitIndex] || { profit: 0, target: 100 };
+                              const radius = 70;
+                              const cx = 100;
+                              const cy = 100;
+                              const profit = profitData.profit;
+                              const target = profitData.target;
+                              const percentageAchieved = target > 0 ? Math.min((profit / target) * 100, 100) : 0;
+                              const achievedAngle = (percentageAchieved / 100) * 360;
+                              const achievedRadians = (achievedAngle * Math.PI) / 180;
+                              const x1 = cx + radius * Math.cos(-Math.PI / 2);
+                              const y1 = cy + radius * Math.sin(-Math.PI / 2);
+                              const x2 = cx + radius * Math.cos(-Math.PI / 2 + achievedRadians);
+                              const y2 = cy + radius * Math.sin(-Math.PI / 2 + achievedRadians);
+                              const largeArc = achievedAngle > 180 ? 1 : 0;
+                              return (
+                                <>
+                                  {percentageAchieved > 0 && (
+                                    <>
+                                      {percentageAchieved >= 99.9 ? (
+                                        <circle cx={cx} cy={cy} r={radius} fill="#15803d" stroke="white" strokeWidth="2" />
+                                      ) : (
+                                        <path
+                                          d={`M ${cx} ${cy} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2} Z`}
+                                          fill="#15803d"
+                                          stroke="white"
+                                          strokeWidth="2"
+                                        />
+                                      )}
+                                    </>
+                                  )}
+                                  {percentageAchieved < 99.9 && (
+                                    <path
+                                      d={`M ${cx} ${cy} L ${x2} ${y2} A ${radius} ${radius} 0 ${achievedAngle > 180 ? 0 : 1} 1 ${x1} ${y1} Z`}
+                                      fill="#f3f4f6"
+                                      stroke="#d1d5db"
+                                      strokeWidth="2"
+                                    />
+                                  )}
+                                  <text x={cx} y={cy - 8} textAnchor="middle" fontSize="20" fontWeight="700" fill="white" filter="url(#profitModalTextShadow)">
+                                    {profit.toFixed(1)}%
+                                  </text>
+                                  <text x={cx} y={cy + 12} textAnchor="middle" fontSize="10" fill="white" filter="url(#profitModalTextShadow)">
+                                    of {target.toFixed(1)}% target
+                                  </text>
+                                </>
+                              );
+                            })()}
+                          </svg>
+                        </div>
+                        <div className="flex flex-col gap-1 mt-2">
+                          <div className="flex items-center gap-2 text-xs text-gray-600">
+                            <span className="w-3 h-3 bg-[#15803d] rounded"></span>
+                            <span>Actual: {(monthlyProfitData[selectedProfitIndex]?.profit || 0).toFixed(1)}%</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-xs text-gray-600">
+                            <span className="w-3 h-3 bg-[#15803d] rounded"></span>
+                            <span>Target: {(monthlyProfitData[selectedProfitIndex]?.target || 0).toFixed(1)}%</span>
+                          </div>
+                        </div>
                       </div>
-                      <button onClick={(e) => { e.stopPropagation(); if (!monthlyProfitData.length) return; setSelectedProfitIndex(selectedProfitIndex === monthlyProfitData.length - 1 ? monthlyProfitData.length - 1 : selectedProfitIndex + 1); }}>›</button>
+                      <button
+                        className="bg-gray-100 border border-gray-300 rounded-full w-8 h-8 flex items-center justify-center text-lg text-gray-600 hover:bg-gray-200 hover:text-gray-800 disabled:opacity-40 disabled:cursor-not-allowed"
+                        onClick={(e) => { e.stopPropagation(); if (!monthlyProfitData.length) return; setSelectedProfitIndex(selectedProfitIndex === monthlyProfitData.length - 1 ? monthlyProfitData.length - 1 : selectedProfitIndex + 1); }}
+                        disabled={!monthlyProfitData.length || selectedProfitIndex >= monthlyProfitData.length - 1}
+                      >
+                        ›
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -2410,7 +2481,6 @@ function ManagementDashboard() {
           </div>
         </div>
       )}
-      </div>
     </div>
   );
 }

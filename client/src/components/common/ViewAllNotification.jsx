@@ -84,7 +84,7 @@ export default function ViewAllNotification({ show, onClose, title }) {
                               <div className="text-xs text-gray-400 mt-1">{new Date(n.created_at).toLocaleString()}</div>
                             </div>
                             <button
-                              className="ml-4 mt-2 md:mt-0 px-2 py-1 text-xs bg-red-100 text-red-600 rounded hover:bg-red-200"
+                              className="ml-4 mt-2 md:mt-0 px-2 py-1 text-xs p-2 text-white transition-colors duration-200 bg-red-600 rounded-lg hover:bg-red-700"
                               onClick={e => { e.stopPropagation(); handleDelete(n.id); }}
                               title="Delete notification"
                               aria-label="Delete notification"

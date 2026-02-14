@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import ChangePasswordModal from '../../pages/auth/ChangePassword';
@@ -14,6 +14,36 @@ const Navbar = () => {
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showAllNotifications, setShowAllNotifications] = useState(false);
+
+  // Ref for notification and profile dropdowns
+  const notificationRef = useRef(null);
+  const profileRef = useRef(null);
+    // Close profile dropdown when clicking outside
+    useEffect(() => {
+      if (!isProfileOpen) return;
+      function handleClickOutside(event) {
+        if (profileRef.current && !profileRef.current.contains(event.target)) {
+          setIsProfileOpen(false);
+        }
+      }
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }, [isProfileOpen]);
+  // Close notification dropdown when clicking outside
+  useEffect(() => {
+    if (!showNotifications) return;
+    function handleClickOutside(event) {
+      if (notificationRef.current && !notificationRef.current.contains(event.target)) {
+        setShowNotifications(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showNotifications]);
 
   useEffect(() => {
     if (user) {
@@ -60,7 +90,7 @@ const Navbar = () => {
           {/* User Info & Menu - Right aligned */}
           <div className="flex-1 flex justify-end items-center space-x-4 relative">
             {/* Notification Bell */}
-            <div className="relative">
+            <div className="relative" ref={notificationRef}>
               <button
                 className="relative p-2 rounded-full hover:bg-gray-100"
                 aria-label="Notifications"
@@ -77,7 +107,17 @@ const Navbar = () => {
               </button>
               {showNotifications && (
                 <div className="absolute right-0 mt-2 w-80 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
-                  <div className="p-4 border-b font-semibold text-gray-700">Notifications</div>
+                  <div className="p-4 border-b font-semibold text-gray-700 flex items-center justify-between">
+                    <span>Notifications</span>
+                    {notifications.length > 0 && (
+                      <button
+                        className="text-blue-600 hover:underline text-sm font-medium"
+                        onClick={() => setShowAllNotifications(true)}
+                      >
+                        View All
+                      </button>
+                    )}
+                  </div>
                   {(() => {
                     const now = new Date();
                     const currentMonth = now.getMonth();
@@ -112,16 +152,7 @@ const Navbar = () => {
                           <div className="text-xs text-gray-400 mt-1">{new Date(n.created_at).toLocaleString()}</div>
                         </div>
                       ))}
-                      {olderNotifications.length > 0 && (
-                        <div className="p-4 text-center">
-                          <button
-                            className="text-blue-600 hover:underline text-sm font-medium"
-                            onClick={() => setShowAllNotifications(true)}
-                          >
-                            View All Notifications
-                          </button>
-                        </div>
-                      )}
+                      {/* View All button moved to header */}
                       <ViewAllNotification show={showAllNotifications} onClose={() => setShowAllNotifications(false)} title="All Notifications" />
                     </>;
                   })()}
@@ -130,7 +161,7 @@ const Navbar = () => {
             </div>
             {user && (
               <>
-                <div className="hidden md:block relative">
+                <div className="hidden md:block relative" ref={profileRef}>
                   <button
                     onClick={() => setIsProfileOpen(!isProfileOpen)}
                     className="flex items-center space-x-2 px-3 py-2 rounded-lg hover:bg-gray-100 transition"
