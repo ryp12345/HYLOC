@@ -1,0 +1,42 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            echo "🚀 Starting Deployment"
+
+            cd /var/www/hyloc
+
+            echo "📥 Pulling latest code"
+            git pull origin main
+
+            echo "📦 Installing backend dependencies"
+            cd backend
+            npm install
+
+            echo "🔄 Restarting backend"
+            pm2 reload hyloc-backend || pm2 start server.js --name hyloc-backend
+
+            echo "🏗 Building frontend"
+            cd ../client
+            npm install
+            npm run build
+
+            echo "♻ Reloading Nginx"
+            sudo systemctl reload nginx
+
+            echo "✅ Deployment Complete"

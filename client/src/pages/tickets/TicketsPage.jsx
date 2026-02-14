@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { deleteTicket } from '../../api/ticketApi';
 import Notification from '../../components/common/Notification';
 import { getAllTickets, updateTicket, createTicket, getTicketCategories, getTicketPriorities, getTicketStatuses } from '../../api/ticketApi';
 import { getUsers, getAssignableUsers } from '../../api/userApi';
@@ -17,6 +18,7 @@ const initialForm = {
 };
 
 export default function TicketsPage() {
+  const { user } = useAuth();
   const [rows, setRows] = useState([]);
   const [users, setUsers] = useState([]);
   const [search, setSearch] = useState('');
@@ -25,11 +27,37 @@ export default function TicketsPage() {
   const [form, setForm] = useState(initialForm);
   const [error, setError] = useState('');
   const [notification, setNotification] = useState({ show: false, message: '', type: '' });
+  const [deleteId, setDeleteId] = useState(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [categories, setCategories] = useState([]);
   const [priorities, setPriorities] = useState([]);
   const [statuses, setStatuses] = useState([]);
   const [filter, setFilter] = useState('mine');
-  const { user } = useAuth();
+
+  // Delete ticket handler with confirmation modal
+  const handleDelete = (id) => {
+    setDeleteId(id);
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteId) return;
+    try {
+      await deleteTicket(deleteId);
+      setNotification({ show: true, message: 'Ticket deleted successfully!', type: 'success' });
+      setRows(rows => rows.filter(r => r.id !== deleteId));
+    } catch (e) {
+      const msg = e.response?.data?.message || 'Failed to delete ticket';
+      setNotification({ show: true, message: msg, type: 'error' });
+    }
+    setIsDeleteModalOpen(false);
+    setDeleteId(null);
+  };
+
+  const cancelDelete = () => {
+    setIsDeleteModalOpen(false);
+    setDeleteId(null);
+  };
 
   const load = async () => {
     try {
@@ -532,6 +560,32 @@ export default function TicketsPage() {
                       <button type="submit" className="inline-flex justify-center px-6 py-3 text-sm font-medium text-white border border-transparent rounded-lg shadow-sm bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">{editingId ? 'Update Ticket' : 'Create Ticket'}</button>
                     </div>
                   </form>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Delete Confirmation Modal */}
+        {isDeleteModalOpen && (
+          <div className="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true">
+            <div className="flex items-end justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+              <div className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" onClick={cancelDelete} />
+              <div className="inline-block overflow-hidden text-left align-bottom transition-all transform bg-white rounded-lg shadow-xl sm:my-8 sm:align-middle sm:max-w-md sm:w-full">
+                <div className="px-6 py-4 bg-red-600">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-medium leading-6 text-white">Delete Ticket</h3>
+                    <button className="text-white hover:text-gray-200" onClick={cancelDelete}>
+                      <svg className="w-6 h-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                  </div>
+                </div>
+                <div className="px-6 py-5 bg-white">
+                  <p className="mb-6 text-gray-800 text-base">Are you sure you want to delete this ticket?</p>
+                  <div className="flex justify-end space-x-4">
+                    <button onClick={cancelDelete} className="inline-flex justify-center px-6 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">Cancel</button>
+                    <button onClick={confirmDelete} className="inline-flex justify-center px-6 py-2 text-sm font-medium text-white border border-transparent rounded-lg shadow-sm bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">Delete</button>
+                  </div>
                 </div>
               </div>
             </div>
