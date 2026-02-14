@@ -28,6 +28,7 @@ export default function TicketsPage() {
   const [categories, setCategories] = useState([]);
   const [priorities, setPriorities] = useState([]);
   const [statuses, setStatuses] = useState([]);
+  const [filter, setFilter] = useState('mine');
   const { user } = useAuth();
 
   const load = async () => {
@@ -92,7 +93,7 @@ export default function TicketsPage() {
       setCategories((serverCategories && serverCategories.length) ? serverCategories : defaultCategories);
       setPriorities((serverPriorities && serverPriorities.length) ? serverPriorities : defaultPriorities);
       const serverStatuses = statusesRes?.data?.data;
-      const defaultStatuses = ['Open', 'Pending', 'Resolved'];
+      const defaultStatuses = ['Open', 'Assigned', 'Pending', 'In Progress', 'Resolved', 'Rejected', 'Closed', 'Overdue'];
       setStatuses((serverStatuses && serverStatuses.length) ? serverStatuses : defaultStatuses);
     } catch {
       setRows([]);
@@ -122,14 +123,22 @@ export default function TicketsPage() {
 
   const openEdit = (row) => {
     setEditingId(row.id);
+    // If ticket is Open and unassigned (after rejection), clear assigned_to
+    let initialStatus = row.status || 'Open';
+    let assignedTo = row.assigned_to ? String(row.assigned_to) : '';
+    if (initialStatus === 'Open' && !row.assigned_to) {
+      assignedTo = '';
+    } else if (row.assigned_to && (initialStatus === '' || String(initialStatus) === 'Open')) {
+      initialStatus = 'Assigned';
+    }
     setForm({
       title: row.title || '',
       description: row.description || '',
       category: row.category || 'Other',
       priority: row.priority || 'Medium',
-      status: row.status || 'Open',
+      status: initialStatus,
       user_id: row.user_id || '',
-      assigned_to: row.assigned_to ? String(row.assigned_to) : '',
+      assigned_to: assignedTo,
       due_date: row.due_date ? row.due_date.slice(0, 10) : '',
       attachment: row.attachment || '',
     });
@@ -157,8 +166,11 @@ export default function TicketsPage() {
     }
     try {
       if (editingId) {
-        // For updates we currently use existing updateTicket which may not support file uploads
+        // If ticket is Open and creator assigns it, set status to Assigned
         const payload = { ...form };
+        if (payload.status === 'Open' && payload.assigned_to && String(form.user_id) === String(user?.id)) {
+          payload.status = 'Assigned';
+        }
         if (payload.assigned_to !== '' && payload.assigned_to !== null) payload.assigned_to = Number(payload.assigned_to);
         await updateTicket(editingId, payload);
         showNotification('Ticket updated successfully!', 'success');
@@ -211,20 +223,30 @@ export default function TicketsPage() {
     });
     const q = search.toLowerCase();
     return sorted.filter(r => (
-      r.title?.toLowerCase().includes(q) ||
+      (r.title?.toLowerCase().includes(q) ||
       r.description?.toLowerCase().includes(q) ||
       r.status?.toLowerCase().includes(q) ||
       r.category?.toLowerCase().includes(q) ||
-      r.priority?.toLowerCase().includes(q)
-    ));
-  }, [rows, search]);
+      r.priority?.toLowerCase().includes(q))
+      ) && (filter === 'all' || Number(r.assigned_to) === Number(user?.id))
+    );
+  }, [rows, search, filter, user]);
 
   const paginated = useMemo(() => {
     const start = (page - 1) * PAGE_SIZE;
     return filtered.slice(start, start + PAGE_SIZE);
   }, [filtered, page]);
 
-  useEffect(() => { setPage(1); }, [search, rows]);
+  useEffect(() => { setPage(1); }, [search, rows, filter]);
+
+  const displayedStatuses = useMemo(() => {
+    const list = Array.isArray(statuses) ? [...statuses] : [];
+    if (form.status && !list.includes(form.status)) {
+      // show current ticket status first so select can display it even if it's missing from server list
+      list.unshift(form.status);
+    }
+    return list;
+  }, [statuses, form.status]);
 
   return (
     <div className="min-h-screen px-4 py-12 bg-gradient-to-br from-gray-50 to-gray-100 sm:px-6 lg:px-8">
@@ -233,6 +255,23 @@ export default function TicketsPage() {
         <div className="mb-12 text-center">
           <h1 className="mb-2 text-4xl font-extrabold text-gray-900">Tickets</h1>
           <p className="text-lg text-gray-600">Create, update and manage tickets</p>
+        </div>
+
+        <div className="mb-4">
+          <div className="flex items-center justify-start gap-3">
+            <button
+              onClick={() => setFilter('mine')}
+              className={`px-4 py-2 rounded-lg border transition ${filter === 'mine' ? 'bg-blue-600 text-white border-blue-600' : 'bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-200'}`}
+            >
+              My Tickets
+            </button>
+            <button
+              onClick={() => setFilter('all')}
+              className={`px-4 py-2 rounded-lg border transition ${filter === 'all' ? 'bg-blue-600 text-white border-blue-600' : 'bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-200'}`}
+            >
+              All Tickets
+            </button>
+          </div>
         </div>
 
         <div className="flex flex-col items-start justify-between gap-4 mb-6 sm:flex-row sm:items-center">
@@ -245,6 +284,8 @@ export default function TicketsPage() {
             Add Ticket
           </button>
         </div>
+
+        
 
         <div className="mb-10 overflow-hidden bg-white shadow-xl rounded-xl">
           <div className="overflow-x-auto">
@@ -384,8 +425,20 @@ export default function TicketsPage() {
                         <label className="block mb-2 text-sm font-medium text-gray-700">Assign To</label>
                         <select
                           value={form.assigned_to}
-                          onChange={e => setForm({ ...form, assigned_to: e.target.value })}
+                          onChange={e => {
+                            const newAssigned = e.target.value;
+                            // If status is Open and assigning, set status to Assigned
+                            if (form.status === 'Open' && newAssigned) {
+                              setForm({ ...form, assigned_to: newAssigned, status: 'Assigned' });
+                            } else if (!newAssigned && form.status === 'Assigned') {
+                              // If unassigning, revert status to Open
+                              setForm({ ...form, assigned_to: '', status: 'Open' });
+                            } else {
+                              setForm({ ...form, assigned_to: newAssigned });
+                            }
+                          }}
                           className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          disabled={editingId && form.status === 'Open' && !form.assigned_to && String(form.user_id) !== String(user?.id)}
                         >
                           {users.length === 0 ? (
                             <option value="" disabled>No users available</option>
@@ -407,10 +460,38 @@ export default function TicketsPage() {
                           className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         >
                           <option value="">Select status</option>
-                          {statuses.map(s => (
-                            <option key={s} value={s}>{s}</option>
-                          ))}
+                          {displayedStatuses.map(s => {
+                            const isEditing = Boolean(editingId);
+                            const isAssignee = String(form.assigned_to) === String(user?.id);
+                            const isCreator = String(form.user_id) === String(user?.id);
+                            let disabled = false;
+                            let title = '';
+                            if (isEditing) {
+                              if (isCreator && !isAssignee) {
+                                // Creator who is not the assignee: only Closed is allowed
+                                if (s !== 'Closed') {
+                                  disabled = true;
+                                  title = 'Only the ticket creator can set status to Closed';
+                                }
+                              } else if (isAssignee) {
+                                // Assignee: allow common workflow statuses
+                                const assigneeAllowed = ['Open', 'Assigned', 'In Progress', 'Rejected', 'Resolved'];
+                                if (!assigneeAllowed.includes(s)) {
+                                  disabled = true;
+                                  title = 'Only the assigned user can set this status';
+                                }
+                              } else {
+                                // Neither creator nor assignee: cannot change status
+                                disabled = true;
+                                title = 'You are not permitted to change status';
+                              }
+                            }
+                            return (
+                              <option key={s} value={s} disabled={disabled} title={disabled ? title : undefined}>{s}</option>
+                            );
+                          })}
                         </select>
+                        <div className="text-xs text-gray-500 mt-1">Only the assigned user can set status to Open, Assigned, In Progress, Rejected or Resolved. Only the ticket creator can set status to Closed.</div>
                       </div>
                     </div>
                     <div className="flex gap-4">

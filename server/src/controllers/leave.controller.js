@@ -51,10 +51,17 @@ exports.applyLeave = async (req, res, next) => {
         const applicant = await userModel.findUserById(userId);
         if (altUser && altUser.id && applicant) {
           const applicantName = [applicant.firstname, applicant.lastname].filter(Boolean).join(' ');
+          const fromDate = req.body.from_date;
+          const toDate = req.body.to_date;
+          const leaveType = req.body.leave_type || 'Leave';
+          let dateText = fromDate;
+          if (toDate && fromDate !== toDate) {
+            dateText = `${fromDate} to ${toDate}`;
+          }
           await notificationModel.createNotification({
             created_by: userId,
             assigned_to: altUser.id,
-            message: `${applicantName} has applied for leave and assigned you as an alternate person.`,
+            message: `${applicantName} has applied for ${leaveType} leave from ${dateText} and assigned you as an alternate person.`,
             type: 'leave',
             is_read: false
           });

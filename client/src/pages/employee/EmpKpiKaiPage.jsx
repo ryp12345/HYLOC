@@ -17,7 +17,17 @@ function EmpKpiKaiPage() {
   const [kpis, setKPIs] = useState([]); // All KPIs for hierarchy display
   const [assignedKPIValues, setAssignedKPIValues] = useState([]); // KPI values assigned to employee
   const [selectedKPI, setSelectedKPI] = useState(null);
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  
+  // Helper function to get current fiscal year (April to March)
+  const getCurrentFiscalYear = () => {
+    const today = new Date();
+    const currentMonth = today.getMonth(); // 0-11
+    const currentYear = today.getFullYear();
+    // If current month is Jan-Mar (0-2), fiscal year started last year
+    return currentMonth < 3 ? currentYear - 1 : currentYear;
+  };
+  
+  const [selectedYear, setSelectedYear] = useState(getCurrentFiscalYear());
   const [monthlyData, setMonthlyData] = useState({});
   const [loading, setLoading] = useState(true);
   const [notification, setNotification] = useState({ show: false, message: '', type: '' });
@@ -40,11 +50,17 @@ function EmpKpiKaiPage() {
     return calendarMonth === 0 ? 12 : calendarMonth;
   };
 
-  const updateFinancialYear = (year) => {
+  const updateFinancialYear = async (year) => {
     setSelectedYear(year);
     
-    // When year changes, reload all KPI values' monthly data for the new year
-    assignedKPIValues.forEach(value => loadMonthlyData(value.id, year));
+    // When year changes, reload all KPI values' monthly data for the new year and surrounding years
+    const yearsToLoad = [year - 1, year, year + 1];
+    
+    for (const kpiValue of assignedKPIValues) {
+      for (const fyear of yearsToLoad) {
+        await loadMonthlyData(kpiValue.id, fyear);
+      }
+    }
   };
 
   
@@ -80,9 +96,12 @@ function EmpKpiKaiPage() {
       if (value === null || value === undefined || value === '') return '-';
       const numValue = parseFloat(value);
       if (isNaN(numValue)) return value;
+      
+      const isPercentage = unitSymbol === '%' || (unitSymbol && unitSymbol.toLowerCase().includes('percent'));
+      
       return numValue.toLocaleString('en-IN', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
+        minimumFractionDigits: isPercentage ? 0 : 2,
+        maximumFractionDigits: isPercentage ? 0 : 2
       });
     };
 
@@ -143,9 +162,12 @@ function EmpKpiKaiPage() {
       if (value === null || value === undefined || value === '') return '-';
       const numValue = parseFloat(value);
       if (isNaN(numValue)) return value;
+      
+      const isPercentage = unitSymbol === '%' || (unitSymbol && unitSymbol.toLowerCase().includes('percent'));
+      
       return numValue.toLocaleString('en-IN', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
+        minimumFractionDigits: isPercentage ? 0 : 2,
+        maximumFractionDigits: isPercentage ? 0 : 2
       });
     };
 
@@ -284,7 +306,7 @@ function EmpKpiKaiPage() {
   const loadEmployeeData = async (empId) => {
     try {
       setLoading(true);
-      setMonthlyData({}); // Clear any existing monthly data
+      // Don't clear monthlyData immediately - preserve cached data
       
       // Load KPI values assigned to this employee
       const kpiValuesResponse = await api.get(`/employees/${empId}/kpi-values`);
@@ -302,10 +324,14 @@ function EmpKpiKaiPage() {
       const allKPIs = kpisResponse.data.data || [];
       setKPIs(allKPIs);
       
-      // Pre-load monthly data for all KPI values for the current financial year
-      const currentYear = new Date().getFullYear();
+      // Pre-load monthly data for all KPI values for the selected financial year
+      // Use selectedYear state to ensure we load the correct year's data
+      const yearsToLoad = [selectedYear - 1, selectedYear, selectedYear + 1];
+      
       for (const kpiValue of kpiValues) {
-        await loadMonthlyData(kpiValue.id, currentYear);
+        for (const fyear of yearsToLoad) {
+          await loadMonthlyData(kpiValue.id, fyear);
+        }
       }
       
       // Don't automatically select a KPI - let the user choose from the hierarchy view
@@ -325,10 +351,13 @@ function EmpKpiKaiPage() {
     const kpiValuesForSelected = kpiValues || assignedKPIValuesForYear.filter(kv => kv.kpi_id === kpi.id);
     
     try {
-      // Load monthly data for each KPI value for the selected year
+      // Load monthly data for each KPI value for the selected year and surrounding years
       if (kpiValuesForSelected.length > 0) {
+        const yearsToLoad = [selectedYear - 1, selectedYear, selectedYear + 1];
         for (const value of kpiValuesForSelected) {
-          await loadMonthlyData(value.id, selectedYear);
+          for (const year of yearsToLoad) {
+            await loadMonthlyData(value.id, year);
+          }
         }
       }
     } catch (error) {
@@ -341,8 +370,8 @@ function EmpKpiKaiPage() {
     try {
       // For financial year, we need to load data from two calendar years
       // FY 2024 = April 2024 to March 2025
-      const response1 = await api.get(`/kpi-values/${kpiValueId}/monthly-data/${fyYear}`);
-      const response2 = await api.get(`/kpi-values/${kpiValueId}/monthly-data/${fyYear + 1}`);
+      const response1 = await api.get(`/kpi-data-values/${kpiValueId}/monthly?year=${fyYear}`);
+      const response2 = await api.get(`/kpi-data-values/${kpiValueId}/monthly?year=${fyYear + 1}`);
       
       const data1 = response1.data.data || [];
       const data2 = response2.data.data || [];
@@ -350,10 +379,25 @@ function EmpKpiKaiPage() {
       // Combine data from both years
       const combinedData = [...data1, ...data2];
 
-      setMonthlyData(prev => ({
-        ...prev,
-        [kpiValueId]: combinedData
-      }));
+      setMonthlyData(prev => {
+        const existing = prev[kpiValueId] || [];
+        // Merge new data with existing data to preserve all years
+        const merged = [...existing];
+        combinedData.forEach(newItem => {
+          // Remove old item if it exists (same month/year) and add the new one
+          const index = merged.findIndex(item => item.month === newItem.month && item.year === newItem.year);
+          if (index >= 0) {
+            merged[index] = newItem;
+          } else {
+            merged.push(newItem);
+          }
+        });
+        
+        return {
+          ...prev,
+          [kpiValueId]: merged
+        };
+      });
 
       return combinedData;
     } catch (error) {
@@ -385,21 +429,28 @@ function EmpKpiKaiPage() {
       // Store state before reload to compare
       const previousData = { ...monthlyData };
 
-      // Reload monthly data for ALL assigned KPI values for the year to refresh computed values
-      const reloadResults = await Promise.all(
-        assignedKPIValuesForYear.map(value => loadMonthlyData(value.id, selectedYear))
-      );
+      // Reload monthly data for ALL assigned KPI values for the selected fiscal year to refresh computed values
+      // Also load the previous and next fiscal year to ensure all data is available
+      const yearsToReload = [selectedYear - 1, selectedYear, selectedYear + 1];
+      const reloadResults = [];
+      
+      for (const year of yearsToReload) {
+        const results = await Promise.all(
+          assignedKPIValuesForYear.map(value => loadMonthlyData(value.id, year))
+        );
+        reloadResults.push(...results);
+      }
 
       // Identify computed KPIs that were updated for the same month using returned reload data
       const updatedComputed = [];
       for (let i = 0; i < assignedKPIValuesForYear.length; i++) {
         const kpiValue = assignedKPIValuesForYear[i];
         if (String(kpiValue.kpi_type).toLowerCase() === 'computed') {
-          const newData = reloadResults[i] || [];
+          const currentData = monthlyData[kpiValue.id] || [];
           const oldData = previousData[kpiValue.id] || [];
 
-          const newMonthData = newData.find(d => d.month === calendarMonth);
-          const oldMonthData = oldData.find(d => d.month === calendarMonth);
+          const newMonthData = currentData.find(d => d.month === calendarMonth && d.year === calendarYear);
+          const oldMonthData = oldData.find(d => d.month === calendarMonth && d.year === calendarYear);
 
           if (newMonthData && newMonthData.actual_value !== oldMonthData?.actual_value) {
             updatedComputed.push({
@@ -455,25 +506,45 @@ function EmpKpiKaiPage() {
       const calendarYear = monthIndex >= 9 ? selectedYear + 1 : selectedYear;
 
       for (const sourceId of sourceIds) {
-        try {
-          const kpiValueResponse = await api.get(`/kpi-values/${sourceId}`);
-          const kpiValueData = kpiValueResponse.data.data;
-
-          const monthlyResponse = await api.get(`/kpi-values/${sourceId}/monthly-data/${calendarYear}`);
-          const monthlyDataArray = monthlyResponse.data.data || [];
-          const monthData = monthlyDataArray.find(d => d.month === calendarMonth) || {};
-
-          dependencies.push({
-            id: sourceId,
-            name: kpiValueData?.data || `v${sourceId}`,
-            value: monthData.actual_value,
-            unit: unitSymbolById[kpiValueData?.uom] || '',
-            hasValue: monthData.actual_value !== null && monthData.actual_value !== undefined && monthData.actual_value !== ''
-          });
-        } catch (error) {
-          console.error(`Failed to fetch data for v${sourceId}:`, error);
-          dependencies.push({ id: sourceId, name: `v${sourceId}`, value: null, unit: '', hasValue: false });
+        // Find the KPI value in already loaded data
+        let sourceKpiValue = assignedKPIValues.find(kv => String(kv.id) === String(sourceId));
+        
+        // If not found in assigned values, fetch it from API
+        if (!sourceKpiValue) {
+          try {
+            const kpiValueResponse = await api.get(`/kpi-values/${sourceId}`);
+            sourceKpiValue = kpiValueResponse.data.data;
+          } catch (error) {
+            console.error(`Failed to fetch KPI Value ID ${sourceId}:`, error);
+            dependencies.push({ id: sourceId, name: `v${sourceId}`, value: null, unit: '', hasValue: false });
+            continue;
+          }
         }
+
+        // Get monthly data from already loaded state (if available)
+        let monthData = getMonthData(sourceId, monthIndex);
+        
+        // If no data in state, try to fetch from API
+        if (!monthData.actual_value && !monthData.target_value) {
+          try {
+            const monthlyResponse = await api.get(`/kpi-data-values/${sourceId}/monthly?year=${calendarYear}`);
+            const monthlyDataArray = monthlyResponse.data.data || [];
+            monthData = monthlyDataArray.find(d => d.month === calendarMonth) || {};
+          } catch (error) {
+            console.warn(`Failed to fetch monthly data for KPI Value ID ${sourceId}:`, error);
+            monthData = {};
+          }
+        }
+
+        const actualValue = monthData.actual_value;
+
+        dependencies.push({
+          id: sourceId,
+          name: sourceKpiValue.data || `v${sourceId}`,
+          value: actualValue,
+          unit: unitSymbolById[sourceKpiValue.uom] || '',
+          hasValue: actualValue !== null && actualValue !== undefined && actualValue !== ''
+        });
       }
 
       let computedFormula = formula;
@@ -520,7 +591,7 @@ function EmpKpiKaiPage() {
     });
 
     const dependencyList = dependencies.map(dep => {
-      const actualStr = formatValue(dep.actual);
+      const actualStr = formatValue(dep.actual, dep.unit);
       const unitStr = dep.unit ? ` ${dep.unit}` : '';
       const status = dep.hasValue ? '' : ' (No data)';
       return `  v${dep.id} - ${dep.name}: ${actualStr}${unitStr}${status}`;
@@ -550,16 +621,34 @@ function EmpKpiKaiPage() {
   const getMonthData = (kpiValueId, fyMonthIndex) => {
     const data = monthlyData[kpiValueId] || monthlyData[String(kpiValueId)] || monthlyData[Number(kpiValueId)] || [];
     const calendarMonth = getCalendarMonth(fyMonthIndex);
-    return data.find(d => d.month === calendarMonth) || {};
+    const calendarYear = fyMonthIndex >= 9 ? selectedYear + 1 : selectedYear;
+    
+    // Find data matching both month and year for accuracy
+    const result = data.find(d => d.month === calendarMonth && d.year === calendarYear) || 
+           data.find(d => d.month === calendarMonth) || // Fallback to just month if year doesn't match
+           {};
+    
+    return result;
   };
 
   // Helper function to format numeric values with commas and decimals
-  const formatValue = (value) => {
+  const formatValue = (value, unitSymbol = '') => {
     if (value === null || value === undefined || value === '') return '-';
     const numValue = parseFloat(value);
     if (isNaN(numValue)) return value;
     
-    // Format with commas and 2 decimal places
+    // Check if unit is percentage
+    const isPercentage = unitSymbol === '%' || (unitSymbol && unitSymbol.toLowerCase().includes('percent'));
+    
+    if (isPercentage) {
+      // Format percentages with no decimal places
+      return numValue.toLocaleString('en-IN', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+      });
+    }
+    
+    // Format with commas and 2 decimal places for other units
     return numValue.toLocaleString('en-IN', {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2
@@ -1096,7 +1185,7 @@ function EmpKpiKaiPage() {
                     {recentlyUpdatedKPIs.map((kpi, idx) => (
                       <div key={idx} className="flex items-center justify-between py-1">
                         <div className="text-sm font-medium">{kpi.name}</div>
-                        <div className="text-sm font-semibold">{formatValue(kpi.value)}{kpi.unit && <span className="ml-1 text-xs"> {kpi.unit}</span>}</div>
+                        <div className="text-sm font-semibold">{formatValue(kpi.value, kpi.unit)}{kpi.unit && <span className="ml-1 text-xs"> {kpi.unit}</span>}</div>
                       </div>
                     ))}
                   </div>
@@ -1162,20 +1251,20 @@ function EmpKpiKaiPage() {
                       <table className="w-full text-sm border-separate" style={{ borderSpacing: '0 8px' }}>
                         <thead>
                           <tr className="bg-blue-600">
-                            <th className="py-3 px-3 align-middle text-white text-xs font-semibold">Variable</th>
-                            <th className="py-3 px-3 align-middle text-white text-xs font-semibold">KPI Name</th>
+                            <th className="py-3 px-3 align-middle text-white text-xs font-semibold">KPI Value Name</th>
+                            <th className="py-3 px-3 align-middle text-white text-xs font-semibold">Variable ID</th>
                             <th className="py-3 px-3 align-middle text-white text-xs font-semibold">Value</th>
                           </tr>
                         </thead>
                         <tbody>
                           {formulaDetailsModal.data.dependencies.map((dep, idx) => (
                             <tr key={idx} className={`${dep.hasValue ? 'bg-white' : 'bg-slate-50'} rounded-md`}>
-                              <td className="py-3 align-top bg-green-50 px-3 rounded-l-md"><code>v{dep.id}</code></td>
-                              <td className="py-3 align-top text-slate-700">{dep.name}</td>
-                              <td className="py-3 align-top">
+                              <td className="py-3 align-top bg-blue-50 px-3 rounded-l-md font-semibold text-slate-900">{dep.name}</td>
+                              <td className="py-3 align-top text-slate-600 px-3"><code className="text-xs bg-slate-100 px-2 py-1 rounded">v{dep.id}</code></td>
+                              <td className="py-3 align-top px-3">
                                 {dep.hasValue ? (
                                   <>
-                                    <span className="font-semibold text-slate-900">{formatValue(dep.value)}</span>
+                                    <span className="font-semibold text-slate-900">{formatValue(dep.value, dep.unit)}</span>
                                     {dep.unit && <span className="ml-2 text-xs text-slate-500">{dep.unit}</span>}
                                   </>
                                 ) : (
@@ -1211,10 +1300,12 @@ function MonthlyDataForm({ month, monthIndex, kpiValueId, targetRequired, initia
     const numValue = parseFloat(value);
     if (isNaN(numValue)) return value;
     
-    // Format with commas and 2 decimal places
+    const isPercentage = unitSymbol === '%' || (unitSymbol && unitSymbol.toLowerCase().includes('percent'));
+    
+    // Format with commas and decimals based on unit type
     return numValue.toLocaleString('en-IN', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
+      minimumFractionDigits: isPercentage ? 0 : 2,
+      maximumFractionDigits: isPercentage ? 0 : 2
     });
   };
 

@@ -5,6 +5,7 @@ const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 const bcrypt = require('bcryptjs');
 const UserModel = require('../models/user.model');
+const config = require('../config');
 
 exports.register = async (req, res) => {
   try {
@@ -121,12 +122,11 @@ exports.requestPasswordReset = async (req, res) => {
     // Create JWT reset token (expires in 5 min)
     const resetToken = jwt.sign(
       { email, otp },
-      process.env.JWT_SECRET + user.password,
+      config.jwt.secret + user.password,
       { expiresIn: '5m' }
     );
 
     // Send OTP via email (use server config if available)
-    const config = require('../config');
     const smtp = config.smtp || {
       host: process.env.SMTP_HOST,
       port: Number(process.env.SMTP_PORT) || 465,
@@ -202,7 +202,7 @@ exports.verifyOTP = async (req, res) => {
     if (!user) return sendError(res, 'Invalid OTP or expired', 400);
     let payload;
     try {
-      payload = jwt.verify(resetToken, process.env.JWT_SECRET + user.password);
+      payload = jwt.verify(resetToken, config.jwt.secret + user.password);
     } catch (err) {
       console.error('verifyOTP: jwt.verify failed', { err: err.message, resetTokenSnippet: resetToken?.slice(0,20), userId: user.id });
       return sendError(res, 'Invalid OTP or expired', 400);
@@ -225,7 +225,7 @@ exports.resetPassword = async (req, res) => {
     if (!user) return sendError(res, 'Invalid OTP or expired', 400);
     let payload;
     try {
-      payload = jwt.verify(resetToken, process.env.JWT_SECRET + user.password);
+      payload = jwt.verify(resetToken, config.jwt.secret + user.password);
     } catch (err) {
         console.error('resetPassword: jwt.verify failed', { err: err.message, resetTokenSnippet: resetToken?.slice(0,20), userId: user.id });
         return sendError(res, 'Invalid OTP or expired', 400);

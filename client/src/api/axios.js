@@ -1,8 +1,15 @@
 import axios from 'axios';
 
-// Detect if running on localhost or network IP
+// Detect if running on localhost or production
 const getAPIUrl = () => {
   const hostname = window.location.hostname;
+  
+  // In production, use relative URL (nginx proxy handles routing)
+  if (hostname === 'hyloc.git.edu' || window.location.protocol === 'https:') {
+    return '/api';
+  }
+  
+  // In development, use direct backend connection
   const port = 3001;
   const url = `http://${hostname}:${port}/api`;
   console.log('API URL:', url);

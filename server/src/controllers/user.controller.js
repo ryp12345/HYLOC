@@ -82,6 +82,22 @@ exports.createUser = async (req, res) => {
       role,
       status
     });
+
+    ////////////////Send greeting notification to new user////////////////////////////////
+    try {
+      const notificationModel = require('../models/notification.model');
+      await notificationModel.createNotification({
+        created_by: newUser.id, // or system/admin id if available
+        assigned_to: newUser.id,
+        message: `Welcome ${firstName} ${lastName}! Your account has been created.`,
+        type: 'greeting',
+        is_read: false
+      });
+    } catch (notifyErr) {
+      console.error('Greeting notification error:', notifyErr);
+      // Do not block user creation on notification failure
+    }
+    ////////////////Notification Code to send greeting for new user///////////////////////
     
     return sendSuccess(res, newUser, 'User created successfully', 201);
   } catch (error) {

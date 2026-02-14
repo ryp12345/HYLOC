@@ -74,6 +74,40 @@ exports.getKPIValueById = async (req, res) => {
   }
 };
 
+exports.getKPIValueByData = async (req, res) => {
+  try {
+    const { dataValue } = req.query;
+    
+    if (!dataValue) {
+      return res.status(400).json({
+        success: false,
+        message: 'dataValue query parameter is required'
+      });
+    }
+    
+    const value = await kpiValueModel.getKPIValueByData(dataValue);
+    
+    if (!value) {
+      return res.status(404).json({
+        success: false,
+        message: 'KPI value not found'
+      });
+    }
+    
+    res.status(200).json({
+      success: true,
+      message: 'KPI value retrieved successfully',
+      data: value
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve KPI value',
+      error: error.message
+    });
+  }
+};
+
 // GET /api/kpi-values/:id/monthly-data/:year
 // Fetch monthly data for a KPI value for a specific year (and next year if spanning calendar years)
 exports.getMonthlyData = async (req, res) => {

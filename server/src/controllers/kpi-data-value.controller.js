@@ -48,15 +48,41 @@ exports.getMonthlyDataByKPIValue = async (req, res) => {
     const { kpiValueId } = req.params;
     const { year } = req.query;
 
-    const data = await kpiDataValueModel.getMonthlyDataByKPIValue(
+    const rawData = await kpiDataValueModel.getMonthlyDataByKPIValue(
       kpiValueId,
       year ? parseInt(year) : null
     );
 
+    // Transform data: group by month/year and separate target/actual into columns
+    const groupedData = {};
+    rawData.forEach(row => {
+      const key = `${row.year}-${row.month}`;
+      if (!groupedData[key]) {
+        groupedData[key] = {
+          month: row.month,
+          year: row.year,
+          target_value: null,
+          actual_value: null,
+          kpi_value_id: row.kpi_value_id,
+          created_at: row.created_at,
+          updated_at: row.updated_at
+        };
+      }
+      
+      if (row.value_type === 'target') {
+        groupedData[key].target_value = row.value;
+      } else if (row.value_type === 'actual') {
+        groupedData[key].actual_value = row.value;
+      }
+    });
+
+    // Convert to array
+    const transformedData = Object.values(groupedData);
+
     res.status(200).json({
       success: true,
       message: 'Monthly data retrieved successfully',
-      data: data
+      data: transformedData
     });
   } catch (error) {
     res.status(500).json({

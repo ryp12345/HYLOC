@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import ChangePasswordModal from '../../pages/auth/ChangePassword';
+import ViewAllNotification from '../common/ViewAllNotification';
 import { getNotifications, markNotificationAsRead } from '../../api/notificationApi';
 
 const Navbar = () => {
@@ -12,6 +13,7 @@ const Navbar = () => {
   const [isChangePwdOpen, setIsChangePwdOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showAllNotifications, setShowAllNotifications] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -76,25 +78,53 @@ const Navbar = () => {
               {showNotifications && (
                 <div className="absolute right-0 mt-2 w-80 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
                   <div className="p-4 border-b font-semibold text-gray-700">Notifications</div>
-                  {notifications.length === 0 ? (
-                    <div className="p-4 text-gray-500">No notifications</div>
-                  ) : (
-                    notifications.map((n) => (
-                      <div
-                        key={n.id}
-                        className={`px-4 py-3 border-b last:border-b-0 cursor-pointer hover:bg-blue-50 ${n.is_read ? 'text-gray-500' : 'text-gray-900 font-semibold'}`}
-                        onClick={async () => {
-                          if (!n.is_read) {
-                            await markNotificationAsRead(n.id);
-                            fetchNotifications();
-                          }
-                        }}
-                      >
-                        <div>{n.message}</div>
-                        <div className="text-xs text-gray-400 mt-1">{new Date(n.created_at).toLocaleString()}</div>
-                      </div>
-                    ))
-                  )}
+                  {(() => {
+                    const now = new Date();
+                    const currentMonth = now.getMonth();
+                    const currentYear = now.getFullYear();
+                    const currentMonthNotifications = notifications.filter(n => {
+                      const d = new Date(n.created_at);
+                      return d.getUTCMonth() === now.getUTCMonth() && d.getUTCFullYear() === now.getUTCFullYear();
+                    });
+                    const olderNotifications = notifications.filter(n => {
+                      const d = new Date(n.created_at);
+                      return d.getUTCMonth() !== now.getUTCMonth() || d.getUTCFullYear() !== now.getUTCFullYear();
+                    });
+                    if (notifications.length === 0) {
+                      return <div className="p-4 text-gray-500">No notifications</div>;
+                    }
+                    return <>
+                      {currentMonthNotifications.length === 0 && (
+                        <div className="p-4 text-gray-500">No notifications for this month</div>
+                      )}
+                      {currentMonthNotifications.map((n) => (
+                        <div
+                          key={n.id}
+                          className={`px-4 py-3 border-b last:border-b-0 cursor-pointer hover:bg-blue-50 ${n.is_read ? 'text-gray-500' : 'text-gray-900 font-semibold'}`}
+                          onClick={async () => {
+                            if (!n.is_read) {
+                              await markNotificationAsRead(n.id);
+                              fetchNotifications();
+                            }
+                          }}
+                        >
+                          <div>{n.message}</div>
+                          <div className="text-xs text-gray-400 mt-1">{new Date(n.created_at).toLocaleString()}</div>
+                        </div>
+                      ))}
+                      {olderNotifications.length > 0 && (
+                        <div className="p-4 text-center">
+                          <button
+                            className="text-blue-600 hover:underline text-sm font-medium"
+                            onClick={() => setShowAllNotifications(true)}
+                          >
+                            View All Notifications
+                          </button>
+                        </div>
+                      )}
+                      <ViewAllNotification show={showAllNotifications} onClose={() => setShowAllNotifications(false)} title="All Notifications" />
+                    </>;
+                  })()}
                 </div>
               )}
             </div>

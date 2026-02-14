@@ -53,6 +53,29 @@ exports.createUserRole = async (req, res) => {
     }
 
     const userRole = await userRoleModel.createUserRole(userId, roleId, status || 'active');
+
+    /////////Send notification to user about new role assignment////////////////
+    try {
+      const notificationModel = require('../models/notification.model');
+      const userModel = require('../models/user.model');
+      const roleModel = require('../models/role.model');
+      const user = await userModel.findUserById(userId);
+      const role = await roleModel.getRoleById(roleId);
+      if (user && role) {
+        await notificationModel.createNotification({
+          created_by: req.user?.id || userId, // If available, use the admin/actor's id
+          assigned_to: userId,
+          message: `Congratulations ${user.firstname} ${user.lastname}! You have been assigned the role of ${role.role_name}.`,
+          type: 'role-assignment',
+          is_read: false
+        });
+      }
+    } catch (notifyErr) {
+      console.error('Role assignment notification error:', notifyErr);
+      // Do not block role assignment on notification failure
+    }
+    ////////////////////////Notification Code//////////////////////////////////
+
     res.status(201).json({
       success: true,
       message: 'User role created successfully',

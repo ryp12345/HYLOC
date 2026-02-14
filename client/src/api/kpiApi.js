@@ -49,6 +49,10 @@ export const getKPIValuesByKPI = async (kpiId) => {
   return await axios.get(`/kpi-values/kpi/${kpiId}`);
 };
 
+export const getKPIValueByData = async (dataValue) => {
+  return await axios.get(`/kpi-values/by-data`, { params: { dataValue } });
+};
+
 export const createKPIValue = async (data) => {
   return await axios.post('/kpi-values', data);
 };

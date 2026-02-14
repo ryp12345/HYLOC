@@ -2,6 +2,7 @@ const app = require('./app');
 const config = require('./config');
 const os = require('os');
 const { startAnnualLeaveScheduler } = require('./schedulers/leaveEntitlement.scheduler');
+const { startOverdueScheduler } = require('./schedulers/overdueTickets.scheduler');
 
 const PORT = config.port || 3001;
 const HOST = '0.0.0.0';
@@ -26,4 +27,5 @@ app.listen(PORT, HOST, () => {
   console.log(`Access via network: http://${localIP}:${PORT}`);
   console.log(`Environment: ${config.nodeEnv}`);
   startAnnualLeaveScheduler();
+  startOverdueScheduler();
 });

@@ -229,8 +229,12 @@ exports.submitKPIData = async (req, res) => {
             }
           }
         } catch (err) {
-          // don't fail the request if computation fails
-          await logError(err, 'employee.controller.computeTarget', req.user?.id);
+          // don't fail the request if computation fails due to missing dependencies
+          if (err.message && err.message.includes('Missing required dependencies')) {
+            console.warn(`Skipping target computation for KPI Value ${kpiValueId}: ${err.message}`);
+          } else {
+            await logError(err, 'employee.controller.computeTarget', req.user?.id);
+          }
         }
       }
     }
@@ -266,7 +270,12 @@ exports.submitKPIData = async (req, res) => {
           }
         }
       } catch (err) {
-        await logError(err, 'employee.controller.computeActual', req.user?.id);
+        // don't fail the request if computation fails due to missing dependencies
+        if (err.message && err.message.includes('Missing required dependencies')) {
+          console.warn(`Skipping actual computation for KPI Value ${kpiValueId}: ${err.message}`);
+        } else {
+          await logError(err, 'employee.controller.computeActual', req.user?.id);
+        }
       }
     }
 

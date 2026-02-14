@@ -50,6 +50,24 @@ exports.getKPIValueById = async (id) => {
   }
 };
 
+// Get KPI value by data field (case-insensitive, trimmed match)
+exports.getKPIValueByData = async (dataValue) => {
+  try {
+    const result = await pool.query(
+      `SELECT id, data, kpi_id, "data operator" AS data_operator, target_required, uom,
+              kpi_type, piller_id, formula, source_kpi_value_ids, default_target_value,
+              computation_type, target_formula, target_source_kpi_value_ids, created_at, updated_at
+       FROM kpi_values
+       WHERE LOWER(TRIM(data)) = LOWER(TRIM($1))`,
+      [dataValue]
+    );
+    return result.rows[0];
+  } catch (error) {
+    console.error('Database error in getKPIValueByData:', error);
+    throw error;
+  }
+};
+
 // Create KPI value
 exports.createKPIValue = async (kpiValue) => {
   try {

@@ -1,4 +1,5 @@
 const ticketModel = require('../models/ticket.model');
+const notificationModel = require('../models/notification.model');
 
 exports.getTicketCategories = async (req, res) => {
   try {
@@ -65,6 +66,21 @@ exports.createTicket = async (req, res) => {
     }
 
     const created = await ticketModel.createTicket(ticketData);
+
+    // Create in-app notification for assignee (if any). Fail silently on error.
+    (async () => {
+      try {
+        const requesterId = user_id;
+        const assigneeId = created.assigned_to;
+        if (assigneeId) {
+          const message = `You were assigned ticket #${created.id}: ${created.title}`;
+          await notificationModel.createNotification({ created_by: requesterId, assigned_to: assigneeId, message, type: 'ticket' });
+        }
+      } catch (notifErr) {
+        console.error('Create ticket notification error:', notifErr);
+      }
+    })();
+
     return res.status(201).json({ success: true, data: created });
   } catch (error) {
     console.error('Create ticket error:', error);
@@ -103,6 +119,43 @@ exports.updateTicket = async (req, res) => {
     if (!existing) return res.status(404).json({ success: false, message: 'Ticket not found' });
 
     const requesterId = req.user?.userId;
+    const requesterRole = req.user?.role;
+
+    // Field-level edit permissions
+
+
+    // Only Management or creator can edit due_date
+    // (Manager role is NOT allowed unless also creator)
+    const isManagement = requesterRole && requesterRole.toLowerCase() === 'management';
+    const isCreator = String(existing.user_id) === String(requesterId);
+    const isManager = requesterRole && requesterRole.toLowerCase() === 'manager';
+    if (payload.due_date !== undefined) {
+      if (!isManagement && !isCreator) {
+        // Explicitly block Manager role and all others
+        return res.status(403).json({ success: false, message: 'Only Management or the ticket creator can edit due_date' });
+      }
+    }
+
+    // Other users can only edit title and description
+    if (!isManagement && !isCreator) {
+      // Remove any fields except title/description
+      Object.keys(payload).forEach((key) => {
+        if (!['title', 'description'].includes(key)) {
+          delete payload[key];
+        }
+      });
+      // If nothing left to update, reject
+      if (Object.keys(payload).length === 0) {
+        return res.status(400).json({ success: false, message: 'You can only edit title or description' });
+      }
+    }
+
+    // If trying to set status to one of the assignee-only states, only allow the assigned user
+    if (payload.status && ['In Progress', 'Rejected', 'Resolved'].includes(String(payload.status))) {
+      if (String(existing.assigned_to) !== String(requesterId)) {
+        return res.status(403).json({ success: false, message: 'Only the assigned user can set status to In Progress / Rejected / Resolved' });
+      }
+    }
 
     // If trying to set status to Closed, only allow the creator
     if (payload.status && String(payload.status) === 'Closed') {
@@ -116,8 +169,58 @@ exports.updateTicket = async (req, res) => {
       payload.status = 'Assigned';
     }
 
+
+    // On any status change, notify creator and all Managers (no assignee notification)
+    let sentStatusNotification = false;
+    if (payload.status && payload.status !== existing.status) {
+      try {
+        const pool = require('../config/db');
+        // Find all users with Manager role
+        const mgrRes = await pool.query(`
+          SELECT u.id FROM users u
+          JOIN user_roles ur ON ur.user_id = u.id
+          JOIN roles r ON ur.role_id = r.id
+          WHERE r.role_name = 'Manager' AND ur.status = 'active'
+        `);
+        const managerIds = mgrRes.rows.map(r => r.id).filter(id => id !== existing.user_id);
+        const recipients = new Set([existing.user_id, ...managerIds]);
+        for (const recipientId of recipients) {
+          const message = `Ticket #${existing.id} ('${existing.title}') status changed to ${payload.status} by user #${requesterId}`;
+          await notificationModel.createNotification({ created_by: requesterId, assigned_to: recipientId, message, type: 'ticket_status' });
+        }
+        sentStatusNotification = true;
+      } catch (notifErr) {
+        console.error('Status-change notification error:', notifErr);
+      }
+    }
+
+    // If not a status change, but other fields were edited, notify the assignee (if any)
+    if (!sentStatusNotification) {
+      // Check if any editable field other than status was changed
+      const editableFields = ['title', 'description', 'category', 'priority', 'due_date', 'attachment'];
+      const changedFields = editableFields.filter(f => payload[f] !== undefined && payload[f] !== existing[f]);
+      if (changedFields.length > 0 && existing.assigned_to) {
+        const message = `Ticket #${existing.id} ('${existing.title}') was updated (${changedFields.join(', ')}) by user #${requesterId}`;
+        await notificationModel.createNotification({ created_by: requesterId, assigned_to: existing.assigned_to, message, type: 'ticket_edit' });
+      }
+    }
+
     const updated = await ticketModel.updateTicket(id, payload);
     if (!updated) return res.status(404).json({ success: false, message: 'Ticket not found' });
+
+    // If reassigned to a different user, create an in-app notification for the new assignee.
+    try {
+      const payloadAssigned = payload.assigned_to !== undefined && payload.assigned_to !== null ? String(payload.assigned_to) : null;
+      const existingAssigned = existing && existing.assigned_to ? String(existing.assigned_to) : null;
+      if (payloadAssigned && payloadAssigned !== existingAssigned) {
+        const assigneeId = Number(payload.assigned_to);
+        const message = `You were assigned ticket #${updated.id}: ${updated.title}`;
+        await notificationModel.createNotification({ created_by: requesterId, assigned_to: assigneeId, message, type: 'ticket' });
+      }
+    } catch (notifErr) {
+      console.error('Update ticket notification error:', notifErr);
+    }
+
     res.status(200).json({ success: true, data: updated });
   } catch (error) {
     console.error('Update ticket error:', error);

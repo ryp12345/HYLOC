@@ -5,14 +5,14 @@ const kpiValueController = require('../controllers/kpi-value.controller');
 // Get all KPI values (with optional kpi_id query parameter)
 router.get('/', kpiValueController.getAllKPIValues);
 
+// Get KPI value by data field (query parameter) - must be before /:id
+router.get('/by-data', kpiValueController.getKPIValueByData);
+
+// Get KPI values by KPI ID - must be before /:id
+router.get('/kpi/:kpiId', kpiValueController.getKPIValuesByKPI);
+
 // Get KPI value by ID
 router.get('/:id', kpiValueController.getKPIValueById);
-
-// Get monthly data for a KPI value for a specific year
-router.get('/:id/monthly-data/:year', kpiValueController.getMonthlyData);
-
-// Get KPI values by KPI ID
-router.get('/kpi/:kpiId', kpiValueController.getKPIValuesByKPI);
 
 // Create KPI value
 router.post('/', kpiValueController.createKPIValue);

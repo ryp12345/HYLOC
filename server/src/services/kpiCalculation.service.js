@@ -93,7 +93,17 @@ class KPICalculationService {
       num = num / 100;
     }
 
-    const finalValue = isNaN(num) ? 0 : num;
+    // Round based on unit type
+    let roundedValue;
+    if (isPercentage) {
+      // Percentages: round to whole number (no decimals)
+      roundedValue = Math.round(num);
+    } else {
+      // Other values: round to 2 decimal places
+      roundedValue = Math.round(num * 100) / 100;
+    }
+    
+    const finalValue = isNaN(num) ? 0 : roundedValue;
     cumsumCache.set(cacheKey, finalValue);
     // console.log(`[CUMSUM] ✓ Final cumulative ${valueType} value: ${finalValue}`);
     // console.log(`[CUMSUM] ==========================================`);
@@ -160,6 +170,7 @@ class KPICalculationService {
 
       // Fetch values for all dependencies (actual or target based on valueType)
       const valuesMap = {};
+      const missingDependencies = []; // Track missing values
       
       for (const sourceId of sourceIds) {
         // Check if formula explicitly requests both actual and target from this source
@@ -182,14 +193,19 @@ class KPICalculationService {
           );
 
           if (actualResult.rows.length > 0) {
-            const value = parseFloat(actualResult.rows[0].value) || 0;
-            valuesMap[`${sourceId}:actual`] = value;
-            if (!needsTarget && !needsDefault) {
-              valuesMap[sourceId] = value; // For backward compatibility
+            const value = parseFloat(actualResult.rows[0].value);
+            if (value === null || value === undefined || isNaN(value)) {
+              console.warn(`Invalid actual value for KPI Value ${sourceId} for ${month}/${year}`);
+              missingDependencies.push(`v${sourceId}:actual`);
+            } else {
+              valuesMap[`${sourceId}:actual`] = value;
+              if (!needsTarget && !needsDefault) {
+                valuesMap[sourceId] = value; // For backward compatibility
+              }
             }
           } else {
             console.warn(`No actual data found for KPI Value ${sourceId} for ${month}/${year}`);
-            valuesMap[`${sourceId}:actual`] = 0;
+            missingDependencies.push(`v${sourceId}:actual`);
           }
         }
         
@@ -208,14 +224,19 @@ class KPICalculationService {
           );
 
           if (targetResult.rows.length > 0) {
-            const value = parseFloat(targetResult.rows[0].value) || 0;
-            valuesMap[`${sourceId}:target`] = value;
-            if (!needsActual && !needsDefault) {
-              valuesMap[sourceId] = value; // For backward compatibility
+            const value = parseFloat(targetResult.rows[0].value);
+            if (value === null || value === undefined || isNaN(value)) {
+              console.warn(`Invalid target value for KPI Value ${sourceId} for ${month}/${year}`);
+              missingDependencies.push(`v${sourceId}:target`);
+            } else {
+              valuesMap[`${sourceId}:target`] = value;
+              if (!needsActual && !needsDefault) {
+                valuesMap[sourceId] = value; // For backward compatibility
+              }
             }
           } else {
             console.warn(`No target data found for KPI Value ${sourceId} for ${month}/${year}`);
-            valuesMap[`${sourceId}:target`] = 0;
+            missingDependencies.push(`v${sourceId}:target`);
           }
         }
         
@@ -234,13 +255,24 @@ class KPICalculationService {
           );
 
           if (valueResult.rows.length > 0) {
-            const value = parseFloat(valueResult.rows[0].value) || 0;
-            valuesMap[sourceId] = value;
+            const value = parseFloat(valueResult.rows[0].value);
+            if (value === null || value === undefined || isNaN(value)) {
+              console.warn(`Invalid ${valueType} value for KPI Value ${sourceId} for ${month}/${year}`);
+              missingDependencies.push(`v${sourceId}`);
+            } else {
+              valuesMap[sourceId] = value;
+            }
           } else {
             console.warn(`No ${valueType} data found for KPI Value ${sourceId} for ${month}/${year}`);
-            valuesMap[sourceId] = 0;
+            missingDependencies.push(`v${sourceId}`);
           }
         }
+      }
+
+      // Check if any dependencies are missing - if so, do not compute to avoid misleading data
+      if (missingDependencies.length > 0) {
+        console.warn(`Cannot compute KPI Value ${kpiValueId} (${kpiValue.data}) for ${month}/${year}: Missing dependencies: ${missingDependencies.join(', ')}`);
+        throw new Error(`Missing required dependencies: ${missingDependencies.join(', ')}. All dependent values must be available for accurate computation.`);
       }
 
       // Pre-process CUMSUM(v<ID>) expressions to concrete numeric values
@@ -273,8 +305,34 @@ class KPICalculationService {
       const evaluator = new FormulaEvaluator(valuesMap);
       const result = evaluator.evaluate(processedFormula);
 
-      // console.log(`Calculated ${kpiValue.data}: ${result} (month: ${month}, year: ${year})`);
-      return result;
+      // Get the unit of measurement for this KPI value to determine rounding
+      const unitResult = await pool.query(
+        `SELECT u.symbol, u.unit_name
+         FROM kpi_values kv
+         LEFT JOIN unit_master u ON kv.uom = u.id
+         WHERE kv.id = $1`,
+        [kpiValueId]
+      );
+
+      const unit = unitResult.rows[0];
+      const unitSymbol = unit?.symbol?.toLowerCase() || '';
+      const unitName = unit?.unit_name?.toLowerCase() || '';
+      
+      // Round based on unit type
+      let roundedResult = result;
+      if (unitSymbol === '%' || unitName.includes('percent')) {
+        // Percentages: round to whole number (no decimals)
+        roundedResult = Math.round(result);
+      } else if (unitSymbol === 'ratio' || unitName.includes('ratio')) {
+        // Ratios: round to 2 decimal places
+        roundedResult = Math.round(result * 100) / 100;
+      } else {
+        // Other values: round to 2 decimal places
+        roundedResult = Math.round(result * 100) / 100;
+      }
+
+      // console.log(`Calculated ${kpiValue.data}: ${roundedResult} (original: ${result}, month: ${month}, year: ${year})`);
+      return roundedResult;
     } catch (error) {
       console.error('Error calculating KPI value:', error);
       throw error;
@@ -427,7 +485,11 @@ class KPICalculationService {
               }
             } catch (error) {
               console.error(`[RECALC] Failed to calculate target for KPI ${kpi.data}:`, error.message);
-              console.error(`[RECALC] Target error stack:`, error.stack);
+              if (error.message && error.message.includes('Missing required dependencies')) {
+                console.warn(`[RECALC] ⚠ Cannot calculate target for ${kpi.data} - missing dependency data.`);
+              } else {
+                console.error(`[RECALC] Target error stack:`, error.stack);
+              }
               // If calculation failed and there's a default, use it
               if (kpi.default_target_value !== null && kpi.default_target_value !== undefined) {
                 try {
@@ -452,8 +514,12 @@ class KPICalculationService {
           console.log(`[RECALC] ----------------------------------------`);
         } catch (error) {
           console.error(`[RECALC] ✗ Failed to recalculate KPI ${kpi.data}:`, error.message);
-          console.error('[RECALC] Error stack:', error.stack);
-          console.error('[RECALC] Error details:', JSON.stringify(error, null, 2));
+          if (error.message && error.message.includes('Missing required dependencies')) {
+            console.warn(`[RECALC] ⚠ Skipping ${kpi.data} - missing dependency data. This KPI will be calculated once all dependencies have values.`);
+          } else {
+            console.error('[RECALC] Error stack:', error.stack);
+            console.error('[RECALC] Error details:', JSON.stringify(error, null, 2));
+          }
           console.log(`[RECALC] ----------------------------------------`);
           // Continue with other KPIs even if one fails
         }

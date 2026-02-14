@@ -96,12 +96,16 @@ CREATE TABLE IF NOT EXISTS public.user_notifications
 - Tickets have a completion deadline (`to_complete_date`).
 - Tickets not closed by deadline are marked overdue and escalated(notification sent to the users of role ,management and the the user who created_by ).
 
-### Notification Rules
+### Notification Rules for tickets
 
 - Notifications are sent for:
   - Ticket creation: assigned_to user notified.
-  - Status change:  users notified (created_by).
-  - Ticket overdue: Assigned staff and management notified.
+  - Ticket overdue: Assigned user and users of role Management and Manager need to be sent a notification. A Ticket is overdue if it does not have the status 'Closed' by due_date which is set by the user who created the ticket.
+  - Status change:  user(who  created the ticket, and the users of role Manager should be sent a   notification).
+  -Only the user of  role Management and only the user who has created the ticket can edit the due_date. Other users can edit only the title, description. 
+  -If any user edits a field, a notification is sent to the user who is currently assigned to  the ticket.
+
+
 - Notifications are stored and can be marked as read.
 - NotificationBell component displays unread notifications for the logged-in user.
 - Notification types are extensible (e.g., comments, reassignment).

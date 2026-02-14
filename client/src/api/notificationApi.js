@@ -1,3 +1,6 @@
+export const deleteNotification = async (id) => {
+  return api.delete(`/notifications/${id}`);
+};
  import api from './axios';
 
 export const getNotifications = async () => {
@@ -5,5 +8,5 @@ export const getNotifications = async () => {
 };
 
 export const markNotificationAsRead = async (id) => {
-  return api.patch(`/notifications/${id}/read`);
+  return api.put(`/notifications/${id}`);
 };
