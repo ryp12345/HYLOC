@@ -68,7 +68,7 @@ const Sidebar = () => {
   const employeeLinks = [
     { name: 'Dashboard', path: getDashboardPath(), icon: '📊' },
     { name: 'My KPIs/KAIs', path: '/employee/kpikai', icon: '📈' },
-    { name: 'Leaves', path: '/employee/leaves', icon: '📅' },
+    { name: 'Calendar', path: '/employee/leaves', icon: '📅' },
     { name: 'Tickets', path: '/tickets', icon: '🎫' },
   ];
 

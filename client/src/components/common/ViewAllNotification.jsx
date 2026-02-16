@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
+// ...existing code...
 import { getNotifications, markNotificationAsRead, deleteNotification } from '../../api/notificationApi';
 
+export default function ViewAllNotification({ show, onClose, title }) {
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this notification?')) {
       await deleteNotification(id);
@@ -8,9 +10,9 @@ import { getNotifications, markNotificationAsRead, deleteNotification } from '..
     }
   };
 
-export default function ViewAllNotification({ show, onClose, title }) {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState([]);
 
   useEffect(() => {
     if (show) {
@@ -36,6 +38,17 @@ export default function ViewAllNotification({ show, onClose, title }) {
   };
 
   if (!show) return null;
+  // Checkbox handlers
+  const handleSelect = (id) => {
+    setSelected((prev) => prev.includes(id) ? prev.filter(sid => sid !== id) : [...prev, id]);
+  };
+  const handleSelectAll = () => {
+    if (selected.length === notifications.length) {
+      setSelected([]);
+    } else {
+      setSelected(notifications.map(n => n.id));
+    }
+  };
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
       <div className="bg-white rounded-lg shadow-lg w-full max-w-2xl mx-4 relative">
@@ -67,6 +80,23 @@ export default function ViewAllNotification({ show, onClose, title }) {
               }
               return (
                 <>
+                  <div className="mb-4 flex items-center">
+                    <input type="checkbox" checked={selected.length === notifications.length && notifications.length > 0} onChange={handleSelectAll} />
+                    <span className="ml-2">Select All</span>
+                    <button
+                      className="ml-4 px-3 py-1 bg-red-600 text-white rounded-lg disabled:opacity-50"
+                      disabled={selected.length === 0}
+                      onClick={async () => {
+                        if (window.confirm('Are you sure you want to delete selected notifications?')) {
+                          for (const id of selected) {
+                            await deleteNotification(id);
+                          }
+                          setNotifications((prev) => prev.filter((n) => !selected.includes(n.id)));
+                          setSelected([]);
+                        }
+                      }}
+                    >Delete Selected</button>
+                  </div>
                   <div>
                     <h3 className="text-md font-bold mb-2">Current Month Notifications</h3>
                     {currentMonthNotifications.length === 0 ? (
@@ -79,9 +109,17 @@ export default function ViewAllNotification({ show, onClose, title }) {
                             className={`py-4 px-2 flex flex-col md:flex-row md:items-center md:justify-between cursor-pointer hover:bg-blue-50 ${n.is_read ? 'text-gray-500' : 'text-gray-900 font-semibold'}`}
                             onClick={() => !n.is_read && handleMarkAsRead(n.id)}
                           >
-                            <div>
-                              {n.message}
-                              <div className="text-xs text-gray-400 mt-1">{new Date(n.created_at).toLocaleString()}</div>
+                            <div className="flex items-center">
+                              <input
+                                type="checkbox"
+                                checked={selected.includes(n.id)}
+                                onChange={e => { e.stopPropagation(); handleSelect(n.id); }}
+                                className="mr-2"
+                              />
+                              <div>
+                                {n.message}
+                                <div className="text-xs text-gray-400 mt-1">{new Date(n.created_at).toLocaleString()}</div>
+                              </div>
                             </div>
                             <button
                               className="ml-4 mt-2 md:mt-0 px-2 py-1 text-xs p-2 text-white transition-colors duration-200 bg-red-600 rounded-lg hover:bg-red-700"
@@ -110,9 +148,17 @@ export default function ViewAllNotification({ show, onClose, title }) {
                             className={`py-4 px-2 flex flex-col md:flex-row md:items-center md:justify-between cursor-pointer hover:bg-blue-50 ${n.is_read ? 'text-gray-500' : 'text-gray-900 font-semibold'}`}
                             onClick={() => !n.is_read && handleMarkAsRead(n.id)}
                           >
-                            <div>
-                              {n.message}
-                              <div className="text-xs text-gray-400 mt-1">{new Date(n.created_at).toLocaleString()}</div>
+                            <div className="flex items-center">
+                              <input
+                                type="checkbox"
+                                checked={selected.includes(n.id)}
+                                onChange={e => { e.stopPropagation(); handleSelect(n.id); }}
+                                className="mr-2"
+                              />
+                              <div>
+                                {n.message}
+                                <div className="text-xs text-gray-400 mt-1">{new Date(n.created_at).toLocaleString()}</div>
+                              </div>
                             </div>
                             <button
                               className="ml-4 mt-2 md:mt-0 px-2 py-1 text-xs bg-red-100 text-red-600 rounded hover:bg-red-200"
