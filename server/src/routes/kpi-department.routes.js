@@ -1,6 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const kpiDepartmentController = require('../controllers/kpi-department.controller');
+const { authenticate } = require('../middlewares/auth.middleware');
+
+// Apply authentication middleware to all routes
+router.use(authenticate);
 
 // Get all KPI-Department mappings (with optional kpi_id query parameter)
 router.get('/', kpiDepartmentController.getAllKPIDepartments);

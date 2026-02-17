@@ -11,7 +11,21 @@ exports.getEmployeeKPIValues = async (req, res) => {
       return res.status(400).json({ success: false, error: 'empId is required' });
     }
 
-    const empIdInt = parseInt(empId, 10);
+    // empId can be numeric (user id) or string (empid like E001)
+    // kv."data operator" stores the empid string, so we need to match it
+    let userEmpid = empId;
+    
+    // If empId looks like a numeric user ID, get the actual empid from users table
+    if (/^\d+$/.test(empId)) {
+      try {
+        const userResult = await pool.query('SELECT empid FROM users WHERE id = $1', [parseInt(empId, 10)]);
+        if (userResult.rows.length > 0) {
+          userEmpid = userResult.rows[0].empid;
+        }
+      } catch (err) {
+        console.error('Error fetching user empid:', err.message);
+      }
+    }
 
     const valuesResult = await pool.query(
       `SELECT kv.id, kv.data, kv.kpi_id, kv."data operator" AS data_operator, kv.target_required, 
@@ -24,7 +38,7 @@ exports.getEmployeeKPIValues = async (req, res) => {
        LEFT JOIN unit_master u ON u.id = kv.uom
        WHERE kv."data operator" = $1
        ORDER BY k.parent_kpi_id NULLS FIRST, k.title, kv.created_at DESC`,
-      [empIdInt]
+      [userEmpid]
     );
 
     res.json({ success: true, data: valuesResult.rows });
@@ -43,7 +57,21 @@ exports.getEmployeeKPIs = async (req, res) => {
       return res.status(400).json({ success: false, error: 'empId is required' });
     }
 
-    const empIdInt = parseInt(empId, 10);
+    // empId can be numeric (user id) or string (empid like E001)
+    // kv."data operator" stores the empid string, so we need to match it
+    let userEmpid = empId;
+    
+    // If empId looks like a numeric user ID, get the actual empid from users table
+    if (/^\d+$/.test(empId)) {
+      try {
+        const userResult = await pool.query('SELECT empid FROM users WHERE id = $1', [parseInt(empId, 10)]);
+        if (userResult.rows.length > 0) {
+          userEmpid = userResult.rows[0].empid;
+        }
+      } catch (err) {
+        console.error('Error fetching user empid:', err.message);
+      }
+    }
 
     const kpisResult = await pool.query(
       `SELECT DISTINCT k.id, k.title, k.category_id, k.parent_kpi_id, k.fin_year,
@@ -53,7 +81,7 @@ exports.getEmployeeKPIs = async (req, res) => {
        LEFT JOIN categories c ON c.id = k.category_id
        WHERE kv."data operator" = $1
        ORDER BY k.parent_kpi_id NULLS FIRST, k.title`,
-      [empIdInt]
+      [userEmpid]
     );
 
     res.json({ success: true, data: kpisResult.rows });
@@ -72,7 +100,21 @@ exports.getKPIValueForEmployee = async (req, res) => {
       return res.status(400).json({ success: false, error: 'kpiId and empId are required' });
     }
 
-    const empIdInt = parseInt(empId, 10);
+    // empId can be numeric (user id) or string (empid like E001)
+    // kv."data operator" stores the empid string, so we need to match it
+    let userEmpid = empId;
+    
+    // If empId looks like a numeric user ID, get the actual empid from users table
+    if (/^\d+$/.test(empId)) {
+      try {
+        const userResult = await pool.query('SELECT empid FROM users WHERE id = $1', [parseInt(empId, 10)]);
+        if (userResult.rows.length > 0) {
+          userEmpid = userResult.rows[0].empid;
+        }
+      } catch (err) {
+        console.error('Error fetching user empid:', err.message);
+      }
+    }
 
     const valuesResult = await pool.query(
       `SELECT kv.id, kv.data, kv.kpi_id, kv."data operator" AS data_operator, kv.target_required, 
@@ -85,7 +127,7 @@ exports.getKPIValueForEmployee = async (req, res) => {
        LEFT JOIN unit_master u ON u.id = kv.uom
        WHERE kv.kpi_id = $1 AND kv."data operator" = $2
        ORDER BY kv.created_at DESC`,
-      [kpiId, empIdInt]
+      [kpiId, userEmpid]
     );
 
     res.json({ success: true, data: valuesResult.rows });

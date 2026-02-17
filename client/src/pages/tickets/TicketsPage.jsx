@@ -250,14 +250,33 @@ export default function TicketsPage() {
       return (b.id || 0) - (a.id || 0);
     });
     const q = search.toLowerCase();
-    return sorted.filter(r => (
-      (r.title?.toLowerCase().includes(q) ||
-      r.description?.toLowerCase().includes(q) ||
-      r.status?.toLowerCase().includes(q) ||
-      r.category?.toLowerCase().includes(q) ||
-      r.priority?.toLowerCase().includes(q))
-      ) && (filter === 'all' || Number(r.assigned_to) === Number(user?.id))
-    );
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Set to start of today
+
+    return sorted.filter(r => {
+      // First check search criteria
+      const matchesSearch =
+        r.title?.toLowerCase().includes(q) ||
+        r.description?.toLowerCase().includes(q) ||
+        r.status?.toLowerCase().includes(q) ||
+        r.category?.toLowerCase().includes(q) ||
+        r.priority?.toLowerCase().includes(q);
+
+      if (!matchesSearch) return false;
+
+      // Apply filter logic
+      if (filter === 'all') return true;
+      if (filter === 'mine') return Number(r.assigned_to) === Number(user?.id);
+      if (filter === 'overdue') {
+        // Check if ticket is overdue: due_date is in the past AND status is not "Closed"
+        if (!r.due_date || r.status === 'Closed') return false;
+        const dueDate = new Date(r.due_date);
+        dueDate.setHours(0, 0, 0, 0);
+        return dueDate < today;
+      }
+
+      return false;
+    });
   }, [rows, search, filter, user]);
 
   const paginated = useMemo(() => {
@@ -292,6 +311,12 @@ export default function TicketsPage() {
               className={`px-4 py-2 rounded-lg border transition ${filter === 'mine' ? 'bg-blue-600 text-white border-blue-600' : 'bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-200'}`}
             >
               My Tickets
+            </button>
+            <button
+              onClick={() => setFilter('overdue')}
+              className={`px-4 py-2 rounded-lg border transition ${filter === 'overdue' ? 'bg-blue-600 text-white border-blue-600' : 'bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-200'}`}
+            >
+              Overdue Tickets
             </button>
             <button
               onClick={() => setFilter('all')}

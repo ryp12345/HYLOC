@@ -45,8 +45,14 @@ axiosInstance.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
+    const url = originalRequest?.url || '';
 
-    // Handle both 401 and 403 errors (token expiration)
+    // CRITICAL: Never attempt refresh or redirect for auth endpoints
+    if (url.includes('/auth/login') || url.includes('/auth/register')) {
+      return Promise.reject(error);
+    }
+
+    // Handle both 401 and 403 errors (token expiration) - but NOT for auth endpoints
     if ((error.response?.status === 401 || error.response?.status === 403) && !originalRequest._retry) {
       originalRequest._retry = true;
 

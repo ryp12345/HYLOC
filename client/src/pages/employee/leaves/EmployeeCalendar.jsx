@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { getMyTickets } from '../../../api/ticketApi';
 import { useAuth } from '../../../context/AuthContext';
 import { 
   applyLeave, 
@@ -8,6 +9,7 @@ import {
   cancelLeave,
   checkLeaveEligibility,
   getDepartmentColleagues
+  , getDepartmentLeaves
 } from '../../../api/leaveApi';
 
 const EmployeeCalendar = ({ joinDate }) => {
@@ -24,6 +26,17 @@ const EmployeeCalendar = ({ joinDate }) => {
   const [colleagues, setColleagues] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  // Calendar department leaves (colleagues on leave)
+  const [calendarLeaves, setCalendarLeaves] = useState([]);
+  const [selectedCalendarLeaves, setSelectedCalendarLeaves] = useState([]);
+  const [selectedCalendarDate, setSelectedCalendarDate] = useState(null);
+  const [showCalendarLeaveModal, setShowCalendarLeaveModal] = useState(false);
+
+  // Ticket state
+  const [tickets, setTickets] = useState([]);
+  const [showTicketModal, setShowTicketModal] = useState(false);
+  const [selectedTickets, setSelectedTickets] = useState([]);
   
   // Form state
   const [showLeaveForm, setShowLeaveForm] = useState(false);
@@ -42,8 +55,10 @@ const EmployeeCalendar = ({ joinDate }) => {
   });
 
   // Load data on component mount
+
   useEffect(() => {
     loadData();
+    loadTickets();
   }, [currentDate]);
 
   const loadData = async () => {
@@ -71,12 +86,51 @@ const EmployeeCalendar = ({ joinDate }) => {
       // console.log('Colleagues data:', colleaguesResponse.data.data);
       // console.log('Colleagues count:', colleaguesResponse.data.data?.length);
       setColleagues(colleaguesResponse.data.data || []);
+
+      // Load department leaves for calendar display
+      try {
+        const deptLeavesRes = await getDepartmentLeaves({ year });
+        setCalendarLeaves(deptLeavesRes.data.data || []);
+      } catch (err) {
+        // ignore department leaves errors for now
+      }
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to load data');
       //console.error('Error loading data:', err);
     } finally {
       setLoading(false);
     }
+  };
+
+  // Load tickets for the user
+  const loadTickets = async () => {
+    try {
+      const res = await getMyTickets();
+      setTickets(res.data.data || []);
+    } catch (err) {
+      // Optionally set error
+    }
+  };
+  // Get tickets for a specific date
+  const getTicketsForDate = (date) => {
+    if (!date) return [];
+    const checkDate = toLocalDateOnly(date).toDateString();
+    return tickets.filter(ticket => {
+      const createdDate = new Date(ticket.created_at).toDateString();
+      return createdDate === checkDate;
+    });
+  };
+
+  // Open ticket modal for a date
+  const openTicketModal = (date) => {
+    const dayTickets = getTicketsForDate(date);
+    setSelectedTickets(dayTickets);
+    setShowTicketModal(true);
+  };
+
+  const closeTicketModal = () => {
+    setShowTicketModal(false);
+    setSelectedTickets([]);
   };
 
   // Handle form input changes
@@ -346,6 +400,12 @@ const EmployeeCalendar = ({ joinDate }) => {
     setSelectedDate(new Date());
   };
 
+  const closeCalendarLeaveModal = () => {
+    setShowCalendarLeaveModal(false);
+    setSelectedCalendarDate(null);
+    setSelectedCalendarLeaves([]);
+  };
+
   const formatAlternate = (leave) => {
     const primary = leave.alternate_person || '';
     const additional = leave.additional_alternate || '';
@@ -369,8 +429,16 @@ const EmployeeCalendar = ({ joinDate }) => {
 
   // Get team leaves for a specific date (Employee calendar - return empty array for now)
   const getTeamLeavesForDate = (date) => {
-    // For Employee calendar, we don't show team leaves, return empty array
-    return [];
+    if (!date) return [];
+    const checkTime = toLocalDateOnly(date).getTime();
+    const matching = (calendarLeaves || []).filter((leave) => {
+      const fromDate = parseDateOnly(leave.from_date);
+      const toDate = parseDateOnly(leave.to_date);
+      if (!fromDate || !toDate) return false;
+      return checkTime >= fromDate.getTime() && checkTime <= toDate.getTime();
+    });
+    // Only show employees on leave (exclude managers etc.)
+    return matching.filter((l) => l.user_role === 'Employee');
   };
 
   // Get month details for month view
@@ -576,6 +644,8 @@ const EmployeeCalendar = ({ joinDate }) => {
           <div className="grid grid-cols-7 gap-1">
             {monthDays.map((date, index) => {
               const leave = getLeaveForDate(date);
+              const dayTickets = getTicketsForDate(date);
+              const dayCalendarLeaves = getTeamLeavesForDate(date);
               return (
                 <div
                   key={index}
@@ -587,7 +657,7 @@ const EmployeeCalendar = ({ joinDate }) => {
                       : isSelectedDate(date)
                       ? 'border-blue-500 bg-blue-50'
                       : 'border-gray-200 bg-white hover:bg-gray-50'
-                  } ${isPastDate(date) ? 'opacity-60' : 'opacity-100'} ${date && leave ? 'cursor-pointer' : date ? 'cursor-pointer' : ''}`}
+                  } ${isPastDate(date) ? 'opacity-60' : 'opacity-100'} ${date && (leave || dayTickets.length > 0) ? 'cursor-pointer' : date ? 'cursor-pointer' : ''}`}
                   onClick={() => date && handleDateClick(date)}
                 >
                   {date && (
@@ -610,11 +680,121 @@ const EmployeeCalendar = ({ joinDate }) => {
                           <div className="font-semibold text-center">My Leave</div>
                         </button>
                       )}
+                      {dayCalendarLeaves.length > 0 && (
+                        <div className="mt-2 space-y-1">
+                          <button
+                            className="w-full px-2 py-1 rounded bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-colors"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedCalendarDate(date);
+                              setSelectedCalendarLeaves(dayCalendarLeaves);
+                              setShowCalendarLeaveModal(true);
+                            }}
+                          >
+                            {`Leave List(${dayCalendarLeaves.length})`}
+                          </button>
+                        </div>
+                      )}
+                      {dayTickets.length > 0 && (
+                        <button
+                          className="mt-2 w-full px-2 py-1.5 rounded bg-green-600 text-white text-xs font-medium shadow-sm hover:shadow-md transition-all hover:bg-green-700"
+                          title={`View ${dayTickets.length} ticket(s)`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openTicketModal(date);
+                          }}
+                        >
+                              <div className="font-semibold text-center">{dayTickets.length > 1 ? `Tickets(${dayTickets.length})` : `Ticket(${dayTickets.length})`}</div>
+                        </button>
+                      )}
                     </>
                   )}
                 </div>
               );
             })}
+                {/* Ticket Modal */}
+                {showTicketModal && (
+                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+                    <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-2xl relative">
+                      <button
+                        className="absolute top-2 right-2 text-gray-500 hover:text-gray-800 text-xl font-bold"
+                        onClick={closeTicketModal}
+                      >
+                        &times;
+                      </button>
+                      <h3 className="text-lg font-semibold mb-4">Ticket(s) for {selectedTickets[0] ? new Date(selectedTickets[0].created_at).toLocaleDateString() : ''}</h3>
+                      {selectedTickets.length === 0 ? (
+                        <div className="text-center text-gray-500">No tickets found for this date.</div>
+                      ) : (
+                        <div className="overflow-x-auto">
+                          <table className="min-w-full bg-white border rounded-lg">
+                            <thead>
+                              <tr className="bg-green-100 text-green-800">
+                                <th className="py-2 px-4 text-center">Title</th>
+                                <th className="py-2 px-4 text-center">Description</th>
+                                <th className="py-2 px-4 text-center">Category</th>
+                                <th className="py-2 px-4 text-center">Priority</th>
+                                <th className="py-2 px-4 text-center">Due Date</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {selectedTickets.map((ticket) => (
+                                <tr key={ticket.id} className="border-b hover:bg-green-50">
+                                  <td className="py-2 px-4 text-center">{ticket.title}</td>
+                                  <td className="py-2 px-4 text-center">{ticket.description}</td>
+                                  <td className="py-2 px-4 text-center">{ticket.category}</td>
+                                  <td className="py-2 px-4 text-center">{ticket.priority}</td>
+                                  <td className="py-2 px-4 text-center">{ticket.due_date ? new Date(ticket.due_date).toLocaleDateString() : ''}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+                      {showCalendarLeaveModal && selectedCalendarDate && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+                          <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-2xl relative">
+                            <button
+                              className="absolute top-2 right-2 text-gray-500 hover:text-gray-800 text-xl font-bold"
+                              onClick={closeCalendarLeaveModal}
+                            >
+                              &times;
+                            </button>
+                            <h3 className="text-lg font-semibold mb-4">Leave List for {selectedCalendarDate ? new Date(selectedCalendarDate).toLocaleDateString() : ''}</h3>
+                            {selectedCalendarLeaves.length === 0 ? (
+                              <div className="text-center text-gray-500">No leaves found for this date.</div>
+                            ) : (
+                              <div className="overflow-x-auto">
+                                <table className="min-w-full bg-white border rounded-lg">
+                                  <thead>
+                                    <tr className="bg-gray-100 text-gray-700">
+                                      <th className="py-2 px-4 text-left">User</th>
+                                      <th className="py-2 px-4 text-left">Role</th>
+                                      <th className="py-2 px-4 text-left">From</th>
+                                      <th className="py-2 px-4 text-left">To</th>
+                                      <th className="py-2 px-4 text-left">Status</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {selectedCalendarLeaves.map(l => (
+                                      <tr key={l.id} className="border-t hover:bg-gray-50">
+                                        <td className="py-2 px-4">{l.user_name}</td>
+                                        <td className="py-2 px-4">{l.user_role}</td>
+                                        <td className="py-2 px-4">{formatFullDate(parseDateOnly(l.from_date))}</td>
+                                        <td className="py-2 px-4">{formatFullDate(parseDateOnly(l.to_date))}</td>
+                                        <td className="py-2 px-4"><span className={`px-2 py-1 rounded text-white text-xs ${getLeaveBadgeColor(l.status)}`}>{l.status}</span></td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
           </div>
         </div>
       )}
@@ -645,6 +825,7 @@ const EmployeeCalendar = ({ joinDate }) => {
           {/* Week Grid */}
           <div className="grid grid-cols-7 gap-1">
             {weekDays.map((date) => {
+              const dayCalendarLeaves = getTeamLeavesForDate(date);
               return (
               <div
                 key={date.toISOString()}
@@ -662,6 +843,16 @@ const EmployeeCalendar = ({ joinDate }) => {
                 </div>
                 {isToday(date) && (
                   <div className="text-blue-600 text-xs font-italic">Today</div>
+                )}
+                {dayCalendarLeaves.length > 0 && (
+                  <div className="mt-2 space-y-1">
+                    <button
+                      className="w-full px-2 py-1 rounded bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-colors"
+                      onClick={(e) => { e.stopPropagation(); setSelectedCalendarDate(date); setSelectedCalendarLeaves(dayCalendarLeaves); setShowCalendarLeaveModal(true); }}
+                    >
+                      {`Leave List(${dayCalendarLeaves.length})`}
+                    </button>
+                  </div>
                 )}
               </div>
             );

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { getAllLeaves } from '../../../api/leaveApi';
+import { getMyTickets, getAllTickets } from '../../../api/ticketApi';
 
 const ManagementCalendar = () => {
 	const [currentDate, setCurrentDate] = useState(new Date());
@@ -23,21 +24,23 @@ const ManagementCalendar = () => {
 		username: '',
 	});
 	const [currentPage, setCurrentPage] = useState(1);
+	// Pagination: items per page for filtered results
 	const itemsPerPage = 10;
+	// Ticket state
+	const [tickets, setTickets] = useState([]);
+	const [showTicketModal, setShowTicketModal] = useState(false);
+	const [selectedTickets, setSelectedTickets] = useState([]);
 
 	useEffect(() => {
 		loadData();
+		loadTickets();
 	}, [currentDate]);
 
-	// Load data on component mount
 	useEffect(() => {
 		loadData();
-	}, [currentDate]);
-
-	// Load data when year filter changes
-	useEffect(() => {
-		loadData();
+		loadTickets();
 	}, [filter.year]);
+
 
 	const loadData = async () => {
 		setLoading(true);
@@ -68,6 +71,16 @@ const ManagementCalendar = () => {
 			console.error('Error loading pending leaves:', err);
 		} finally {
 			setLoading(false);
+		}
+	};
+
+	const loadTickets = async () => {
+		try {
+			// Management view should show all tickets
+			const res = await getAllTickets();
+			setTickets(res.data.data || []);
+		} catch (err) {
+			// Optionally set error
 		}
 	};
 
@@ -198,6 +211,28 @@ const ManagementCalendar = () => {
 		setSelectedDateLeaves([]);
 	};
 
+	// Ticket helpers
+	const getTicketsForDate = (date) => {
+		if (!date) return [];
+		const checkDate = toLocalDateOnly(date).toDateString();
+		return tickets.filter(ticket => {
+			if (!ticket || !ticket.created_at) return false;
+			const createdDate = new Date(ticket.created_at).toDateString();
+			return createdDate === checkDate;
+		});
+	};
+
+	const openTicketModal = (date) => {
+		const dayTickets = getTicketsForDate(date);
+		setSelectedTickets(dayTickets);
+		setShowTicketModal(true);
+	};
+
+	const closeTicketModal = () => {
+		setShowTicketModal(false);
+		setSelectedTickets([]);
+	};
+
 	const getLeaveBadgeColor = (status) => {
 		switch (status) {
 			case 'Approved':
@@ -238,10 +273,8 @@ const ManagementCalendar = () => {
 				// Import the API dynamically to avoid top-level import issues
 				const { getDepartments } = await import('../../../api/departmentApi');
 				const response = await getDepartments();
-				console.log('Departments API response:', response);
 				// Try multiple response structures
 				const departments = response.data?.data || response.data || [];
-				console.log('Parsed departments:', departments);
 				setAllDepartments(departments);
 			} catch (err) {
 				console.error('Error fetching departments:', err);
@@ -259,7 +292,6 @@ const ManagementCalendar = () => {
 			})
 			.filter(name => name) // Remove empty strings
 			.sort();
-		console.log('Department options:', options);
 		return options;
 	}, [allDepartments]);
 
@@ -391,6 +423,47 @@ const ManagementCalendar = () => {
 										</div>
 									))}
 								</div>
+					{/* Ticket Modal */}
+					{showTicketModal && (
+						<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+							<div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+								<div className="p-6">
+									<div className="flex items-center justify-between mb-4">
+										<h3 className="text-xl font-bold text-gray-800">Tickets</h3>
+										<button onClick={closeTicketModal} className="text-gray-500 hover:text-gray-700 text-2xl">×</button>
+									</div>
+									{selectedTickets.length === 0 ? (
+										<div className="text-center text-gray-500 py-8">No tickets for this date</div>
+									) : (
+										<div className="overflow-x-auto">
+											<table className="min-w-full text-sm border">
+												<thead className="bg-gray-100 text-gray-700">
+													<tr>
+														<th className="text-left px-4 py-2 border">Title</th>
+														<th className="text-left px-4 py-2 border">Description</th>
+														<th className="text-left px-4 py-2 border">Category</th>
+														<th className="text-left px-4 py-2 border">Priority</th>
+														<th className="text-left px-4 py-2 border">Due Date</th>
+													</tr>
+												</thead>
+												<tbody>
+													{selectedTickets.map((t) => (
+														<tr key={t.id} className="border-t">
+															<td className="px-4 py-2 border">{t.title || '-'}</td>
+															<td className="px-4 py-2 border">{t.description || '-'}</td>
+															<td className="px-4 py-2 border">{t.category || t.ticket_category || '-'}</td>
+															<td className="px-4 py-2 border">{t.priority || '-'}</td>
+															<td className="px-4 py-2 border">{t.due_date ? formatDateDisplay(t.due_date) : '-'}</td>
+														</tr>
+													))}
+												</tbody>
+											</table>
+										</div>
+									)}
+								</div>
+							</div>
+						</div>
+					)}
 
 								<div className="grid grid-cols-7 gap-1">
 									{monthDays.map((date, index) => {
@@ -413,13 +486,22 @@ const ManagementCalendar = () => {
 															className="w-full px-2 py-1 rounded bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-colors"
 															onClick={() => openLeaveModal(date)}
 														>
-															Leave List
+															{`Leave List(${teamLeaves.length})`}
 														</button>
-														<div className="text-[10px] text-gray-500 text-center">
-															{teamLeaves.length} leave(s)
-														</div>
 													</div>
 												)}
+												{(() => {
+													const dayTickets = getTicketsForDate(date);
+													return dayTickets.length > 0 ? (
+														<button
+															className="mt-2 w-full px-2 py-1.5 rounded bg-green-600 text-white text-xs font-medium shadow-sm hover:shadow-md transition-all hover:bg-green-700"
+															title={`View ${dayTickets.length} ticket(s)`}
+															onClick={() => openTicketModal(date)}
+														>
+															<div className="font-semibold text-center">{dayTickets.length > 1 ? `Tickets(${dayTickets.length})` : `Ticket(${dayTickets.length})`}</div>
+														</button>
+													) : null;
+												})()}
 											</div>
 										);
 									})}
@@ -452,13 +534,22 @@ const ManagementCalendar = () => {
 																	className="w-full px-2 py-1 rounded bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-colors"
 																	onClick={() => openLeaveModal(date)}
 																>
-																	Leave List
+																	{`Leave List(${teamLeaves.length})`}
 																</button>
-																<div className="text-[10px] text-gray-500 text-center">
-																	{teamLeaves.length} leave(s)
-																</div>
 															</div>
 														)}
+														{(() => {
+															const dayTickets = getTicketsForDate(date);
+															return dayTickets.length > 0 ? (
+																<button
+																	className="mt-2 w-full px-2 py-1.5 rounded bg-green-600 text-white text-xs font-medium shadow-sm hover:shadow-md transition-all hover:bg-green-700"
+																	title={`View ${dayTickets.length} ticket(s)`}
+																	onClick={() => openTicketModal(date)}
+																>
+																	<div className="font-semibold text-center">{dayTickets.length > 1 ? `Tickets(${dayTickets.length})` : `Ticket(${dayTickets.length})`}</div>
+																</button>
+															) : null;
+														})()}
 													</div>
 												)}
 											</div>

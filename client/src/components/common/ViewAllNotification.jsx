@@ -1,18 +1,10 @@
 import React, { useEffect, useState } from 'react';
-// ...existing code...
 import { getNotifications, markNotificationAsRead, deleteNotification } from '../../api/notificationApi';
 
 export default function ViewAllNotification({ show, onClose, title }) {
-  const handleDelete = async (id) => {
-    if (window.confirm('Are you sure you want to delete this notification?')) {
-      await deleteNotification(id);
-      setNotifications((prev) => prev.filter((n) => n.id !== id));
-    }
-  };
-
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selected, setSelected] = useState([]);
+  const [selectedIds, setSelectedIds] = useState([]);
 
   useEffect(() => {
     if (show) {
@@ -37,18 +29,45 @@ export default function ViewAllNotification({ show, onClose, title }) {
     setNotifications((prev) => prev.map((n) => n.id === id ? { ...n, is_read: true } : n));
   };
 
-  if (!show) return null;
-  // Checkbox handlers
-  const handleSelect = (id) => {
-    setSelected((prev) => prev.includes(id) ? prev.filter(sid => sid !== id) : [...prev, id]);
-  };
-  const handleSelectAll = () => {
-    if (selected.length === notifications.length) {
-      setSelected([]);
-    } else {
-      setSelected(notifications.map(n => n.id));
+  const handleDelete = async (id) => {
+    if (!id) return;
+    if (window.confirm('Are you sure you want to delete this notification?')) {
+      try {
+        await deleteNotification(id);
+        setNotifications((prev) => prev.filter((n) => n.id !== id));
+        setSelectedIds((prev) => prev.filter(x => x !== id));
+      } catch (err) {
+        // ignore - could show toast
+      }
     }
   };
+
+  const toggleSelect = (id) => {
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.length === notifications.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(notifications.map(n => n.id));
+    }
+  };
+
+  const handleDeleteSelected = async () => {
+    if (selectedIds.length === 0) return;
+    if (!window.confirm(`Delete ${selectedIds.length} selected notification(s)?`)) return;
+    try {
+      setLoading(true);
+      await Promise.all(selectedIds.map(id => deleteNotification(id).catch(() => null)));
+      setNotifications(prev => prev.filter(n => !selectedIds.includes(n.id)));
+      setSelectedIds([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!show) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
       <div className="bg-white rounded-lg shadow-lg w-full max-w-2xl mx-4 relative">
@@ -80,22 +99,24 @@ export default function ViewAllNotification({ show, onClose, title }) {
               }
               return (
                 <>
-                  <div className="mb-4 flex items-center">
-                    <input type="checkbox" checked={selected.length === notifications.length && notifications.length > 0} onChange={handleSelectAll} />
-                    <span className="ml-2">Select All</span>
+                  <div className="flex items-center justify-between mb-4">
+                    <label className="flex items-center text-sm">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.length > 0 && selectedIds.length === notifications.length}
+                        onChange={toggleSelectAll}
+                        className="mr-2"
+                        aria-label="Select all notifications"
+                      />
+                      <span>Select All</span>
+                    </label>
                     <button
-                      className="ml-4 px-3 py-1 bg-red-600 text-white rounded-lg disabled:opacity-50"
-                      disabled={selected.length === 0}
-                      onClick={async () => {
-                        if (window.confirm('Are you sure you want to delete selected notifications?')) {
-                          for (const id of selected) {
-                            await deleteNotification(id);
-                          }
-                          setNotifications((prev) => prev.filter((n) => !selected.includes(n.id)));
-                          setSelected([]);
-                        }
-                      }}
-                    >Delete Selected</button>
+                      onClick={handleDeleteSelected}
+                      disabled={selectedIds.length === 0}
+                      className={`px-3 py-1 text-sm rounded ${selectedIds.length ? 'bg-red-600 text-white' : 'bg-gray-200 text-gray-500 cursor-not-allowed'}`}
+                    >
+                      Delete selected
+                    </button>
                   </div>
                   <div>
                     <h3 className="text-md font-bold mb-2">Current Month Notifications</h3>
@@ -109,28 +130,37 @@ export default function ViewAllNotification({ show, onClose, title }) {
                             className={`py-4 px-2 flex flex-col md:flex-row md:items-center md:justify-between cursor-pointer hover:bg-blue-50 ${n.is_read ? 'text-gray-500' : 'text-gray-900 font-semibold'}`}
                             onClick={() => !n.is_read && handleMarkAsRead(n.id)}
                           >
-                            <div className="flex items-center">
-                              <input
-                                type="checkbox"
-                                checked={selected.includes(n.id)}
-                                onChange={e => { e.stopPropagation(); handleSelect(n.id); }}
-                                className="mr-2"
-                              />
-                              <div>
-                                {n.message}
-                                <div className="text-xs text-gray-400 mt-1">{new Date(n.created_at).toLocaleString()}</div>
+                            <div className="flex items-start md:items-center md:justify-between w-full">
+                              <div className="flex items-start md:items-center">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedIds.includes(n.id)}
+                                  onClick={e => e.stopPropagation()}
+                                  onChange={e => { e.stopPropagation(); toggleSelect(n.id); }}
+                                  className="mr-3 mt-1"
+                                  aria-label="Select notification"
+                                />
+                                <div>
+                                  {(() => {
+                                    const normalized = (n.message || '').replace(/\s+Title:/i, '\nTitle:').replace(/\s+Description:/i, '\nDescription:');
+                                    return normalized.split('\n').map((line, idx) => (
+                                      <div key={idx} className={idx === 0 ? '' : 'text-sm text-gray-700'}>{line}</div>
+                                    ));
+                                  })()}
+                                  <div className="text-xs text-gray-400 mt-1">{new Date(n.created_at).toLocaleString()}</div>
+                                </div>
                               </div>
+                              <button
+                                className="ml-4 mt-2 md:mt-0 px-2 py-1 text-xs p-2 text-white transition-colors duration-200 bg-red-600 rounded-lg hover:bg-red-700"
+                                onClick={e => { e.stopPropagation(); handleDelete(n.id); }}
+                                title="Delete notification"
+                                aria-label="Delete notification"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                              </button>
                             </div>
-                            <button
-                              className="ml-4 mt-2 md:mt-0 px-2 py-1 text-xs p-2 text-white transition-colors duration-200 bg-red-600 rounded-lg hover:bg-red-700"
-                              onClick={e => { e.stopPropagation(); handleDelete(n.id); }}
-                              title="Delete notification"
-                              aria-label="Delete notification"
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                              </svg>
-                            </button>
                           </div>
                         ))}
                       </div>
@@ -148,28 +178,34 @@ export default function ViewAllNotification({ show, onClose, title }) {
                             className={`py-4 px-2 flex flex-col md:flex-row md:items-center md:justify-between cursor-pointer hover:bg-blue-50 ${n.is_read ? 'text-gray-500' : 'text-gray-900 font-semibold'}`}
                             onClick={() => !n.is_read && handleMarkAsRead(n.id)}
                           >
-                            <div className="flex items-center">
-                              <input
-                                type="checkbox"
-                                checked={selected.includes(n.id)}
-                                onChange={e => { e.stopPropagation(); handleSelect(n.id); }}
-                                className="mr-2"
-                              />
-                              <div>
-                                {n.message}
-                                <div className="text-xs text-gray-400 mt-1">{new Date(n.created_at).toLocaleString()}</div>
+                            <div className="flex items-start md:items-center md:justify-between w-full">
+                              <div className="flex items-start md:items-center">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedIds.includes(n.id)}
+                                  onClick={e => e.stopPropagation()}
+                                  onChange={e => { e.stopPropagation(); toggleSelect(n.id); }}
+                                  className="mr-3 mt-1"
+                                  aria-label="Select notification"
+                                />
+                                <div>
+                                  {(n.message || '').split('\n').map((line, idx) => (
+                                    <div key={idx} className={idx === 0 ? '' : 'text-sm text-gray-700'}>{line}</div>
+                                  ))}
+                                  <div className="text-xs text-gray-400 mt-1">{new Date(n.created_at).toLocaleString()}</div>
+                                </div>
                               </div>
+                              <button
+                                className="ml-4 mt-2 md:mt-0 px-2 py-1 text-xs bg-red-100 text-red-600 rounded hover:bg-red-200"
+                                onClick={e => { e.stopPropagation(); handleDelete(n.id); }}
+                                title="Delete notification"
+                                aria-label="Delete notification"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                              </button>
                             </div>
-                            <button
-                              className="ml-4 mt-2 md:mt-0 px-2 py-1 text-xs bg-red-100 text-red-600 rounded hover:bg-red-200"
-                              onClick={e => { e.stopPropagation(); handleDelete(n.id); }}
-                              title="Delete notification"
-                              aria-label="Delete notification"
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                              </svg>
-                            </button>
                           </div>
                         ))}
                       </div>

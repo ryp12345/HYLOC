@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { getMyLeaveBalance } from '../../api/leaveApi';
-import { getKPIValues, getKPIValuesByKPI, getEmployeeKPIValues, getKPIValueMonthlyData } from '../../api/kpiApi';
+import { getEmployeeKPIValues, getKPIValueMonthlyData } from '../../api/kpiApi';
 
 
 function EmployeeDashboard() {
@@ -32,11 +32,7 @@ function EmployeeDashboard() {
         const leaveRes = await getMyLeaveBalance(year);
         setLeaveBalance(leaveRes.data?.data || null);
 
-        // Fetch all KPI values (for measurement points, data entries, etc.)
-        const kpiValuesRes = await getKPIValues();
-        const allKpiValues = Array.isArray(kpiValuesRes.data?.data) ? kpiValuesRes.data.data : [];
-
-        // Fetch assigned KPIs/KAIs
+        // Fetch assigned KPIs/KAIs - Use the employee-specific endpoint
         const kpiEmpRes = await getEmployeeKPIValues(empIdentifier);
         const assignedKpis = Array.isArray(kpiEmpRes.data?.data) ? kpiEmpRes.data.data : [];
 
@@ -47,7 +43,7 @@ function EmployeeDashboard() {
         const totalKpis = assignedKpiIds.length;
 
         // Total Values Assigned (number of KPI values assigned to this employee)
-        const valuesAssigned = allKpiValues.filter(v => assignedKpiIds.includes(v.kpi_id)).length;
+        const valuesAssigned = assignedKpis.length;
 
         // Measurement points (number of unique KPI value IDs assigned)
         const measurementPoints = valuesAssigned; // or could be unique value IDs

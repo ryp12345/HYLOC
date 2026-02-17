@@ -41,30 +41,19 @@ const Sidebar = () => {
     { name: 'Dashboard', path: getDashboardPath(), icon: '📊' },
     { name: 'KMI', path: '/management/mgtkmi', icon: '📚' },
     { name: 'Pillar', path: '/management/mgtpiller', icon: '🏛️' },
-    {
-      name: 'Leave Management',
-      icon: '📋',
-      submenu: [
-        { name: 'Calendar', path: '/management/leaves', icon: '📅' },
-        { name: 'Approval/Rejection', path: '/management/leave-approval', icon: '✅' }
-      ]
-    },
+    { name: 'Calendar', path: '/management/leaves', icon: '📅' },
+    { name: 'Leave Approval', path: '/management/leave-approval', icon: '✅' },
     { name: 'Tickets', path: '/tickets', icon: '🎫' },
   ];
+
+ 
 
   const managerLinks = [
     { name: 'Dashboard', path: getDashboardPath(), icon: '📊' },
-    {
-      name: 'Leave Management',
-      icon: '📋',
-      submenu: [
-        { name: 'Calendar', path: '/manager/leaves', icon: '📅' },
-        { name: 'Approval/Rejection', path: '/manager/leave-approval', icon: '✅' }
-      ]
-    },
+    { name: 'Calendar', path: '/manager/leaves', icon: '📅' },
+    { name: 'Leave Approval', path: '/manager/leave-approval', icon: '✅' },
     { name: 'Tickets', path: '/tickets', icon: '🎫' },
   ];
-
   const employeeLinks = [
     { name: 'Dashboard', path: getDashboardPath(), icon: '📊' },
     { name: 'My KPIs/KAIs', path: '/employee/kpikai', icon: '📈' },

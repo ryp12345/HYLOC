@@ -1,6 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const kpiController = require('../controllers/kpi.controller');
+const { authenticate } = require('../middlewares/auth.middleware');
+
+// Apply authentication middleware to all routes
+router.use(authenticate);
 
 // Get all KPIs
 router.get('/', kpiController.getAllKPIs);

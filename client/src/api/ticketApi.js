@@ -23,6 +23,11 @@ export const getAllTickets = async () => {
   return await axios.get('/tickets');
 };
 
+// Get tickets created by the logged-in user
+export const getMyTickets = async () => {
+  return await axios.get('/tickets/my-tickets');
+};
+
 export const getTicketStatuses = async () => {
   return await axios.get('/tickets/statuses');
 };

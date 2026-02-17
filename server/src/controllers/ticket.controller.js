@@ -1,3 +1,17 @@
+// Get tickets created by the logged-in user
+exports.getMyTickets = async (req, res) => {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+    const tickets = await ticketModel.getTicketsByUserId(userId);
+    res.status(200).json({ success: true, data: tickets });
+  } catch (error) {
+    console.error('Get my tickets error:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch user tickets', error: error.message });
+  }
+};
 const ticketModel = require('../models/ticket.model');
 const notificationModel = require('../models/notification.model');
 
@@ -73,24 +87,17 @@ exports.createTicket = async (req, res) => {
         const requesterId = user_id;
         const assigneeId = created.assigned_to;
         if (assigneeId) {
-          const message = `You have been professionally assigned a new ticket.\nTitle: ${created.title}\nDescription: ${created.description}`;
+          const tTitle = created.title || '';
+          const tDesc = created.description || '';
+          const message = `You were assigned a ticket. \nTitle: ${tTitle}\nDescription: ${tDesc}`;
           await notificationModel.createNotification({ created_by: requesterId, assigned_to: assigneeId, message, type: 'ticket' });
         }
       } catch (notifErr) {
         console.error('Create ticket notification error:', notifErr);
       }
     })();
-    ///////////////////Notification Code Added///////////////////
 
-    // Only return title and description in response
-    return res.status(201).json({
-      success: true,
-      data: {
-        title: created.title,
-        description: created.description
-      },
-      message: 'Ticket created successfully. Only title and description are shown for privacy.'
-    });
+    return res.status(201).json({ success: true, data: created });
   } catch (error) {
     console.error('Create ticket error:', error);
     return res.status(500).json({ success: false, message: 'Failed to create ticket', error: error.message });
@@ -242,7 +249,9 @@ exports.updateTicket = async (req, res) => {
       const existingAssigned = existing && existing.assigned_to ? String(existing.assigned_to) : null;
       if (payloadAssigned && payloadAssigned !== existingAssigned) {
         const assigneeId = Number(payload.assigned_to);
-        const message = `You were assigned ticket #${updated.id}: ${updated.title}`;
+        const tTitle = updated.title || '';
+        const tDesc = updated.description || '';
+        const message = `You were assigned a ticket.\nTitle: ${tTitle}\nDescription: ${tDesc}`;
         await notificationModel.createNotification({ created_by: requesterId, assigned_to: assigneeId, message, type: 'ticket' });
       }
     } catch (notifErr) {

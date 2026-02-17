@@ -4,10 +4,12 @@ const pool = require('../config/db');
 exports.getAllKPIValues = async () => {
   try {
     const result = await pool.query(
-      `SELECT id, data, kpi_id, "data operator" AS data_operator, target_required, uom, 
-              kpi_type, piller_id, formula, source_kpi_value_ids, default_target_value,
-              computation_type, target_formula, target_source_kpi_value_ids, created_at, updated_at
-       FROM kpi_values ORDER BY created_at DESC`
+      `SELECT kv.id, kv.data, kv.kpi_id, kv."data operator" AS data_operator, 
+              kv.target_required, kv.uom, kv.kpi_type, kv.piller_id, kv.formula, 
+              kv.source_kpi_value_ids, kv.default_target_value, kv.computation_type, 
+              kv.target_formula, kv.target_source_kpi_value_ids, kv.created_at, kv.updated_at
+       FROM kpi_values kv
+       ORDER BY kv.created_at DESC`
     );
     return result.rows;
   } catch (error) {
@@ -20,15 +22,18 @@ exports.getAllKPIValues = async () => {
 exports.getKPIValuesByKPI = async (kpiId) => {
   try {
     const result = await pool.query(
-      `SELECT id, data, kpi_id, "data operator" AS data_operator, target_required, uom,
-              kpi_type, piller_id, formula, source_kpi_value_ids, default_target_value,
-              computation_type, target_formula, target_source_kpi_value_ids, created_at, updated_at
-       FROM kpi_values WHERE kpi_id = $1 ORDER BY created_at DESC`,
+      `SELECT kv.id, kv.data, kv.kpi_id, kv."data operator" AS data_operator, 
+              kv.target_required, kv.uom, kv.kpi_type, kv.piller_id, kv.formula, 
+              kv.source_kpi_value_ids, kv.default_target_value, kv.computation_type, 
+              kv.target_formula, kv.target_source_kpi_value_ids, kv.created_at, kv.updated_at
+       FROM kpi_values kv
+       WHERE kv.kpi_id = $1 
+       ORDER BY kv.created_at DESC`,
       [kpiId]
     );
     return result.rows;
   } catch (error) {
-    console.error('Database error in getKPIValuesByKPI:', error);
+    console.error('Database error in getKPIValuesByKPI for kpi_id', kpiId, ':', error.message);
     throw error;
   }
 };
@@ -37,13 +42,15 @@ exports.getKPIValuesByKPI = async (kpiId) => {
 exports.getKPIValueById = async (id) => {
   try {
     const result = await pool.query(
-      `SELECT id, data, kpi_id, "data operator" AS data_operator, target_required, uom,
-              kpi_type, piller_id, formula, source_kpi_value_ids, default_target_value,
-              computation_type, target_formula, target_source_kpi_value_ids, created_at, updated_at
-       FROM kpi_values WHERE id = $1`,
+      `SELECT kv.id, kv.data, kv.kpi_id, kv."data operator" AS data_operator, 
+              kv.target_required, kv.uom, kv.kpi_type, kv.piller_id, kv.formula, 
+              kv.source_kpi_value_ids, kv.default_target_value, kv.computation_type, 
+              kv.target_formula, kv.target_source_kpi_value_ids, kv.created_at, kv.updated_at
+       FROM kpi_values kv
+       WHERE kv.id = $1`,
       [id]
     );
-    return result.rows[0];
+    return result.rows[0] || null;
   } catch (error) {
     console.error('Database error in getKPIValueById:', error);
     throw error;
@@ -54,14 +61,15 @@ exports.getKPIValueById = async (id) => {
 exports.getKPIValueByData = async (dataValue) => {
   try {
     const result = await pool.query(
-      `SELECT id, data, kpi_id, "data operator" AS data_operator, target_required, uom,
-              kpi_type, piller_id, formula, source_kpi_value_ids, default_target_value,
-              computation_type, target_formula, target_source_kpi_value_ids, created_at, updated_at
-       FROM kpi_values
-       WHERE LOWER(TRIM(data)) = LOWER(TRIM($1))`,
+      `SELECT kv.id, kv.data, kv.kpi_id, kv."data operator" AS data_operator, 
+              kv.target_required, kv.uom, kv.kpi_type, kv.piller_id, kv.formula, 
+              kv.source_kpi_value_ids, kv.default_target_value, kv.computation_type, 
+              kv.target_formula, kv.target_source_kpi_value_ids, kv.created_at, kv.updated_at
+       FROM kpi_values kv
+       WHERE LOWER(TRIM(kv.data)) = LOWER(TRIM($1))`,
       [dataValue]
     );
-    return result.rows[0];
+    return result.rows[0] || null;
   } catch (error) {
     console.error('Database error in getKPIValueByData:', error);
     throw error;

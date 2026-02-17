@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { getMyTickets, getAllTickets } from '../../../api/ticketApi';
 import { useAuth } from '../../../context/AuthContext';
 import { 
   applyLeave, 
@@ -37,7 +38,6 @@ const ManagerCalendar = ({ joinDate }) => {
   const [leaveForm, setLeaveForm] = useState({
     from_date: '',
     to_date: '',
-    leave_duration: 'Full Day',
     day_type: 'full',
     leave_reason: '',
     duration: 1,
@@ -55,12 +55,34 @@ const ManagerCalendar = ({ joinDate }) => {
   }, [currentDate]);
 
   // Note: loadData uses currentYear
+  // Ticket state
+  const [tickets, setTickets] = useState([]);
+  const [showTicketModal, setShowTicketModal] = useState(false);
+  const [selectedTickets, setSelectedTickets] = useState([]);
+
+  // Load tickets for the user
+  const loadTickets = async () => {
+    try {
+      // Managers should see all tickets; employees see only their own
+      if (userRole === 'manager' || userRole === 'management') {
+        const res = await getAllTickets();
+        setTickets(res.data.data || []);
+      } else {
+        const res = await getMyTickets();
+        setTickets(res.data.data || []);
+      }
+    } catch (err) {
+      // optionally handle error
+      console.error('Error loading tickets:', err);
+    }
+  };
 
   const loadData = async () => {
     setLoading(true);
     setError(null);
     try {
       const year = currentYear;
+      await loadTickets();
       console.log('Loading data for year:', year);
       
       // Load leaves for current year
@@ -137,14 +159,6 @@ const ManagerCalendar = ({ joinDate }) => {
         updatedForm.duration = diff > 0 ? diff : 1;
       } else {
         updatedForm.duration = 1;
-      }
-    }
-    // Set duration based on day_type
-    if (name === 'day_type') {
-      if (value === 'full') {
-        updatedForm.duration = 1;
-      } else if (value === 'morning' || value === 'afternoon') {
-        updatedForm.duration = 0.5;
       }
     }
     setLeaveForm(updatedForm);
@@ -398,6 +412,27 @@ const ManagerCalendar = ({ joinDate }) => {
     const additional = leave.additional_alternate || '';
     if (primary && additional) return `${primary}, ${additional}`;
     return primary || additional || '—';
+  };
+
+  // Ticket helpers
+  const getTicketsForDate = (date) => {
+    if (!date) return [];
+    const checkDate = toLocalDateOnly(date).toDateString();
+    return tickets.filter(ticket => {
+      const createdDate = new Date(ticket.created_at).toDateString();
+      return createdDate === checkDate;
+    });
+  };
+
+  const openTicketModal = (date) => {
+    const dayTickets = getTicketsForDate(date);
+    setSelectedTickets(dayTickets);
+    setShowTicketModal(true);
+  };
+
+  const closeTicketModal = () => {
+    setShowTicketModal(false);
+    setSelectedTickets([]);
   };
 
   // Get leave badge color
@@ -673,13 +708,29 @@ const ManagerCalendar = ({ joinDate }) => {
                               openCalendarLeaveModal(date);
                             }}
                           >
-                            Leave List
+                            {`Leave List(${dayCalendarLeaves.length})`}
                           </button>
-                          <div className="text-[10px] text-gray-500 text-center">
-                            {dayCalendarLeaves.length} leave(s)
-                          </div>
                         </div>
                       )}
+                      {
+                        (() => {
+                          const dayTickets = getTicketsForDate(date);
+                          return dayTickets.length > 0 ? (
+                            <button
+                              className="mt-2 w-full px-2 py-1.5 rounded bg-green-600 text-white text-xs font-medium shadow-sm hover:shadow-md transition-all hover:bg-green-700"
+                              title={`View ${dayTickets.length} ticket(s)`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openTicketModal(date);
+                              }}
+                            >
+                              <div className="font-semibold text-center">
+                                {dayTickets.length > 1 ? `Tickets(${dayTickets.length})` : `Ticket(${dayTickets.length})`}
+                              </div>
+                            </button>
+                          ) : null;
+                        })()
+                      }
                     </>
                   )}
                 </div>
@@ -743,13 +794,27 @@ const ManagerCalendar = ({ joinDate }) => {
                         openCalendarLeaveModal(date);
                       }}
                     >
-                      Leave List
+                      {`Leave List(${dayCalendarLeaves.length})`}
                     </button>
-                    <div className="text-[10px] text-gray-500 text-center">
-                      {dayCalendarLeaves.length} leave(s)
-                    </div>
                   </div>
                 )}
+                {(() => {
+                  const dayTickets = getTicketsForDate(date);
+                  return dayTickets.length > 0 ? (
+                    <button
+                      className="mt-2 w-full px-2 py-1.5 rounded bg-green-600 text-white text-xs font-medium shadow-sm hover:shadow-md transition-all hover:bg-green-700"
+                      title={`View ${dayTickets.length} ticket(s)`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openTicketModal(date);
+                      }}
+                    >
+                          <div className="font-semibold text-center">
+                            {dayTickets.length > 1 ? `Tickets(${dayTickets.length})` : `Ticket(${dayTickets.length})`}
+                          </div>
+                    </button>
+                  ) : null;
+                })()}
               </div>
             );
             })}
@@ -892,7 +957,48 @@ const ManagerCalendar = ({ joinDate }) => {
         </div>
       </div>
     )}
-
+    
+    {/* Ticket Modal */}
+    {showTicketModal && (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-gray-800">Tickets</h3>
+              <button onClick={closeTicketModal} className="text-gray-500 hover:text-gray-700 text-2xl">×</button>
+            </div>
+            {selectedTickets.length === 0 ? (
+              <div className="text-center text-gray-500 py-8">No tickets for this date</div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm border">
+                  <thead className="bg-gray-100 text-gray-700">
+                    <tr>
+                      <th className="text-left px-4 py-2 border">Title</th>
+                      <th className="text-left px-4 py-2 border">Description</th>
+                      <th className="text-left px-4 py-2 border">Category</th>
+                      <th className="text-left px-4 py-2 border">Priority</th>
+                      <th className="text-left px-4 py-2 border">Due Date</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedTickets.map((t) => (
+                      <tr key={t.id} className="border-t">
+                        <td className="px-4 py-2 border">{t.title || '-'}</td>
+                        <td className="px-4 py-2 border">{t.description || '-'}</td>
+                        <td className="px-4 py-2 border">{t.category || t.ticket_category || '-'}</td>
+                        <td className="px-4 py-2 border">{t.priority || '-'}</td>
+                        <td className="px-4 py-2 border">{t.due_date ? formatDateDisplay(t.due_date) : '-'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    )}
     {/* Date Detail Modal */}
     {showDateDetail && selectedDate && (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">

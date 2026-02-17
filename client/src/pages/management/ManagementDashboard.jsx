@@ -777,23 +777,41 @@ function ManagementDashboard() {
 
   const getKpiValuesForFiscalYear = async () => {
     const fiscalKpis = await getKpisForFiscalYear();
-    if (!fiscalKpis.length) return [];
+    if (!fiscalKpis.length) {
+      //console.log('No fiscal KPIs found for fiscal year:', selectedFiscalYear);
+      return [];
+    }
 
-    const valueResponses = await Promise.all(
+    const valueResponses = await Promise.allSettled(
       fiscalKpis.map(kpi => api.get(`/kpi-values/kpi/${kpi.id}`))
     );
 
-    return valueResponses
-      .flatMap(res => res.data?.data || [])
+    const allValues = valueResponses
+      .filter(res => res.status === 'fulfilled')
+      .flatMap(res => res.value?.data?.data || [])
       .filter(Boolean);
+    
+    //console.log('Fetched KPI Values:', allValues.length, allValues.map(v => ({ id: v.id, data: v.data, kpi_id: v.kpi_id })));
+    
+    return allValues;
   };
 
   const findKpiValueByData = (values, matchers) => {
     const checks = Array.isArray(matchers) ? matchers : [matchers];
-    return values.find(value => {
+    const found = values.find(value => {
       const dataText = normalizeText(value?.data);
-      return checks.some(check => check(dataText));
+      const matches = checks.some(check => check(dataText));
+      if (matches) {
+        //console.log('✓ Found matching KPI value:', value.data, '(normalized:', dataText, ')');
+      }
+      return matches;
     });
+    
+    if (!found) {
+      //console.log('✗ No match found. Available data fields:', values.map(v => v.data));
+    }
+    
+    return found;
   };
 
   // Adjust selected fiscal year if outside available range
@@ -810,6 +828,10 @@ function ManagementDashboard() {
   useEffect(() => {
     const loadAllData = async () => {
       try {
+        // console.log('=== LOADING DASHBOARD ===');
+        // console.log('Selected Fiscal Year:', selectedFiscalYear);
+        // console.log('FISCAL_MONTH_SEQUENCE:', FISCAL_MONTH_SEQUENCE);
+        
         await fetchStatistics();
         await Promise.all([
           loadIndustry40Chart(),
@@ -850,8 +872,8 @@ function ManagementDashboard() {
         // Check if data is wrapped in another object (e.g., { data: [...] })
         const allKpis = Array.isArray(kpisData) ? kpisData : (Array.isArray(kpisData?.data) ? kpisData.data : []);
         
-        console.log('All KPIs:', allKpis.length, 'Selected Fiscal Year:', selectedFiscalYear);
-        console.log('Sample KPIs fin_year values:', allKpis.slice(0, 5).map(k => ({ title: k.title, fin_year: k.fin_year, type: typeof k.fin_year })));
+        // console.log('All KPIs:', allKpis.length, 'Selected Fiscal Year:', selectedFiscalYear);
+        // console.log('Sample KPIs fin_year values:', allKpis.slice(0, 5).map(k => ({ title: k.title, fin_year: k.fin_year, type: typeof k.fin_year })));
         
         // Extract unique available fiscal years from ALL KPIs
         const fiscalYears = allKpis
@@ -860,14 +882,14 @@ function ManagementDashboard() {
         
         if (fiscalYears.length > 0) {
           const uniqueYears = [...new Set(fiscalYears)].sort((a, b) => a - b);
-          console.log('Available fiscal years:', uniqueYears);
+          //console.log('Available fiscal years:', uniqueYears);
           setAvailableFiscalYears(uniqueYears);
         }
 
         // Filter KPIs by selected fiscal year - handle both string and number comparison
         const kpis = allKpis.filter(kpi => isFiscalYearMatch(kpi.fin_year, selectedFiscalYear));
         
-        console.log('Filtered KPIs for fiscal year', selectedFiscalYear, ':', kpis.length);
+        //console.log('Filtered KPIs for fiscal year', selectedFiscalYear, ':', kpis.length);
         
         setKpiStats({
           total: kpis.length
@@ -969,7 +991,7 @@ function ManagementDashboard() {
           const monthRow = rows.find(r => Number(r.month) === month && Number(r.year) === year);
           valuesByMonth.push(monthRow ? Number(monthRow.actual_value || 0) : 0);
         } catch (err) {
-          console.warn(`Failed to load data for month ${month}, year ${year}:`, err);
+          //console.warn(`Failed to load data for month ${month}, year ${year}:`, err);
           valuesByMonth.push(0);
         }
       }
@@ -978,7 +1000,7 @@ function ManagementDashboard() {
       const displayYear = `${FISCAL_MONTH_SEQUENCE[0].year}-${FISCAL_MONTH_SEQUENCE[FISCAL_MONTH_SEQUENCE.length - 1].year}`;
       setGreenFactoryChart({ title: `Environment (${displayYear})`, subtitle: 'Green Factory', labels, values: valuesByMonth });
     } catch (err) {
-      console.error('Failed to load Green Factory chart', err);
+      //console.error('Failed to load Green Factory chart', err);
       setGreenFactoryChart(null);
     } finally {
       setGreenFactoryLoading(false);
@@ -1065,17 +1087,20 @@ function ManagementDashboard() {
             params: { year }
           });
           const rows = resp.data?.data || [];
+          //console.log(`[On Time Delivery] Month ${month}/${year}: Rows returned:`, rows.length, rows.map(r => ({ month: r.month, year: r.year, actual_value: r.actual_value, target_value: r.target_value })));
           const monthRow = rows.find(r => Number(r.month) === month && Number(r.year) === year);
           if (monthRow) {
+            //console.log(`✓ Found data for month ${month}/${year}:`, monthRow);
             byMonth.push({ 
               actual: Number(monthRow.actual_value || 0), 
               target: Number(monthRow.target_value || 0) 
             });
           } else {
+            //console.warn(`✗ No data found for month ${month}/${year}`);
             byMonth.push({ actual: 0, target: 0 });
           }
         } catch (err) {
-          console.warn(`Failed to load data for month ${month}, year ${year}:`, err);
+          //console.warn(`Failed to load data for month ${month}, year ${year}:`, err.message);
           byMonth.push({ actual: 0, target: 0 });
         }
       }
@@ -1087,7 +1112,7 @@ function ManagementDashboard() {
 
       setOnTimeDeliveryChart({ title: `On Time Delivery (${displayYear})`, subtitle: 'Target vs Achieved', labels, actuals, targets });
     } catch (err) {
-      console.error('Failed to load On Time Delivery chart', err);
+      //console.error('Failed to load On Time Delivery chart', err);
       setOnTimeDeliveryChart(null);
     } finally {
       setOnTimeDeliveryLoading(false);
@@ -1107,7 +1132,7 @@ function ManagementDashboard() {
       );
       
       if (!themeValue) {
-        console.warn('KPI value not found for THEME OF THE YEAR');
+        //console.warn('KPI value not found for THEME OF THE YEAR');
         setThemeChart(null);
         return;
       }
@@ -1133,7 +1158,7 @@ function ManagementDashboard() {
       const displayYear = `${FISCAL_MONTH_SEQUENCE[0].year}-${FISCAL_MONTH_SEQUENCE[FISCAL_MONTH_SEQUENCE.length - 1].year}`;
       setThemeChart({ title: `Theme Of The Year ${displayYear}`, subtitle: 'Unlock The Power of You', labels, values: themeByMonth });
     } catch (err) {
-      console.error('Failed to load Theme chart', err);
+      //console.error('Failed to load Theme chart', err);
       setThemeChart(null);
     } finally { setThemeChartLoading(false); }
   };
@@ -1176,7 +1201,7 @@ function ManagementDashboard() {
       const labels = FISCAL_MONTH_SEQUENCE.map(entry => MONTH_LABELS[entry.month - 1]);
       setEmployeesChart({ title: 'No. of Employees Who Left', subtitle: 'Monthly Attrition', labels, values: employeesByMonth });
     } catch (err) {
-      console.error('Failed to load Employees chart', err);
+      //console.error('Failed to load Employees chart', err);
       setEmployeesChart(null);
     } finally { setEmployeesChartLoading(false); }
   };
@@ -1187,7 +1212,7 @@ function ManagementDashboard() {
       const fiscalValues = await getKpiValuesForFiscalYear();
       
       // Debug: log all KPI values to find the exact OPE data field
-      console.log('All fiscal KPI values:', fiscalValues.map(v => ({ id: v.id, data: v.data })));
+      //console.log('All fiscal KPI values:', fiscalValues.map(v => ({ id: v.id, data: v.data })));
       
       // Match "OVERALL PLANT EFFICIENCY (OPE)" exactly
       const opeValue = findKpiValueByData(
@@ -1195,10 +1220,10 @@ function ManagementDashboard() {
         (text) => text === 'overall plant efficiency (ope)'
       );
 
-      console.log('OPE KPI Value found:', opeValue);
+      //console.log('OPE KPI Value found:', opeValue);
 
       if (!opeValue) {
-        console.warn('OPE KPI value not found. Available:', fiscalValues.map(v => v.data));
+        //console.warn('OPE KPI value not found. Available:', fiscalValues.map(v => v.data));
         setMonthlyEfficiency([]);
         setSelectedFiscalIndex(0);
         return;
@@ -1213,21 +1238,21 @@ function ManagementDashboard() {
             params: { year }
           });
           const rows = resp.data?.data || [];
-          console.log(`Month ${month}/${year} - Data rows:`, rows);
+          //console.log(`Month ${month}/${year} - Data rows:`, rows);
           const monthRow = rows.find(r => Number(r.month) === month && Number(r.year) === year);
-          console.log(`Month ${month}/${year} - Matched row:`, monthRow);
+          //console.log(`Month ${month}/${year} - Matched row:`, monthRow);
           if (monthRow) {
             const target = Number(monthRow.target_value || 0);
             const actual = Number(monthRow.actual_value || 0);
             // If target is missing, assume actual is already a percent value.
             const efficiency = target > 0 ? Math.min(100, (actual / target) * 100) : Math.min(100, actual);
             efficiencyByIndex[idx] = Math.round(efficiency * 10) / 10;
-            console.log(`Month ${month}/${year} - Efficiency calculated: ${efficiencyByIndex[idx]}% (actual: ${actual}, target: ${target})`);
+            //console.log(`Month ${month}/${year} - Efficiency calculated: ${efficiencyByIndex[idx]}% (actual: ${actual}, target: ${target})`);
           } else {
             efficiencyByIndex[idx] = 0;
           }
         } catch (err) {
-          console.warn(`Failed to load efficiency for month ${month}, year ${year}:`, err);
+          //console.warn(`Failed to load efficiency for month ${month}, year ${year}:`, err);
           efficiencyByIndex[idx] = 0;
         }
       }
@@ -1241,7 +1266,7 @@ function ManagementDashboard() {
       setMonthlyEfficiency(monthly);
       setSelectedFiscalIndex(0);
     } catch (err) {
-      console.error('Failed to load plant efficiency', err);
+      //console.error('Failed to load plant efficiency', err);
     } finally {
       setEfficiencyLoading(false);
     }
@@ -1260,7 +1285,9 @@ function ManagementDashboard() {
   const handleKPITitleClick = (chartTitle) => {
     const kpiId = kpiIdMap[chartTitle];
     if (kpiId) {
-      navigate(`/management/kpi/${kpiId}`);
+      navigate(`/management/kpi/${kpiId}`, { 
+        state: { fiscalYear: selectedFiscalYear } 
+      });
     } else {
       console.warn(`No KPI ID found for chart title: ${chartTitle}`);
     }
@@ -1276,7 +1303,7 @@ function ManagementDashboard() {
       );
       
       if (!industry40Value) {
-        console.warn('KPI value not found for Industry 4.0');
+        //console.warn('KPI value not found for Industry 4.0');
         setIndustry40Chart(null);
         return;
       }
@@ -1319,7 +1346,7 @@ function ManagementDashboard() {
         targets,
       });
     } catch (err) {
-      console.error('Failed to load Industry 4.0 chart', err);
+      //console.error('Failed to load Industry 4.0 chart', err);
       setIndustry40Chart(null);
     } finally {
       setIndustry40Loading(false);
@@ -1336,7 +1363,7 @@ function ManagementDashboard() {
       );
       
       if (!qualityValue) {
-        console.warn('KPI value not found for ZERO QUALITY COMPLAINTS FROM CUSTOMERS');
+        //console.warn('KPI value not found for ZERO QUALITY COMPLAINTS FROM CUSTOMERS');
         setZeroQualityChart(null);
         return;
       }
@@ -1450,7 +1477,7 @@ function ManagementDashboard() {
       );
       
       if (!profitValue) {
-        console.warn('KPI value not found for PROFITABILITY AS PER LATEST P & L STATEMENT');
+        //console.warn('KPI value not found for PROFITABILITY AS PER LATEST P & L STATEMENT');
         setMonthlyProfitData([]);
         return;
       }

@@ -4,8 +4,11 @@ const pool = require('../config/db');
 exports.getAllKPIs = async () => {
   try {
     const result = await pool.query(
-      `SELECT id, title, category_id, parent_kpi_id, fin_year, created_at, updated_at
-       FROM kpis ORDER BY created_at DESC`
+      `SELECT k.id, k.title, k.category_id, k.parent_kpi_id, k.fin_year,
+              c.category_name, k.created_at, k.updated_at
+       FROM kpis k
+       LEFT JOIN categories c ON k.category_id = c.id
+       ORDER BY k.created_at DESC`
     );
     return result.rows;
   } catch (error) {
@@ -18,8 +21,11 @@ exports.getAllKPIs = async () => {
 exports.getKPIById = async (id) => {
   try {
     const result = await pool.query(
-      `SELECT id, title, category_id, parent_kpi_id, fin_year, created_at, updated_at
-       FROM kpis WHERE id = $1`,
+      `SELECT k.id, k.title, k.category_id, k.parent_kpi_id, k.fin_year, 
+              c.category_name, k.created_at, k.updated_at
+       FROM kpis k
+       LEFT JOIN categories c ON k.category_id = c.id
+       WHERE k.id = $1`,
       [id]
     );
     return result.rows[0];
@@ -33,8 +39,11 @@ exports.getKPIById = async (id) => {
 exports.getKPIsByCategory = async (categoryId) => {
   try {
     const result = await pool.query(
-      `SELECT id, title, category_id, parent_kpi_id, fin_year, created_at, updated_at
-       FROM kpis WHERE category_id = $1 ORDER BY created_at DESC`,
+      `SELECT k.id, k.title, k.category_id, k.parent_kpi_id, k.fin_year,
+              c.category_name, k.created_at, k.updated_at
+       FROM kpis k
+       LEFT JOIN categories c ON k.category_id = c.id
+       WHERE k.category_id = $1 ORDER BY k.created_at DESC`,
       [categoryId]
     );
     return result.rows;
@@ -48,8 +57,11 @@ exports.getKPIsByCategory = async (categoryId) => {
 exports.getKPIsByFinYear = async (finYear) => {
   try {
     const result = await pool.query(
-      `SELECT id, title, category_id, parent_kpi_id, fin_year, created_at, updated_at
-       FROM kpis WHERE fin_year = $1 ORDER BY created_at DESC`,
+      `SELECT k.id, k.title, k.category_id, k.parent_kpi_id, k.fin_year,
+              c.category_name, k.created_at, k.updated_at
+       FROM kpis k
+       LEFT JOIN categories c ON k.category_id = c.id
+       WHERE k.fin_year = $1 ORDER BY k.created_at DESC`,
       [finYear]
     );
     return result.rows;
@@ -144,8 +156,11 @@ exports.hasChildren = async (id) => {
 exports.getChildKPIs = async (parentId) => {
   try {
     const result = await pool.query(
-      `SELECT id, title, category_id, parent_kpi_id, fin_year, created_at, updated_at
-       FROM kpis WHERE parent_kpi_id = $1 ORDER BY created_at DESC`,
+      `SELECT k.id, k.title, k.category_id, k.parent_kpi_id, k.fin_year,
+              c.category_name, k.created_at, k.updated_at
+       FROM kpis k
+       LEFT JOIN categories c ON k.category_id = c.id
+       WHERE k.parent_kpi_id = $1 ORDER BY k.created_at DESC`,
       [parentId]
     );
     return result.rows;

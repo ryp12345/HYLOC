@@ -12,7 +12,6 @@ export default function MgtKmiDetail() {
   const [units, setUnits] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [expandedRows, setExpandedRows] = useState({});
   const [monthlyData, setMonthlyData] = useState({});
   const [overallStats, setOverallStats] = useState(null);
 
@@ -24,15 +23,21 @@ export default function MgtKmiDetail() {
           const kmiResponse = await axios.get(`/kpis/${id}`);
           setKmi(kmiResponse.data.data);
         }
+        
         const valuesResponse = await axios.get(`/kpi-values?kpi_id=${id}`);
         setKpiValues(valuesResponse.data.data || []);
+        
         const pillersRes = await axios.get('/pillers');
         setPillers(pillersRes.data.data || []);
+        
         const unitsRes = await axios.get('/unit-master');
         setUnits(unitsRes.data.data || []);
+        
         setError('');
       } catch (err) {
-        setError('Failed to load KMI details');
+        const errorMsg = err.response?.data?.message || err.response?.data?.error || err.message;
+        const status = err.response?.status;
+        setError(`Failed to load KMI details: ${errorMsg} (Status: ${status || 'Network Error'})`);
       } finally {
         setLoading(false);
       }
@@ -41,16 +46,56 @@ export default function MgtKmiDetail() {
     // eslint-disable-next-line
   }, [id]);
 
+  // Transform API data from long format to wide format
+  const transformMonthlyData = (apiData) => {
+    if (!apiData || apiData.length === 0) return [];
+    
+    // Group by month and year
+    const grouped = {};
+    apiData.forEach(item => {
+      const key = `${item.year}-${item.month}`;
+      if (!grouped[key]) {
+        grouped[key] = { month: item.month, year: item.year };
+      }
+      
+      // value_type can be 'Target' or 'Achieved' (transformed by backend) or 'target'/'actual' (raw)
+      const valueType = item.value_type.toLowerCase();
+      if (valueType === 'target') {
+        grouped[key].target_value = parseFloat(item.value);
+      } else if (valueType === 'actual' || valueType === 'achieved') {
+        grouped[key].actual_value = parseFloat(item.value);
+      }
+    });
+    
+    // Convert to array and sort by year and month
+    return Object.values(grouped).sort((a, b) => {
+      if (a.year !== b.year) return a.year - b.year;
+      return a.month - b.month;
+    });
+  };
+
+  // Extract year from financial year format (e.g., "2025-26" -> 2025)
+  const getYearParam = (finYear) => {
+    if (!finYear) return null;
+    // If fin_year is "2025-26", extract first year
+    // If it's already a number like 2025, return as is
+    if (typeof finYear === 'number') return finYear;
+    const match = String(finYear).match(/^(\d{4})/);
+    return match ? parseInt(match[1]) : null;
+  };
+
   // Load all monthly data for overview stats
   useEffect(() => {
     const loadOverviewStats = async () => {
       if (!kpiValues.length || !kmi?.fin_year) return;
 
       try {
+        const yearParam = getYearParam(kmi.fin_year);
         const dataPromises = kpiValues.map(async (value) => {
           try {
-            const response = await axios.get(`/kpi-values/${value.id}/monthly-data/${kmi.fin_year}`);
-            return { valueId: value.id, data: response.data.data || [] };
+            const response = await axios.get(`/kpi-data-values/${value.id}/monthly`, { params: { year: yearParam } });
+            const transformedData = transformMonthlyData(response.data.data || []);
+            return { valueId: value.id, data: transformedData };
           } catch {
             return { valueId: value.id, data: [] };
           }
@@ -96,7 +141,7 @@ export default function MgtKmiDetail() {
           });
         }
       } catch (err) {
-        console.error('Failed to load overview stats:', err);
+        // Silently handle errors in loading monthly data
       }
     };
 
@@ -108,22 +153,6 @@ export default function MgtKmiDetail() {
   const getUnitName = (unitId) => {
     if (unitId == null) return 'N/A';
     return units.find((u) => String(u.id) === String(unitId))?.unit_name || String(unitId);
-  };
-
-  const toggleRow = async (valueId) => {
-    const isExpanded = expandedRows[valueId];
-    setExpandedRows((prev) => ({ ...prev, [valueId]: !isExpanded }));
-
-    // Fetch monthly data if not already loaded
-    if (!isExpanded && monthlyData[valueId] === undefined && kmi?.fin_year) {
-      try {
-        const response = await axios.get(`/kpi-values/${valueId}/monthly-data/${kmi.fin_year}`);
-        setMonthlyData((prev) => ({ ...prev, [valueId]: response.data.data || [] }));
-      } catch (err) {
-        console.error('Failed to load monthly data:', err);
-        setMonthlyData((prev) => ({ ...prev, [valueId]: [] }));
-      }
-    }
   };
 
   const getMonthName = (month) => {
@@ -336,9 +365,9 @@ export default function MgtKmiDetail() {
               <table className="w-full">
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider w-10"></th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Type</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Data</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Data Operator</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Unit of Measurement</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Piller</th>
                     <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">Target Required</th>
@@ -350,16 +379,16 @@ export default function MgtKmiDetail() {
                     const valueInsights = monthlyData[value.id] ? calculateInsights(monthlyData[value.id], value.target_required) : null;
                     return (
                     <React.Fragment key={value.id}>
-                      <tr className="hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => toggleRow(value.id)}>
-                        <td className="px-4 py-3 text-sm text-gray-500">
-                          <span className={`transform transition-transform ${expandedRows[value.id] ? 'rotate-90' : ''}`}>▶</span>
-                        </td>
+                      <tr className="bg-gray-50 border-b-2 border-gray-300">
                         <td className="px-4 py-3 text-sm text-gray-800">
                           <span className="inline-block px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-medium">
                             {value.kpi_type || 'manual'}
                           </span>
                         </td>
                         <td className="px-4 py-3 text-sm font-medium text-gray-900">{value.data}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">
+                          {value.operator_name ? `${value.operator_name} (${value.operator_empid})` : '-'}
+                        </td>
                         <td className="px-4 py-3 text-sm text-gray-600">{getUnitName(value.uom)}</td>
                         <td className="px-4 py-3 text-sm text-gray-600">{getPillerName(value.piller_id)}</td>
                         <td className="px-4 py-3 text-sm text-center">
@@ -406,21 +435,53 @@ export default function MgtKmiDetail() {
                           ) : monthlyData[value.id] !== undefined ? (
                             <span className="text-xs text-gray-400">No data</span>
                           ) : (
-                            <span className="text-xs text-gray-400">Click to load</span>
+                            <span className="text-xs text-gray-400">Loading...</span>
                           )}
                         </td>
                       </tr>
-                      {expandedRows[value.id] && (
-                        <tr>
-                          <td colSpan="6" className="px-4 py-4 bg-gray-50">
-                            <div className="pl-8">
-                              <h4 className="text-sm font-semibold text-gray-700 mb-4">
-                                Analytics for Financial Year {kmi?.fin_year || 'N/A'}
+                      <tr>
+                        <td colSpan="7" className="px-0 py-0 bg-gradient-to-r from-gray-50 to-blue-50">
+                            <div className="px-8 py-6">
+                              <h4 className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
+                                📊 Analytics for Financial Year {kmi?.fin_year || 'N/A'}
                               </h4>
                               {monthlyData[value.id] === undefined ? (
-                                <div className="text-sm text-gray-500">Loading analytics...</div>
+                                <div className="flex items-center justify-center py-8">
+                                  <div className="text-sm text-blue-600 bg-blue-100 px-4 py-2 rounded-lg">
+                                    <span className="animate-pulse">⏳ Loading analytics data...</span>
+                                  </div>
+                                </div>
                               ) : monthlyData[value.id]?.length === 0 ? (
-                                <div className="text-sm text-gray-500">No data available for analysis.</div>
+                                <div className="bg-amber-50 border-l-4 border-amber-400 p-6 rounded-r-lg shadow-sm">
+                                  <div className="flex items-start gap-3">
+                                    <div className="text-3xl">📋</div>
+                                    <div>
+                                      <h5 className="text-base font-bold text-amber-800 mb-2">No Monthly Data Available</h5>
+                                      <p className="text-sm text-gray-700 mb-3">
+                                        No monthly performance data has been entered for this KPI in financial year <strong>{kmi?.fin_year || 'N/A'}</strong>.
+                                      </p>
+                                      <div className="bg-white rounded p-3 border border-amber-200">
+                                        <p className="text-sm text-gray-600 mb-2">
+                                          <strong>To see analytics and insights:</strong>
+                                        </p>
+                                        <ul className="text-sm text-gray-600 space-y-1 ml-4 list-disc">
+                                          {value.target_required ? (
+                                            <>
+                                              <li>Enter both <strong>target values</strong> and <strong>actual values</strong> for each month</li>
+                                              <li>Analytics will show achievement %, trends, and variance analysis</li>
+                                            </>
+                                          ) : (
+                                            <>
+                                              <li>Enter <strong>actual values</strong> for each month</li>
+                                              <li>Analytics will show trends and statistical summaries</li>
+                                            </>
+                                          )}
+                                          <li>Data can be entered through the KPI data entry interface</li>
+                                        </ul>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
                               ) : (
                                 <>
                                   {(() => {
@@ -652,7 +713,6 @@ export default function MgtKmiDetail() {
                             </div>
                           </td>
                         </tr>
-                      )}
                     </React.Fragment>
                   );
                   })}

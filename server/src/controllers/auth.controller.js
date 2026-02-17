@@ -165,7 +165,7 @@ exports.requestPasswordReset = async (req, res) => {
               </div>
               <p style="margin:0 0 16px;">To complete your password reset, open the Hyloc password reset page and enter the 6-digit verification code shown above.</p>
               <p style="margin:0 0 12px;">If you did not request a password reset, you may safely ignore this email.</p>
-              <p style="font-size:12px;color:#6b7280;margin:12px 0 0;">For security reasons, do not share this code with anyone. This code will expire after 5 minutes.</p>
+              <p style="font-size:12px;color:#6b7280;margin:12px 0 0;">For security reasons,please do not share this code with anyone. This code will expire after 5 minutes.</p>
               <p style="margin:18px 0 0;">Regards,<br/><br/>Hyloc Support Team</p>
             </div>
           </body>
@@ -176,12 +176,12 @@ exports.requestPasswordReset = async (req, res) => {
     } catch (mailErr) {
       console.error('Error sending OTP email:', mailErr);
       // Continue and return generic success to the client (prevent enumeration)
-      const data = process.env.NODE_ENV === 'development' ? { resetToken, otp } : { resetToken };
+      const data = process.env.NODE_ENV === 'development' ? { resetToken, otp } : {};
       return sendSuccess(res, data, 'OTP sent to your email for password reset.', 200);
     }
 
-    // In dev, return OTP for testing
-    const data = process.env.NODE_ENV === 'development' ? { resetToken, otp } : { resetToken };
+    // In dev, return OTP/resetToken for testing. In production return no token to avoid leaking it to clients.
+    const data = process.env.NODE_ENV === 'development' ? { resetToken, otp } : {};
     return sendSuccess(res, data, 'OTP sent to your email for password reset.', 200);
   } catch (error) {
     console.error('Request password reset error:', error);

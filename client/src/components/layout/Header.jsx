@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import ChangePasswordModal from '../../pages/auth/ChangePassword';
 import ViewAllNotification from '../common/ViewAllNotification';
+import NotificationDetail from '../common/NotificationDetail';
 import { getNotifications, markNotificationAsRead } from '../../api/notificationApi';
 
 const Navbar = () => {
@@ -14,6 +15,8 @@ const Navbar = () => {
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showAllNotifications, setShowAllNotifications] = useState(false);
+  const [selectedNotification, setSelectedNotification] = useState(null);
+  const [showNotificationDetail, setShowNotificationDetail] = useState(false);
 
   // Ref for notification and profile dropdowns
   const notificationRef = useRef(null);
@@ -82,9 +85,9 @@ const Navbar = () => {
             <img
               src="/hyloc-logo.png"
               alt="Hyloc logo"
-              className="h-12 w-12"
+              className="h-10 w-12 sm:h-11 sm:w-14"
             />
-            <h1 className="text-3xl font-bold">Hyloc Hydrotechnic Pvt Ltd</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold">Hyloc Hydrotechnic Pvt Ltd</h1>
           </div>
 
           {/* User Info & Menu - Right aligned */}
@@ -144,12 +147,37 @@ const Navbar = () => {
                           onClick={async () => {
                             if (!n.is_read) {
                               await markNotificationAsRead(n.id);
-                              fetchNotifications();
+                              await fetchNotifications();
                             }
+                            setSelectedNotification(n);
+                            setShowNotificationDetail(true);
                           }}
                         >
-                          <div>{n.message}</div>
-                          <div className="text-xs text-gray-400 mt-1">{new Date(n.created_at).toLocaleString()}</div>
+                          <div>
+                            {(() => {
+                              const normalized = (n.message || '').replace(/\s+Title:/i, '\nTitle:').replace(/\s+Description:/i, '\nDescription:');
+                              const lines = normalized.split('\n').map(l => l.trim()).filter(Boolean);
+                              const initialLineRaw = lines.find(l => /you were assigned/i.test(l)) || lines[0] || '';
+                              const initialSentence = (() => {
+                                if (!initialLineRaw) return '';
+                                const idx = initialLineRaw.indexOf('.');
+                                if (idx !== -1) return initialLineRaw.slice(0, idx + 1).trim();
+                                return initialLineRaw;
+                              })();
+                              const titleLine = lines.find(l => l.toLowerCase().startsWith('title:'));
+                              const descLine = lines.find(l => l.toLowerCase().startsWith('description:'));
+                              const titleText = titleLine ? titleLine.split(':').slice(1).join(':').trim() : (lines[1] || '');
+                              const descText = descLine ? descLine.split(':').slice(1).join(':').trim() : (lines.filter(l => l !== titleLine && l !== initialLineRaw)[1] || lines.slice(2).join(' '));
+                              return (
+                                <>
+                                  {initialSentence ? <div className="text-sm text-gray-800">{initialSentence}</div> : null}
+                                  {titleText ? <div className="font-medium mt-1 truncate max-w-[18rem]">{`Title: ${titleText}`}</div> : null}
+                                  {descText ? <div className="text-sm text-gray-600 truncate max-w-[18rem] mt-1">{`Description: ${descText}`}</div> : null}
+                                  <div className="text-xs text-gray-400 mt-1">{new Date(n.created_at).toLocaleString()}</div>
+                                </>
+                              );
+                            })()}
+                          </div>
                         </div>
                       ))}
                       {/* View All button moved to header */}
@@ -273,6 +301,7 @@ const Navbar = () => {
 
         {/* Change Password Modal */}
         <ChangePasswordModal isOpen={isChangePwdOpen} onClose={() => setIsChangePwdOpen(false)} />
+        <NotificationDetail show={showNotificationDetail} notification={selectedNotification} onClose={() => { setShowNotificationDetail(false); setSelectedNotification(null); }} />
       </div>
     </nav>
   );

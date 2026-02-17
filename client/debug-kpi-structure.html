@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KPI Structure Debugger</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background: #f5f5f5; }
+        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        h1 { color: #333; }
+        .debug-section { margin: 20px 0; padding: 15px; background: #f9f9f9; border-left: 4px solid #4CAF50; border-radius: 4px; }
+        .debug-section h3 { margin-top: 0; color: #4CAF50; }
+        button { background: #4CAF50; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-size: 16px; }
+        button:hover { background: #45a049; }
+        pre { background: #2d2d2d; color: #f8f8f2; padding: 15px; border-radius: 4px; overflow-x: auto; }
+        .error { color: red; }
+        .success { color: green; }
+        .warning { color: orange; }
+        input { padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-right: 10px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 KPI Structure Debugger</h1>
+        <p>This tool helps diagnose why Plant Efficiency KPIs aren't showing up.</p>
+        
+        <div class="debug-section">
+            <h3>Step 1: Check All KPIs</h3>
+            <button onclick="loadAllKPIs()">Load All KPIs</button>
+            <div id="all-kpis-result"></div>
+        </div>
+
+        <div class="debug-section">
+            <h3>Step 2: Find Plant Efficiency KPI ID</h3>
+            <input type="text" id="search-text" placeholder="Enter KPI name (e.g., Plant Efficiency)" value="Plant Efficiency">
+            <button onclick="searchKPI()">Search KPI</button>
+            <div id="search-result"></div>
+        </div>
+
+        <div class="debug-section">
+            <h3>Step 3: Check Child KPIs</h3>
+            <input type="number" id="parent-id" placeholder="Enter Parent KPI ID">
+            <button onclick="loadChildKPIs()">Load Child KPIs</button>
+            <div id="child-kpis-result"></div>
+        </div>
+
+        <div class="debug-section">
+            <h3>Step 4: Check KPI by Parent ID</h3>
+            <p>Find all KPIs that have a specific parent_kpi_id:</p>
+            <input type="number" id="check-parent-id" placeholder="Enter Parent KPI ID">
+            <button onclick="checkKPIsByParent()">Find KPIs with this Parent</button>
+            <div id="parent-check-result"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin.replace('5173', '3000');
+        
+        async function loadAllKPIs() {
+            const resultDiv = document.getElementById('all-kpis-result');
+            resultDiv.innerHTML = '<p>Loading...</p>';
+            try {
+                const response = await fetch(`${API_BASE}/api/kpis`);
+                const data = await response.json();
+                const kpis = data.data || data;
+                
+                // Filter for Plant/Efficiency related KPIs
+                const relevantKPIs = kpis.filter(k => 
+                    k.title.toLowerCase().includes('plant') || 
+                    k.title.toLowerCase().includes('efficiency') ||
+                    k.title.toLowerCase().includes('ope') ||
+                    k.title.toLowerCase().includes('availability') ||
+                    k.title.toLowerCase().includes('performance') ||
+                    k.title.toLowerCase().includes('quality')
+                );
+                
+                resultDiv.innerHTML = `
+                    <p class="success">✅ Found ${kpis.length} total KPIs</p>
+                    <p class="success">🎯 Found ${relevantKPIs.length} relevant KPIs (Plant/Efficiency/OPE related)</p>
+                    <pre>${JSON.stringify(relevantKPIs.map(k => ({
+                        id: k.id,
+                        title: k.title,
+                        parent_kpi_id: k.parent_kpi_id,
+                        fin_year: k.fin_year,
+                        category_id: k.category_id
+                    })), null, 2)}</pre>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `<p class="error">❌ Error: ${error.message}</p>`;
+            }
+        }
+
+        async function searchKPI() {
+            const searchText = document.getElementById('search-text').value;
+            const resultDiv = document.getElementById('search-result');
+            resultDiv.innerHTML = '<p>Searching...</p>';
+            try {
+                const response = await fetch(`${API_BASE}/api/kpis`);
+                const data = await response.json();
+                const kpis = data.data || data;
+                
+                const matches = kpis.filter(k => 
+                    k.title.toLowerCase().includes(searchText.toLowerCase())
+                );
+                
+                if (matches.length === 0) {
+                    resultDiv.innerHTML = `<p class="warning">⚠️ No KPIs found matching "${searchText}"</p>`;
+                } else {
+                    resultDiv.innerHTML = `
+                        <p class="success">✅ Found ${matches.length} matching KPI(s)</p>
+                        <pre>${JSON.stringify(matches.map(k => ({
+                            id: k.id,
+                            title: k.title,
+                            parent_kpi_id: k.parent_kpi_id,
+                            fin_year: k.fin_year,
+                            category_id: k.category_id
+                        })), null, 2)}</pre>
+                        <p><strong>💡 Tip:</strong> Use the ID above in Step 3 to load child KPIs</p>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<p class="error">❌ Error: ${error.message}</p>`;
+            }
+        }
+
+        async function loadChildKPIs() {
+            const parentId = document.getElementById('parent-id').value;
+            const resultDiv = document.getElementById('child-kpis-result');
+            
+            if (!parentId) {
+                resultDiv.innerHTML = '<p class="warning">⚠️ Please enter a Parent KPI ID</p>';
+                return;
+            }
+            
+            resultDiv.innerHTML = '<p>Loading...</p>';
+            try {
+                const response = await fetch(`${API_BASE}/api/kpis/${parentId}/children`);
+                const data = await response.json();
+                const children = data.data || data;
+                
+                if (children.length === 0) {
+                    resultDiv.innerHTML = `
+                        <p class="warning">⚠️ No child KPIs found for parent ID ${parentId}</p>
+                        <p><strong>This means:</strong></p>
+                        <ul>
+                            <li>Either no KPIs have parent_kpi_id = ${parentId}</li>
+                            <li>Or the child KPIs are in a different fiscal year</li>
+                        </ul>
+                        <p>Use Step 4 to verify if any KPIs reference this as parent.</p>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <p class="success">✅ Found ${children.length} child KPI(s)</p>
+                        <pre>${JSON.stringify(children.map(k => ({
+                            id: k.id,
+                            title: k.title,
+                            parent_kpi_id: k.parent_kpi_id,
+                            fin_year: k.fin_year,
+                            category_id: k.category_id
+                        })), null, 2)}</pre>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<p class="error">❌ Error: ${error.message}</p>`;
+            }
+        }
+
+        async function checkKPIsByParent() {
+            const parentId = document.getElementById('check-parent-id').value;
+            const resultDiv = document.getElementById('parent-check-result');
+            
+            if (!parentId) {
+                resultDiv.innerHTML = '<p class="warning">⚠️ Please enter a Parent KPI ID</p>';
+                return;
+            }
+            
+            resultDiv.innerHTML = '<p>Searching entire KPI database...</p>';
+            try {
+                const response = await fetch(`${API_BASE}/api/kpis`);
+                const data = await response.json();
+                const kpis = data.data || data;
+                
+                const childrenByParent = kpis.filter(k => k.parent_kpi_id == parentId);
+                
+                if (childrenByParent.length === 0) {
+                    resultDiv.innerHTML = `
+                        <p class="error">❌ No KPIs found with parent_kpi_id = ${parentId}</p>
+                        <p><strong>Diagnosis:</strong></p>
+                        <ul>
+                            <li>The three sub-KPIs (Availability, Performance, Quality) don't have their parent_kpi_id set to ${parentId}</li>
+                            <li>They might exist but parent_kpi_id is NULL or pointing to a different parent</li>
+                        </ul>
+                        <p><strong>Solution:</strong> Update the database to set parent_kpi_id = ${parentId} for the three sub-KPIs</p>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <p class="success">✅ Found ${childrenByParent.length} KPI(s) with parent_kpi_id = ${parentId}</p>
+                        <pre>${JSON.stringify(childrenByParent.map(k => ({
+                            id: k.id,
+                            title: k.title,
+                            parent_kpi_id: k.parent_kpi_id,
+                            fin_year: k.fin_year,
+                            category_id: k.category_id
+                        })), null, 2)}</pre>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<p class="error">❌ Error: ${error.message}</p>`;
+            }
+        }
+    </script>
+</body>
+</html>

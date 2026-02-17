@@ -54,6 +54,12 @@ exports.getTicketById = async (id) => {
   return result.rows[0];
 };
 
+// Get tickets created by a specific user
+exports.getTicketsByUserId = async (userId) => {
+  const result = await pool.query('SELECT * FROM tickets WHERE user_id = $1 ORDER BY created_at DESC', [userId]);
+  return result.rows;
+};
+
 // Update ticket
 exports.updateTicket = async (id, data) => {
   const fields = [];

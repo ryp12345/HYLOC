@@ -1,159 +1,655 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { getKPIById, getChildKPIs, getKPIValuesByKPI, getMonthlyDataByKPIValue } from '../../api/kpiApi';
 import { useAuth } from '../../context/AuthContext';
+
+const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const FISCAL_MONTHS = [4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2, 3]; // April to March
 
 const KPIDetailPage = () => {
   const { kpiId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
 
+  // Helper to get current fiscal year
+  const getCurrentFiscalYear = () => {
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1; // 1-12
+    // If we're in Jan-Mar, the fiscal year started last year
+    return currentMonth >= 4 ? currentYear : currentYear - 1;
+  };
+
   const [parentKPI, setParentKPI] = useState(null);
-  const [childKPIs, setChildKPIs] = useState([]);
-  const [kpiDataMap, setKpiDataMap] = useState({});
+  const [parentKPIValues, setParentKPIValues] = useState([]);
+  const [parentMonthlyData, setParentMonthlyData] = useState({});
+  const [hierarchyData, setHierarchyData] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-  const [analytics, setAnalytics] = useState({});
+  const [fiscalYear, setFiscalYear] = useState(location.state?.fiscalYear || getCurrentFiscalYear());
+  const [expandedNodes, setExpandedNodes] = useState(new Set([parseInt(kpiId)]));
+  const [managementInsights, setManagementInsights] = useState(null);
 
   useEffect(() => {
-    loadKPIDetails();
-  }, [kpiId, selectedYear]);
+    loadKPIHierarchy();
+  }, [kpiId, fiscalYear]);
 
-  const loadKPIDetails = async () => {
+  // Get fiscal month sequence with year info
+  const getFiscalMonthSequence = (fiscalYear) => {
+    return FISCAL_MONTHS.map(month => ({
+      month,
+      year: month >= 4 ? fiscalYear : fiscalYear + 1,
+      label: MONTH_LABELS[month - 1]
+    }));
+  };
+
+  // Recursively load KPI hierarchy
+  const loadKPIHierarchy = async () => {
     try {
       setLoading(true);
 
       // Load parent KPI
       const kpiRes = await getKPIById(kpiId);
-      setParentKPI(kpiRes.data.data);
+      const parentKPIData = kpiRes.data.data;
+      setParentKPI(parentKPIData);
+      console.log('📊 Parent KPI loaded:', parentKPIData.title, 'ID:', parentKPIData.id);
 
-      // Load child KPIs
-      const childRes = await getChildKPIs(kpiId);
-      setChildKPIs(childRes.data.data);
-
-      // Load data for each child KPI
-      const dataMap = {};
-      for (const childKPI of childRes.data.data) {
-        const valuesRes = await getKPIValuesByKPI(childKPI.id);
-        const values = valuesRes.data.data;
-
-        // Load monthly data for each KPI value
-        const monthlyData = {};
-        for (const value of values) {
-          const dataRes = await getMonthlyDataByKPIValue(value.id, selectedYear);
-          monthlyData[value.id] = dataRes.data.data;
+      // Load full hierarchy
+      const hierarchy = await loadKPITreeRecursive(kpiId, 1);
+      console.log('📊 Hierarchy loaded:', hierarchy.length, 'child KPIs found');
+      
+      // Auto-expand first level of child KPIs
+      if (hierarchy.length > 0) {
+        const newExpandedNodes = new Set([parseInt(kpiId)]);
+        hierarchy.forEach(node => {
+          newExpandedNodes.add(node.kpi.id);
+          console.log(`🔓 Auto-expanding child KPI: ${node.kpi.title} (ID: ${node.kpi.id})`);
+        });
+        setExpandedNodes(newExpandedNodes);
+      } else {
+        // If no child KPIs, load parent KPI's own values
+        console.log('⚠️ No child KPIs found. Loading parent KPI values...');
+        try {
+          const valuesRes = await getKPIValuesByKPI(kpiId);
+          const parentValues = valuesRes.data.data || [];
+          console.log('📊 Parent KPI has', parentValues.length, 'values:', parentValues.map(v => v.data));
+          setParentKPIValues(parentValues);
+          
+          // Load monthly data for parent KPI values
+          const monthlyDataByValue = {};
+          for (const value of parentValues) {
+            try {
+              const allMonthlyData = [];
+              
+              // Get data for first calendar year (April-December)
+              try {
+                const dataRes1 = await getMonthlyDataByKPIValue(value.id, fiscalYear);
+                if (dataRes1.data.data && Array.isArray(dataRes1.data.data)) {
+                  allMonthlyData.push(...dataRes1.data.data);
+                }
+              } catch (err) {
+                // No data available for this year
+              }
+              
+              // Get data for second calendar year (January-March)
+              try {
+                const dataRes2 = await getMonthlyDataByKPIValue(value.id, fiscalYear + 1);
+                if (dataRes2.data.data && Array.isArray(dataRes2.data.data)) {
+                  allMonthlyData.push(...dataRes2.data.data);
+                }
+              } catch (err) {
+                // No data available for this year
+              }
+              
+              monthlyDataByValue[value.id] = allMonthlyData;
+            } catch (error) {
+              console.error(`Error loading data for parent KPI value ${value.id}:`, error);
+              monthlyDataByValue[value.id] = [];
+            }
+          }
+          setParentMonthlyData(monthlyDataByValue);
+        } catch (error) {
+          console.error('Error loading parent KPI values:', error);
         }
-
-        dataMap[childKPI.id] = {
-          values,
-          monthlyData,
-        };
       }
+      
+      setHierarchyData(hierarchy);
 
-      setKpiDataMap(dataMap);
-      generateAnalytics(childRes.data.data, dataMap);
+      // Generate comprehensive management insights
+      const insights = generateManagementInsights(hierarchy);
+      setManagementInsights(insights);
+
     } catch (error) {
-      console.error('Error loading KPI details:', error);
+      console.error('Error loading KPI hierarchy:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const generateAnalytics = (childKPIs, dataMap) => {
-    const analyticsData = {};
+  // Recursive function to load entire KPI tree
+  const loadKPITreeRecursive = async (kpiId, level) => {
+    try {
+      // Load children
+      console.log(`🔍 Loading children for KPI ID ${kpiId} at level ${level}`);
+      const childRes = await getChildKPIs(kpiId);
+      const children = childRes.data.data;
+      console.log(`✅ Found ${children.length} child KPIs:`, children.map(c => ({ id: c.id, title: c.title })));
 
-    for (const kpi of childKPIs) {
-      const kpiData = dataMap[kpi.id];
-      if (!kpiData) continue;
+      if (children.length === 0) {
+        console.log(`⚠️ No child KPIs found for KPI ID ${kpiId}`);
+        return [];
+      }
 
-      const insights = [];
-      let overallTrend = 'STABLE';
-      let performanceStatus = 'NEUTRAL';
+      // Load data for each child
+      const hierarchyItems = [];
+      for (const child of children) {
+        console.log(`  📄 Processing child KPI: ${child.title} (ID: ${child.id})`);
+        
+        // Load KPI values
+        const valuesRes = await getKPIValuesByKPI(child.id);
+        const values = valuesRes.data.data;
+        console.log(`    📊 Found ${values.length} KPI values:`, values.map(v => v.data));
 
-      // Analyze each KPI value
-      for (const value of kpiData.values) {
-        const monthlyValues = kpiData.monthlyData[value.id] || [];
+        // Load monthly data for each KPI value
+        // Fiscal year spans two calendar years: Apr-Dec of fiscalYear, Jan-Mar of fiscalYear+1
+        const monthlyDataByValue = {};
 
-        if (monthlyValues.length === 0) {
-          insights.push(`No data available for ${value.data}`);
-          continue;
+        for (const value of values) {
+          try {
+            const allMonthlyData = [];
+            
+            // Get data for first calendar year (April-December)
+            try {
+              const dataRes1 = await getMonthlyDataByKPIValue(value.id, fiscalYear);
+              if (dataRes1.data.data && Array.isArray(dataRes1.data.data)) {
+                allMonthlyData.push(...dataRes1.data.data);
+              }
+            } catch (err) {
+              // No data available for this year
+            }
+            
+            // Get data for second calendar year (January-March)
+            try {
+              const dataRes2 = await getMonthlyDataByKPIValue(value.id, fiscalYear + 1);
+              if (dataRes2.data.data && Array.isArray(dataRes2.data.data)) {
+                allMonthlyData.push(...dataRes2.data.data);
+              }
+            } catch (err) {
+              // No data available for this year
+            }
+            
+            monthlyDataByValue[value.id] = allMonthlyData;
+          } catch (error) {
+            console.error(`Error loading data for KPI value ${value.id}:`, error);
+            monthlyDataByValue[value.id] = [];
+          }
         }
 
-        // Separate actual and target values
-        const actuals = monthlyValues
-          .filter((d) => d.value_type === 'Achieved')
-          .sort((a, b) => a.month - b.month);
+        // Recursively load children
+        const grandChildren = await loadKPITreeRecursive(child.id, level + 1);
 
-        const targets = monthlyValues
-          .filter((d) => d.value_type === 'Target')
-          .sort((a, b) => a.month - b.month);
+        hierarchyItems.push({
+          kpi: child,
+          level,
+          values,
+          monthlyData: monthlyDataByValue,
+          children: grandChildren,
+        });
+      }
 
-        if (actuals.length > 0) {
+      return hierarchyItems;
+    } catch (error) {
+      console.error(`Error loading KPI tree for ${kpiId}:`, error);
+      return [];
+    }
+  };
+
+  // Helper to detect if a metric is inverse (lower is better)
+  const isInverseMetric = (metricName) => {
+    const inversePatterns = [
+      'NO OPERATOR', 'NO ', 'NOT ', 'UN', 'LOSS', 'LOSSES', 'DEFECT', 'FAILURE', 
+      'ERROR', 'DOWNTIME', 'DELAY', 'REJECT', 'SCRAP', 'WASTE', 'BREAKDOWN',
+      'ABSENT', 'TURNOVER', 'ACCIDENT', 'INCIDENT', 'VIOLATION'
+    ];
+    const upperName = metricName.toUpperCase();
+    return inversePatterns.some(pattern => upperName.includes(pattern));
+  };
+
+  // Calculate achievement rate for a single metric
+  const calculateAchievementRate = (actual, target, metricName) => {
+    if (!target || target === 0) return 0;
+    
+    if (isInverseMetric(metricName)) {
+      // For inverse metrics (lower is better): achievement = (target / actual) * 100
+      // If actual is 0 (perfect), return 100%
+      if (actual === 0) return 100;
+      const rate = (target / actual) * 100;
+      // Cap at 100% for inverse metrics
+      return Math.min(rate, 100);
+    } else {
+      // For normal metrics (higher is better): achievement = (actual / target) * 100
+      return (actual / target) * 100;
+    }
+  };
+
+  // Generate comprehensive management insights
+  const generateManagementInsights = (hierarchy) => {
+    const insights = {
+      overallPerformance: 0,
+      criticalAreas: [],
+      excelling: [],
+      needsAttention: [],
+      recommendations: [],
+      trends: {},
+      risks: [],
+      achievements: [],
+      byLevel: {}, // Performance breakdown by hierarchy level
+      byCategory: {}, // Performance breakdown by KPI category
+      summary: {
+        totalKPIs: 0,
+        kpisWithData: 0,
+        kpisAboveTarget: 0,
+        kpisBelowTarget: 0,
+        deepestLevel: 0
+      }
+    };
+
+    let totalKPIs = 0;
+    let performanceSum = 0;
+    const levelPerformance = {}; // Track performance by level
+    const categoryPerformance = {}; // Track performance by category
+
+    const analyzeKPINode = (node) => {
+      const { kpi, values, monthlyData, children, level } = node;
+      
+      // Only count KPIs that have values (actual metrics), not parent grouping nodes
+      if (values && values.length > 0) {
+        insights.summary.totalKPIs++;
+      }
+      insights.summary.deepestLevel = Math.max(insights.summary.deepestLevel, level);
+      
+      // Initialize level tracking
+      if (!levelPerformance[level]) {
+        levelPerformance[level] = {
+          count: 0,
+          performanceSum: 0,
+          kpis: []
+        };
+      }
+      
+      const achievementRates = [];
+      const kpiInsights = [];
+      let hasAnyData = false;
+
+      // Analyze each value separately
+      for (const value of values) {
+        const data = monthlyData[value.id] || [];
+        
+        const actuals = data.filter(d => d.value_type === 'Achieved').sort((a, b) => a.month - b.month);
+        const targets = data.filter(d => d.value_type === 'Target').sort((a, b) => a.month - b.month);
+
+        if (actuals.length > 0 && targets.length > 0) {
+          hasAnyData = true;
+          
+          // Calculate achievement rate for this specific metric
           const latestActual = actuals[actuals.length - 1].value;
-          const latestTarget = targets.length > 0 ? targets[targets.length - 1].value : null;
+          const latestTarget = targets[targets.length - 1].value;
+          
+          if (latestTarget > 0 || latestActual > 0) {
+            const achievementRate = calculateAchievementRate(latestActual, latestTarget, value.data);
+            achievementRates.push(achievementRate);
 
-          // Calculate trend
-          if (actuals.length > 1) {
-            const previousActual = actuals[actuals.length - 2].value;
-            const trend = latestActual > previousActual ? 'UP' : latestActual < previousActual ? 'DOWN' : 'STABLE';
-            overallTrend = trend;
+            // Trend analysis
+            if (actuals.length >= 3) {
+              const last3 = actuals.slice(-3).map(a => a.value);
+              const trend = calculateTrend(last3);
+              
+              const isInverse = isInverseMetric(value.data);
+              
+              // For inverse metrics, declining trend (going up) is bad
+              // For normal metrics, declining trend (going down) is bad
+              const isTrendBad = isInverse ? 
+                (trend.direction === 'improving') : 
+                (trend.direction === 'declining');
+              
+              if (isTrendBad && achievementRate < 90) {
+                insights.risks.push({
+                  kpi: kpi.title,
+                  metric: value.data,
+                  level: level,
+                  issue: `${isInverse ? 'Increasing' : 'Declining'} trend with ${achievementRate.toFixed(1)}% achievement`,
+                  severity: achievementRate < 80 ? 'HIGH' : 'MEDIUM'
+                });
+              }
 
-            const trendPercent = ((latestActual - previousActual) / previousActual * 100).toFixed(2);
-            if (trend === 'UP') {
-              insights.push(`${value.data}: Positive trend (+${trendPercent}%)`);
-              performanceStatus = 'EXCELLENT';
-            } else if (trend === 'DOWN') {
-              insights.push(`${value.data}: Declining trend (${trendPercent}%)`);
-              performanceStatus = 'NEEDS_ATTENTION';
+              const isTrendGood = isInverse ? 
+                (trend.direction === 'declining') : 
+                (trend.direction === 'improving');
+              
+              if (isTrendGood && achievementRate >= 90) {
+                insights.achievements.push({
+                  kpi: kpi.title,
+                  metric: value.data,
+                  level: level,
+                  details: `${isInverse ? 'Decreasing' : 'Improving'} trend with ${achievementRate.toFixed(1)}% achievement`
+                });
+              }
             }
-          }
 
-          // Compare with target
-          if (latestTarget && latestActual !== null) {
-            const variance = ((latestActual - latestTarget) / latestTarget * 100).toFixed(2);
-            if (latestActual >= latestTarget) {
-              insights.push(`${value.data}: Target achieved (+${variance}% above target)`);
-              if (performanceStatus !== 'EXCELLENT') performanceStatus = 'GOOD';
-            } else {
-              insights.push(`${value.data}: Below target (${variance}% shortfall)`);
-              performanceStatus = 'NEEDS_ATTENTION';
+            // Month-over-month analysis
+            if (actuals.length >= 2) {
+              const prevVal = actuals[actuals.length - 2].value;
+              if (prevVal !== 0) {
+                const mom = ((actuals[actuals.length - 1].value - prevVal) / prevVal * 100);
+                
+                if (Math.abs(mom) > 20) {
+                  kpiInsights.push({
+                    metric: value.data,
+                    change: mom,
+                    type: mom > 0 ? 'surge' : 'drop'
+                  });
+                }
+              }
             }
           }
         }
       }
 
-      analyticsData[kpi.id] = {
-        insights: insights.length > 0 ? insights : ['No specific insights available'],
-        trend: overallTrend,
-        status: performanceStatus,
+      // Calculate average KPI performance from individual achievement rates
+      if (achievementRates.length > 0) {
+        insights.summary.kpisWithData++;
+        const kpiPerformance = achievementRates.reduce((sum, rate) => sum + rate, 0) / achievementRates.length;
+        totalKPIs++;
+        performanceSum += kpiPerformance;
+        
+        // Track by level
+        levelPerformance[level].count++;
+        levelPerformance[level].performanceSum += kpiPerformance;
+        levelPerformance[level].kpis.push({
+          title: kpi.title,
+          performance: kpiPerformance
+        });
+
+        // Track by category
+        const categoryName = kpi.category_name || 'Uncategorized';
+        if (!categoryPerformance[categoryName]) {
+          categoryPerformance[categoryName] = {
+            count: 0,
+            performanceSum: 0,
+            kpis: [],
+            categoryId: kpi.category_id
+          };
+        }
+        categoryPerformance[categoryName].count++;
+        categoryPerformance[categoryName].performanceSum += kpiPerformance;
+        categoryPerformance[categoryName].kpis.push({
+          title: kpi.title,
+          performance: kpiPerformance,
+          level: level
+        });
+
+        // Count above/below target
+        if (kpiPerformance >= 100) {
+          insights.summary.kpisAboveTarget++;
+        } else {
+          insights.summary.kpisBelowTarget++;
+        }
+
+        // Categorize KPI
+        if (kpiPerformance >= 110) {
+          insights.excelling.push({
+            kpi: kpi.title,
+            performance: kpiPerformance.toFixed(1),
+            level: level,
+            levelName: getLevelName(level)
+          });
+        } else if (kpiPerformance < 85) {
+          insights.needsAttention.push({
+            kpi: kpi.title,
+            performance: kpiPerformance.toFixed(1),
+            gap: (100 - kpiPerformance).toFixed(1),
+            level: level,
+            levelName: getLevelName(level)
+          });
+        }
+
+        // Store insights
+        if (kpiInsights.length > 0) {
+          insights.trends[kpi.title] = kpiInsights;
+        }
+      }
+
+      // Recursively analyze children
+      if (children && children.length > 0) {
+        children.forEach(analyzeKPINode);
+      }
+    };
+    
+    // Helper to get level name
+    const getLevelName = (level) => {
+      const levelNames = {
+        1: 'Department Level',
+        2: 'Sub-Department Level',
+        3: 'Team/Unit Level',
+        4: 'Individual/Activity Level'
       };
+      return levelNames[level] || `Level ${level}`;
+    };
+
+    // Analyze all nodes
+    hierarchy.forEach(analyzeKPINode);
+
+    // Calculate overall performance
+    insights.overallPerformance = totalKPIs > 0 ? (performanceSum / totalKPIs) : 0;
+    
+    // Calculate performance by level
+    Object.keys(levelPerformance).forEach(level => {
+      const levelData = levelPerformance[level];
+      if (levelData.count > 0) {
+        insights.byLevel[level] = {
+          levelName: getLevelName(parseInt(level)),
+          avgPerformance: (levelData.performanceSum / levelData.count).toFixed(1),
+          kpiCount: levelData.count,
+          topKPIs: levelData.kpis
+            .sort((a, b) => b.performance - a.performance)
+            .slice(0, 3),
+          bottomKPIs: levelData.kpis
+            .sort((a, b) => a.performance - b.performance)
+            .slice(0, 3)
+        };
+      }
+    });
+
+    // Calculate performance by category
+    Object.keys(categoryPerformance).forEach(categoryName => {
+      const catData = categoryPerformance[categoryName];
+      if (catData.count > 0) {
+        const avgPerf = (catData.performanceSum / catData.count);
+        insights.byCategory[categoryName] = {
+          categoryName: categoryName,
+          avgPerformance: avgPerf.toFixed(1),
+          kpiCount: catData.count,
+          topKPIs: catData.kpis
+            .sort((a, b) => b.performance - a.performance)
+            .slice(0, 5),
+          bottomKPIs: catData.kpis
+            .sort((a, b) => a.performance - b.performance)
+            .slice(0, 5),
+          excelling: catData.kpis.filter(k => k.performance >= 110).length,
+          needsAttention: catData.kpis.filter(k => k.performance < 85).length,
+          performanceStatus: avgPerf >= 100 ? 'Exceeding' : avgPerf >= 90 ? 'On Track' : avgPerf >= 80 ? 'Needs Attention' : 'Critical'
+        };
+      }
+    });
+
+    // Generate recommendations
+    generateRecommendations(insights);
+
+    return insights;
+  };
+
+  const calculateTrend = (values) => {
+    if (values.length < 2) return { direction: 'stable', slope: 0 };
+    
+    let increases = 0;
+    let decreases = 0;
+    
+    for (let i = 1; i < values.length; i++) {
+      if (values[i] > values[i - 1]) increases++;
+      else if (values[i] < values[i - 1]) decreases++;
+    }
+    
+    if (increases > decreases) return { direction: 'improving', slope: 1 };
+    if (decreases > increases) return { direction: 'declining', slope: -1 };
+    return { direction: 'stable', slope: 0 };
+  };
+
+  const generateRecommendations = (insights) => {
+    // Critical issues
+    const highRisks = insights.risks.filter(r => r.severity === 'HIGH');
+    if (highRisks.length > 0) {
+      insights.recommendations.push({
+        priority: 'CRITICAL',
+        action: 'Immediate Action Required',
+        details: `${highRisks.length} critical KPI(s) showing declining performance below 80% target. Immediate root cause analysis and corrective action needed.`,
+        kpis: highRisks.map(r => r.kpi).join(', ')
+      });
     }
 
-    setAnalytics(analyticsData);
+    // Areas needing attention
+    if (insights.needsAttention.length > 0) {
+      const avgGap = insights.needsAttention.reduce((sum, item) => sum + parseFloat(item.gap), 0) / insights.needsAttention.length;
+      insights.recommendations.push({
+        priority: 'HIGH',
+        action: 'Performance Improvement Plan',
+        details: `${insights.needsAttention.length} KPI(s) below target with average gap of ${avgGap.toFixed(1)}%. Review processes and allocate resources to bridge the performance gap.`,
+        kpis: insights.needsAttention.map(n => n.kpi).join(', ')
+      });
+    }
+
+    // Best practices
+    if (insights.excelling.length > 0) {
+      insights.recommendations.push({
+        priority: 'MEDIUM',
+        action: 'Replicate Success',
+        details: `${insights.excelling.length} KPI(s) exceeding targets. Document best practices and implement across other areas.`,
+        kpis: insights.excelling.map(e => e.kpi).join(', ')
+      });
+    }
+
+    // Overall performance
+    if (insights.overallPerformance < 90) {
+      insights.recommendations.push({
+        priority: 'HIGH',
+        action: 'Strategic Review',
+        details: `Overall performance at ${insights.overallPerformance.toFixed(1)}%. Conduct comprehensive review of goals, resources, and execution strategies.`
+      });
+    } else if (insights.overallPerformance >= 100) {
+      insights.recommendations.push({
+        priority: 'LOW',
+        action: 'Continuous Improvement',
+        details: `Strong overall performance at ${insights.overallPerformance.toFixed(1)}%. Focus on continuous improvement and stretch goals.`
+      });
+    }
+  };
+
+  const toggleExpand = (kpiId) => {
+    const newExpanded = new Set(expandedNodes);
+    if (newExpanded.has(kpiId)) {
+      newExpanded.delete(kpiId);
+    } else {
+      newExpanded.add(kpiId);
+    }
+    setExpandedNodes(newExpanded);
   };
 
   const LineChart = ({ data, title }) => {
+    // Debug logging for specific metrics
+    if (title && title.includes('LOSS')) {
+      console.log(`=== DEBUG: ${title} ===`);
+      console.log('Raw data received:', data);
+      console.log('Total records:', data?.length);
+    }
+    
     if (!data || data.length === 0) {
-      return <div className="text-gray-500">No data available</div>;
+      return (
+        <div className="bg-white p-4 rounded-lg shadow">
+          <h3 className="font-semibold text-gray-800 mb-2">{title}</h3>
+          <div className="text-gray-500 text-sm">No data available</div>
+        </div>
+      );
     }
 
-    const actuals = data.filter((d) => d.value_type === 'Achieved').map((d) => d.value);
-    const targets = data.filter((d) => d.value_type === 'Target').map((d) => d.value);
-    const months = [...new Set(data.map((d) => d.month))].sort((a, b) => a - b);
+    const actuals = data.filter((d) => d.value_type === 'Achieved').sort((a, b) => a.month - b.month);
+    const targets = data.filter((d) => d.value_type === 'Target').sort((a, b) => a.month - b.month);
 
-    const maxVal = Math.max(...actuals, ...targets, 1);
-    const svgWidth = 600;
-    const svgHeight = 300;
+    // Debug logging for specific metrics
+    if (title && title.includes('LOSS')) {
+      console.log(`Actuals for ${title}:`, actuals);
+      console.log(`Targets for ${title}:`, targets);
+    }
+
+    // Map to fiscal year order
+    const fiscalSequence = getFiscalMonthSequence(fiscalYear);
+    const actualsByMonth = {};
+    const targetsByMonth = {};
+    
+    actuals.forEach(a => {
+      actualsByMonth[a.month] = a.value;
+    });
+    
+    targets.forEach(t => {
+      targetsByMonth[t.month] = t.value;
+    });
+
+    const actualValues = fiscalSequence.map(({ month }) => actualsByMonth[month] || null);
+    const targetValues = fiscalSequence.map(({ month }) => targetsByMonth[month] || null);
+    const labels = fiscalSequence.map(({ label }) => label);
+
+    const allValues = [...actualValues.filter(v => v !== null), ...targetValues.filter(v => v !== null)];
+    const maxVal = allValues.length > 0 ? Math.max(...allValues) : 1;
+    const minVal = 0;
+
+    const svgWidth = 700;
+    const svgHeight = 280;
     const padding = 50;
 
-    const getX = (idx) => padding + (idx / (months.length - 1 || 1)) * (svgWidth - 2 * padding);
-    const getY = (val) => svgHeight - padding - (val / maxVal) * (svgHeight - 2 * padding);
+    const getX = (idx) => padding + (idx / (labels.length - 1 || 1)) * (svgWidth - 2 * padding);
+    const getY = (val) => {
+      if (val === null) return null;
+      return svgHeight - padding - ((val - minVal) / (maxVal - minVal || 1)) * (svgHeight - 2 * padding);
+    };
 
-    const monthLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    // Calculate achievement rate and trend using the proper method
+    const lastActual = actualValues.filter(v => v !== null).slice(-1)[0];
+    const lastTarget = targetValues.filter(v => v !== null).slice(-1)[0];
+    const achievementRate = (lastTarget > 0 || lastActual > 0) 
+      ? calculateAchievementRate(lastActual, lastTarget, title).toFixed(1) 
+      : 'N/A';
+    
+    // Determine if this is an inverse metric for display purposes
+    const isInverse = isInverseMetric(title);
 
     return (
       <div className="bg-white p-4 rounded-lg shadow">
-        <h3 className="font-semibold text-gray-800 mb-4">{title}</h3>
+        <div className="flex justify-between items-start mb-3">
+          <h3 className="font-semibold text-gray-800">{title}</h3>
+          {lastActual !== undefined && lastTarget !== undefined && achievementRate !== 'N/A' && (
+            <div className={`px-3 py-1 rounded text-sm font-semibold ${
+              parseFloat(achievementRate) >= 100 ? 'bg-green-100 text-green-800' :
+              parseFloat(achievementRate) >= 90 ? 'bg-yellow-100 text-yellow-800' :
+              'bg-red-100 text-red-800'
+            }`}>
+              {achievementRate}%
+            </div>
+          )}
+        </div>
+        {isInverse && (
+          <div className="mb-2 text-xs text-gray-500 italic">
+            ⚠️ Lower is better for this metric
+          </div>
+        )}
+
         <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="w-full">
           {/* Grid lines */}
           {[...Array(5)].map((_, i) => {
@@ -167,6 +663,7 @@ const KPIDetailPage = () => {
                 y2={y}
                 stroke="#e5e7eb"
                 strokeWidth="1"
+                strokeDasharray="3,3"
               />
             );
           })}
@@ -183,44 +680,219 @@ const KPIDetailPage = () => {
           />
 
           {/* Target line */}
-          {targets.length > 0 && (
+          {targetValues.some(v => v !== null) && (
             <polyline
-              points={targets.map((val, idx) => `${getX(idx)},${getY(val)}`).join(' ')}
+              points={targetValues.map((val, idx) => {
+                const y = getY(val);
+                return y !== null ? `${getX(idx)},${y}` : '';
+              }).filter(p => p).join(' ')}
               fill="none"
               stroke="#ffb74d"
               strokeWidth="2"
+              strokeDasharray="5,5"
             />
           )}
 
           {/* Actual line */}
-          {actuals.length > 0 && (
+          {actualValues.some(v => v !== null) && (
             <polyline
-              points={actuals.map((val, idx) => `${getX(idx)},${getY(val)}`).join(' ')}
+              points={actualValues.map((val, idx) => {
+                const y = getY(val);
+                return y !== null ? `${getX(idx)},${y}` : '';
+              }).filter(p => p).join(' ')}
               fill="none"
               stroke="#41aafe"
               strokeWidth="3"
             />
           )}
 
+          {/* Data points */}
+          {actualValues.map((val, idx) => {
+            if (val === null) return null;
+            return (
+              <circle
+                key={`actual-${idx}`}
+                cx={getX(idx)}
+                cy={getY(val)}
+                r="4"
+                fill="#41aafe"
+              />
+            );
+          })}
+
           {/* X-axis labels */}
-          {months.map((month, idx) => (
-            <text key={`x-${month}`} x={getX(idx)} y={svgHeight - padding + 25} textAnchor="middle" fontSize="12" fill="#4b5563">
-              {monthLabels[month - 1]}
+          {labels.map((label, idx) => (
+            <text key={`x-${idx}`} x={getX(idx)} y={svgHeight - padding + 25} textAnchor="middle" fontSize="11" fill="#4b5563">
+              {label}
             </text>
           ))}
+
+          {/* Y-axis labels */}
+          {[...Array(5)].map((_, i) => {
+            const value = minVal + (i / 4) * (maxVal - minVal);
+            const y = svgHeight - padding - (i / 4) * (svgHeight - 2 * padding);
+            return (
+              <text key={`y-${i}`} x={padding - 10} y={y + 5} textAnchor="end" fontSize="11" fill="#4b5563">
+                {value.toFixed(0)}
+              </text>
+            );
+          })}
         </svg>
 
         {/* Legend */}
-        <div className="flex gap-6 mt-4">
+        <div className="flex gap-6 mt-3 justify-center">
           <div className="flex items-center gap-2">
             <span className="w-6 h-1 bg-[#41aafe] rounded"></span>
-            <span className="text-sm text-gray-600">Actual</span>
+            <span className="text-xs text-gray-600">Actual</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="w-6 h-1 bg-[#ffb74d] rounded"></span>
-            <span className="text-sm text-gray-600">Target</span>
+            <span className="w-6 h-1 bg-[#ffb74d] rounded border-t-2 border-dashed"></span>
+            <span className="text-xs text-gray-600">Target</span>
           </div>
         </div>
+
+        {/* Quick stats */}
+        {lastActual !== undefined && lastTarget !== undefined && (
+          <div className="mt-3 pt-3 border-t border-gray-200 grid grid-cols-3 gap-2 text-xs">
+            <div>
+              <span className="text-gray-500">Latest:</span>
+              <span className="ml-1 font-semibold">{lastActual.toFixed(1)}</span>
+            </div>
+            <div>
+              <span className="text-gray-500">Target:</span>
+              <span className="ml-1 font-semibold">{lastTarget.toFixed(1)}</span>
+            </div>
+            <div>
+              <span className="text-gray-500">Variance:</span>
+              <span className={`ml-1 font-semibold ${
+                isInverse 
+                  ? (lastActual <= lastTarget ? 'text-green-600' : 'text-red-600')
+                  : (lastActual >= lastTarget ? 'text-green-600' : 'text-red-600')
+              }`}>
+                {lastActual >= lastTarget ? '+' : ''}{(lastActual - lastTarget).toFixed(1)}
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderKPINode = (node) => {
+    const { kpi, values, monthlyData, children, level } = node;
+    const isExpanded = expandedNodes.has(kpi.id);
+    const hasChildren = children && children.length > 0;
+
+    // Calculate node performance - average achievement rates across all metrics
+    const achievementRates = [];
+    let hasData = false;
+
+    values.forEach(value => {
+      const data = monthlyData[value.id] || [];
+      const actuals = data.filter(d => d.value_type === 'Achieved');
+      const targets = data.filter(d => d.value_type === 'Target');
+      
+      if (actuals.length > 0 && targets.length > 0) {
+        const latestActual = actuals[actuals.length - 1].value;
+        const latestTarget = targets[targets.length - 1].value;
+        
+        if (latestTarget > 0 || latestActual > 0) {
+          const rate = calculateAchievementRate(latestActual, latestTarget, value.data);
+          achievementRates.push(rate);
+          hasData = true;
+        }
+      }
+    });
+
+    // Average the achievement rates
+    const performance = achievementRates.length > 0 
+      ? achievementRates.reduce((sum, rate) => sum + rate, 0) / achievementRates.length
+      : 0;
+    const performanceColor = performance >= 100 ? 'green' : performance >= 90 ? 'yellow' : performance >= 80 ? 'orange' : 'red';
+
+    return (
+      <div key={kpi.id} className="mb-6">
+        {/* KPI Header */}
+        <div 
+          className={`bg-white rounded-lg shadow-md p-5 border-l-4 ${
+            level === 1 ? 'border-blue-500' :
+            level === 2 ? 'border-purple-500' :
+            level === 3 ? 'border-indigo-500' :
+            'border-gray-500'
+          }`}
+          style={{ marginLeft: `${(level - 1) * 24}px` }}
+        >
+          <div className="flex justify-between items-start mb-4">
+            <div className="flex items-center gap-3 flex-1">
+              {hasChildren && (
+                <button
+                  onClick={() => toggleExpand(kpi.id)}
+                  className="text-gray-600 hover:text-gray-800 transition-transform duration-200"
+                  style={{ transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)' }}
+                >
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                  </svg>
+                </button>
+              )}
+              <div>
+                <h2 className={`font-bold text-gray-800 ${
+                  level === 1 ? 'text-xl' :
+                  level === 2 ? 'text-lg' :
+                  'text-base'
+                }`}>
+                  {kpi.title}
+                </h2>
+                <span className="text-xs text-gray-500">Level {level}</span>
+              </div>
+            </div>
+
+            {hasData && (
+              <div className="flex items-center gap-3">
+                <div className={`px-4 py-2 rounded-lg font-semibold text-white ${
+                  performanceColor === 'green' ? 'bg-green-500' :
+                  performanceColor === 'yellow' ? 'bg-yellow-500' :
+                  performanceColor === 'orange' ? 'bg-orange-500' :
+                  'bg-red-500'
+                }`}>
+                  {performance.toFixed(1)}% Achievement
+                </div>
+                <div className="text-right text-sm">
+                  <div className="text-gray-600">
+                    {achievementRates.length} Metric{achievementRates.length > 1 ? 's' : ''}
+                  </div>
+                  <div className="text-gray-500 text-xs">
+                    Avg. Performance
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Charts Grid */}
+          {values.length > 0 && (
+            <div className={`grid gap-4 ${
+              values.length === 1 ? 'grid-cols-1' :
+              values.length === 2 ? 'grid-cols-1 lg:grid-cols-2' :
+              'grid-cols-1 lg:grid-cols-2 xl:grid-cols-3'
+            }`}>
+              {values.map((value) => (
+                <LineChart 
+                  key={value.id} 
+                  data={monthlyData[value.id]} 
+                  title={value.data} 
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Render children */}
+        {hasChildren && isExpanded && (
+          <div className="mt-4">
+            {children.map(child => renderKPINode(child))}
+          </div>
+        )}
       </div>
     );
   };
@@ -228,14 +900,14 @@ const KPIDetailPage = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="text-lg text-gray-600">Loading KPI details...</div>
+        <div className="text-lg text-gray-600">Loading comprehensive KPI analysis...</div>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-[1800px] mx-auto">
         {/* Header */}
         <div className="mb-8">
           <button
@@ -244,100 +916,505 @@ const KPIDetailPage = () => {
           >
             ← Back to Dashboard
           </button>
-          <h1 className="text-4xl font-bold text-gray-900">{parentKPI?.title}</h1>
-          <p className="text-gray-600 mt-2">Detailed KPI Analysis for {selectedYear}</p>
+          <div className="flex justify-between items-start">
+            <div>
+              <h1 className="text-4xl font-bold text-gray-900">{parentKPI?.title}</h1>
+              <p className="text-gray-600 mt-2">
+                Comprehensive Hierarchical Analysis - FY {fiscalYear}-{(fiscalYear + 1).toString().slice(-2)}
+              </p>
+            </div>
 
-          {/* Year Selector */}
-          <div className="mt-4">
-            <label className="text-gray-700 font-semibold mr-3">Select Year:</label>
-            <select
-              value={selectedYear}
-              onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              {[...Array(5)].map((_, i) => {
-                const year = new Date().getFullYear() - i;
-                return (
-                  <option key={year} value={year}>
-                    {year}
-                  </option>
-                );
-              })}
-            </select>
+            {/* Fiscal Year Display (Read-only) */}
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg shadow-lg px-6 py-4">
+              <div className="text-xs font-medium opacity-90 mb-1">Viewing Fiscal Year</div>
+              <div className="text-2xl font-bold">
+                FY {fiscalYear}-{(fiscalYear + 1).toString().slice(-2)}
+              </div>
+              <div className="text-xs opacity-75 mt-1">
+                Apr {fiscalYear} - Mar {fiscalYear + 1}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Executive Summary Dashboard */}
+        {managementInsights && (
+          <div className="mb-8 space-y-6">
+            {/* Overall Performance Card */}
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg shadow-lg p-6 text-white">
+              <h2 className="text-2xl font-bold mb-4">Executive Summary - {parentKPI?.title}</h2>
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                <div className="bg-white/10 rounded-lg p-4 backdrop-blur">
+                  <div className="text-sm font-medium opacity-90">Overall Performance</div>
+                  <div className="text-3xl font-bold mt-2">
+                    {managementInsights.overallPerformance.toFixed(1)}%
+                  </div>
+                  <div className="text-xs mt-1 opacity-75">
+                    {managementInsights.overallPerformance >= 100 ? 'Exceeding Target' :
+                     managementInsights.overallPerformance >= 90 ? 'On Track' :
+                     managementInsights.overallPerformance >= 80 ? 'Needs Attention' :
+                     'Critical'}
+                  </div>
+                </div>
+
+                <div className="bg-white/10 rounded-lg p-4 backdrop-blur">
+                  <div className="text-sm font-medium opacity-90">Total KPIs</div>
+                  <div className="text-3xl font-bold mt-2">
+                    {managementInsights.summary.kpisWithData}
+                  </div>
+                  <div className="text-xs mt-1 opacity-75">
+                    of {managementInsights.summary.totalKPIs} have data
+                  </div>
+                </div>
+
+                <div className="bg-white/10 rounded-lg p-4 backdrop-blur">
+                  <div className="text-sm font-medium opacity-90">Excelling KPIs</div>
+                  <div className="text-3xl font-bold mt-2 text-green-300">
+                    {managementInsights.excelling.length}
+                  </div>
+                  <div className="text-xs mt-1 opacity-75">
+                    Above 110% target
+                  </div>
+                </div>
+
+                <div className="bg-white/10 rounded-lg p-4 backdrop-blur">
+                  <div className="text-sm font-medium opacity-90">Needs Attention</div>
+                  <div className="text-3xl font-bold mt-2 text-yellow-300">
+                    {managementInsights.needsAttention.length}
+                  </div>
+                  <div className="text-xs mt-1 opacity-75">
+                    Below 85% target
+                  </div>
+                </div>
+
+                <div className="bg-white/10 rounded-lg p-4 backdrop-blur">
+                  <div className="text-sm font-medium opacity-90">Risk Indicators</div>
+                  <div className="text-3xl font-bold mt-2 text-red-300">
+                    {managementInsights.risks.length}
+                  </div>
+                  <div className="text-xs mt-1 opacity-75">
+                    {managementInsights.risks.filter(r => r.severity === 'HIGH').length} high priority
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Hierarchy Level Breakdown */}
+            {Object.keys(managementInsights.byLevel).length > 0 && (
+              <div className="bg-white rounded-lg shadow-lg p-6">
+                <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                  <span className="text-2xl">📊</span> Performance by Hierarchy Level
+                </h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  Analysis across {managementInsights.summary.deepestLevel} hierarchy levels - from Department to Individual/Activity level
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {Object.keys(managementInsights.byLevel)
+                    .sort((a, b) => parseInt(a) - parseInt(b))
+                    .map((level) => {
+                      const levelData = managementInsights.byLevel[level];
+                      const perfValue = parseFloat(levelData.avgPerformance);
+                      return (
+                        <div 
+                          key={level}
+                          className={`p-4 rounded-lg border-l-4 ${
+                            perfValue >= 100 ? 'bg-green-50 border-green-500' :
+                            perfValue >= 90 ? 'bg-yellow-50 border-yellow-500' :
+                            perfValue >= 80 ? 'bg-orange-50 border-orange-500' :
+                            'bg-red-50 border-red-500'
+                          }`}
+                        >
+                          <div className="text-xs font-semibold text-gray-600 uppercase mb-1">
+                            {levelData.levelName}
+                          </div>
+                          <div className="text-2xl font-bold text-gray-800 mb-1">
+                            {levelData.avgPerformance}%
+                          </div>
+                          <div className="text-xs text-gray-600 mb-3">
+                            {levelData.kpiCount} KPI{levelData.kpiCount > 1 ? 's' : ''}
+                          </div>
+                          {levelData.topKPIs.length > 0 && (
+                            <div className="text-xs">
+                              <div className="font-semibold text-gray-700 mb-1">Top Performer:</div>
+                              <div className="text-gray-600 truncate" title={levelData.topKPIs[0].title}>
+                                {levelData.topKPIs[0].title}
+                              </div>
+                              <div className="text-green-600 font-semibold">
+                                {levelData.topKPIs[0].performance.toFixed(1)}%
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+            )}
+
+            {/* Category-wise Performance Breakdown */}
+            {Object.keys(managementInsights.byCategory).length > 0 && (
+              <div className="bg-white rounded-lg shadow-lg p-6">
+                <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                  <span className="text-2xl">🏷️</span> Performance by Category
+                </h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  Analysis across different KPI categories - Plant KPI, Department KPI, Employee KPI, and KAI
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {Object.keys(managementInsights.byCategory)
+                    .map((categoryName) => {
+                      const catData = managementInsights.byCategory[categoryName];
+                      const perfValue = parseFloat(catData.avgPerformance);
+                      return (
+                        <div 
+                          key={categoryName}
+                          className={`p-5 rounded-lg border-2 ${
+                            perfValue >= 100 ? 'bg-green-50 border-green-300' :
+                            perfValue >= 90 ? 'bg-blue-50 border-blue-300' :
+                            perfValue >= 80 ? 'bg-orange-50 border-orange-300' :
+                            'bg-red-50 border-red-300'
+                          }`}
+                        >
+                          <div className="mb-4">
+                            <div className="flex items-center justify-between mb-2">
+                              <h4 className="text-lg font-bold text-gray-800">
+                                {categoryName}
+                              </h4>
+                              <span className={`px-3 py-1 rounded-full text-xs font-bold text-white ${
+                                perfValue >= 100 ? 'bg-green-600' :
+                                perfValue >= 90 ? 'bg-blue-600' :
+                                perfValue >= 80 ? 'bg-orange-600' :
+                                'bg-red-600'
+                              }`}>
+                                {catData.performanceStatus}
+                              </span>
+                            </div>
+                            <div className="text-3xl font-bold text-gray-800">
+                              {catData.avgPerformance}%
+                            </div>
+                            <div className="text-sm text-gray-600 mt-1">
+                              Average Performance
+                            </div>
+                          </div>
+
+                          {/* Category Stats */}
+                          <div className="grid grid-cols-3 gap-2 mb-4 p-3 bg-white rounded border border-gray-200">
+                            <div className="text-center">
+                              <div className="text-xl font-bold text-gray-800">{catData.kpiCount}</div>
+                              <div className="text-xs text-gray-600">Total KPIs</div>
+                            </div>
+                            <div className="text-center">
+                              <div className="text-xl font-bold text-green-600">{catData.excelling}</div>
+                              <div className="text-xs text-gray-600">Excelling</div>
+                            </div>
+                            <div className="text-center">
+                              <div className="text-xl font-bold text-orange-600">{catData.needsAttention}</div>
+                              <div className="text-xs text-gray-600">Needs Help</div>
+                            </div>
+                          </div>
+
+                          {/* Top and Bottom Performers */}
+                          <div className="space-y-3">
+                            {catData.topKPIs.length > 0 && (
+                              <div>
+                                <h5 className="text-xs font-semibold text-gray-700 uppercase mb-2">Top Performers</h5>
+                                <div className="space-y-1">
+                                  {catData.topKPIs.slice(0, 2).map((kpi, idx) => (
+                                    <div key={idx} className="flex justify-between items-center text-xs py-1 px-2 bg-white rounded border border-green-200">
+                                      <span className="font-medium text-gray-700 truncate" title={kpi.title}>
+                                        {kpi.title}
+                                      </span>
+                                      <span className="text-green-700 font-bold ml-2">
+                                        {kpi.performance.toFixed(1)}%
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {catData.bottomKPIs.length > 0 && (
+                              <div>
+                                <h5 className="text-xs font-semibold text-gray-700 uppercase mb-2">Needs Attention</h5>
+                                <div className="space-y-1">
+                                  {catData.bottomKPIs.slice(0, 2).map((kpi, idx) => (
+                                    <div key={idx} className="flex justify-between items-center text-xs py-1 px-2 bg-white rounded border border-orange-200">
+                                      <span className="font-medium text-gray-700 truncate" title={kpi.title}>
+                                        {kpi.title}
+                                      </span>
+                                      <span className="text-orange-700 font-bold ml-2">
+                                        {kpi.performance.toFixed(1)}%
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+            )}
+
+            {/* Action Items - Recommendations */}
+            {managementInsights.recommendations.length > 0 && (
+              <div className="bg-white rounded-lg shadow-lg p-6">
+                <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                  <span className="text-2xl">🎯</span> Management Action Items
+                </h3>
+                <div className="space-y-3">
+                  {managementInsights.recommendations.map((rec, idx) => (
+                    <div 
+                      key={idx}
+                      className={`p-4 rounded-lg border-l-4 ${
+                        rec.priority === 'CRITICAL' ? 'bg-red-50 border-red-500' :
+                        rec.priority === 'HIGH' ? 'bg-orange-50 border-orange-500' :
+                        rec.priority === 'MEDIUM' ? 'bg-yellow-50 border-yellow-500' :
+                        'bg-blue-50 border-blue-500'
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <span className={`px-2 py-1 rounded text-xs font-bold ${
+                          rec.priority === 'CRITICAL' ? 'bg-red-600 text-white' :
+                          rec.priority === 'HIGH' ? 'bg-orange-600 text-white' :
+                          rec.priority === 'MEDIUM' ? 'bg-yellow-600 text-white' :
+                          'bg-blue-600 text-white'
+                        }`}>
+                          {rec.priority}
+                        </span>
+                        <div className="flex-1">
+                          <h4 className="font-semibold text-gray-800 mb-1">{rec.action}</h4>
+                          <p className="text-sm text-gray-700 mb-2">{rec.details}</p>
+                          {rec.kpis && (
+                            <div className="text-xs text-gray-600">
+                              <span className="font-semibold">Affected KPIs:</span> {rec.kpis}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Performance Analysis Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Excelling KPIs */}
+              {managementInsights.excelling.length > 0 && (
+                <div className="bg-white rounded-lg shadow-lg p-6">
+                  <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                    <span className="text-xl">✨</span> Top Performers
+                  </h3>
+                  <div className="space-y-2">
+                    {managementInsights.excelling.slice(0, 5).map((item, idx) => (
+                      <div key={idx} className="flex justify-between items-center py-2 border-b border-gray-100">
+                        <span className="text-sm font-medium text-gray-700">{item.kpi}</span>
+                        <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-semibold">
+                          {item.performance}%
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Areas Needing Attention */}
+              {managementInsights.needsAttention.length > 0 && (
+                <div className="bg-white rounded-lg shadow-lg p-6">
+                  <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                    <span className="text-xl">⚠️</span> Requires Attention
+                  </h3>
+                  <div className="space-y-2">
+                    {managementInsights.needsAttention.slice(0, 5).map((item, idx) => (
+                      <div key={idx} className="flex justify-between items-center py-2 border-b border-gray-100">
+                        <div>
+                          <span className="text-sm font-medium text-gray-700 block">{item.kpi}</span>
+                          <span className="text-xs text-red-600">Gap: {item.gap}%</span>
+                        </div>
+                        <span className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-sm font-semibold">
+                          {item.performance}%
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+{/* Risk Indicators - Grouped by Level */}
+            {managementInsights.risks.length > 0 && (
+              <div className="bg-white rounded-lg shadow-lg p-6">
+                <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                  <span className="text-xl">🚨</span> Risk Indicators by Level
+                </h3>
+                <div className="space-y-4">
+                  {[1, 2, 3, 4, 5].map(level => {
+                    const levelRisks = managementInsights.risks.filter(r => r.level === level);
+                    if (levelRisks.length === 0) return null;
+                    
+                    const highRisks = levelRisks.filter(r => r.severity === 'HIGH');
+                    return (
+                      <div key={level} className="border rounded-lg p-4">
+                        <div className="flex items-center justify-between mb-3">
+                          <h4 className="font-semibold text-gray-800">
+                            {level === 1 ? '📍 Department Level' :
+                             level === 2 ? '📍 Sub-Department Level' :
+                             level === 3 ? '📍 Team/Unit Level' :
+                             level === 4 ? '📍 Individual/Activity Level' :
+                             `📍 Level ${level}`}
+                          </h4>
+                          <span className="px-2 py-1 bg-red-100 text-red-700 rounded text-xs font-bold">
+                            {highRisks.length} HIGH / {levelRisks.length} Total
+                          </span>
+                        </div>
+                        <div className="space-y-2">
+                          {levelRisks.slice(0, 3).map((risk, idx) => (
+                            <div key={idx} className="flex items-start gap-2 text-sm">
+                              <span className={`${risk.severity === 'HIGH' ? 'text-red-600' : 'text-orange-600'} font-bold mt-0.5`}>
+                                ⚠️
+                              </span>
+                              <div>
+                                <div className="font-medium text-gray-800">{risk.kpi}</div>
+                                <div className="text-gray-600">{risk.metric}</div>
+                                <div className={`text-xs mt-1 ${risk.severity === 'HIGH' ? 'text-red-700' : 'text-orange-700'}`}>
+                                  {risk.issue}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                          {levelRisks.length > 3 && (
+                            <div className="text-xs text-gray-500 mt-2">
+                              +{levelRisks.length - 3} more risks in this level
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  </div>
+                </div>
+              )}
+
+              {/* Achievements */}
+              {managementInsights.achievements.length > 0 && (
+                <div className="bg-white rounded-lg shadow-lg p-6">
+                  <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                    <span className="text-xl">🏆</span> Key Achievements
+                  </h3>
+                  <div className="space-y-2">
+                    {managementInsights.achievements.slice(0, 5).map((achievement, idx) => (
+                      <div key={idx} className="flex items-start gap-2 py-2 border-b border-gray-100">
+                        <span className="text-green-500 font-bold">✓</span>
+                        <div className="flex-1">
+                          <div className="text-sm font-medium text-gray-700">{achievement.kpi}</div>
+                          <div className="text-xs text-gray-600 mt-1">{achievement.metric}</div>
+                          <div className="text-xs text-green-700 mt-1">{achievement.details}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Hierarchical KPI Analysis */}
+        <div className="mb-6">
+          <h2 className="text-2xl font-bold text-gray-800 mb-4">Detailed Hierarchical Analysis</h2>
+          <p className="text-gray-600 mb-2">
+            Expand/collapse KPIs to view the complete hierarchy. Color-coded performance indicators show achievement levels.
+          </p>
+          <div className="flex gap-4 text-sm mb-4">
+            <div className="flex items-center gap-2">
+              <span className="w-4 h-4 bg-green-500 rounded"></span>
+              <span>≥100% (Target Met)</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-4 h-4 bg-yellow-500 rounded"></span>
+              <span>90-99% (Near Target)</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-4 h-4 bg-orange-500 rounded"></span>
+              <span>80-89% (Needs Attention)</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-4 h-4 bg-red-500 rounded"></span>
+              <span>&lt;80% (Critical)</span>
+            </div>
           </div>
         </div>
 
         {/* Main Content */}
-        {childKPIs.length === 0 ? (
-          <div className="bg-white rounded-lg shadow p-8 text-center">
-            <p className="text-gray-600">No child KPIs found for this KPI.</p>
+        {hierarchyData.length === 0 ? (
+          <div className="bg-white rounded-lg shadow p-8">
+            {parentKPIValues.length > 0 ? (
+              <div>
+                <div className="mb-6 text-center">
+                  <h3 className="text-xl font-bold text-gray-800 mb-2">Direct KPI Metrics</h3>
+                  <p className="text-gray-600 text-sm">
+                    This KPI has no child KPIs. Showing direct metrics for <strong>{parentKPI?.title}</strong>
+                  </p>
+                </div>
+                <div className={`grid gap-4 ${
+                  parentKPIValues.length === 1 ? 'grid-cols-1' :
+                  parentKPIValues.length === 2 ? 'grid-cols-1 lg:grid-cols-2' :
+                  'grid-cols-1 lg:grid-cols-2 xl:grid-cols-3'
+                }`}>
+                  {parentKPIValues.map((value) => (
+                    <LineChart 
+                      key={value.id} 
+                      data={parentMonthlyData[value.id]} 
+                      title={value.data} 
+                    />
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="text-center">
+                <div className="mb-4">
+                  <svg className="w-16 h-16 mx-auto text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-semibold text-gray-700 mb-2">No Child KPIs or Data Found</h3>
+                <p className="text-gray-600 mb-4">
+                  The KPI "<strong>{parentKPI?.title}</strong>" has no child KPIs defined.
+                </p>
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-left max-w-2xl mx-auto">
+                  <p className="text-sm text-gray-700 mb-2"><strong>Possible reasons:</strong></p>
+                  <ul className="text-sm text-gray-600 list-disc list-inside space-y-1">
+                    <li>The sub-KPIs (e.g., Availability, Performance, Quality) may not be linked with <code className="text-xs bg-gray-200 px-1 rounded">parent_kpi_id</code></li>
+                    <li>The child KPIs might be in a different fiscal year</li>
+                    <li>This KPI might be configured as a leaf-level metric</li>
+                  </ul>
+                  <p className="text-sm text-gray-700 mt-3">
+                    <strong>Check browser console</strong> for detailed debugging information.
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         ) : (
-          <div className="space-y-8">
-            {childKPIs.map((childKPI) => {
-              const kpiData = kpiDataMap[childKPI.id];
-              const kpiAnalytics = analytics[childKPI.id];
-
-              if (!kpiData) return null;
-
-              return (
-                <div key={childKPI.id} className="bg-white rounded-lg shadow p-6">
-                  {/* Child KPI Header */}
-                  <div className="mb-6 pb-4 border-b-2 border-gray-200">
-                    <div className="flex justify-between items-start">
-                      <h2 className="text-2xl font-bold text-gray-800">{childKPI.title}</h2>
-                      {kpiAnalytics && (
-                        <div
-                          className={`px-4 py-2 rounded-full font-semibold text-white ${
-                            kpiAnalytics.status === 'EXCELLENT'
-                              ? 'bg-green-500'
-                              : kpiAnalytics.status === 'GOOD'
-                              ? 'bg-blue-500'
-                              : kpiAnalytics.status === 'NEEDS_ATTENTION'
-                              ? 'bg-red-500'
-                              : 'bg-gray-500'
-                          }`}
-                        >
-                          {kpiAnalytics.status.replace(/_/g, ' ')}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Charts and Data */}
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                    {kpiData.values.map((value) => (
-                      <LineChart key={value.id} data={kpiData.monthlyData[value.id]} title={value.data} />
-                    ))}
-                  </div>
-
-                  {/* Analytics & Insights */}
-                  {kpiAnalytics && (
-                    <div className="bg-blue-50 border-l-4 border-blue-500 p-6 rounded">
-                      <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                        <span className="text-xl">📊</span> Key Insights & Analytics
-                      </h3>
-                      <ul className="space-y-2">
-                        {kpiAnalytics.insights.map((insight, idx) => (
-                          <li key={idx} className="text-gray-700 flex items-start gap-2">
-                            <span className="text-blue-500 font-bold mt-1">•</span>
-                            <span>{insight}</span>
-                          </li>
-                        ))}
-                      </ul>
-
-                      <div className="mt-4 pt-4 border-t-2 border-blue-200">
-                        <p className="text-sm font-semibold text-gray-800">
-                          Overall Trend: <span className="text-blue-600">{kpiAnalytics.trend}</span>
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+          <div className="space-y-4">
+            {hierarchyData.map((node) => renderKPINode(node))}
           </div>
         )}
+
+        {/* Footer Note */}
+        <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-gray-700">
+          <p className="font-semibold mb-2">📌 Note for Management:</p>
+          <ul className="list-disc list-inside space-y-1 text-xs">
+            <li>This analysis covers FY {fiscalYear}-{(fiscalYear + 1).toString().slice(-2)} (April {fiscalYear} to March {fiscalYear + 1})</li>
+            <li>To view a different fiscal year, return to the dashboard and select the desired year</li>
+            <li>Performance is calculated based on latest available month data (Actual vs Target)</li>
+            <li>Trends are analyzed using last 3 months of data to identify improvement or decline patterns</li>
+            <li>Critical KPIs (&lt;80% achievement) require immediate management intervention</li>
+            <li>Use the expand/collapse controls to drill down into specific KPI hierarchies</li>
+          </ul>
+        </div>
       </div>
     </div>
   );

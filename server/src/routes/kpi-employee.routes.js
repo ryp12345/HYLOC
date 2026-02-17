@@ -1,6 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const kpiEmployeeController = require('../controllers/kpi-employee.controller');
+const { authenticate } = require('../middlewares/auth.middleware');
+
+// Apply authentication middleware to all routes
+router.use(authenticate);
 
 // Get all KPI-Employee mappings (with optional kpi_id or emp_id query parameter)
 router.get('/', kpiEmployeeController.getAllKPIEmployees);

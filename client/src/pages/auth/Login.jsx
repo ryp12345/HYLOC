@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
@@ -19,40 +19,123 @@ function Login() {
     confirmPassword: ''
   });
 
+
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
       [name]: value
     }));
-    setError('');
+    // Clear error message when user starts typing
+    if (error) {
+      clearError();
+    }
   };
+
+  const passwordRef = useRef(null);
+  const errorTimeoutRef = useRef(null);
+
+  // Clear error state
+  const clearError = () => {
+    console.log('🔵 [CLEAR-ERROR] clearError called');
+    console.log('🔵 [CLEAR-ERROR] Current error before clearError:', error);
+    setError('');
+    if (errorTimeoutRef.current) {
+      clearTimeout(errorTimeoutRef.current);
+      errorTimeoutRef.current = null;
+    }
+  };
+
+  // Show error with persistent display
+  const showError = (message) => {
+    console.log('🟢 [SHOW-ERROR] showError called with:', message);
+    setError(message);
+  };
+
+  // Monitor when error state actually updates after setError is called
+  useEffect(() => {
+    console.log('🟡 [ERROR-EFFECT] Error effect running, error value:', error);
+    if (error) {
+      console.log('🟡 [ERROR-EFFECT] Error state UPDATED to:', error);
+    }
+  }, [error]);
+
+
+
+
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
-    setError('');
+    // Don't clear error here - let the user see it until they start typing
 
     try {
       if (isLogin) {
+        // Scenario 1: Check if fields are empty
         if (!formData.empid || !formData.password) {
-          throw new Error('Employee ID and password are required');
+          showError('Employee ID and password are required');
+          return;
         }
-        await login(formData.empid, formData.password);
+
+        // Scenario 2: Validate Employee ID format (should be numeric/integer)
+        const empidRegex = /^\d+$/;
+        if (!empidRegex.test(formData.empid.trim())) {
+          showError('Employee ID must be a valid number with no special characters');
+          return;
+        }
+
+        // Scenario 3: Validate password length
+        if (formData.password.length < 1) {
+          showError('Password cannot be empty');
+          return;
+        }
       } else {
+        // Register validation
         if (!formData.email || !formData.firstName || !formData.lastName || !formData.password || !formData.confirmPassword) {
-          throw new Error('All fields are required');
+          showError('All fields are required');
+          return;
         }
         if (formData.password !== formData.confirmPassword) {
-          throw new Error('Passwords do not match');
+          showError('Passwords do not match');
+          return;
         }
-        await register(formData.email, formData.password, formData.firstName, formData.lastName);
+        if (formData.password.length < 6) {
+          showError('Password must be at least 6 characters');
+          return;
+        }
       }
-      navigate('/dashboard');
+
+      setLoading(true);
+      
+      try {
+        if (isLogin) {
+          await login(formData.empid, formData.password);
+        } else {
+          await register(formData.email, formData.password, formData.firstName, formData.lastName);
+        }
+        setLoading(false);
+        navigate('/dashboard');
+      } catch (err) {
+        console.log('🔴 [CATCH-BLOCK] Error caught in handleSubmit');
+        
+        // Backend validation error or authentication failure
+        let errorMessage = 'Invalid credentials or connection error';
+        
+        // Try to extract the actual error message from backend response
+        if (err.response?.data?.message) {
+          errorMessage = err.response.data.message;
+        } else if (err.response?.status === 401) {
+          errorMessage = 'Invalid Employee ID or Password';
+        }
+        
+        console.log('🔴 [CATCH-BLOCK] About to call showError with:', errorMessage);
+        // DIRECTLY set error state here without using showError function
+        setError(errorMessage);
+        console.log('🔴 [CATCH-BLOCK] setError called directly with:', errorMessage);
+        setLoading(false);
+      }
     } catch (err) {
-      setError(err.response?.data?.message || err.message || 'An error occurred');
-    } finally {
-      setLoading(false);
+      showError('An unexpected error occurred');
     }
   };
 
@@ -77,8 +160,25 @@ function Login() {
         </h2>
 
         {error && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-            <p className="text-red-600 text-sm text-center">{error}</p>
+          <div className="mb-6 p-4 bg-red-50 border-2 border-red-500 rounded-lg shadow-lg transition-all duration-300">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-start gap-3 flex-1">
+                <span className="text-3xl flex-shrink-0 mt-1">⚠️</span>
+                <div className="flex-1 pt-1">
+                  <p className="text-red-900 font-bold text-base">Login Failed</p>
+                  <p className="text-red-800 text-sm mt-2 leading-relaxed">{error}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={clearError}
+                className="ml-2 text-red-600 hover:text-red-900 hover:bg-red-100 transition-colors flex-shrink-0 text-xl p-1 rounded-md"
+                title="Dismiss"
+                aria-label="Dismiss error"
+              >
+                ✕
+              </button>
+            </div>
           </div>
         )}
 
@@ -92,6 +192,7 @@ function Login() {
               name="empid"
               value={formData.empid}
               onChange={handleChange}
+              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); passwordRef.current?.focus(); } }}
               placeholder="Enter your employee ID"
               disabled={loading}
               className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-purple-200 transition duration-200 bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -125,8 +226,9 @@ function Login() {
               <input
                 type={showPassword ? 'text' : 'password'}
                 name="password"
-                value={formData.password}
-                onChange={handleChange}
+                  ref={passwordRef}
+                  value={formData.password}
+                  onChange={handleChange}
                 placeholder="Enter your password"
                 disabled={loading}
                 className="w-full px-4 py-3 pr-12 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-purple-200 transition duration-200 bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"

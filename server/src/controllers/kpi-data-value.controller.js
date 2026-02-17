@@ -1,7 +1,30 @@
 const kpiDataValueModel = require('../models/kpi-data-value.model');
+const pool = require('../config/db');
 
 exports.getAllKPIDataValues = async (req, res) => {
   try {
+    const userRole = req.user?.role ? req.user.role.toLowerCase() : '';
+    const userId = req.user?.userId || req.user?.id;
+    
+    if (userRole === 'employee' || userRole === 'manager') {
+      const result = await pool.query(
+        `SELECT kdv.id, kdv.kpi_value_id, kdv.value, kdv.value_type, kdv.month, kdv.year, 
+                kdv.created_at, kdv.updated_at
+         FROM kpi_data_value kdv
+         JOIN kpi_values kv ON kv.id = kdv.kpi_value_id
+         JOIN users u ON kv."data operator" = u.empid
+         WHERE u.id = $1
+         ORDER BY kdv.year DESC, kdv.month DESC`,
+        [userId]
+      );
+      
+      return res.status(200).json({
+        success: true,
+        message: 'KPI data values retrieved successfully',
+        data: result.rows
+      });
+    }
+    
     const dataValues = await kpiDataValueModel.getAllKPIDataValues();
     res.status(200).json({
       success: true,
@@ -47,37 +70,39 @@ exports.getMonthlyDataByKPIValue = async (req, res) => {
   try {
     const { kpiValueId } = req.params;
     const { year } = req.query;
+    const userRole = req.user?.role ? req.user.role.toLowerCase() : '';
+    const userId = req.user?.userId || req.user?.id;
+    
+    if (userRole === 'employee' || userRole === 'manager') {
+      const checkResult = await pool.query(
+        `SELECT kv.id 
+         FROM kpi_values kv
+         JOIN users u ON kv."data operator" = u.empid
+         WHERE kv.id = $1 AND u.id = $2`,
+        [kpiValueId, userId]
+      );
+      
+      if (checkResult.rows.length === 0) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied. You do not have permission to view this KPI data.'
+        });
+      }
+    }
 
     const rawData = await kpiDataValueModel.getMonthlyDataByKPIValue(
       kpiValueId,
       year ? parseInt(year) : null
     );
 
-    // Transform data: group by month/year and separate target/actual into columns
-    const groupedData = {};
-    rawData.forEach(row => {
-      const key = `${row.year}-${row.month}`;
-      if (!groupedData[key]) {
-        groupedData[key] = {
-          month: row.month,
-          year: row.year,
-          target_value: null,
-          actual_value: null,
-          kpi_value_id: row.kpi_value_id,
-          created_at: row.created_at,
-          updated_at: row.updated_at
-        };
-      }
-      
-      if (row.value_type === 'target') {
-        groupedData[key].target_value = row.value;
-      } else if (row.value_type === 'actual') {
-        groupedData[key].actual_value = row.value;
-      }
-    });
-
-    // Convert to array
-    const transformedData = Object.values(groupedData);
+    // Transform value_type to match frontend expectations
+    // Database: 'target', 'actual' -> Frontend: 'Target', 'Achieved'
+    const transformedData = rawData.map(row => ({
+      ...row,
+      value_type: row.value_type === 'target' ? 'Target' : 
+                  row.value_type === 'actual' ? 'Achieved' : 
+                  row.value_type.charAt(0).toUpperCase() + row.value_type.slice(1)
+    }));
 
     res.status(200).json({
       success: true,

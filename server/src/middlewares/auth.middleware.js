@@ -15,10 +15,11 @@ exports.authenticate = (req, res, next) => {
       return sendError(res, 'Invalid or expired token', 401);
     }
 
+    console.log('✅ AUTH: Decoded token:', { userId: decoded.userId, email: decoded.email, role: decoded.role });
     req.user = decoded;
     next();
   } catch (error) {
-    console.error('Auth middleware error:', error.message);
+    console.error('❌ AUTH ERROR:', error.message);
     return sendError(res, 'Authentication failed', 401);
   }
 };
