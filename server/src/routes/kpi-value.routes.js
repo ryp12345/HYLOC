@@ -12,8 +12,14 @@ router.get('/', kpiValueController.getAllKPIValues);
 // Get KPI value by data field (query parameter) - must be before /:id
 router.get('/by-data', kpiValueController.getKPIValueByData);
 
+// Get KPI values by Pillar ID - must be before /:id
+router.get('/pillar/:pillerId', kpiValueController.getKPIValuesByPillar);
+
 // Get KPI values by KPI ID - must be before /:id
 router.get('/kpi/:kpiId', kpiValueController.getKPIValuesByKPI);
+
+// Get monthly data for a KPI value - must be before /:id
+router.get('/:id/monthly-data/:year', kpiValueController.getMonthlyData);
 
 // Get KPI value by ID
 router.get('/:id', kpiValueController.getKPIValueById);

@@ -683,7 +683,7 @@ const EmployeeCalendar = ({ joinDate }) => {
                       {dayCalendarLeaves.length > 0 && (
                         <div className="mt-2 space-y-1">
                           <button
-                            className="w-full px-2 py-1 rounded bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-colors"
+                            className="w-full px-2 py-1 rounded bg-purple-600 text-white text-xs font-semibold hover:bg-purple-700 transition-colors"
                             onClick={(e) => {
                               e.stopPropagation();
                               setSelectedCalendarDate(date);
@@ -847,7 +847,7 @@ const EmployeeCalendar = ({ joinDate }) => {
                 {dayCalendarLeaves.length > 0 && (
                   <div className="mt-2 space-y-1">
                     <button
-                      className="w-full px-2 py-1 rounded bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-colors"
+                      className="w-full px-2 py-1 rounded bg-purple-600 text-white text-xs font-semibold hover:bg-purple-700 transition-colors"
                       onClick={(e) => { e.stopPropagation(); setSelectedCalendarDate(date); setSelectedCalendarLeaves(dayCalendarLeaves); setShowCalendarLeaveModal(true); }}
                     >
                       {`Leave List(${dayCalendarLeaves.length})`}

@@ -5,8 +5,7 @@ import { useAuth } from '../../../context/AuthContext';
 
 const LeaveApprovalPage = () => {
   const { user } = useAuth();
-  const [view, setView] = useState('my-leaves'); // 'my-leaves' or 'approve-leaves'
-  const [myLeaves, setMyLeaves] = useState([]);
+  // Only show approve/reject employee leaves
   const [employeeLeaves, setEmployeeLeaves] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -88,12 +87,8 @@ const LeaveApprovalPage = () => {
   };
 
   useEffect(() => {
-    if (view === 'my-leaves') {
-      loadMyLeaves();
-    } else {
-      loadEmployeeLeaves();
-    }
-  }, [view]);
+    loadEmployeeLeaves();
+  }, []);
 
   const handleApprove = async (leaveId) => {
     if (!window.confirm('Approve this leave request?')) {
@@ -161,7 +156,7 @@ const LeaveApprovalPage = () => {
     }
   };
 
-  const currentLeaves = view === 'my-leaves' ? myLeaves : employeeLeaves;
+  const currentLeaves = employeeLeaves;
   
   const filteredLeaves = useMemo(() => {
     let result = currentLeaves.filter(leave => leave.status === activeTab);
@@ -221,7 +216,7 @@ const LeaveApprovalPage = () => {
       <div className="max-w-7xl mx-auto">
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-gray-800">Leave Approval (Manager)</h1>
-          <p className="text-sm text-gray-600">Manage your leaves and approve employee requests</p>
+          <p className="text-sm text-gray-600">Approve or reject employee leave requests</p>
         </div>
 
         {error && (
@@ -229,36 +224,6 @@ const LeaveApprovalPage = () => {
             {error}
           </div>
         )}
-
-        {/* View Toggle Buttons */}
-        <div className="mb-6 flex gap-4">
-          <button
-            onClick={() => {
-              setView('my-leaves');
-              setActiveTab('Pending');
-            }}
-            className={`px-6 py-3 rounded-lg font-medium transition-colors ${
-              view === 'my-leaves'
-                ? 'bg-purple-600 text-white'
-                : 'bg-blue-100 text-gray-700 hover:bg-blue-200'
-            }`}
-          >
-            Status of my Leave Requests
-          </button>
-          <button
-            onClick={() => {
-              setView('approve-leaves');
-              setActiveTab('Pending');
-            }}
-            className={`px-6 py-3 rounded-lg font-medium transition-colors ${
-              view === 'approve-leaves'
-                ? 'bg-purple-600 text-white'
-                : 'bg-blue-100 text-gray-700 hover:bg-blue-200'
-            }`}
-          >
-            Approve/Reject Employee Leaves
-          </button>
-        </div>
 
         {/* Tabs */}
         <div className="mb-6 flex gap-2">
@@ -277,8 +242,8 @@ const LeaveApprovalPage = () => {
           ))}
         </div>
 
-        {/* Leave List with Filters (show for both my-leaves and approve-leaves when a tab is selected) */}
-        {(view === 'approve-leaves' || view === 'my-leaves') && ['Pending', 'Approved', 'Rejected'].includes(activeTab) && (
+        {/* Leave List with Filters (only for approve/reject employee leaves) */}
+        {['Pending', 'Approved', 'Rejected'].includes(activeTab) && (
           <div className="mb-8">
             <div className="bg-white rounded-lg shadow-lg p-4 mb-4">
               <div className="flex flex-nowrap items-end gap-4 w-full">

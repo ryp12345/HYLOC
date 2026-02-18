@@ -341,3 +341,30 @@ exports.submitKPIData = async (req, res) => {
     res.status(500).json({ success: false, error: error.message });
   }
 };
+
+// Get all employees assigned to a specific KPI (data operators)
+exports.getKPIAssignees = async (req, res) => {
+  try {
+    const { kpiId } = req.params;
+
+    if (!kpiId) {
+      return res.status(400).json({ success: false, error: 'kpiId is required' });
+    }
+
+    const result = await pool.query(
+      `SELECT DISTINCT u.id, u.empid, u.first_name, u.last_name, u.email,
+              STRING_AGG(DISTINCT kv.data, ', ') as kpi_values
+       FROM kpi_values kv
+       JOIN users u ON kv."data operator" = u.empid
+       WHERE kv.kpi_id = $1
+       GROUP BY u.id, u.empid, u.first_name, u.last_name, u.email
+       ORDER BY u.first_name, u.last_name`,
+      [kpiId]
+    );
+
+    res.json({ success: true, data: result.rows });
+  } catch (error) {
+    await logError(error, 'employee.controller.getKPIAssignees', req.user?.id);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};

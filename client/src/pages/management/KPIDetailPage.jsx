@@ -6,6 +6,25 @@ import { useAuth } from '../../context/AuthContext';
 const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const FISCAL_MONTHS = [4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2, 3]; // April to March
 
+const normalizeValueType = (valueType) => {
+  const normalized = (valueType || '').toString().trim().toLowerCase();
+  if (!normalized) return '';
+  if (normalized === 'actual' || normalized === 'achieved' || normalized === 'qa') return 'actual';
+  if (normalized === 'target') return 'target';
+  if (normalized.includes('actual') || normalized.includes('achieved')) return 'actual';
+  if (normalized.includes('target')) return 'target';
+  if (normalized.includes('qa') && !normalized.includes('target')) return 'actual';
+  return normalized ? 'actual' : normalized;
+};
+
+const parseNumeric = (value) => {
+  if (value == null) return null;
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+  const cleaned = String(value).replace(/[^0-9.-]/g, '').trim();
+  const parsed = Number(cleaned);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
 const KPIDetailPage = () => {
   const { kpiId } = useParams();
   const navigate = useNavigate();
@@ -29,10 +48,33 @@ const KPIDetailPage = () => {
   const [fiscalYear, setFiscalYear] = useState(location.state?.fiscalYear || getCurrentFiscalYear());
   const [expandedNodes, setExpandedNodes] = useState(new Set([parseInt(kpiId)]));
   const [managementInsights, setManagementInsights] = useState(null);
+  const [showScrollToTop, setShowScrollToTop] = useState(false);
+  const [modalChart, setModalChart] = useState(null);
 
   useEffect(() => {
     loadKPIHierarchy();
   }, [kpiId, fiscalYear]);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowScrollToTop(window.scrollY > 300);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const openChartModal = (chart) => {
+    setModalChart(chart);
+  };
+
+  const closeChartModal = () => {
+    setModalChart(null);
+  };
 
   // Get fiscal month sequence with year info
   const getFiscalMonthSequence = (fiscalYear) => {
@@ -57,6 +99,8 @@ const KPIDetailPage = () => {
       // Load full hierarchy
       const hierarchy = await loadKPITreeRecursive(kpiId, 1);
       console.log('📊 Hierarchy loaded:', hierarchy.length, 'child KPIs found');
+
+      await loadParentKpiValues(kpiId, fiscalYear);
       
       // Auto-expand first level of child KPIs
       if (hierarchy.length > 0) {
@@ -66,51 +110,6 @@ const KPIDetailPage = () => {
           console.log(`🔓 Auto-expanding child KPI: ${node.kpi.title} (ID: ${node.kpi.id})`);
         });
         setExpandedNodes(newExpandedNodes);
-      } else {
-        // If no child KPIs, load parent KPI's own values
-        console.log('⚠️ No child KPIs found. Loading parent KPI values...');
-        try {
-          const valuesRes = await getKPIValuesByKPI(kpiId);
-          const parentValues = valuesRes.data.data || [];
-          console.log('📊 Parent KPI has', parentValues.length, 'values:', parentValues.map(v => v.data));
-          setParentKPIValues(parentValues);
-          
-          // Load monthly data for parent KPI values
-          const monthlyDataByValue = {};
-          for (const value of parentValues) {
-            try {
-              const allMonthlyData = [];
-              
-              // Get data for first calendar year (April-December)
-              try {
-                const dataRes1 = await getMonthlyDataByKPIValue(value.id, fiscalYear);
-                if (dataRes1.data.data && Array.isArray(dataRes1.data.data)) {
-                  allMonthlyData.push(...dataRes1.data.data);
-                }
-              } catch (err) {
-                // No data available for this year
-              }
-              
-              // Get data for second calendar year (January-March)
-              try {
-                const dataRes2 = await getMonthlyDataByKPIValue(value.id, fiscalYear + 1);
-                if (dataRes2.data.data && Array.isArray(dataRes2.data.data)) {
-                  allMonthlyData.push(...dataRes2.data.data);
-                }
-              } catch (err) {
-                // No data available for this year
-              }
-              
-              monthlyDataByValue[value.id] = allMonthlyData;
-            } catch (error) {
-              console.error(`Error loading data for parent KPI value ${value.id}:`, error);
-              monthlyDataByValue[value.id] = [];
-            }
-          }
-          setParentMonthlyData(monthlyDataByValue);
-        } catch (error) {
-          console.error('Error loading parent KPI values:', error);
-        }
       }
       
       setHierarchyData(hierarchy);
@@ -123,6 +122,54 @@ const KPIDetailPage = () => {
       console.error('Error loading KPI hierarchy:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadParentKpiValues = async (parentId, fyYear) => {
+    console.log('📊 Loading parent KPI values...');
+    try {
+      const valuesRes = await getKPIValuesByKPI(parentId);
+      const parentValues = valuesRes.data.data || [];
+      console.log('📊 Parent KPI has', parentValues.length, 'values:', parentValues.map(v => v.data));
+      setParentKPIValues(parentValues);
+      
+      // Load monthly data for parent KPI values
+      const monthlyDataByValue = {};
+      for (const value of parentValues) {
+        try {
+          const allMonthlyData = [];
+          
+          // Get data for first calendar year (April-December)
+          try {
+            const dataRes1 = await getMonthlyDataByKPIValue(value.id, fyYear);
+            if (dataRes1.data.data && Array.isArray(dataRes1.data.data)) {
+              allMonthlyData.push(...dataRes1.data.data);
+            }
+          } catch (err) {
+            // No data available for this year
+          }
+          
+          // Get data for second calendar year (January-March)
+          try {
+            const dataRes2 = await getMonthlyDataByKPIValue(value.id, fyYear + 1);
+            if (dataRes2.data.data && Array.isArray(dataRes2.data.data)) {
+              allMonthlyData.push(...dataRes2.data.data);
+            }
+          } catch (err) {
+            // No data available for this year
+          }
+          
+          monthlyDataByValue[value.id] = allMonthlyData;
+        } catch (error) {
+          console.error(`Error loading data for parent KPI value ${value.id}:`, error);
+          monthlyDataByValue[value.id] = [];
+        }
+      }
+      setParentMonthlyData(monthlyDataByValue);
+    } catch (error) {
+      console.error('Error loading parent KPI values:', error);
+      setParentKPIValues([]);
+      setParentMonthlyData({});
     }
   };
 
@@ -161,23 +208,26 @@ const KPIDetailPage = () => {
             // Get data for first calendar year (April-December)
             try {
               const dataRes1 = await getMonthlyDataByKPIValue(value.id, fiscalYear);
-              if (dataRes1.data.data && Array.isArray(dataRes1.data.data)) {
+              console.log(`    📅 Fetched data for ${value.data} (ID: ${value.id}) year ${fiscalYear}:`, dataRes1.data?.data?.length || 0, 'records');
+              if (dataRes1.data?.data && Array.isArray(dataRes1.data.data)) {
                 allMonthlyData.push(...dataRes1.data.data);
               }
             } catch (err) {
-              // No data available for this year
+              console.warn(`    ⚠️ No data for ${value.data} year ${fiscalYear}:`, err.message);
             }
             
             // Get data for second calendar year (January-March)
             try {
               const dataRes2 = await getMonthlyDataByKPIValue(value.id, fiscalYear + 1);
-              if (dataRes2.data.data && Array.isArray(dataRes2.data.data)) {
+              console.log(`    📅 Fetched data for ${value.data} (ID: ${value.id}) year ${fiscalYear + 1}:`, dataRes2.data?.data?.length || 0, 'records');
+              if (dataRes2.data?.data && Array.isArray(dataRes2.data.data)) {
                 allMonthlyData.push(...dataRes2.data.data);
               }
             } catch (err) {
-              // No data available for this year
+              console.warn(`    ⚠️ No data for ${value.data} year ${fiscalYear + 1}:`, err.message);
             }
             
+            console.log(`    ✅ Total data collected for ${value.data}:`, allMonthlyData.length, 'records', allMonthlyData);
             monthlyDataByValue[value.id] = allMonthlyData;
           } catch (error) {
             console.error(`Error loading data for KPI value ${value.id}:`, error);
@@ -285,15 +335,19 @@ const KPIDetailPage = () => {
       for (const value of values) {
         const data = monthlyData[value.id] || [];
         
-        const actuals = data.filter(d => d.value_type === 'Achieved').sort((a, b) => a.month - b.month);
-        const targets = data.filter(d => d.value_type === 'Target').sort((a, b) => a.month - b.month);
+        const actuals = data
+          .filter(d => normalizeValueType(d.value_type) === 'actual')
+          .sort((a, b) => a.month - b.month);
+        const targets = data
+          .filter(d => normalizeValueType(d.value_type) === 'target')
+          .sort((a, b) => a.month - b.month);
 
         if (actuals.length > 0 && targets.length > 0) {
           hasAnyData = true;
           
           // Calculate achievement rate for this specific metric
-          const latestActual = actuals[actuals.length - 1].value;
-          const latestTarget = targets[targets.length - 1].value;
+          const latestActual = parseNumeric(actuals[actuals.length - 1].value) || 0;
+          const latestTarget = parseNumeric(targets[targets.length - 1].value) || 0;
           
           if (latestTarget > 0 || latestActual > 0) {
             const achievementRate = calculateAchievementRate(latestActual, latestTarget, value.data);
@@ -301,7 +355,7 @@ const KPIDetailPage = () => {
 
             // Trend analysis
             if (actuals.length >= 3) {
-              const last3 = actuals.slice(-3).map(a => a.value);
+              const last3 = actuals.slice(-3).map(a => parseNumeric(a.value) || 0);
               const trend = calculateTrend(last3);
               
               const isInverse = isInverseMetric(value.data);
@@ -338,7 +392,7 @@ const KPIDetailPage = () => {
 
             // Month-over-month analysis
             if (actuals.length >= 2) {
-              const prevVal = actuals[actuals.length - 2].value;
+              const prevVal = parseNumeric(actuals[actuals.length - 2].value) || 0;
               if (prevVal !== 0) {
                 const mom = ((actuals[actuals.length - 1].value - prevVal) / prevVal * 100);
                 
@@ -563,15 +617,14 @@ const KPIDetailPage = () => {
     setExpandedNodes(newExpanded);
   };
 
-  const LineChart = ({ data, title }) => {
-    // Debug logging for specific metrics
-    if (title && title.includes('LOSS')) {
-      console.log(`=== DEBUG: ${title} ===`);
-      console.log('Raw data received:', data);
-      console.log('Total records:', data?.length);
-    }
+  const LineChart = ({ data, title, size = 'default' }) => {
+    // Debug logging for all metrics
+    console.log(`[LineChart] Title: ${title}`);
+    console.log(`[LineChart] Data received:`, data);
+    console.log(`[LineChart] Data length:`, data?.length);
     
     if (!data || data.length === 0) {
+      console.log(`[LineChart] No data available for ${title}`);
       return (
         <div className="bg-white p-4 rounded-lg shadow">
           <h3 className="font-semibold text-gray-800 mb-2">{title}</h3>
@@ -580,39 +633,97 @@ const KPIDetailPage = () => {
       );
     }
 
-    const actuals = data.filter((d) => d.value_type === 'Achieved').sort((a, b) => a.month - b.month);
-    const targets = data.filter((d) => d.value_type === 'Target').sort((a, b) => a.month - b.month);
+    const normalizeValueType = (valueType) => {
+      const normalized = (valueType || '').toString().trim().toLowerCase();
+      if (!normalized) return '';
+      if (normalized === 'actual' || normalized === 'achieved' || normalized === 'qa') return 'actual';
+      if (normalized === 'target') return 'target';
+      if (normalized.includes('actual') || normalized.includes('achieved')) return 'actual';
+      if (normalized.includes('target')) return 'target';
+      if (normalized.includes('qa') && !normalized.includes('target')) return 'actual';
+      return normalized ? 'actual' : normalized;
+    };
 
-    // Debug logging for specific metrics
-    if (title && title.includes('LOSS')) {
-      console.log(`Actuals for ${title}:`, actuals);
-      console.log(`Targets for ${title}:`, targets);
-    }
+    const actuals = data
+      .filter((d) => normalizeValueType(d.value_type) === 'actual')
+      .sort((a, b) => a.month - b.month);
+    const targets = data
+      .filter((d) => normalizeValueType(d.value_type) === 'target')
+      .sort((a, b) => a.month - b.month);
+
+    console.log(`[LineChart] ${title} - Actuals:`, actuals.length, 'Targets:', targets.length);
 
     // Map to fiscal year order
     const fiscalSequence = getFiscalMonthSequence(fiscalYear);
+    const parseNumeric = (value) => {
+      if (value == null) return null;
+      if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+      const cleaned = String(value).replace(/[^0-9.-]/g, '').trim();
+      const parsed = Number(cleaned);
+      return Number.isFinite(parsed) ? parsed : null;
+    };
+
+    const normalizeMonthValue = (value) => {
+      if (value == null) return null;
+      if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+      const text = String(value).trim();
+      const numeric = Number(text);
+      if (Number.isFinite(numeric) && numeric >= 1 && numeric <= 12) return numeric;
+      const monthKey = text.slice(0, 3).toLowerCase();
+      const monthIndex = MONTH_LABELS.map(label => label.toLowerCase()).indexOf(monthKey);
+      if (monthIndex >= 0) return monthIndex + 1;
+      const parsedDate = new Date(text);
+      if (!Number.isNaN(parsedDate.getTime())) return parsedDate.getMonth() + 1;
+      return null;
+    };
+
     const actualsByMonth = {};
     const targetsByMonth = {};
-    
-    actuals.forEach(a => {
-      actualsByMonth[a.month] = a.value;
-    });
-    
-    targets.forEach(t => {
-      targetsByMonth[t.month] = t.value;
+
+    data.forEach((row) => {
+      const month = normalizeMonthValue(row.month);
+      if (!month) return;
+      const type = normalizeValueType(row.value_type);
+      const actualVal = parseNumeric(
+        row.actual_value ?? row.actual ?? (type === 'actual' ? row.value : null)
+      );
+      const targetVal = parseNumeric(
+        row.target_value ?? row.target ?? (type === 'target' ? row.value : null)
+      );
+
+      if (actualVal !== null) {
+        actualsByMonth[month] = actualVal;
+      }
+      if (targetVal !== null) {
+        targetsByMonth[month] = targetVal;
+      }
     });
 
-    const actualValues = fiscalSequence.map(({ month }) => actualsByMonth[month] || null);
-    const targetValues = fiscalSequence.map(({ month }) => targetsByMonth[month] || null);
+    const actualValues = fiscalSequence.map(({ month }) => (
+      Object.prototype.hasOwnProperty.call(actualsByMonth, month) ? actualsByMonth[month] : null
+    ));
+    const targetValues = fiscalSequence.map(({ month }) => (
+      Object.prototype.hasOwnProperty.call(targetsByMonth, month) ? targetsByMonth[month] : null
+    ));
     const labels = fiscalSequence.map(({ label }) => label);
 
-    const allValues = [...actualValues.filter(v => v !== null), ...targetValues.filter(v => v !== null)];
-    const maxVal = allValues.length > 0 ? Math.max(...allValues) : 1;
-    const minVal = 0;
+    console.log(`[LineChart] ${title} - Actual values:`, actualValues);
+    console.log(`[LineChart] ${title} - Target values:`, targetValues);
 
-    const svgWidth = 700;
-    const svgHeight = 280;
-    const padding = 50;
+    const allValues = [...actualValues.filter(v => v !== null), ...targetValues.filter(v => v !== null)];
+    const maxValRaw = allValues.length > 0 ? Math.max(...allValues) : 0;
+    const minValRaw = allValues.length > 0 ? Math.min(...allValues) : 0;
+    const minVal = Math.min(0, minValRaw);
+    const maxVal = maxValRaw === minVal ? minVal + 1 : maxValRaw;
+
+    console.log(`[LineChart] ${title} - Value range: ${minVal} to ${maxVal}`);
+
+    const chartSizes = {
+      compact: { svgWidth: 600, svgHeight: 300, padding: 50, minHeight: '320px' },
+      default: { svgWidth: 700, svgHeight: 380, padding: 60, minHeight: '400px' },
+      modal: { svgWidth: 900, svgHeight: 460, padding: 70, minHeight: '520px' }
+    };
+    const { svgWidth, svgHeight, padding, minHeight } = chartSizes[size] || chartSizes.default;
 
     const getX = (idx) => padding + (idx / (labels.length - 1 || 1)) * (svgWidth - 2 * padding);
     const getY = (val) => {
@@ -650,21 +761,23 @@ const KPIDetailPage = () => {
           </div>
         )}
 
-        <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="w-full">
-          {/* Grid lines */}
+        <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="w-full border border-gray-300 bg-white" style={{ minHeight, display: 'block' }}>
+          {/* Grid lines with values */}
           {[...Array(5)].map((_, i) => {
+            const value = minVal + (i / 4) * (maxVal - minVal);
             const y = padding + (i * (svgHeight - 2 * padding)) / 4;
             return (
-              <line
-                key={`grid-${i}`}
-                x1={padding}
-                y1={y}
-                x2={svgWidth - padding}
-                y2={y}
-                stroke="#e5e7eb"
-                strokeWidth="1"
-                strokeDasharray="3,3"
-              />
+              <g key={`grid-${i}`}>
+                <line
+                  x1={padding}
+                  y1={y}
+                  x2={svgWidth - padding}
+                  y2={y}
+                  stroke="#e5e7eb"
+                  strokeWidth="1"
+                  strokeDasharray="3,3"
+                />
+              </g>
             );
           })}
 
@@ -706,17 +819,47 @@ const KPIDetailPage = () => {
             />
           )}
 
-          {/* Data points */}
+          {/* Target data points with labels */}
+          {targetValues.map((val, idx) => {
+            if (val === null) return null;
+            const x = getX(idx);
+            const y = getY(val);
+            return (
+              <g key={`target-${idx}`}>
+                <circle cx={x} cy={y} r="3" fill="#ffb74d" stroke="white" strokeWidth="1" />
+                <text
+                  x={x}
+                  y={y - 12}
+                  textAnchor="middle"
+                  fontSize="10"
+                  fill="#c97706"
+                  fontWeight="bold"
+                >
+                  {val.toFixed(1)}
+                </text>
+              </g>
+            );
+          })}
+
+          {/* Actual data points with labels */}
           {actualValues.map((val, idx) => {
             if (val === null) return null;
+            const x = getX(idx);
+            const y = getY(val);
             return (
-              <circle
-                key={`actual-${idx}`}
-                cx={getX(idx)}
-                cy={getY(val)}
-                r="4"
-                fill="#41aafe"
-              />
+              <g key={`actual-${idx}`}>
+                <circle cx={x} cy={y} r="5" fill="#41aafe" stroke="white" strokeWidth="2" />
+                <text
+                  x={x}
+                  y={y + 18}
+                  textAnchor="middle"
+                  fontSize="10"
+                  fill="#0369a1"
+                  fontWeight="bold"
+                >
+                  {val.toFixed(1)}
+                </text>
+              </g>
             );
           })}
 
@@ -737,39 +880,57 @@ const KPIDetailPage = () => {
               </text>
             );
           })}
+
+          {/* Axis titles */}
+          <text x={svgWidth / 2} y={svgHeight - 5} textAnchor="middle" fontSize="11" fill="#6b7280" fontWeight="500">
+            Month
+          </text>
+          <text x={15} y={svgHeight / 2} textAnchor="middle" fontSize="11" fill="#6b7280" fontWeight="500" transform={`rotate(-90 15 ${svgHeight / 2})`}>
+            Value
+          </text>
         </svg>
 
         {/* Legend */}
-        <div className="flex gap-6 mt-3 justify-center">
+        <div className="flex gap-6 mt-3 justify-center flex-wrap">
           <div className="flex items-center gap-2">
             <span className="w-6 h-1 bg-[#41aafe] rounded"></span>
             <span className="text-xs text-gray-600">Actual</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="w-6 h-1 bg-[#ffb74d] rounded border-t-2 border-dashed"></span>
+            <span className="w-6 h-1 bg-[#ffb74d]" style={{ borderTop: '2px dashed #ffb74d' }}></span>
             <span className="text-xs text-gray-600">Target</span>
           </div>
         </div>
 
         {/* Quick stats */}
         {lastActual !== undefined && lastTarget !== undefined && (
-          <div className="mt-3 pt-3 border-t border-gray-200 grid grid-cols-3 gap-2 text-xs">
+          <div className="mt-3 pt-3 border-t border-gray-200 grid grid-cols-4 gap-2 text-xs">
             <div>
-              <span className="text-gray-500">Latest:</span>
-              <span className="ml-1 font-semibold">{lastActual.toFixed(1)}</span>
+              <span className="text-gray-500 block">Latest Actual:</span>
+              <span className="font-semibold text-blue-600">{lastActual.toFixed(2)}</span>
             </div>
             <div>
-              <span className="text-gray-500">Target:</span>
-              <span className="ml-1 font-semibold">{lastTarget.toFixed(1)}</span>
+              <span className="text-gray-500 block">Target:</span>
+              <span className="font-semibold text-orange-600">{lastTarget.toFixed(2)}</span>
             </div>
             <div>
-              <span className="text-gray-500">Variance:</span>
-              <span className={`ml-1 font-semibold ${
+              <span className="text-gray-500 block">Variance:</span>
+              <span className={`font-semibold ${
                 isInverse 
                   ? (lastActual <= lastTarget ? 'text-green-600' : 'text-red-600')
                   : (lastActual >= lastTarget ? 'text-green-600' : 'text-red-600')
               }`}>
-                {lastActual >= lastTarget ? '+' : ''}{(lastActual - lastTarget).toFixed(1)}
+                {lastActual >= lastTarget ? '+' : ''}{(lastActual - lastTarget).toFixed(2)}
+              </span>
+            </div>
+            <div>
+              <span className="text-gray-500 block">Achievement:</span>
+              <span className={`font-semibold ${
+                parseFloat(achievementRate) >= 100 ? 'text-green-600' :
+                parseFloat(achievementRate) >= 90 ? 'text-yellow-600' :
+                'text-red-600'
+              }`}>
+                {achievementRate}%
               </span>
             </div>
           </div>
@@ -789,12 +950,12 @@ const KPIDetailPage = () => {
 
     values.forEach(value => {
       const data = monthlyData[value.id] || [];
-      const actuals = data.filter(d => d.value_type === 'Achieved');
-      const targets = data.filter(d => d.value_type === 'Target');
+      const actuals = data.filter(d => normalizeValueType(d.value_type) === 'actual');
+      const targets = data.filter(d => normalizeValueType(d.value_type) === 'target');
       
       if (actuals.length > 0 && targets.length > 0) {
-        const latestActual = actuals[actuals.length - 1].value;
-        const latestTarget = targets[targets.length - 1].value;
+        const latestActual = parseNumeric(actuals[actuals.length - 1].value) || 0;
+        const latestTarget = parseNumeric(targets[targets.length - 1].value) || 0;
         
         if (latestTarget > 0 || latestActual > 0) {
           const rate = calculateAchievementRate(latestActual, latestTarget, value.data);
@@ -876,13 +1037,42 @@ const KPIDetailPage = () => {
               values.length === 2 ? 'grid-cols-1 lg:grid-cols-2' :
               'grid-cols-1 lg:grid-cols-2 xl:grid-cols-3'
             }`}>
-              {values.map((value) => (
-                <LineChart 
-                  key={value.id} 
-                  data={monthlyData[value.id]} 
-                  title={value.data} 
-                />
-              ))}
+              {values.map((value) => {
+                const chartData = monthlyData[value.id];
+                const isSingleChart = values.length === 1;
+                console.log(`🎨 Rendering LineChart for ${value.data}:`, {
+                  kpiValueId: value.id,
+                  dataLength: chartData?.length || 0,
+                  data: chartData
+                });
+                const chart = (
+                  <LineChart
+                    data={chartData}
+                    title={value.data}
+                    size={isSingleChart ? 'compact' : 'default'}
+                  />
+                );
+
+                if (isSingleChart) {
+                  return (
+                    <div key={value.id} className="w-full max-w-3xl mx-auto">
+                      {chart}
+                    </div>
+                  );
+                }
+
+                return (
+                  <button
+                    key={value.id}
+                    type="button"
+                    className="w-full text-left rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 hover:shadow-lg transition"
+                    onClick={() => openChartModal({ title: value.data, data: chartData })}
+                    aria-label={`Open ${value.data} chart`}
+                  >
+                    {chart}
+                  </button>
+                );
+              })}
             </div>
           )}
         </div>
@@ -1348,6 +1538,54 @@ const KPIDetailPage = () => {
         </div>
 
         {/* Main Content */}
+        {hierarchyData.length > 0 && parentKPIValues.length > 0 && (
+          <div className="bg-white rounded-lg shadow p-8 mb-6">
+            <div className="mb-6 text-center">
+              <h3 className="text-xl font-bold text-gray-800 mb-2">Direct KPI Metrics</h3>
+              <p className="text-gray-600 text-sm">
+                Direct metrics for <strong>{parentKPI?.title}</strong>
+              </p>
+            </div>
+            <div className={`grid gap-4 ${
+              parentKPIValues.length === 1 ? 'grid-cols-1' :
+              parentKPIValues.length === 2 ? 'grid-cols-1 lg:grid-cols-2' :
+              'grid-cols-1 lg:grid-cols-2 xl:grid-cols-3'
+            }`}>
+              {parentKPIValues.map((value) => {
+                const chartData = parentMonthlyData[value.id];
+                const isSingleChart = parentKPIValues.length === 1;
+                const chart = (
+                  <LineChart
+                    data={chartData}
+                    title={value.data}
+                    size={isSingleChart ? 'compact' : 'default'}
+                  />
+                );
+
+                if (isSingleChart) {
+                  return (
+                    <div key={value.id} className="w-full max-w-3xl mx-auto">
+                      {chart}
+                    </div>
+                  );
+                }
+
+                return (
+                  <button
+                    key={value.id}
+                    type="button"
+                    className="w-full text-left rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 hover:shadow-lg transition"
+                    onClick={() => openChartModal({ title: value.data, data: chartData })}
+                    aria-label={`Open ${value.data} chart`}
+                  >
+                    {chart}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {hierarchyData.length === 0 ? (
           <div className="bg-white rounded-lg shadow p-8">
             {parentKPIValues.length > 0 ? (
@@ -1363,13 +1601,37 @@ const KPIDetailPage = () => {
                   parentKPIValues.length === 2 ? 'grid-cols-1 lg:grid-cols-2' :
                   'grid-cols-1 lg:grid-cols-2 xl:grid-cols-3'
                 }`}>
-                  {parentKPIValues.map((value) => (
-                    <LineChart 
-                      key={value.id} 
-                      data={parentMonthlyData[value.id]} 
-                      title={value.data} 
-                    />
-                  ))}
+                  {parentKPIValues.map((value) => {
+                    const chartData = parentMonthlyData[value.id];
+                    const isSingleChart = parentKPIValues.length === 1;
+                    const chart = (
+                      <LineChart
+                        data={chartData}
+                        title={value.data}
+                        size={isSingleChart ? 'compact' : 'default'}
+                      />
+                    );
+
+                    if (isSingleChart) {
+                      return (
+                        <div key={value.id} className="w-full max-w-3xl mx-auto">
+                          {chart}
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <button
+                        key={value.id}
+                        type="button"
+                        className="w-full text-left rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 hover:shadow-lg transition"
+                        onClick={() => openChartModal({ title: value.data, data: chartData })}
+                        aria-label={`Open ${value.data} chart`}
+                      >
+                        {chart}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             ) : (
@@ -1416,6 +1678,43 @@ const KPIDetailPage = () => {
           </ul>
         </div>
       </div>
+      {modalChart && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6"
+          onClick={closeChartModal}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            className="bg-white rounded-lg shadow-xl w-full max-w-5xl p-4"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex justify-end mb-3">
+              <button
+                type="button"
+                onClick={closeChartModal}
+                className="text-gray-500 hover:text-gray-700 text-sm font-semibold"
+                aria-label="Close chart"
+              >
+                Close
+              </button>
+            </div>
+            <LineChart data={modalChart.data} title={modalChart.title} size="modal" />
+          </div>
+        </div>
+      )}
+      {showScrollToTop && (
+        <button
+          onClick={scrollToTop}
+          className="fixed bottom-8 right-8 bg-blue-600 hover:bg-blue-700 text-white rounded-full p-3 shadow-lg transition-all duration-200 z-50"
+          title="Scroll to top"
+          aria-label="Scroll to top"
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
+          </svg>
+        </button>
+      )}
     </div>
   );
 };

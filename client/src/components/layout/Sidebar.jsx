@@ -42,7 +42,15 @@ const Sidebar = () => {
     { name: 'KMI', path: '/management/mgtkmi', icon: '📚' },
     { name: 'Pillar', path: '/management/mgtpiller', icon: '🏛️' },
     { name: 'Calendar', path: '/management/leaves', icon: '📅' },
-    { name: 'Leave Approval', path: '/management/leave-approval', icon: '✅' },
+    // { name: 'Leave List', path: '/management/leave-approval', icon: '🗂️' },
+    {
+      name: 'Leave List',
+      icon: '🗂️',
+      submenu: [
+        { name: 'My Leave', path: '/management/my-leave' },
+        { name: 'Leave Approval', path: '/management/leave-approval' },
+      ],
+    },
     { name: 'Tickets', path: '/tickets', icon: '🎫' },
   ];
 
@@ -51,7 +59,15 @@ const Sidebar = () => {
   const managerLinks = [
     { name: 'Dashboard', path: getDashboardPath(), icon: '📊' },
     { name: 'Calendar', path: '/manager/leaves', icon: '📅' },
-    { name: 'Leave Approval', path: '/manager/leave-approval', icon: '✅' },
+    // { name: 'Leave Approval', path: '/manager/leave-approval', icon: '✅' },
+    {
+      name: 'Leave List',
+      icon: '🗂️',
+      submenu: [
+        { name: 'My Leave', path: '/manager/my-leave' },
+        { name: 'Leave Approval', path: '/manager/leave-approval' },
+      ],
+    },
     { name: 'Tickets', path: '/tickets', icon: '🎫' },
   ];
   const employeeLinks = [

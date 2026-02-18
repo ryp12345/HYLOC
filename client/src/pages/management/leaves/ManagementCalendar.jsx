@@ -1,17 +1,52 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { getAllLeaves } from '../../../api/leaveApi';
+import { 
+	getAllLeaves,
+	applyLeave,
+	getMyLeaves,
+	getMyLeaveBalance,
+	updateLeave,
+	cancelLeave,
+	checkLeaveEligibility,
+	getDepartmentColleagues
+} from '../../../api/leaveApi';
 import { getMyTickets, getAllTickets } from '../../../api/ticketApi';
+import { useAuth } from '../../../context/AuthContext';
 
 const ManagementCalendar = () => {
+	const { user } = useAuth();
 	const [currentDate, setCurrentDate] = useState(new Date());
 	const [viewMode, setViewMode] = useState('month'); // 'month', 'week', 'list'
+	const [selectedDate, setSelectedDate] = useState(new Date());
 	const [leaves, setLeaves] = useState([]);
 	const [allOrgLeaves, setAllOrgLeaves] = useState([]);
+	
+	// Management's own leave management state
+	const [myLeaves, setMyLeaves] = useState([]);
+	const [leaveBalance, setLeaveBalance] = useState(null);
+	const [eligibility, setEligibility] = useState(null);
+	const [colleagues, setColleagues] = useState([]);
+	
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState(null);
 	const [showLeaveModal, setShowLeaveModal] = useState(false);
 	const [selectedLeaveDate, setSelectedLeaveDate] = useState(null);
 	const [selectedDateLeaves, setSelectedDateLeaves] = useState([]);
+	
+	// Form state for applying/editing own leaves
+	const [showLeaveForm, setShowLeaveForm] = useState(false);
+	const [editingLeave, setEditingLeave] = useState(null);
+	const [showDateDetail, setShowDateDetail] = useState(false);
+	const [leaveForm, setLeaveForm] = useState({
+		from_date: '',
+		to_date: '',
+		leave_duration: 'Full Day',
+		day_type: 'full',
+		leave_reason: '',
+		duration: 1,
+		alternate_person: '',
+		additional_alternate: '',
+		available_on_phone: true
+	});
 
 	// Filter state
 	const [showFilteredTable, setShowFilteredTable] = useState(false);
@@ -66,6 +101,38 @@ const ManagementCalendar = () => {
 				return fromDate && fromDate.getFullYear() === year;
 			});
 			setAllOrgLeaves(currentYearLeaves);
+			
+			// Load management's own leaves
+			try {
+				const myLeavesResponse = await getMyLeaves({ year });
+				setMyLeaves(myLeavesResponse.data.data || []);
+			} catch (err) {
+				console.error('Error loading my leaves:', err);
+			}
+			
+			// Load leave balance
+			try {
+				const balanceResponse = await getMyLeaveBalance(year);
+				setLeaveBalance(balanceResponse.data.data);
+			} catch (err) {
+				console.error('Error loading balance:', err);
+			}
+			
+			// Check eligibility
+			try {
+				const eligibilityResponse = await checkLeaveEligibility();
+				setEligibility(eligibilityResponse.data.data);
+			} catch (err) {
+				console.error('Error checking eligibility:', err);
+			}
+			
+			// Load department colleagues
+			try {
+				const colleaguesResponse = await getDepartmentColleagues();
+				setColleagues(colleaguesResponse.data.data || []);
+			} catch (err) {
+				console.error('Error loading colleagues:', err);
+			}
 		} catch (err) {
 			setError(err.response?.data?.message || 'Failed to load pending leaves');
 			console.error('Error loading pending leaves:', err);
@@ -262,6 +329,237 @@ const ManagementCalendar = () => {
 		return fromDate <= monthEnd && toDate >= monthStart;
 	};
 
+	// Management's own leave management functions
+	const handleFormChange = (e) => {
+		const { name, value, type, checked } = e.target;
+		let updatedForm = {
+			...leaveForm,
+			[name]: type === 'checkbox' ? checked : value
+		};
+		// Auto-calculate duration if from_date or to_date changes
+		if (name === 'from_date' || name === 'to_date') {
+			const from = new Date(name === 'from_date' ? value : updatedForm.from_date);
+			const to = new Date(name === 'to_date' ? value : updatedForm.to_date);
+			if (from && to && !isNaN(from) && !isNaN(to)) {
+				const diff = Math.round((to - from) / (1000 * 60 * 60 * 24)) + 1;
+				updatedForm.duration = diff > 0 ? diff : 1;
+				// If dates differ, force day_type to 'full'
+				if (updatedForm.from_date !== updatedForm.to_date) {
+					updatedForm.day_type = 'full';
+				}
+			} else {
+				updatedForm.duration = 1;
+			}
+		}
+		// Set duration and leave_duration based on day_type
+		if (name === 'day_type') {
+			if (value === 'full') {
+				updatedForm.duration = 1;
+				updatedForm.leave_duration = 'Full Day';
+			} else if (value === 'morning') {
+				updatedForm.duration = 0.5;
+				updatedForm.leave_duration = 'Morning Half';
+			} else if (value === 'afternoon') {
+				updatedForm.duration = 0.5;
+				updatedForm.leave_duration = 'Afternoon Half';
+			}
+		}
+		// Also, if from_date and to_date are the same, update leave_duration if day_type is not full
+		if ((name === 'from_date' || name === 'to_date') && updatedForm.from_date === updatedForm.to_date) {
+			if (updatedForm.day_type === 'morning') {
+				updatedForm.leave_duration = 'Morning Half';
+				updatedForm.duration = 0.5;
+			} else if (updatedForm.day_type === 'afternoon') {
+				updatedForm.leave_duration = 'Afternoon Half';
+				updatedForm.duration = 0.5;
+			} else {
+				updatedForm.leave_duration = 'Full Day';
+				updatedForm.duration = 1;
+			}
+		}
+		setLeaveForm(updatedForm);
+	};
+
+	// Format date as YYYY-MM-DD in local timezone (not UTC)
+	const formatDateForInput = (date) => {
+		const year = date.getFullYear();
+		const month = String(date.getMonth() + 1).padStart(2, '0');
+		const day = String(date.getDate()).padStart(2, '0');
+		return `${year}-${month}-${day}`;
+	};
+
+	// Open leave form for new application
+	const openLeaveForm = (date = null) => {
+		const formattedDate = date 
+			? formatDateForInput(date)
+			: formatDateForInput(selectedDate);
+		
+		const initialForm = {
+			from_date: formattedDate,
+			to_date: formattedDate,
+			leave_duration: 'Full Day',
+			day_type: 'full',
+			leave_reason: '',
+			duration: 1,
+			alternate_person: '',
+			additional_alternate: '',
+			available_on_phone: true
+		};
+		// Calculate duration for initial values
+		const from = new Date(initialForm.from_date);
+		const to = new Date(initialForm.to_date);
+		if (from && to && !isNaN(from) && !isNaN(to)) {
+			initialForm.duration = Math.round((to - from) / (1000 * 60 * 60 * 24)) + 1;
+		}
+		setLeaveForm(initialForm);
+		setEditingLeave(null);
+		setShowLeaveForm(true);
+	};
+
+	// Open leave form for editing
+	const openEditForm = (leave) => {
+		// Format dates for input type="date"
+		function parseToDateObj(dateStr) {
+			if (!dateStr) return null;
+			// If already yyyy-mm-dd, parse directly
+			if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return new Date(dateStr);
+			// If dd/mm/yyyy, convert
+			const match = dateStr.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+			if (match) {
+				const [, dd, mm, yyyy] = match;
+				return new Date(`${yyyy}-${mm}-${dd}`);
+			}
+			// Fallback: try Date parsing
+			const d = new Date(dateStr);
+			if (!isNaN(d)) return d;
+			return null;
+		}
+		let duration = 1;
+		const fromObj = parseToDateObj(leave.from_date);
+		const toObj = parseToDateObj(leave.to_date);
+		const formattedFrom = fromObj ? formatDateForInput(fromObj) : '';
+		const formattedTo = toObj ? formatDateForInput(toObj) : '';
+		if (fromObj && toObj) {
+			duration = Math.round((toObj - fromObj) / (1000 * 60 * 60 * 24)) + 1;
+		}
+		setLeaveForm({
+			from_date: formattedFrom,
+			to_date: formattedTo,
+			leave_duration: leave.leave_duration,
+			leave_reason: leave.leave_reason,
+			duration,
+			alternate_person: leave.alternate_person || '',
+			additional_alternate: leave.additional_alternate || '',
+			available_on_phone: leave.available_on_phone !== false
+		});
+		setEditingLeave(leave);
+		setShowLeaveForm(true);
+	};
+
+	// Handle date click to show details (for my own leaves)
+	const handleDateClick = (date) => {
+		setSelectedDate(date);
+		const leave = getMyLeaveForDate(date);
+		
+		if (leave) {
+			// If leave exists, show detail modal
+			setShowDateDetail(true);
+		} else {
+			// If no leave, directly open the form with this date
+			const initialForm = {
+				from_date: formatDateForInput(date),
+				to_date: formatDateForInput(date),
+				leave_duration: 'Full Day',
+				day_type: 'full',
+				leave_reason: '',
+				duration: 1,
+				alternate_person: '',
+				additional_alternate: '',
+				available_on_phone: true
+			};
+			const from = new Date(initialForm.from_date);
+			const to = new Date(initialForm.to_date);
+			if (from && to && !isNaN(from) && !isNaN(to)) {
+				initialForm.duration = Math.round((to - from) / (1000 * 60 * 60 * 24)) + 1;
+			}
+			setLeaveForm(initialForm);
+			setEditingLeave(null);
+			setShowLeaveForm(true);
+		}
+	};
+
+	// Submit leave application
+	const handleSubmitLeave = async (e) => {
+		e.preventDefault();
+		setLoading(true);
+		setError(null);
+		
+		try {
+			if (editingLeave) {
+				// Update existing leave
+				await updateLeave(editingLeave.id, leaveForm);
+			} else {
+				// Create new leave
+				const response = await applyLeave(leaveForm);
+				if (response?.data?.data?.split) {
+					const count = response?.data?.data?.records?.length || 2;
+					window.alert(`Your leave was split into ${count} separate requests (Paid/Unpaid).`);
+				}
+			}
+			
+			handleCloseLeaveForm();
+			await loadData();
+		} catch (err) {
+			setError(err.response?.data?.message || 'Failed to submit leave');
+			console.error('Error submitting leave:', err);
+		} finally {
+			setLoading(false);
+		}
+	};
+
+	// Cancel leave
+	const handleCancelLeave = async (leaveId) => {
+		if (!window.confirm('Are you sure you want to cancel this leave?')) {
+			return;
+		}
+		
+		setLoading(true);
+		setError(null);
+		
+		try {
+			await cancelLeave(leaveId);
+			await loadData();
+		} catch (err) {
+			setError(err.response?.data?.message || 'Failed to cancel leave');
+			console.error('Error cancelling leave:', err);
+		} finally {
+			setLoading(false);
+		}
+	};
+
+	// Check if a date has my leave
+	const getMyLeaveForDate = (date) => {
+		if (!date) return null;
+
+		const checkTime = toLocalDateOnly(date).getTime();
+		return myLeaves.find((leave) => {
+			const fromDate = parseDateOnly(leave.from_date);
+			const toDate = parseDateOnly(leave.to_date);
+			if (!fromDate || !toDate) return false;
+
+			return checkTime >= fromDate.getTime() && checkTime <= toDate.getTime();
+		});
+	};
+
+	const handleCloseLeaveForm = () => {
+		setShowLeaveForm(false);
+		setSelectedDate(new Date());
+	};
+
+	const handleCloseDateDetail = () => {
+		setShowDateDetail(false);
+		setSelectedDate(new Date());
+	};
 
 	// State for all departments
 	const [allDepartments, setAllDepartments] = useState([]);
@@ -347,257 +645,31 @@ const ManagementCalendar = () => {
 					{error}
 				</div>
 			)}
-
-			<div className="bg-white rounded-lg shadow-lg p-6">
-				<div className="flex items-center justify-between mb-6">
-					<div>
-						<h2 className="text-2xl font-bold text-gray-800">Management Pending Leaves</h2>
-						<p className="text-sm text-gray-600">Pending leaves from Employees (&gt;2 days) and Managers</p>
-					</div>
-
-					<div className="flex gap-2 bg-gray-100 p-1 rounded-lg">
-						<button
-							onClick={() => setViewMode('month')}
-							className={`px-4 py-2 rounded transition-colors ${
-								viewMode === 'month'
-									? 'bg-blue-600 text-white'
-									: 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-							}`}
-						>
-							Month
-						</button>
-						<button
-							onClick={() => setViewMode('week')}
-							className={`px-4 py-2 rounded transition-colors ${
-								viewMode === 'week'
-									? 'bg-blue-600 text-white'
-									: 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-							}`}
-						>
-							Week
-						</button>
-						<button
-							onClick={() => setViewMode('list')}
-							className={`px-4 py-2 rounded transition-colors ${
-								viewMode === 'list'
-									? 'bg-blue-600 text-white'
-									: 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-							}`}
-						>
-							List
-						</button>
+			
+			{/* Leave Balance Cards */}
+			{leaveBalance && (
+				<div>
+					<h3 className="text-lg font-semibold text-gray-800 mb-4">My Leave Balance - {currentYear}</h3>
+					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+						<div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg shadow-lg p-6 text-white">
+							<p className="text-sm opacity-90 mb-2">Entitled</p>
+							<p className="text-3xl font-bold">{leaveBalance.leave_entitled}</p>
+						</div>
+						<div className="bg-gradient-to-r from-green-500 to-green-600 rounded-lg shadow-lg p-6 text-white">
+							<p className="text-sm opacity-90 mb-2">Accumulated</p>
+							<p className="text-3xl font-bold">{leaveBalance.leaves_accumulated}</p>
+						</div>
+						<div className="bg-gradient-to-r from-yellow-500 to-yellow-600 rounded-lg shadow-lg p-6 text-white">
+							<p className="text-sm opacity-90 mb-2">Availed</p>
+							<p className="text-3xl font-bold">{leaveBalance.leaves_availed}</p>
+						</div>
+						<div className="bg-gradient-to-r from-red-500 to-red-600 rounded-lg shadow-lg p-6 text-white">
+							<p className="text-sm opacity-90 mb-2">Available</p>
+							<p className="text-3xl font-bold">{leaveBalance.leave_balance}</p>
+						</div>
 					</div>
 				</div>
-
-				{loading ? (
-					<div className="py-10 text-center text-gray-500">Loading...</div>
-				) : (
-					<>
-						{viewMode === 'month' && (
-							<div>
-								<div className="mb-6 flex items-center justify-center gap-4">
-									<button
-										onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1))}
-										className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold text-lg"
-									>
-										&lt;
-									</button>
-									<h3 className="text-xl font-semibold text-gray-800 min-w-48 text-center">
-										{formatMonthYear(currentDate)}
-									</h3>
-									<button
-										onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1))}
-										className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold text-lg"
-									>
-										&gt;
-									</button>
-								</div>
-
-								<div className="grid grid-cols-7 gap-1 mb-2">
-									{dayNames.map((day) => (
-										<div
-											key={day}
-											className="bg-blue-100 text-blue-800 font-semibold text-center py-2 rounded"
-										>
-											{day}
-										</div>
-									))}
-								</div>
-					{/* Ticket Modal */}
-					{showTicketModal && (
-						<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-							<div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-								<div className="p-6">
-									<div className="flex items-center justify-between mb-4">
-										<h3 className="text-xl font-bold text-gray-800">Tickets</h3>
-										<button onClick={closeTicketModal} className="text-gray-500 hover:text-gray-700 text-2xl">×</button>
-									</div>
-									{selectedTickets.length === 0 ? (
-										<div className="text-center text-gray-500 py-8">No tickets for this date</div>
-									) : (
-										<div className="overflow-x-auto">
-											<table className="min-w-full text-sm border">
-												<thead className="bg-gray-100 text-gray-700">
-													<tr>
-														<th className="text-left px-4 py-2 border">Title</th>
-														<th className="text-left px-4 py-2 border">Description</th>
-														<th className="text-left px-4 py-2 border">Category</th>
-														<th className="text-left px-4 py-2 border">Priority</th>
-														<th className="text-left px-4 py-2 border">Due Date</th>
-													</tr>
-												</thead>
-												<tbody>
-													{selectedTickets.map((t) => (
-														<tr key={t.id} className="border-t">
-															<td className="px-4 py-2 border">{t.title || '-'}</td>
-															<td className="px-4 py-2 border">{t.description || '-'}</td>
-															<td className="px-4 py-2 border">{t.category || t.ticket_category || '-'}</td>
-															<td className="px-4 py-2 border">{t.priority || '-'}</td>
-															<td className="px-4 py-2 border">{t.due_date ? formatDateDisplay(t.due_date) : '-'}</td>
-														</tr>
-													))}
-												</tbody>
-											</table>
-										</div>
-									)}
-								</div>
-							</div>
-						</div>
-					)}
-
-								<div className="grid grid-cols-7 gap-1">
-									{monthDays.map((date, index) => {
-										const teamLeaves = getTeamLeavesForDate(date);
-										return (
-											<div
-												key={index}
-												className={`min-h-[110px] p-2 border rounded ${
-													date ? 'bg-white' : 'bg-gray-50'
-												} ${isToday(date) ? 'border-emerald-500' : 'border-gray-200'}`}
-											>
-												{date && (
-													<div className="text-sm font-semibold text-gray-700 mb-1">
-														{date.getDate()}
-													</div>
-												)}
-												{teamLeaves.length > 0 && (
-													<div className="mt-2 space-y-1">
-														<button
-															className="w-full px-2 py-1 rounded bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-colors"
-															onClick={() => openLeaveModal(date)}
-														>
-															{`Leave List(${teamLeaves.length})`}
-														</button>
-													</div>
-												)}
-												{(() => {
-													const dayTickets = getTicketsForDate(date);
-													return dayTickets.length > 0 ? (
-														<button
-															className="mt-2 w-full px-2 py-1.5 rounded bg-green-600 text-white text-xs font-medium shadow-sm hover:shadow-md transition-all hover:bg-green-700"
-															title={`View ${dayTickets.length} ticket(s)`}
-															onClick={() => openTicketModal(date)}
-														>
-															<div className="font-semibold text-center">{dayTickets.length > 1 ? `Tickets(${dayTickets.length})` : `Ticket(${dayTickets.length})`}</div>
-														</button>
-													) : null;
-												})()}
-											</div>
-										);
-									})}
-								</div>
-							</div>
-						)}
-
-						{viewMode === 'week' && (
-							<div>
-								<div className="mb-6 text-center">
-									<h3 className="text-xl font-semibold text-gray-800">
-										{formatWeekRange(weekDays[0])}
-									</h3>
-								</div>
-								<div className="grid grid-cols-7 gap-2">
-									{weekDays.map((date, index) => {
-										const teamLeaves = getTeamLeavesForDate(date);
-										return (
-											<div key={index} className="border rounded p-3">
-												<div className="text-sm font-semibold text-gray-700 mb-2">
-													{formatDate(date)}
-												</div>
-												{teamLeaves.length === 0 ? (
-													<div className="text-xs text-gray-500">No leaves</div>
-												) : (
-													<div className="space-y-1">
-														{teamLeaves.length > 0 && (
-															<div className="space-y-1">
-																<button
-																	className="w-full px-2 py-1 rounded bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-colors"
-																	onClick={() => openLeaveModal(date)}
-																>
-																	{`Leave List(${teamLeaves.length})`}
-																</button>
-															</div>
-														)}
-														{(() => {
-															const dayTickets = getTicketsForDate(date);
-															return dayTickets.length > 0 ? (
-																<button
-																	className="mt-2 w-full px-2 py-1.5 rounded bg-green-600 text-white text-xs font-medium shadow-sm hover:shadow-md transition-all hover:bg-green-700"
-																	title={`View ${dayTickets.length} ticket(s)`}
-																	onClick={() => openTicketModal(date)}
-																>
-																	<div className="font-semibold text-center">{dayTickets.length > 1 ? `Tickets(${dayTickets.length})` : `Ticket(${dayTickets.length})`}</div>
-																</button>
-															) : null;
-														})()}
-													</div>
-												)}
-											</div>
-										);
-									})}
-								</div>
-							</div>
-						)}
-
-						{viewMode === 'list' && (
-							<div>
-								<div className="mb-6 text-center">
-									<h3 className="text-xl font-semibold text-gray-800">
-										Pending Leaves in {formatMonthYear(currentDate)}
-									</h3>
-								</div>
-								{monthLeaves.length === 0 ? (
-									<div className="text-center text-gray-500">No pending leaves for this month</div>
-								) : (
-									<div className="space-y-3">
-										{monthLeaves.map((leave) => (
-											<div key={leave.id} className="border rounded p-4 bg-white">
-												<div className="flex items-center justify-between mb-2">
-													<div className="font-semibold text-gray-800">
-														{leave.user_name} ({leave.user_role})
-													</div>
-													<span className="text-xs px-2 py-1 rounded bg-yellow-100 text-yellow-800">
-														Pending
-													</span>
-												</div>
-												<div className="text-sm text-gray-600">
-													{formatFullDate(parseDateOnly(leave.from_date))} → {formatFullDate(parseDateOnly(leave.to_date))}
-												</div>
-												<div className="text-sm text-gray-600">
-													Duration: {leave.credited_days} day(s)
-												</div>
-												<div className="text-sm text-gray-600">
-													Reason: {leave.leave_reason}
-												</div>
-											</div>
-										))}
-									</div>
-								)}
-							</div>
-						)}
-					</>
-				)}
-			</div>
+			)}
 
 		{/* Filter Section for All Org Leaves */}
 		<div className="bg-white rounded-lg shadow-lg p-6">
@@ -605,14 +677,14 @@ const ManagementCalendar = () => {
 			<table className="w-full mb-4 border rounded-lg overflow-hidden">
 				<thead>
 					<tr>
-						<th colSpan="4" className="bg-blue-600 text-white text-lg font-semibold py-2 px-4 text-left">Leave Search Filters</th>
+						<th colSpan="6" className="bg-blue-600 text-white text-lg font-semibold py-2 px-4 text-left">Leave Search Filter</th>
 					</tr>
 				</thead>
 				<tbody>
 					<tr>
-						<td className="py-2 px-2" colSpan="4">
-							<div className="flex flex-row items-end gap-4 w-full">
-								<div className="flex-1 min-w-[160px] max-w-[220px]">
+						<td className="py-2 px-2" colSpan="6">
+							<div className="flex flex-row items-end gap-4 w-full flex-wrap">
+								<div className="min-w-[150px] max-w-[200px] flex-1">
 									<label className="block text-xs font-semibold text-gray-600 mb-1">From Date</label>
 									<input 
 										type="date" 
@@ -621,7 +693,7 @@ const ManagementCalendar = () => {
 										onChange={e => { setFilter(f => ({ ...f, from: e.target.value })); setCurrentPage(1); }}
 									/>
 								</div>
-								<div className="flex-1 min-w-[160px] max-w-[220px]">
+								<div className="min-w-[150px] max-w-[200px] flex-1">
 									<label className="block text-xs font-semibold text-gray-600 mb-1">To Date</label>
 									<input 
 										type="date" 
@@ -630,11 +702,10 @@ const ManagementCalendar = () => {
 										onChange={e => { setFilter(f => ({ ...f, to: e.target.value })); setCurrentPage(1); }}
 									/>
 								</div>
-								<div className="flex-grow"></div>
-								<div className="flex-grow-0 min-w-[120px] max-w-[160px] flex flex-col items-start">
+								<div className="min-w-[100px] max-w-[120px] flex-1">
 									<label className="block text-xs font-semibold text-gray-600 mb-1">Year</label>
 									<select
-										className="border rounded px-3 py-2 w-full max-w-[120px] text-left"
+										className="border rounded px-3 py-2 w-full text-left"
 										value={filter.year}
 										onChange={e => { setFilter(f => ({ ...f, year: Number(e.target.value) })); setCurrentPage(1); }}
 									>
@@ -643,13 +714,7 @@ const ManagementCalendar = () => {
 										))}
 									</select>
 								</div>
-							</div>
-						</td>
-					</tr>
-					<tr>
-						<td className="py-2 px-2" colSpan="4">
-							<div className="flex flex-row items-end gap-4 w-full">
-								<div className="flex-1 min-w-[200px] max-w-[280px]">
+								<div className="min-w-[160px] max-w-[200px] flex-1">
 									<label className="block text-xs font-semibold text-gray-600 mb-1">Department</label>
 									<select 
 										className="border rounded px-3 py-2 w-full" 
@@ -662,7 +727,7 @@ const ManagementCalendar = () => {
 										))}
 									</select>
 								</div>
-								<div className="flex-[4] min-w-[320px]">
+								<div className="min-w-[180px] max-w-[240px] flex-1">
 									<label className="block text-xs font-semibold text-gray-600 mb-1">Username</label>
 									<div className="relative">
 										<span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
@@ -679,7 +744,7 @@ const ManagementCalendar = () => {
 										/>
 									</div>
 								</div>
-								<div className="ml-auto flex flex-row items-end gap-4">
+								<div className="flex flex-row items-end gap-2 ml-2">
 									<button
 										className="bg-blue-600 text-white px-6 py-2 rounded font-semibold hover:bg-blue-700 transition"
 										onClick={() => {
@@ -783,6 +848,640 @@ const ManagementCalendar = () => {
 				</div>
 			)}
 		</div>
+
+			<div className="bg-white rounded-lg shadow-lg p-6">
+				<div className="flex items-center justify-between mb-6">
+					<div>
+						<h2 className="text-2xl font-bold text-gray-800">Management View</h2>
+						{/* <p className="text-sm text-gray-600">Pending leaves from Employees (&gt;2 days) and Managers</p> */}
+					</div>
+
+					<div className="flex items-center gap-4">
+						<div className="flex gap-2 bg-gray-100 p-1 rounded-lg">
+							<button
+								onClick={() => setViewMode('month')}
+								className={`px-4 py-2 rounded transition-colors ${
+									viewMode === 'month'
+										? 'bg-blue-600 text-white'
+										: 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+								}`}
+							>
+								Month
+							</button>
+							<button
+								onClick={() => setViewMode('week')}
+								className={`px-4 py-2 rounded transition-colors ${
+									viewMode === 'week'
+										? 'bg-blue-600 text-white'
+										: 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+								}`}
+							>
+								Week
+							</button>
+							<button
+								onClick={() => setViewMode('list')}
+								className={`px-4 py-2 rounded transition-colors ${
+									viewMode === 'list'
+										? 'bg-blue-600 text-white'
+										: 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+								}`}
+							>
+								List
+							</button>
+						</div>
+					</div>
+				</div>
+
+				{loading ? (
+					<div className="py-10 text-center text-gray-500">Loading...</div>
+				) : (
+					<>
+						{viewMode === 'month' && (
+							<div>
+								<div className="mb-6 flex items-center justify-center gap-4">
+									<button
+										onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1))}
+										className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold text-lg"
+									>
+										&lt;
+									</button>
+									<h3 className="text-xl font-semibold text-gray-800 min-w-48 text-center">
+										{formatMonthYear(currentDate)}
+									</h3>
+									<button
+										onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1))}
+										className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold text-lg"
+									>
+										&gt;
+									</button>
+								</div>
+
+								<div className="grid grid-cols-7 gap-1 mb-2">
+									{dayNames.map((day) => (
+										<div
+											key={day}
+											className="bg-blue-100 text-blue-800 font-semibold text-center py-2 rounded"
+										>
+											{day}
+										</div>
+									))}
+								</div>
+					{/* Ticket Modal */}
+					{showTicketModal && (
+						<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+							<div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+								<div className="p-6">
+									<div className="flex items-center justify-between mb-4">
+										<h3 className="text-xl font-bold text-gray-800">Tickets</h3>
+										<button onClick={closeTicketModal} className="text-gray-500 hover:text-gray-700 text-2xl">×</button>
+									</div>
+									{selectedTickets.length === 0 ? (
+										<div className="text-center text-gray-500 py-8">No tickets for this date</div>
+									) : (
+										<div className="overflow-x-auto">
+											<table className="min-w-full text-sm border">
+												<thead className="bg-gray-100 text-gray-700">
+													<tr>
+														<th className="text-left px-4 py-2 border">Title</th>
+														<th className="text-left px-4 py-2 border">Description</th>
+														<th className="text-left px-4 py-2 border">Category</th>
+														<th className="text-left px-4 py-2 border">Priority</th>
+														<th className="text-left px-4 py-2 border">Due Date</th>
+													</tr>
+												</thead>
+												<tbody>
+													{selectedTickets.map((t) => (
+														<tr key={t.id} className="border-t">
+															<td className="px-4 py-2 border">{t.title || '-'}</td>
+															<td className="px-4 py-2 border">{t.description || '-'}</td>
+															<td className="px-4 py-2 border">{t.category || t.ticket_category || '-'}</td>
+															<td className="px-4 py-2 border">{t.priority || '-'}</td>
+															<td className="px-4 py-2 border">{t.due_date ? formatDateDisplay(t.due_date) : '-'}</td>
+														</tr>
+													))}
+												</tbody>
+											</table>
+										</div>
+									)}
+								</div>
+							</div>
+						</div>
+					)}
+
+								<div className="grid grid-cols-7 gap-1">
+									{monthDays.map((date, index) => {
+										const teamLeaves = getTeamLeavesForDate(date);
+										const myLeave = getMyLeaveForDate(date);
+										return (
+											<div
+												key={index}
+												className={`min-h-[110px] p-2 border rounded cursor-pointer ${
+													date ? 'bg-white' : 'bg-gray-50'
+												} ${isToday(date) ? 'border-emerald-500' : 'border-gray-200'}`}
+												onClick={() => date && handleDateClick(date)}
+											>
+												{date && (
+													<>
+														<div className="text-sm font-semibold text-gray-700 mb-1">
+															{date.getDate()}
+														</div>
+														{isToday(date) && (
+															<div className="text-blue-600 text-xs font-italic">Today</div>
+														)}
+														{myLeave && (
+															<button 
+																className="mt-1 w-full px-2 py-1.5 rounded bg-blue-600 text-white text-xs font-medium shadow-sm hover:shadow-md transition-all hover:bg-blue-700"
+																title="Click to view/edit leave"
+																onClick={(e) => {
+																	e.stopPropagation();
+																	handleDateClick(date);
+																}}
+															>
+																<div className="font-semibold text-center">My Leave</div>
+															</button>
+														)}
+													</>
+												)}
+												{teamLeaves.length > 0 && (
+													<div className="mt-2 space-y-1">
+														<button
+															className="w-full px-2 py-1 rounded bg-purple-600 text-white text-xs font-semibold hover:bg-purple-700 transition-colors"
+															onClick={(e) => {
+																e.stopPropagation();
+																openLeaveModal(date);
+															}}
+														>
+															{`Org Leaves(${teamLeaves.length})`}
+														</button>
+													</div>
+												)}
+												{(() => {
+													const dayTickets = getTicketsForDate(date);
+													return dayTickets.length > 0 ? (
+														<button
+															className="mt-2 w-full px-2 py-1.5 rounded bg-green-600 text-white text-xs font-medium shadow-sm hover:shadow-md transition-all hover:bg-green-700"
+															title={`View ${dayTickets.length} ticket(s)`}
+															onClick={(e) => {
+																e.stopPropagation();
+																openTicketModal(date);
+															}}
+														>
+															<div className="font-semibold text-center">{dayTickets.length > 1 ? `Tickets(${dayTickets.length})` : `Ticket(${dayTickets.length})`}</div>
+														</button>
+													) : null;
+												})()}
+											</div>
+										);
+									})}
+								</div>
+							</div>
+						)}
+
+						{viewMode === 'week' && (
+							<div>
+								<div className="mb-6 text-center">
+									<h3 className="text-xl font-semibold text-gray-800">
+										{formatWeekRange(weekDays[0])}
+									</h3>
+								</div>
+								<div className="grid grid-cols-7 gap-2">
+									{weekDays.map((date, index) => {
+										const teamLeaves = getTeamLeavesForDate(date);
+										const myLeave = getMyLeaveForDate(date);
+										return (
+											<div key={index} className="border rounded p-3">
+												<div className="text-sm font-semibold text-gray-700 mb-2">
+													{formatDate(date)}
+												</div>
+												<div className="space-y-1">
+													{myLeave && (
+														<button 
+															className="w-full px-2 py-1 rounded bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-colors"
+															onClick={() => handleDateClick(date)}
+														>
+															My Leave
+														</button>
+													)}
+													{teamLeaves.length > 0 && (
+														<button
+															className="w-full px-2 py-1 rounded bg-purple-600 text-white text-xs font-semibold hover:bg-purple-700 transition-colors"
+															onClick={() => openLeaveModal(date)}
+														>
+															{`Org Leaves(${teamLeaves.length})`}
+														</button>
+													)}
+													{(() => {
+														const dayTickets = getTicketsForDate(date);
+														return dayTickets.length > 0 ? (
+															<button
+																className="w-full px-2 py-1.5 rounded bg-green-600 text-white text-xs font-medium shadow-sm hover:shadow-md transition-all hover:bg-green-700"
+																title={`View ${dayTickets.length} ticket(s)`}
+																onClick={() => openTicketModal(date)}
+															>
+																<div className="font-semibold text-center">{dayTickets.length > 1 ? `Tickets(${dayTickets.length})` : `Ticket(${dayTickets.length})`}</div>
+															</button>
+														) : null;
+													})()}
+												</div>
+											</div>
+										);
+									})}
+								</div>
+							</div>
+						)}
+
+						{viewMode === 'list' && (
+							<div>
+								<div className="mb-6">
+									<h3 className="text-xl font-semibold text-gray-800 mb-4">
+										My Leaves
+									</h3>
+									{myLeaves.length === 0 ? (
+										<div className="text-center py-8 text-gray-500 bg-gray-50 rounded-lg">
+											No leaves applied yet
+										</div>
+									) : (
+										<div className="overflow-x-auto mb-8">
+											<table className="min-w-full bg-white border rounded-lg shadow">
+												<thead>
+													<tr className="bg-blue-100 text-blue-800">
+														<th className="py-2 px-4 text-center">Status</th>
+														<th className="py-2 px-4 text-center">Duration</th>
+														<th className="py-2 px-4 text-center">Reason</th>
+														<th className="py-2 px-4 text-center">Alternate</th>
+														<th className="py-2 px-4 text-center">Action</th>
+													</tr>
+												</thead>
+												<tbody>
+													{myLeaves.map((leave) => (
+														<tr key={leave.id} className="border-b hover:bg-blue-50">
+															<td className="py-2 px-4 text-center">
+																<span className={`px-3 py-1 rounded text-white text-sm ${getLeaveBadgeColor(leave.status)}`}>{leave.status}</span>
+															</td>
+															<td className="py-2 px-4 text-center">
+																{leave.leave_duration} ({leave.duration || leave.credited_days} day{(leave.duration || leave.credited_days) === 1 ? '' : 's'})
+															</td>
+															<td className="py-2 px-4 text-center">
+																{leave.leave_reason}
+															</td>
+															<td className="py-2 px-4 text-center">
+																{formatAlternate(leave)}
+															</td>
+															<td className="py-2 px-4 text-center">
+																<div className="flex justify-center gap-2">
+																	<button
+																		onClick={() => openEditForm(leave)}
+																		className="p-2 rounded bg-blue-500 text-white hover:bg-blue-600"
+																		title="Edit leave"
+																	>
+																		<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+																			<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536M9 13l6.536-6.536a2 2 0 112.828 2.828L11.828 15.828a2 2 0 01-2.828 0L9 13z" />
+																		</svg>
+																	</button>
+																	<button
+																		onClick={() => handleCancelLeave(leave.id)}
+																		className="p-2 rounded bg-red-500 text-white hover:bg-red-600"
+																		title="Cancel leave"
+																	>
+																		<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+																			<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+																		</svg>
+																	</button>
+																</div>
+															</td>
+														</tr>
+													))}
+												</tbody>
+											</table>
+										</div>
+									)}
+								</div>
+								
+								<div className="mb-6 text-center">
+									<h3 className="text-xl font-semibold text-gray-800">
+										Pending Leaves in {formatMonthYear(currentDate)}
+									</h3>
+								</div>
+								{monthLeaves.length === 0 ? (
+									<div className="text-center text-gray-500">No pending leaves for this month</div>
+								) : (
+									<div className="space-y-3">
+										{monthLeaves.map((leave) => (
+											<div key={leave.id} className="border rounded p-4 bg-white">
+												<div className="flex items-center justify-between mb-2">
+													<div className="font-semibold text-gray-800">
+														{leave.user_name} ({leave.user_role})
+													</div>
+													<span className="text-xs px-2 py-1 rounded bg-yellow-100 text-yellow-800">
+														Pending
+													</span>
+												</div>
+												<div className="text-sm text-gray-600">
+													{formatFullDate(parseDateOnly(leave.from_date))} → {formatFullDate(parseDateOnly(leave.to_date))}
+												</div>
+												<div className="text-sm text-gray-600">
+													Duration: {leave.credited_days} day(s)
+												</div>
+												<div className="text-sm text-gray-600">
+													Reason: {leave.leave_reason}
+												</div>
+											</div>
+										))}
+									</div>
+								)}
+							</div>
+						)}
+					</>
+				)}
+			</div>
+
+		{/* Date Detail Modal - For viewing my leave details */}
+		{showDateDetail && selectedDate && (
+			<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+				<div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+					<div className="p-6">
+						<div className="flex justify-between items-center mb-4">
+							<h3 className="text-xl font-bold text-gray-800">
+								{formatFullDate(selectedDate)}
+							</h3>
+							<button
+								onClick={handleCloseDateDetail}
+								className="text-gray-500 hover:text-gray-700 text-2xl"
+							>
+								×
+							</button>
+						</div>
+
+						{(() => {
+							const leave = getMyLeaveForDate(selectedDate);
+							return leave ? (
+								<div className="space-y-4">
+									<div className="border-b pb-3">
+										<span className={`px-3 py-1 rounded text-white text-sm ${getLeaveBadgeColor(leave.status)}`}>
+											{leave.status}
+										</span>
+										<span className="ml-2 text-sm text-gray-600">{leave.leave_duration}</span>
+										<span className="ml-2 text-sm font-semibold text-gray-700">{leave.credited_days} day(s)</span>
+									</div>
+
+									<div>
+										<p className="text-sm font-semibold text-gray-700">Duration:</p>
+										<p className="text-gray-800">{leave.leave_duration}</p>
+									</div>
+
+									<div>
+										<p className="text-sm font-semibold text-gray-700">Reason:</p>
+										<p className="text-gray-800">{leave.leave_reason}</p>
+									</div>
+
+									{leave.alternate_person && (
+										<div>
+											<p className="text-sm font-semibold text-gray-700">Alternate Person:</p>
+											<p className="text-gray-800">{leave.alternate_person}</p>
+										</div>
+									)}
+
+									{leave.additional_alternate && (
+										<div>
+											<p className="text-sm font-semibold text-gray-700">Additional Alternate:</p>
+											<p className="text-gray-800">{leave.additional_alternate}</p>
+										</div>
+									)}
+
+									{leave.approver_name && (
+										<div>
+											<p className="text-sm font-semibold text-gray-700">
+												{leave.status === 'Approved' ? 'Approved by:' : 'Rejected by:'}
+											</p>
+											<p className="text-gray-800">{leave.approver_name}</p>
+										</div>
+									)}
+
+									<div className="flex gap-2 pt-4">
+										<button
+											onClick={() => {
+												openEditForm(leave);
+												handleCloseDateDetail();
+											}}
+											className="flex-1 px-4 py-2 rounded bg-blue-500 text-white hover:bg-blue-600"
+											title="Edit leave"
+										>
+											Edit
+										</button>
+										<button
+											onClick={() => {
+												if (window.confirm('Are you sure you want to cancel this leave?')) {
+													handleCancelLeave(leave.id);
+													handleCloseDateDetail();
+												}
+											}}
+											className="flex-1 px-4 py-2 rounded bg-red-500 text-white hover:bg-red-600"
+											title="Cancel leave"
+										>
+											Cancel Leave
+										</button>
+									</div>
+								</div>
+							) : null;
+						})()}
+					</div>
+				</div>
+			</div>
+		)}
+
+		{/* Leave Application Form Modal */}
+		{showLeaveForm && (
+			<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+				<div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+					<div className="p-6">
+						<div className="flex justify-between items-center mb-4">
+							<h3 className="text-xl font-bold text-gray-800">
+								{editingLeave ? 'Edit Leave Application' : 'Apply for Leave'}
+							</h3>
+							<button
+								onClick={handleCloseLeaveForm}
+								className="text-gray-500 hover:text-gray-700 text-2xl"
+							>
+								×
+							</button>
+						</div>
+
+						<form onSubmit={handleSubmitLeave} className="space-y-4">
+							<div className="grid grid-cols-12 gap-4 w-full items-start">
+								<div className="col-span-4">
+									<label className="block text-sm font-medium text-gray-700 mb-1">From Date *</label>
+									<input
+										type="date"
+										name="from_date"
+										value={leaveForm.from_date}
+										readOnly
+										required
+										className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base bg-gray-100 cursor-not-allowed"
+										style={{fontVariantNumeric:'tabular-nums', minWidth: '10.5rem', maxWidth: '13rem'}}
+									/>
+								</div>
+								<div className="col-span-4">
+									<label className="block text-sm font-medium text-gray-700 mb-1">To Date *</label>
+									<input
+										type="date"
+										name="to_date"
+										value={leaveForm.to_date}
+										onChange={handleFormChange}
+										min={leaveForm.from_date}
+										required
+										className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base"
+										style={{fontVariantNumeric:'tabular-nums', minWidth: '10.5rem', maxWidth: '13rem'}}
+									/>
+								</div>
+								<div className="col-span-2">
+									<label className="block text-sm font-medium text-gray-700 mb-1">Day Type</label>
+									<select
+										name="day_type"
+										value={leaveForm.day_type || 'full'}
+										onChange={handleFormChange}
+										required
+										className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base"
+										disabled={leaveForm.from_date !== leaveForm.to_date}
+									>
+										<option value="full">Full day</option>
+										<option value="morning">Morning half</option>
+										<option value="afternoon">Afternoon half</option>
+									</select>
+								</div>
+								<div className="col-span-2">
+									<label className="block text-sm font-medium text-gray-700 mb-1">Days</label>
+									<input
+										type="text"
+										inputMode="numeric"
+										pattern="[0-9]*"
+										name="duration"
+										value={
+											leaveForm.duration === 0.5
+												? '0.5'
+												: leaveForm.duration < 10
+													? `0${leaveForm.duration}`
+													: leaveForm.duration
+										}
+										readOnly
+										className="w-20 px-2 py-2 border border-gray-300 rounded-lg bg-gray-100 focus:outline-none text-center"
+										style={{minWidth:'3.5rem',maxWidth:'4.5rem'}}
+									/>
+								</div>
+							</div>
+							<p className="text-xs text-gray-500">
+								Note: Half-day leaves are limited to a single day
+							</p>
+
+							<div>
+								<label className="block text-sm font-medium text-gray-700 mb-1">Reason for Leave *</label>
+								<textarea
+									name="leave_reason"
+									value={leaveForm.leave_reason}
+									onChange={handleFormChange}
+									required
+									rows="3"
+									className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+									placeholder="Please provide a reason for your leave..."
+								/>
+							</div>
+
+							<div className="grid grid-cols-2 gap-4">
+								<div>
+									<label className="block text-sm font-medium text-gray-700 mb-1">
+										Alternate Person (Optional)
+									</label>
+									<select
+										name="alternate_person"
+										value={leaveForm.alternate_person}
+										onChange={handleFormChange}
+										className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+									>
+										<option value="">Select alternate person</option>
+										{colleagues && colleagues.length > 0 ? (
+											colleagues.map((colleague) => (
+												<option key={colleague.id} value={colleague.empid}>
+													{colleague.firstname} {colleague.lastname} {colleague.empid ? `(EMP: ${colleague.empid})` : ''}
+												</option>
+											))
+										) : (
+											<option value="" disabled>No colleagues found in your department</option>
+										)}
+									</select>
+									<p className="text-xs text-gray-500 mt-1">
+										Person from your department who will cover your responsibilities
+									</p>
+								</div>
+
+								<div>
+									<label className="block text-sm font-medium text-gray-700 mb-1">
+										Additional Alternate (Optional)
+									</label>
+									<select
+										name="additional_alternate"
+										value={leaveForm.additional_alternate}
+										onChange={handleFormChange}
+										className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+									>
+										<option value="">Select additional alternate</option>
+										{colleagues && colleagues.length > 0 ? (
+											colleagues.map((colleague) => (
+												<option key={colleague.id} value={colleague.empid}>
+													{colleague.firstname} {colleague.lastname} {colleague.empid ? `(EMP: ${colleague.empid})` : ''}
+												</option>
+											))
+										) : (
+											<option value="" disabled>No colleagues found in your department</option>
+										)}
+									</select>
+									<p className="text-xs text-gray-500 mt-1">
+										Backup person if needed
+									</p>
+								</div>
+							</div>
+
+							<div className="grid grid-cols-2 gap-4 items-center">
+								<div className="flex items-center">
+									<input
+										type="checkbox"
+										name="available_on_phone"
+										checked={leaveForm.available_on_phone}
+										onChange={handleFormChange}
+										className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+									/>
+									<label className="ml-2 text-sm text-gray-700">
+										Available on phone during leave
+									</label>
+								</div>
+
+								{leaveBalance && (
+									<div className="bg-blue-50 p-3 rounded-lg">
+										<p className="text-sm text-gray-700">
+											<strong>Available Balance:</strong> {leaveBalance.leave_balance} day(s)
+										</p>
+									</div>
+								)}
+							</div>
+							<div className="flex justify-end gap-3 pt-4">
+								<button
+									type="button"
+									onClick={handleCloseLeaveForm}
+									className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+								>
+									Cancel
+								</button>
+								<button
+									type="submit"
+									disabled={loading}
+									className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-400"
+								>
+									{loading ? 'Submitting...' : editingLeave ? 'Update Leave' : 'Submit Leave'}
+								</button>
+							</div>
+						</form>
+					</div>
+				</div>
+			</div>
+		)}
 
 		{showLeaveModal && selectedLeaveDate && (
 			<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">

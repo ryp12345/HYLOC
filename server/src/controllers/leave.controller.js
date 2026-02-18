@@ -73,10 +73,14 @@ exports.applyLeave = async (req, res, next) => {
     }
     /////////////////////////notification code////////////////////////////
 
+    // Return appropriate message based on role
+    const message = userRole === 'Management' 
+      ? 'Leave application submitted and automatically approved'
+      : 'Leave application submitted successfully';
 
     res.status(201).json({
       success: true,
-      message: 'Leave application submitted successfully',
+      message: message,
       data: leaveRecord
     });
   } catch (error) {

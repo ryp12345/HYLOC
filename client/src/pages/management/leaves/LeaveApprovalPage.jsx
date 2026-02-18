@@ -3,14 +3,14 @@ import { getAllLeaves, approveLeave, rejectLeave, updateLeave } from '../../../a
 
 const LeaveApprovalPage = () => {
   const [leaves, setLeaves] = useState([]);
-  const [view, setView] = useState('approve-leaves'); // 'my-leaves' or 'approve-leaves'
+  //Removed view state (no tabs)
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [activeTab, setActiveTab] = useState('Pending');
+  const [activeTab, setActiveTab] = useState('Pending'); // Keep for status filtering only
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingLeave, setEditingLeave] = useState(null);
   const [editStatus, setEditStatus] = useState('');
-  // Leave Search Filters state
+  // Leave Search Filter state
   const currentYear = new Date().getFullYear();
   const [filter, setFilter] = useState({
     from: '',
@@ -47,16 +47,15 @@ const LeaveApprovalPage = () => {
       .sort();
   }, [allDepartments]);
 
-  const loadLeaves = async () => {
+  const loadLeaves = async (filters = {}) => {
     setLoading(true);
     setError(null);
     try {
       // Management sees:
       // - All Manager leaves (any duration)
       // - Employee leaves > 2 days
-      const response = await getAllLeaves({});
+      const response = await getAllLeaves(filters);
       const allLeaves = response.data.data || [];
-      
       const filtered = allLeaves.filter(leave => {
         const role = leave.user_role;
         const duration = parseFloat(leave.credited_days);
@@ -64,7 +63,6 @@ const LeaveApprovalPage = () => {
         const isEmployee = role === 'Employee' && duration > 2;
         return isManager || isEmployee;
       });
-      
       setLeaves(filtered);
     } catch (err) {
       setError(err.response?.data?.message || err.message || 'Failed to load leaves');
@@ -211,60 +209,45 @@ const LeaveApprovalPage = () => {
           </div>
         )}
 
-        {/* View Toggle Buttons */}
-        <div className="mb-6 flex gap-4">
-          <button
-            onClick={() => {
-              setView('my-leaves');
-              setActiveTab('Pending');
-            }}
-            className={`px-6 py-3 rounded-lg font-medium transition-colors ${
-              view === 'my-leaves'
-                ? 'bg-purple-600 text-white'
-                : 'bg-blue-100 text-gray-700 hover:bg-blue-200'
-            }`}
-          >
-            Status of my Leave Requests
-          </button>
-          <button
-            onClick={() => {
-              setView('approve-leaves');
-              setActiveTab('Pending');
-            }}
-            className={`px-6 py-3 rounded-lg font-medium transition-colors ${
-              view === 'approve-leaves'
-                ? 'bg-purple-600 text-white'
-                : 'bg-blue-100 text-gray-700 hover:bg-blue-200'
-            }`}
-          >
-            Approve/Reject Employee Leaves
-          </button>
-        </div>
+
+        {/* Removed view toggle buttons. Only approval table is shown. */}
 
         {/* Leave List with Filters (only for tab selected) */}
         {['Pending', 'Approved', 'Rejected'].includes(activeTab) && (
           <div className="mb-8">
             <div className="bg-white rounded-lg shadow-lg p-4 mb-4">
-              <div className="flex flex-nowrap items-end gap-4 w-full">
-                <div>
+              <div className="flex flex-row flex-wrap items-end gap-4 w-full">
+                <div className="min-w-[150px] max-w-[200px] flex-1">
                   <label className="block text-xs font-semibold text-gray-600 mb-1">From Date</label>
                   <input
                     type="date"
-                    className="border rounded px-3 py-2"
+                    className="border rounded px-3 py-2 w-full"
                     value={filter.from}
                     onChange={e => setFilter(f => ({ ...f, from: e.target.value }))}
                   />
                 </div>
-                <div>
+                <div className="min-w-[150px] max-w-[200px] flex-1">
                   <label className="block text-xs font-semibold text-gray-600 mb-1">To Date</label>
                   <input
                     type="date"
-                    className="border rounded px-3 py-2"
+                    className="border rounded px-3 py-2 w-full"
                     value={filter.to}
                     onChange={e => setFilter(f => ({ ...f, to: e.target.value }))}
                   />
                 </div>
-                <div className="min-w-[320px] max-w-[380px]">
+                <div className="min-w-[120px] max-w-[140px] flex-1">
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Year</label>
+                  <select
+                    className="border rounded px-3 py-2 w-full"
+                    value={filter.year}
+                    onChange={e => setFilter(f => ({ ...f, year: Number(e.target.value) }))}
+                  >
+                    {[(currentYear - 1), currentYear, (currentYear + 1)].map(y => (
+                      <option key={y} value={y}>{y}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="min-w-[180px] max-w-[240px] flex-1">
                   <label className="block text-xs font-semibold text-gray-600 mb-1">Department</label>
                   <select
                     className="border rounded px-3 py-2 w-full"
@@ -277,48 +260,36 @@ const LeaveApprovalPage = () => {
                     ))}
                   </select>
                 </div>
-                <div className="flex-[4] min-w-[360px]">
+                <div className="min-w-[180px] max-w-[240px] flex-1">
                   <label className="block text-xs font-semibold text-gray-600 mb-1">Username</label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      className="border rounded px-3 py-2 pr-10 w-full"
-                      value={filter.username}
-                      onChange={e => setFilter(f => ({ ...f, username: e.target.value }))}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => { setShowFilteredTable(true); setCurrentPage(1); }}
-                      className="absolute right-2 inset-y-0 flex items-center text-gray-500 hover:text-gray-700"
-                      aria-label="Search"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z" />
-                      </svg>
-                    </button>
-                  </div>
+                  <input
+                    type="text"
+                    className="border rounded px-3 py-2 w-full"
+                    value={filter.username}
+                    onChange={e => setFilter(f => ({ ...f, username: e.target.value }))}
+                  />
                 </div>
-                <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1">Year</label>
-                  <select
-                    className="border rounded px-3 py-2"
-                    value={filter.year}
-                    onChange={e => setFilter(f => ({ ...f, year: Number(e.target.value) }))}
+                <div className="min-w-[220px] flex flex-row items-end gap-2">
+                  <button
+                    type="button"
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition"
+                    onClick={async () => {
+                      setShowFilteredTable(true);
+                      setCurrentPage(1);
+                      // Fetch leaves with year and other filters
+                      await loadLeaves({ year: filter.year });
+                    }}
                   >
-                    {[(currentYear - 1), currentYear, (currentYear + 1)].map(y => (
-                      <option key={y} value={y}>{y}</option>
-                    ))}
-                  </select>
-                </div>
-                {/* Reset Button (shown when results displayed) */}
-                <div className="ml-auto">
+                    Search
+                  </button>
                   {showFilteredTable && (
                     <button
                       className="bg-gray-200 text-gray-700 px-4 py-2 rounded font-semibold hover:bg-gray-300 transition"
-                      onClick={() => {
+                      onClick={async () => {
                         setShowFilteredTable(false);
                         setFilter({ from: '', to: '', year: new Date().getFullYear(), department: '', username: '' });
                         setCurrentPage(1);
+                        await loadLeaves();
                       }}
                       type="button"
                     >

@@ -195,7 +195,7 @@ export default function TicketsPage() {
     try {
       if (editingId) {
         // If ticket is Open and creator assigns it, set status to Assigned
-        const payload = { ...form };
+        const payload = { ...form, status: form.status };
         if (payload.status === 'Open' && payload.assigned_to && String(form.user_id) === String(user?.id)) {
           payload.status = 'Assigned';
         }

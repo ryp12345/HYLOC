@@ -49,6 +49,10 @@ export const getKPIValuesByKPI = async (kpiId) => {
   return await axios.get(`/kpi-values/kpi/${kpiId}`);
 };
 
+export const getKPIValuesByPillar = async (pillerId) => {
+  return await axios.get(`/kpi-values/pillar/${pillerId}`);
+};
+
 export const getKPIValueByData = async (dataValue) => {
   return await axios.get(`/kpi-values/by-data`, { params: { dataValue } });
 };

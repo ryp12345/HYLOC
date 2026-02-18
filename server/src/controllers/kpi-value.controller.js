@@ -133,6 +133,37 @@ exports.getKPIValuesByKPI = async (req, res) => {
   }
 };
 
+exports.getKPIValuesByPillar = async (req, res) => {
+  try {
+    const { pillerId } = req.params;
+    const userRole = req.user?.role ? req.user.role.toLowerCase() : '';
+    const userId = req.user?.userId || req.user?.id;
+    
+    const values = await kpiValueModel.getKPIValuesByPillar(pillerId);
+    
+    if (userRole === 'employee' || userRole === 'manager') {
+      const filteredValues = values.filter(v => v.data_operator_id === userId);
+      return res.status(200).json({
+        success: true,
+        message: 'KPI values retrieved successfully',
+        data: filteredValues
+      });
+    }
+    
+    res.status(200).json({
+      success: true,
+      message: 'KPI values retrieved successfully',
+      data: values
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve KPI values',
+      error: error.message
+    });
+  }
+};
+
 exports.getKPIValueById = async (req, res) => {
   try {
     const { id } = req.params;

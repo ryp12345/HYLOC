@@ -10,9 +10,9 @@ exports.createLeave = async (leaveData) => {
     INSERT INTO leaves (
       user_id, from_date, to_date, leave_duration, credited_days,
       leave_reason, leave_type, alternate_person, additional_alternate,
-      available_on_phone, status, created_at
+      available_on_phone, status, approved_by, created_at
     )
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW())
     RETURNING *
   `;
   
@@ -27,7 +27,8 @@ exports.createLeave = async (leaveData) => {
     leaveData.alternate_person || null,
     leaveData.additional_alternate || null,
     leaveData.available_on_phone !== undefined ? leaveData.available_on_phone : true,
-    'Pending'
+    leaveData.status || 'Pending',
+    leaveData.approved_by || null
   ];
   
   const result = await db.query(query, values);

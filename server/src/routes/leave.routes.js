@@ -8,16 +8,16 @@ const router = express.Router();
 // All leave routes require authentication
 router.use(authenticate);
 
-// Employee and Manager routes (can apply and manage own leaves)
+// Employee, Manager, and Management routes (can apply and manage own leaves)
 router.get('/eligibility', leaveController.checkEligibility);
-router.get('/department-colleagues', authorize('Employee', 'Manager'), leaveController.getDepartmentColleagues);
-router.get('/department-leaves', authorize('Employee', 'Manager'), leaveController.getDepartmentLeaves);
-router.post('/', authorize('Employee', 'Manager'), leaveController.applyLeave);
-router.get('/my-leaves', authorize('Employee', 'Manager'), leaveController.getMyLeaves);
-router.get('/balance', authorize('Employee', 'Manager'), leaveController.getMyBalance);
-router.get('/history/:year', authorize('Employee', 'Manager'), leaveController.getLeaveHistory);
+router.get('/department-colleagues', authorize('Employee', 'Manager', 'Management'), leaveController.getDepartmentColleagues);
+router.get('/department-leaves', authorize('Employee', 'Manager', 'Management'), leaveController.getDepartmentLeaves);
+router.post('/', authorize('Employee', 'Manager', 'Management'), leaveController.applyLeave);
+router.get('/my-leaves', authorize('Employee', 'Manager', 'Management'), leaveController.getMyLeaves);
+router.get('/balance', authorize('Employee', 'Manager', 'Management'), leaveController.getMyBalance);
+router.get('/history/:year', authorize('Employee', 'Manager', 'Management'), leaveController.getLeaveHistory);
 router.put('/:id', authorize('Employee', 'Manager', 'Management'), leaveController.updateLeave);
-router.delete('/:id', authorize('Employee', 'Manager'), leaveController.cancelLeave);
+router.delete('/:id', authorize('Employee', 'Manager', 'Management'), leaveController.cancelLeave);
 
 // Manager and Management routes (approval/rejection)
 router.get('/pending', authorize('Manager', 'Management'), leaveController.getPendingLeaves);

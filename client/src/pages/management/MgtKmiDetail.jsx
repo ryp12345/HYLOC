@@ -49,21 +49,67 @@ export default function MgtKmiDetail() {
   // Transform API data from long format to wide format
   const transformMonthlyData = (apiData) => {
     if (!apiData || apiData.length === 0) return [];
+
+    const normalizeValueType = (valueType) => {
+      const normalized = (valueType || '').toString().trim().toLowerCase();
+      if (!normalized) return '';
+      if (normalized === 'actual' || normalized === 'achieved' || normalized === 'qa' || normalized === 'gracy') return 'actual';
+      if (normalized === 'target') return 'target';
+      if (normalized.includes('actual') || normalized.includes('achieved')) return 'actual';
+      if (normalized.includes('target')) return 'target';
+      if (normalized.includes('qa') || normalized.includes('gracy')) return 'actual';
+      return normalized ? 'actual' : normalized;
+    };
+
+    const parseNumeric = (value) => {
+      if (value == null || value === '') return null;
+      if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+      const cleaned = String(value).replace(/[^0-9.-]/g, '').trim();
+      const parsed = Number(cleaned);
+      return Number.isFinite(parsed) ? parsed : null;
+    };
     
+    const normalizeMonthValue = (value) => {
+      if (value == null) return null;
+      if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+      const text = String(value).trim();
+      const numeric = Number(text);
+      if (Number.isFinite(numeric) && numeric >= 1 && numeric <= 12) return numeric;
+      const monthKey = text.slice(0, 3).toLowerCase();
+      const monthIndex = MONTH_LABELS.map(label => label.toLowerCase()).indexOf(monthKey);
+      if (monthIndex >= 0) return monthIndex + 1;
+      const parsedDate = new Date(text);
+      if (!Number.isNaN(parsedDate.getTime())) return parsedDate.getMonth() + 1;
+      return null;
+    };
+
     // Group by month and year
     const grouped = {};
     apiData.forEach(item => {
-      const key = `${item.year}-${item.month}`;
+      const month = normalizeMonthValue(item.month);
+      const year = parseNumeric(item.year);
+      if (!month || !year) return;
+
+      const key = `${year}-${month}`;
       if (!grouped[key]) {
-        grouped[key] = { month: item.month, year: item.year };
+        grouped[key] = { month, year };
       }
-      
-      // value_type can be 'Target' or 'Achieved' (transformed by backend) or 'target'/'actual' (raw)
-      const valueType = item.value_type.toLowerCase();
-      if (valueType === 'target') {
-        grouped[key].target_value = parseFloat(item.value);
-      } else if (valueType === 'actual' || valueType === 'achieved') {
-        grouped[key].actual_value = parseFloat(item.value);
+
+      const valueType = normalizeValueType(item.value_type);
+      const explicitActual = parseNumeric(item.actual_value ?? item.actual);
+      const explicitTarget = parseNumeric(item.target_value ?? item.target);
+
+      if (explicitActual !== null) {
+        grouped[key].actual_value = explicitActual;
+      }
+      if (explicitTarget !== null) {
+        grouped[key].target_value = explicitTarget;
+      }
+
+      if (valueType === 'target' && grouped[key].target_value == null) {
+        grouped[key].target_value = parseNumeric(item.value);
+      } else if (valueType === 'actual' && grouped[key].actual_value == null) {
+        grouped[key].actual_value = parseNumeric(item.value);
       }
     });
     
@@ -93,8 +139,22 @@ export default function MgtKmiDetail() {
         const yearParam = getYearParam(kmi.fin_year);
         const dataPromises = kpiValues.map(async (value) => {
           try {
-            const response = await axios.get(`/kpi-data-values/${value.id}/monthly`, { params: { year: yearParam } });
-            const transformedData = transformMonthlyData(response.data.data || []);
+            const allRows = [];
+            if (yearParam != null) {
+              const [res1, res2] = await Promise.all([
+                axios.get(`/kpi-data-values/${value.id}/monthly`, { params: { year: yearParam } }),
+                axios.get(`/kpi-data-values/${value.id}/monthly`, { params: { year: yearParam + 1 } })
+              ]);
+
+              if (res1.data?.data && Array.isArray(res1.data.data)) {
+                allRows.push(...res1.data.data);
+              }
+              if (res2.data?.data && Array.isArray(res2.data.data)) {
+                allRows.push(...res2.data.data);
+              }
+            }
+
+            const transformedData = transformMonthlyData(allRows);
             return { valueId: value.id, data: transformedData };
           } catch {
             return { valueId: value.id, data: [] };

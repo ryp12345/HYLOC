@@ -38,6 +38,26 @@ exports.getKPIValuesByKPI = async (kpiId) => {
   }
 };
 
+// Get KPI values by Pillar ID
+exports.getKPIValuesByPillar = async (pillerId) => {
+  try {
+    const result = await pool.query(
+      `SELECT kv.id, kv.data, kv.kpi_id, kv."data operator" AS data_operator, 
+              kv.target_required, kv.uom, kv.kpi_type, kv.piller_id, kv.formula, 
+              kv.source_kpi_value_ids, kv.default_target_value, kv.computation_type, 
+              kv.target_formula, kv.target_source_kpi_value_ids, kv.created_at, kv.updated_at
+       FROM kpi_values kv
+       WHERE kv.piller_id = $1 
+       ORDER BY kv.created_at DESC`,
+      [pillerId]
+    );
+    return result.rows;
+  } catch (error) {
+    console.error('Database error in getKPIValuesByPillar for pillar_id', pillerId, ':', error.message);
+    throw error;
+  }
+};
+
 // Get KPI value by ID
 exports.getKPIValueById = async (id) => {
   try {

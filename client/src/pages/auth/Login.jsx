@@ -9,7 +9,7 @@ function Login() {
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const { login, register } = useAuth();
+  const { login, register, error: authError } = useAuth();
   const [formData, setFormData] = useState({
     empid: '',
     password: '',
@@ -38,8 +38,6 @@ function Login() {
 
   // Clear error state
   const clearError = () => {
-    console.log('🔵 [CLEAR-ERROR] clearError called');
-    console.log('🔵 [CLEAR-ERROR] Current error before clearError:', error);
     setError('');
     if (errorTimeoutRef.current) {
       clearTimeout(errorTimeoutRef.current);
@@ -49,21 +47,15 @@ function Login() {
 
   // Show error with persistent display
   const showError = (message) => {
-    console.log('🟢 [SHOW-ERROR] showError called with:', message);
     setError(message);
   };
 
-  // Monitor when error state actually updates after setError is called
+  // Mirror auth context errors into local UI state
   useEffect(() => {
-    console.log('🟡 [ERROR-EFFECT] Error effect running, error value:', error);
-    if (error) {
-      console.log('🟡 [ERROR-EFFECT] Error state UPDATED to:', error);
+    if (authError) {
+      setError(authError);
     }
-  }, [error]);
-
-
-
-
+  }, [authError]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -116,22 +108,20 @@ function Login() {
         setLoading(false);
         navigate('/dashboard');
       } catch (err) {
-        console.log('🔴 [CATCH-BLOCK] Error caught in handleSubmit');
-        
         // Backend validation error or authentication failure
         let errorMessage = 'Invalid credentials or connection error';
         
         // Try to extract the actual error message from backend response
-        if (err.response?.data?.message) {
+        if (err?.response?.data?.message) {
           errorMessage = err.response.data.message;
-        } else if (err.response?.status === 401) {
+        } else if (err?.response?.status === 401) {
           errorMessage = 'Invalid Employee ID or Password';
+        } else if (err?.message) {
+          errorMessage = err.message;
         }
         
-        console.log('🔴 [CATCH-BLOCK] About to call showError with:', errorMessage);
         // DIRECTLY set error state here without using showError function
         setError(errorMessage);
-        console.log('🔴 [CATCH-BLOCK] setError called directly with:', errorMessage);
         setLoading(false);
       }
     } catch (err) {

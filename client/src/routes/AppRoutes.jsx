@@ -11,13 +11,20 @@ import ManagementDashboard from '../pages/management/ManagementDashboard';
 import KPIDetailPage from '../pages/management/KPIDetailPage';
 import PlantEfficiency from '../pages/management/PlantEfficiency';
 import MgtPiller from '../pages/management/MgtPiller';
+import PillarDetailPage from '../pages/management/PillarDetailPage';
 import MgtKmiPage from '../pages/management/MgtKmiPage';
 import MgtKmiDetail from '../pages/management/MgtKmiDetail';
+import ManagementMyLeavePage from '../pages/management/leaves/MyLeavePage';
+import ManagerMyLeavePage from '../pages/manager/leaves/MyLeavePage';
 
 import ManagementLeavesPage from '../pages/management/leaves/LeavesPage';
 import EmployeeDashboard from '../pages/employee/EmployeeDashboard';
 import EmpKpiKaiPage from '../pages/employee/EmpKpiKaiPage';
 import ManagerDashboard from '../pages/manager/ManagerDashboard';
+// import MyLeavePage from '../pages/manager/leaves/MyLeavePage';
+
+
+
 import UsersPage from '../pages/admin/UsersPage';
 import LeaveEntitlementPage from '../pages/admin/leaves/LeaveEntitlementPage';
 import UserRolePage from '../pages/admin/UserRolePage';
@@ -390,6 +397,18 @@ const AppRoutes = () => {
               }
             />
 
+            {/* Management Pillar Detail Page */}
+            <Route
+              path="/management/pillar/:pillerId"
+              element={
+                <ProtectedRoute>
+                  <DashboardLayout>
+                    <PillarDetailPage />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              }
+            />
+
           {/* Manager Dashboard */}
           <Route
             path="/manager/dashboard"
@@ -397,6 +416,18 @@ const AppRoutes = () => {
               <ProtectedRoute>
                 <DashboardLayout>
                   <ManagerDashboard />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+
+           {/* Management My Leave */}
+          <Route
+            path="/management/my-leave"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <ManagementMyLeavePage />
                 </DashboardLayout>
               </ProtectedRoute>
             }
@@ -469,6 +500,18 @@ const AppRoutes = () => {
               <ProtectedRoute>
                 <DashboardLayout>
                   <ManagerLeavesPage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+
+           {/* Management My Leave */}
+          <Route
+            path="/manager/my-leave"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <ManagerMyLeavePage />
                 </DashboardLayout>
               </ProtectedRoute>
             }

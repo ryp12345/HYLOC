@@ -126,25 +126,6 @@ exports.getTicketById = async (req, res) => {
 };
 
 exports.updateTicket = async (req, res) => {
-      // Allowed status transitions map
-      const allowedTransitions = {
-        Open: ['Assigned', 'Rejected'],
-        Rejected: ['Open'],
-        Assigned: ['In Progress'],
-        'In Progress': ['Resolved'],
-        Resolved: ['Closed'],
-        Closed: [],
-      };
-
-      // If status is being changed, enforce allowed transitions
-      if (payload.status && payload.status !== existing.status) {
-        const from = existing.status;
-        const to = payload.status;
-        const allowed = allowedTransitions[from] || [];
-        if (!allowed.includes(to)) {
-          return res.status(400).json({ success: false, message: `Invalid status transition: ${from} → ${to}` });
-        }
-      }
   try {
     const id = req.params.id;
     const payload = { ...req.body };
@@ -156,6 +137,28 @@ exports.updateTicket = async (req, res) => {
     const requesterId = req.user?.userId;
     const requesterRole = req.user?.role;
 
+    // Allowed status transitions map
+    const allowedTransitions = {
+      Open: ['Assigned', 'Rejected'],
+      Rejected: ['Open'],
+      Assigned: ['In Progress', 'Rejected'],
+      'In Progress': ['Resolved'],
+      Resolved: ['Closed'],
+      Closed: [],
+    };
+
+    // If status is being changed, enforce allowed transitions
+    if (payload.status && payload.status !== existing.status) {
+      const from = String(existing.status || '').trim();
+      const to = String(payload.status || '').trim();
+      const allowed = (allowedTransitions[from] || []).map(s => String(s).trim());
+      // Temporary debug log for status transitions
+      console.debug('Status transition attempt:', { ticketId: id, requesterId, from, to, allowed });
+      if (!allowed.includes(to)) {
+        return res.status(400).json({ success: false, message: `Invalid status transition: ${from} → ${to}` });
+      }
+    }
+
     // Field-level edit permissions
 
 
@@ -164,7 +167,26 @@ exports.updateTicket = async (req, res) => {
     const isManagement = requesterRole && requesterRole.toLowerCase() === 'management';
     const isCreator = String(existing.user_id) === String(requesterId);
     const isManager = requesterRole && requesterRole.toLowerCase() === 'manager';
-    if (payload.due_date !== undefined) {
+
+    // Normalize date-only strings for robust comparison (DB may include time)
+    const formatDateOnly = (val) => {
+      if (val === undefined || val === null) return null;
+      try {
+        if (val instanceof Date) return val.toISOString().slice(0, 10);
+        const d = new Date(val);
+        if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
+      } catch (e) {
+        // fallthrough
+      }
+      return String(val).slice(0, 10);
+    };
+
+    const payloadDueRaw = payload.due_date !== undefined ? payload.due_date : undefined;
+    const payloadDue = payloadDueRaw !== undefined ? formatDateOnly(payloadDueRaw) : undefined;
+    const existingDue = existing && existing.due_date !== undefined && existing.due_date !== null ? formatDateOnly(existing.due_date) : null;
+
+    // Only enforce due_date permission when the date actually changes
+    if (payloadDue !== undefined && payloadDue !== existingDue) {
       if (!isManagement && !isCreator) {
         // Explicitly block Manager role and all others
         return res.status(403).json({ success: false, message: 'Only Management or the ticket creator can edit due_date' });
@@ -172,7 +194,8 @@ exports.updateTicket = async (req, res) => {
     }
 
     // Other users can only edit title and description
-    if (!isManagement && !isCreator) {
+    const isAssignee = String(existing.assigned_to) === String(requesterId);
+    if (!isManagement && !isCreator && !isAssignee) {
       // Remove any fields except title/description
       Object.keys(payload).forEach((key) => {
         if (!['title', 'description'].includes(key)) {
@@ -218,10 +241,25 @@ exports.updateTicket = async (req, res) => {
           WHERE r.role_name = 'Manager' AND ur.status = 'active'
         `);
         const managerIds = mgrRes.rows.map(r => r.id).filter(id => id !== existing.user_id);
-        const recipients = new Set([existing.user_id, ...managerIds]);
-        for (const recipientId of recipients) {
-          const message = `Ticket #${existing.id} ('${existing.title}') status changed to ${payload.status} by user #${requesterId}`;
-          await notificationModel.createNotification({ created_by: requesterId, assigned_to: recipientId, message, type: 'ticket_status' });
+        
+        // Special handling for 'Rejected' status: send custom format to creator
+        if (payload.status === 'Rejected') {
+          // Send custom format to creator
+          const creatorMessage = `Type: Ticket rejected\nTitle: ${existing.title}\nDescription: ${existing.description || ''}`;
+          await notificationModel.createNotification({ created_by: requesterId, assigned_to: existing.user_id, message: creatorMessage, type: 'ticket_status' });
+          
+          // Send standard format to managers
+          for (const managerId of managerIds) {
+            const managerMessage = `Ticket #${existing.id} ('${existing.title}') status changed to ${payload.status} by user #${requesterId}`;
+            await notificationModel.createNotification({ created_by: requesterId, assigned_to: managerId, message: managerMessage, type: 'ticket_status' });
+          }
+        } else {
+          // For other status changes, send standard format to all recipients
+          const recipients = new Set([existing.user_id, ...managerIds]);
+          for (const recipientId of recipients) {
+            const message = `Ticket #${existing.id} ('${existing.title}') status changed to ${payload.status} by user #${requesterId}`;
+            await notificationModel.createNotification({ created_by: requesterId, assigned_to: recipientId, message, type: 'ticket_status' });
+          }
         }
         sentStatusNotification = true;
       } catch (notifErr) {
@@ -233,14 +271,24 @@ exports.updateTicket = async (req, res) => {
     if (!sentStatusNotification) {
       // Check if any editable field other than status was changed
       const editableFields = ['title', 'description', 'category', 'priority', 'due_date', 'attachment'];
-      const changedFields = editableFields.filter(f => payload[f] !== undefined && payload[f] !== existing[f]);
+      const changedFields = editableFields.filter(f => {
+        if (payload[f] === undefined) return false;
+        if (f === 'due_date') {
+          const p = payload.due_date !== undefined ? (typeof formatDateOnly === 'function' ? formatDateOnly(payload.due_date) : (new Date(payload.due_date)).toISOString().slice(0,10)) : null;
+          const e = existing && existing.due_date !== undefined && existing.due_date !== null ? (typeof formatDateOnly === 'function' ? formatDateOnly(existing.due_date) : (new Date(existing.due_date)).toISOString().slice(0,10)) : null;
+          return p !== e;
+        }
+        return payload[f] !== existing[f];
+      });
       if (changedFields.length > 0 && existing.assigned_to) {
         const message = `Ticket #${existing.id} ('${existing.title}') was updated (${changedFields.join(', ')}) by user #${requesterId}`;
         await notificationModel.createNotification({ created_by: requesterId, assigned_to: existing.assigned_to, message, type: 'ticket_edit' });
       }
     }
 
+    console.log('DEBUG: Updating ticket', { id, payload });
     const updated = await ticketModel.updateTicket(id, payload);
+    console.log('DEBUG: Updated ticket result', updated);
     if (!updated) return res.status(404).json({ success: false, message: 'Ticket not found' });
 
     // If reassigned to a different user, create an in-app notification for the new assignee.

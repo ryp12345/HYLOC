@@ -36,6 +36,7 @@ function EmpKpiKaiPage() {
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [formulaDetailsModal, setFormulaDetailsModal] = useState({ show: false, data: null });
   const [recentlyUpdatedKPIs, setRecentlyUpdatedKPIs] = useState([]);
+  const [kpiAssignees, setKpiAssignees] = useState({}); // Map of kpi_id to assignee list
 
   // Financial year months (April to March)
   const months = [
@@ -67,7 +68,31 @@ function EmpKpiKaiPage() {
 
   const getSelectedFinancialYear = () => `${selectedYear}-${String(selectedYear + 1).slice(-2)}`;
 
-  const kpiById = useMemo(() => new Map(kpis.map((kpi) => [kpi.id, kpi])), [kpis]);
+  const normalizeKpiId = (value) => {
+    if (value === null || value === undefined) return '';
+    return String(value);
+  };
+
+  const parseFiscalYear = (value) => {
+    if (value == null) return null;
+    if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+    if (typeof value === 'string') {
+      const match = value.match(/\d{4}/);
+      return match ? parseInt(match[0], 10) : parseInt(value, 10);
+    }
+    return null;
+  };
+
+  const shouldIncludeForSelectedYear = (kpiFiscalYear, currentSelectedYear) => {
+    const parsedYear = parseFiscalYear(kpiFiscalYear);
+    if (parsedYear === null) return true;
+    return parsedYear === currentSelectedYear;
+  };
+
+  const kpiById = useMemo(
+    () => new Map(kpis.map((kpi) => [normalizeKpiId(kpi.id), kpi])),
+    [kpis]
+  );
 
   // Build breadcrumb trail for a KPI (from root to current)
   const buildBreadcrumb = (kpi) => {
@@ -77,7 +102,7 @@ function EmpKpiKaiPage() {
     while (currentKPI) {
       breadcrumb.unshift(currentKPI);
       if (currentKPI.parent_kpi_id) {
-        currentKPI = kpiById.get(currentKPI.parent_kpi_id);
+        currentKPI = kpiById.get(normalizeKpiId(currentKPI.parent_kpi_id));
       } else {
         currentKPI = null;
       }
@@ -217,8 +242,16 @@ function EmpKpiKaiPage() {
     );
   }
 
-  // Get category name from category_id
-  const getCategoryName = (categoryId) => {
+  // Get category name/type from KPI data (prefer backend category_name)
+  const getCategoryName = (kpiOrCategory) => {
+    if (kpiOrCategory && typeof kpiOrCategory === 'object') {
+      const backendCategoryName = kpiOrCategory.category_name || kpiOrCategory.category;
+      if (backendCategoryName) {
+        return String(backendCategoryName);
+      }
+    }
+
+    const categoryId = typeof kpiOrCategory === 'object' ? kpiOrCategory?.category_id : kpiOrCategory;
     const categoryNames = {
       1: 'Pillar',
       2: 'Department KPI',
@@ -231,41 +264,44 @@ function EmpKpiKaiPage() {
   };
 
   const assignedKPIIdsForYear = useMemo(() => {
-    const fy = getSelectedFinancialYear();
     return new Set(
       assignedKPIValues
-        .filter((kv) => kpiById.get(kv.kpi_id)?.fin_year === fy)
-        .map((kv) => kv.kpi_id)
+        .filter((kv) => {
+          const kpi = kpiById.get(normalizeKpiId(kv.kpi_id));
+          return shouldIncludeForSelectedYear(kpi?.fin_year, selectedYear);
+        })
+        .map((kv) => normalizeKpiId(kv.kpi_id))
     );
   }, [assignedKPIValues, kpiById, selectedYear]);
 
   const assignedKPIValuesForYear = useMemo(
-    () => assignedKPIValues.filter((kv) => assignedKPIIdsForYear.has(kv.kpi_id)),
+    () => assignedKPIValues.filter((kv) => assignedKPIIdsForYear.has(normalizeKpiId(kv.kpi_id))),
     [assignedKPIValues, assignedKPIIdsForYear]
   );
 
   const visibleKPIsForYear = useMemo(() => {
-    const fy = getSelectedFinancialYear();
     const included = new Set();
 
     const addWithParents = (id) => {
-      let currentId = id;
+      let currentId = normalizeKpiId(id);
       while (currentId && !included.has(currentId)) {
         included.add(currentId);
-        const parentId = kpiById.get(currentId)?.parent_kpi_id || null;
-        currentId = parentId;
+        const parentId = kpiById.get(currentId)?.parent_kpi_id;
+        currentId = parentId ? normalizeKpiId(parentId) : '';
       }
     };
 
     assignedKPIIdsForYear.forEach(addWithParents);
 
-    const base = kpis.filter((kpi) => kpi.fin_year === fy && included.has(kpi.id));
+    const base = kpis.filter(
+      (kpi) => shouldIncludeForSelectedYear(kpi.fin_year, selectedYear) && included.has(normalizeKpiId(kpi.id))
+    );
 
     if (!searchQuery.trim()) return base;
     const q = searchQuery.toLowerCase();
     return base.filter((kpi) => {
       const titleMatch = kpi.title?.toLowerCase().includes(q);
-      const categoryMatch = getCategoryName(kpi.category_id).toLowerCase().includes(q);
+      const categoryMatch = getCategoryName(kpi).toLowerCase().includes(q);
       return titleMatch || categoryMatch;
     });
   }, [kpis, assignedKPIIdsForYear, kpiById, selectedYear, searchQuery]);
@@ -334,6 +370,26 @@ function EmpKpiKaiPage() {
         }
       }
       
+      // Load assignees for KPIs that don't have values for current user
+      const loadAssigneesForUnassignedKPIs = async () => {
+        const assignedKpiIds = new Set(kpiValues.map(kv => normalizeKpiId(kv.kpi_id)));
+        const unassignedKpis = allKPIs.filter(kpi => !assignedKpiIds.has(normalizeKpiId(kpi.id)));
+        
+        for (const kpi of unassignedKpis) {
+          try {
+            const assigneesResponse = await api.get(`/employees/kpi/${kpi.id}/assignees`);
+            setKpiAssignees(prev => ({
+              ...prev,
+              [kpi.id]: assigneesResponse.data?.data || []
+            }));
+          } catch (err) {
+            // Silently skip if assignees can't be loaded
+          }
+        }
+      };
+      
+      await loadAssigneesForUnassignedKPIs();
+      
       // Don't automatically select a KPI - let the user choose from the hierarchy view
       setSelectedKPI(null);
     } catch (error) {
@@ -347,8 +403,23 @@ function EmpKpiKaiPage() {
   const selectKPI = async (kpi, kpiValues = null) => {
     setSelectedKPI(kpi);
     
+    // Fetch assignees for this KPI if no values for current user
+    if (!kpiValues || kpiValues.length === 0) {
+      try {
+        const assigneesResponse = await api.get(`/employees/kpi/${kpi.id}/assignees`);
+        setKpiAssignees(prev => ({
+          ...prev,
+          [kpi.id]: assigneesResponse.data?.data || []
+        }));
+      } catch (err) {
+        console.warn(`Failed to load assignees for KPI ${kpi.id}:`, err);
+      }
+    }
+    
     // Filter kpi_values for this specific KPI
-    const kpiValuesForSelected = kpiValues || assignedKPIValuesForYear.filter(kv => kv.kpi_id === kpi.id);
+    const kpiValuesForSelected = kpiValues || assignedKPIValuesForYear.filter(
+      (kv) => normalizeKpiId(kv.kpi_id) === normalizeKpiId(kpi.id)
+    );
     
     try {
       // Load monthly data for each KPI value for the selected year and surrounding years
@@ -367,6 +438,62 @@ function EmpKpiKaiPage() {
   };
 
   const loadMonthlyData = async (kpiValueId, fyYear) => {
+    const normalizeMonthlyRows = (rows) => {
+      const normalizeValueType = (valueType) => {
+        const normalized = (valueType || '').toString().trim().toLowerCase();
+        if (!normalized) return '';
+        if (normalized === 'actual' || normalized === 'achieved') return 'actual';
+        if (normalized === 'target') return 'target';
+        if (normalized.includes('actual') || normalized.includes('achieved')) return 'actual';
+        if (normalized.includes('target')) return 'target';
+        return normalized;
+      };
+
+      const parseNumeric = (value) => {
+        if (value == null || value === '') return null;
+        if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+        const cleaned = String(value).replace(/[^0-9.-]/g, '').trim();
+        const parsed = Number(cleaned);
+        return Number.isFinite(parsed) ? parsed : null;
+      };
+
+      const byMonthYear = new Map();
+
+      (rows || []).forEach((row) => {
+        const month = Number(row.month);
+        const year = Number(row.year);
+
+        if (!Number.isFinite(month) || !Number.isFinite(year)) return;
+
+        const key = `${month}-${year}`;
+        const current = byMonthYear.get(key) || {
+          month,
+          year,
+          target_value: null,
+          actual_value: null
+        };
+
+        if (row.target_value !== undefined && row.target_value !== null && row.target_value !== '') {
+          current.target_value = parseNumeric(row.target_value);
+        }
+
+        if (row.actual_value !== undefined && row.actual_value !== null && row.actual_value !== '') {
+          current.actual_value = parseNumeric(row.actual_value);
+        }
+
+        const valueType = normalizeValueType(row.value_type);
+        if (valueType === 'target') {
+          current.target_value = parseNumeric(row.value);
+        } else if (valueType === 'actual') {
+          current.actual_value = parseNumeric(row.value);
+        }
+
+        byMonthYear.set(key, current);
+      });
+
+      return Array.from(byMonthYear.values());
+    };
+
     try {
       // For financial year, we need to load data from two calendar years
       // FY 2024 = April 2024 to March 2025
@@ -377,7 +504,7 @@ function EmpKpiKaiPage() {
       const data2 = response2.data.data || [];
       
       // Combine data from both years
-      const combinedData = [...data1, ...data2];
+      const combinedData = normalizeMonthlyRows([...data1, ...data2]);
 
       setMonthlyData(prev => {
         const existing = prev[kpiValueId] || [];
@@ -529,7 +656,26 @@ function EmpKpiKaiPage() {
           try {
             const monthlyResponse = await api.get(`/kpi-data-values/${sourceId}/monthly?year=${calendarYear}`);
             const monthlyDataArray = monthlyResponse.data.data || [];
-            monthData = monthlyDataArray.find(d => d.month === calendarMonth) || {};
+            monthData = monthlyDataArray.find(d => Number(d.month) === Number(calendarMonth)) || {};
+
+            if (monthData.value_type && monthData.value !== undefined) {
+              const monthlyRows = monthlyDataArray.filter(
+                (d) => Number(d.month) === Number(calendarMonth) && Number(d.year) === Number(calendarYear)
+              );
+              const targetRow = monthlyRows.find(
+                (d) => (d.value_type || '').toString().toLowerCase() === 'target'
+              );
+              const actualRow = monthlyRows.find((d) => {
+                const vt = (d.value_type || '').toString().toLowerCase();
+                return vt === 'achieved' || vt === 'actual';
+              });
+
+              monthData = {
+                ...monthData,
+                target_value: targetRow?.value ?? null,
+                actual_value: actualRow?.value ?? null
+              };
+            }
           } catch (error) {
             console.warn(`Failed to fetch monthly data for KPI Value ID ${sourceId}:`, error);
             monthData = {};
@@ -624,8 +770,8 @@ function EmpKpiKaiPage() {
     const calendarYear = fyMonthIndex >= 9 ? selectedYear + 1 : selectedYear;
     
     // Find data matching both month and year for accuracy
-    const result = data.find(d => d.month === calendarMonth && d.year === calendarYear) || 
-           data.find(d => d.month === calendarMonth) || // Fallback to just month if year doesn't match
+      const result = data.find(d => Number(d.month) === Number(calendarMonth) && Number(d.year) === Number(calendarYear)) || 
+        data.find(d => Number(d.month) === Number(calendarMonth)) || // Fallback to just month if year doesn't match
            {};
     
     return result;
@@ -660,18 +806,21 @@ function EmpKpiKaiPage() {
   // Build full hierarchy (nodes shaped as { kpi, children: [] }) from visible KPIs
   const fullHierarchy = useMemo(() => {
     const map = new Map();
-    visibleKPIsForYear.forEach(kpi => map.set(kpi.id, { kpi, children: [] }));
+    visibleKPIsForYear.forEach(kpi => map.set(normalizeKpiId(kpi.id), { kpi, children: [] }));
 
     // attach children to parents when parent exists in the visible set
     map.forEach(node => {
-      const parentId = node.kpi.parent_kpi_id;
+      const parentId = node.kpi.parent_kpi_id ? normalizeKpiId(node.kpi.parent_kpi_id) : '';
       if (parentId && map.has(parentId)) {
         map.get(parentId).children.push(node);
       }
     });
 
     // roots are nodes whose parent is not present in the map
-    const roots = Array.from(map.values()).filter(node => !node.kpi.parent_kpi_id || !map.has(node.kpi.parent_kpi_id));
+    const roots = Array.from(map.values()).filter(node => {
+      if (!node.kpi.parent_kpi_id) return true;
+      return !map.has(normalizeKpiId(node.kpi.parent_kpi_id));
+    });
     // sort children and roots for stable ordering
     const sortRec = (node) => {
       node.children.sort((a, b) => (a.kpi.title || '').localeCompare(b.kpi.title || ''));
@@ -688,7 +837,7 @@ function EmpKpiKaiPage() {
 
     const filterNode = (node) => {
       const titleMatch = (node.kpi.title || '').toLowerCase().includes(q);
-      const categoryMatch = getCategoryName(node.kpi.category_id).toLowerCase().includes(q);
+      const categoryMatch = getCategoryName(node.kpi).toLowerCase().includes(q);
       const children = node.children || [];
       const filteredChildren = children.map(filterNode).filter(c => c !== null);
       if (titleMatch || categoryMatch || filteredChildren.length > 0) {
@@ -736,7 +885,8 @@ function EmpKpiKaiPage() {
 
     // Find all child KPIs
     const findChildren = (parentId) => {
-      return visibleKPIsForYear.filter(kpi => kpi.parent_kpi_id === parentId);
+      const normalizedParentId = normalizeKpiId(parentId);
+      return visibleKPIsForYear.filter(kpi => normalizeKpiId(kpi.parent_kpi_id) === normalizedParentId);
     };
 
     // Recursively build the tree
@@ -757,7 +907,9 @@ function EmpKpiKaiPage() {
   const renderKPINode = (node, depth = 0) => {
     const isExpanded = expandedNodes.has(node.kpi.id);
     const hasChildren = (node.children || []).length > 0;
-    const kpiValues = assignedKPIValuesForYear.filter(kv => kv.kpi_id === node.kpi.id);
+    const kpiValues = assignedKPIValuesForYear.filter(
+      (kv) => normalizeKpiId(kv.kpi_id) === normalizeKpiId(node.kpi.id)
+    );
     
     return (
       <div key={node.kpi.id} className="space-y-2" style={{ marginLeft: `${depth * 16}px` }}>
@@ -780,16 +932,31 @@ function EmpKpiKaiPage() {
             {/* KPI Info */}
             <div className="flex-1 min-w-0">
               <h3 className="text-base font-semibold text-slate-900 truncate">{node.kpi.title}</h3>
-              {kpiValues.length > 0 && (
-                <div className="flex items-center gap-2 mt-2 flex-wrap">
-                  <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 text-amber-700 rounded-full text-xs font-medium border border-amber-200">
-                    📊 {kpiValues.length} Value{kpiValues.length !== 1 ? 's' : ''}
-                  </span>
+              <div className="flex items-center gap-2 mt-2 flex-wrap">
+                {kpiValues.length > 0 ? (
+                  <>
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 text-amber-700 rounded-full text-xs font-medium border border-amber-200">
+                      📊 {kpiValues.length} Value{kpiValues.length !== 1 ? 's' : ''}
+                    </span>
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 text-slate-700 rounded-full text-xs font-medium border border-slate-200">
+                      📁 {getCategoryName(node.kpi)}
+                    </span>
+                  </>
+                ) : kpiAssignees[node.kpi.id] && kpiAssignees[node.kpi.id].length > 0 ? (
+                  <>
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-medium border border-blue-200">
+                      👤 Assigned to: {kpiAssignees[node.kpi.id].map(a => `${a.first_name} ${a.last_name}`).join(', ')}
+                    </span>
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 text-slate-700 rounded-full text-xs font-medium border border-slate-200">
+                      📁 {getCategoryName(node.kpi)}
+                    </span>
+                  </>
+                ) : (
                   <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 text-slate-700 rounded-full text-xs font-medium border border-slate-200">
-                    📁 {getCategoryName(node.kpi.category_id)}
+                    📁 {getCategoryName(node.kpi)}
                   </span>
-                </div>
-              )}
+                )}
+              </div>
             </div>
 
             {/* View Button (always visible) */}
@@ -816,7 +983,9 @@ function EmpKpiKaiPage() {
 
   // Helper function to render selected KPI with all values and data
   const renderKPIWithValues = (node) => {
-    const kpiValues = assignedKPIValuesForYear.filter(kv => kv.kpi_id === node.kpi.id);
+    const kpiValues = assignedKPIValuesForYear.filter(
+      (kv) => normalizeKpiId(kv.kpi_id) === normalizeKpiId(node.kpi.id)
+    );
     
     return (
       <div key={node.kpi.id} className="space-y-6">
@@ -825,7 +994,7 @@ function EmpKpiKaiPage() {
           <h2 className="text-3xl font-bold text-slate-900 mb-2">{node.kpi.title}</h2>
           <div className="flex flex-wrap items-center gap-3 mt-4">
             <span className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 rounded-full text-sm font-semibold border border-blue-200">
-              📁 {getCategoryName(node.kpi.category_id)}
+              📁 {getCategoryName(node.kpi)}
             </span>
             {kpiValues.length > 0 && (
               <span className="inline-flex items-center gap-2 px-4 py-2 bg-green-50 text-green-700 rounded-full text-sm font-semibold border border-green-200">
@@ -1021,11 +1190,35 @@ function EmpKpiKaiPage() {
               </div>
             ))}
           </div>
+        ) : kpiAssignees[node.kpi.id] && kpiAssignees[node.kpi.id].length > 0 ? (
+          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl shadow-md border-2 border-blue-300 p-8">
+            <div className="text-center">
+              <div className="text-5xl mb-4">👤</div>
+              <h3 className="text-2xl font-bold text-blue-900 mb-4">Data Owner</h3>
+              <p className="text-slate-600 text-sm mb-8">This KPI is being tracked by:</p>
+              
+              <div className="space-y-3">
+                {kpiAssignees[node.kpi.id].map((assignee) => (
+                  <div key={assignee.id} className="bg-white rounded-lg p-5 shadow-sm border border-blue-200">
+                    <p className="text-lg font-bold text-blue-900">
+                      {assignee.first_name} {assignee.last_name}
+                    </p>
+                    <p className="text-sm text-slate-600 mt-1">Employee ID: {assignee.empid}</p>
+                    {assignee.kpi_values && (
+                      <p className="text-xs text-slate-500 mt-2 italic">
+                        Responsible for: {assignee.kpi_values}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         ) : (
           <div className="bg-white rounded-xl border-2 border-dashed border-slate-300 p-12 text-center">
             <div className="text-5xl mb-4">📭</div>
             <h3 className="text-xl font-semibold text-slate-900 mb-2">No Values Assigned</h3>
-            <p className="text-slate-600">No values have been assigned to this KPI yet.</p>
+            <p className="text-slate-600">No data operator has been assigned to this KPI yet.</p>
           </div>
         )}
 
@@ -1148,7 +1341,7 @@ function EmpKpiKaiPage() {
                         <div key={kpi.id} className="flex items-center gap-2">
                           <span className="inline-flex items-center text-bold gap-2 px-3 py-1 bg-blue-500 text-white rounded-full text-xs font-semibold border border-blue-700">
                             <span className="text-white">●</span>
-                            <span className="font-bold">{getCategoryName(kpi.category_id)}</span>
+                            <span className="font-bold">{getCategoryName(kpi)}</span>
                           </span>
                           <span className="text-white font-medium">{kpi.title}</span>
                           {index < array.length - 1 && <span className="text-slate-400 text-xl">›</span>}

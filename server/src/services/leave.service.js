@@ -4,11 +4,11 @@ const entitlementModel = require('../models/leaveEntitlement.model');
 
 /**
  * Check if user is eligible to apply for leave
- * Based on Rule 1: Only Employee and Manager roles can apply
+ * Based on Rule 1: Only Employee, Manager, and Management roles can apply
  */
 exports.checkLeaveEligibility = async (userId, userRole) => {
-  // Check if user has Employee or Manager role
-  const isEmployeeOrManager = ['Employee', 'Manager'].includes(userRole);
+  // Check if user has Employee, Manager, or Management role
+  const canApplyForLeave = ['Employee', 'Manager', 'Management'].includes(userRole);
   
   // Get user status from database
   const userQuery = 'SELECT status FROM users WHERE id = $1';
@@ -28,12 +28,12 @@ exports.checkLeaveEligibility = async (userId, userRole) => {
   const isActive = user.status === 'active';
   
   return {
-    canApply: isEmployeeOrManager && isActive,
-    isEmployeeRole: isEmployeeOrManager,
+    canApply: canApplyForLeave && isActive,
+    isEmployeeRole: canApplyForLeave,
     isActive: isActive,
     currentRole: userRole,
-    reason: !isEmployeeOrManager 
-      ? 'Only Employee and Manager roles can apply for leave'
+    reason: !canApplyForLeave 
+      ? 'Only Employee, Manager, and Management roles can apply for leave'
       : !isActive 
       ? 'User account is not active'
       : null
@@ -150,6 +150,10 @@ exports.applyLeave = async (userId, leaveData, userRole) => {
       return toDateString(d);
     };
 
+    // Management leaves are auto-approved
+    const leaveStatus = userRole === 'Management' ? 'Approved' : 'Pending';
+    const approvedBy = userRole === 'Management' ? userId : null;
+
     const createLeaveSegment = async (segment) => {
       return await leaveModel.createLeave({
         user_id: userId,
@@ -161,7 +165,9 @@ exports.applyLeave = async (userId, leaveData, userRole) => {
         leave_type: segment.leave_type,
         alternate_person: leaveData.alternate_person,
         additional_alternate: leaveData.additional_alternate,
-        available_on_phone: leaveData.available_on_phone !== undefined ? leaveData.available_on_phone : true
+        available_on_phone: leaveData.available_on_phone !== undefined ? leaveData.available_on_phone : true,
+        status: leaveStatus,
+        approved_by: approvedBy
       });
     };
 

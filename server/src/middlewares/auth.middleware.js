@@ -15,7 +15,7 @@ exports.authenticate = (req, res, next) => {
       return sendError(res, 'Invalid or expired token', 401);
     }
 
-    console.log('✅ AUTH: Decoded token:', { userId: decoded.userId, email: decoded.email, role: decoded.role });
+    //console.log('✅ AUTH: Decoded token:', { userId: decoded.userId, email: decoded.email, role: decoded.role });
     req.user = decoded;
     next();
   } catch (error) {

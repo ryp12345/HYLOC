@@ -718,6 +718,22 @@ const isFiscalYearMatch = (kpiFiscalYear, selectedFiscalYear) => {
 };
 
 const normalizeText = (value) => (value || '').toString().trim().toLowerCase();
+const normalizeValueType = (valueType) => {
+  const normalized = (valueType || '').toString().trim().toLowerCase();
+  if (!normalized) return '';
+  if (normalized === 'actual' || normalized === 'achieved') return 'actual';
+  if (normalized === 'target') return 'target';
+  if (normalized.includes('actual') || normalized.includes('achieved')) return 'actual';
+  if (normalized.includes('target')) return 'target';
+  return normalized;
+};
+const parseNumeric = (value) => {
+  if (value == null) return 0;
+  if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+  const cleaned = String(value).replace(/[^0-9.-]/g, '').trim();
+  const parsed = Number(cleaned);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
 
 function ManagementDashboard() {
   const { user } = useAuth();
@@ -740,6 +756,7 @@ function ManagementDashboard() {
   const [zeroQualityChart, setZeroQualityChart] = useState(null);
   const [zeroQualityLoading, setZeroQualityLoading] = useState(false);
   const [monthlySalesData, setMonthlySalesData] = useState([]);
+  const [salesDisplayYear, setSalesDisplayYear] = useState('');
   const [salesLoading, setSalesLoading] = useState(false);
   const [selectedSalesIndex, setSelectedSalesIndex] = useState(0);
   const [monthlyProfitData, setMonthlyProfitData] = useState([]);
@@ -765,6 +782,7 @@ function ManagementDashboard() {
   
   const [selectedFiscalYear, setSelectedFiscalYear] = useState(getCurrentFiscalYear());
   const [availableFiscalYears, setAvailableFiscalYears] = useState([]);
+  const [cachedKpiValues, setCachedKpiValues] = useState([]);
   
   // Computed fiscal month sequence based on selected year
   const FISCAL_MONTH_SEQUENCE = useMemo(() => getFiscalMonthSequence(selectedFiscalYear), [selectedFiscalYear]);
@@ -778,7 +796,6 @@ function ManagementDashboard() {
   const getKpiValuesForFiscalYear = async () => {
     const fiscalKpis = await getKpisForFiscalYear();
     if (!fiscalKpis.length) {
-      //console.log('No fiscal KPIs found for fiscal year:', selectedFiscalYear);
       return [];
     }
 
@@ -791,8 +808,6 @@ function ManagementDashboard() {
       .flatMap(res => res.value?.data?.data || [])
       .filter(Boolean);
     
-    //console.log('Fetched KPI Values:', allValues.length, allValues.map(v => ({ id: v.id, data: v.data, kpi_id: v.kpi_id })));
-    
     return allValues;
   };
 
@@ -801,15 +816,8 @@ function ManagementDashboard() {
     const found = values.find(value => {
       const dataText = normalizeText(value?.data);
       const matches = checks.some(check => check(dataText));
-      if (matches) {
-        //console.log('✓ Found matching KPI value:', value.data, '(normalized:', dataText, ')');
-      }
       return matches;
     });
-    
-    if (!found) {
-      //console.log('✗ No match found. Available data fields:', values.map(v => v.data));
-    }
     
     return found;
   };
@@ -828,23 +836,33 @@ function ManagementDashboard() {
   useEffect(() => {
     const loadAllData = async () => {
       try {
-        // console.log('=== LOADING DASHBOARD ===');
-        // console.log('Selected Fiscal Year:', selectedFiscalYear);
-        // console.log('FISCAL_MONTH_SEQUENCE:', FISCAL_MONTH_SEQUENCE);
-        
         await fetchStatistics();
-        await Promise.all([
-          loadIndustry40Chart(),
-          loadZeroQualityChart(),
-          loadSalesChart(),
-          loadProfitabilityData(),
-          loadPlantEfficiency(),
-          loadGreenFactoryChart(),
-          loadZeroAccidentsChart(),
-          loadOnTimeDeliveryChart(),
-          loadThemeChart(),
-          loadEmployeesChart()
+        
+        // Fetch KPI values once for all charts to avoid multiple redundant API calls
+        const fiscalValues = await getKpiValuesForFiscalYear();
+        setCachedKpiValues(fiscalValues);
+        
+        // Pass cached values to all chart functions with individual error handling
+        const chartResults = await Promise.allSettled([
+          loadIndustry40Chart(fiscalValues),
+          loadZeroQualityChart(fiscalValues),
+          loadSalesChart(fiscalValues),
+          loadProfitabilityData(fiscalValues),
+          loadPlantEfficiency(fiscalValues),
+          loadGreenFactoryChart(fiscalValues),
+          loadZeroAccidentsChart(fiscalValues),
+          loadOnTimeDeliveryChart(fiscalValues),
+          loadThemeChart(fiscalValues),
+          loadEmployeesChart(fiscalValues)
         ]);
+        
+        // Log any failures
+        chartResults.forEach((result, index) => {
+          const chartNames = ['Industry40', 'ZeroQuality', 'Sales', 'Profitability', 'PlantEfficiency', 'GreenFactory', 'ZeroAccidents', 'OnTimeDelivery', 'Theme', 'Employees'];
+          if (result.status === 'rejected') {
+            console.error(`Failed to load ${chartNames[index]} chart:`, result.reason);
+          }
+        });
       } catch (error) {
         console.error('Error loading dashboard data:', error);
       }
@@ -852,7 +870,7 @@ function ManagementDashboard() {
     
     loadAllData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedFiscalYear, FISCAL_MONTH_SEQUENCE]);
+  }, [selectedFiscalYear]);
 
   const fetchStatistics = async () => {
     try {
@@ -962,11 +980,10 @@ function ManagementDashboard() {
     }
   };
 
-  const loadGreenFactoryChart = async () => {
+  const loadGreenFactoryChart = async (fiscalValues) => {
     try {
       setGreenFactoryLoading(true);
-      
-      const fiscalValues = await getKpiValuesForFiscalYear();
+      console.log(`📊 Loading Green Factory Chart for Fiscal Year: ${selectedFiscalYear}`);
       
       // Match "GREEN FACTORY" exactly
       const greenFactoryValue = findKpiValueByData(
@@ -984,14 +1001,18 @@ function ManagementDashboard() {
       for (let idx = 0; idx < FISCAL_MONTH_SEQUENCE.length; idx++) {
         const { month, year } = FISCAL_MONTH_SEQUENCE[idx];
         try {
+          console.log(`  📅 Fetching Green Factory data for month ${month}, year ${year} (Fiscal Year ${selectedFiscalYear})`);
           const resp = await api.get(`/kpi-data-values/${greenFactoryValue.id}/monthly`, {
             params: { year }
           });
           const rows = resp.data?.data || [];
-          const monthRow = rows.find(r => Number(r.month) === month && Number(r.year) === year);
-          valuesByMonth.push(monthRow ? Number(monthRow.actual_value || 0) : 0);
+          const monthRows = rows.filter(r => Number(r.month) === month && Number(r.year) === year);
+          const actualRow = monthRows.find(r => normalizeValueType(r.value_type) === 'actual');
+          const value = actualRow ? parseNumeric(actualRow.value) : 0;
+          console.log(`    ✅ Green Factory data: month=${month}, year=${year}, value=${value}`);
+          valuesByMonth.push(value);
         } catch (err) {
-          //console.warn(`Failed to load data for month ${month}, year ${year}:`, err);
+          console.warn(`Failed to load data for month ${month}, year ${year}:`, err);
           valuesByMonth.push(0);
         }
       }
@@ -1007,11 +1028,10 @@ function ManagementDashboard() {
     }
   };
 
-  const loadZeroAccidentsChart = async () => {
+  const loadZeroAccidentsChart = async (fiscalValues) => {
     try {
       setZeroAccidentsLoading(true);
-      
-      const fiscalValues = await getKpiValuesForFiscalYear();
+      console.log(`📊 Loading Zero Accidents Chart for Fiscal Year: ${selectedFiscalYear}`);
       
       // Match "ZERO ACCIDENTS" exactly
       const zeroAccidentsValue = findKpiValueByData(
@@ -1029,19 +1049,18 @@ function ManagementDashboard() {
       for (let idx = 0; idx < FISCAL_MONTH_SEQUENCE.length; idx++) {
         const { month, year } = FISCAL_MONTH_SEQUENCE[idx];
         try {
+          console.log(`  📅 Fetching Zero Accidents data for month ${month}, year ${year} (Fiscal Year ${selectedFiscalYear})`);
           const resp = await api.get(`/kpi-data-values/${zeroAccidentsValue.id}/monthly`, {
             params: { year }
           });
           const rows = resp.data?.data || [];
-          const monthRow = rows.find(r => Number(r.month) === month && Number(r.year) === year);
-          if (monthRow) {
-            byMonth.push({ 
-              actual: Number(monthRow.actual_value || 0), 
-              target: Number(monthRow.target_value || 0) 
-            });
-          } else {
-            byMonth.push({ actual: 0, target: 0 });
-          }
+          const monthRows = rows.filter(r => Number(r.month) === month && Number(r.year) === year);
+          const targetRow = monthRows.find(r => normalizeValueType(r.value_type) === 'target');
+          const actualRow = monthRows.find(r => normalizeValueType(r.value_type) === 'actual');
+          const actual = actualRow ? parseNumeric(actualRow.value) : 0;
+          const target = targetRow ? parseNumeric(targetRow.value) : 0;
+          console.log(`    ✅ Zero Accidents data: month=${month}, year=${year}, actual=${actual}, target=${target}`);
+          byMonth.push({ actual, target });
         } catch (err) {
           console.warn(`Failed to load data for month ${month}, year ${year}:`, err);
           byMonth.push({ actual: 0, target: 0 });
@@ -1061,11 +1080,10 @@ function ManagementDashboard() {
     }
   };
 
-  const loadOnTimeDeliveryChart = async () => {
+  const loadOnTimeDeliveryChart = async (fiscalValues) => {
     try {
       setOnTimeDeliveryLoading(true);
-      
-      const fiscalValues = await getKpiValuesForFiscalYear();
+      console.log(`📊 Loading On Time Delivery Chart for Fiscal Year: ${selectedFiscalYear}`);
       
       // Match "ON TIME DELIVERY" exactly
       const onTimeDeliveryValue = findKpiValueByData(
@@ -1083,24 +1101,20 @@ function ManagementDashboard() {
       for (let idx = 0; idx < FISCAL_MONTH_SEQUENCE.length; idx++) {
         const { month, year } = FISCAL_MONTH_SEQUENCE[idx];
         try {
+          console.log(`  📅 Fetching On Time Delivery data for month ${month}, year ${year} (Fiscal Year ${selectedFiscalYear})`);
           const resp = await api.get(`/kpi-data-values/${onTimeDeliveryValue.id}/monthly`, {
             params: { year }
           });
           const rows = resp.data?.data || [];
-          //console.log(`[On Time Delivery] Month ${month}/${year}: Rows returned:`, rows.length, rows.map(r => ({ month: r.month, year: r.year, actual_value: r.actual_value, target_value: r.target_value })));
-          const monthRow = rows.find(r => Number(r.month) === month && Number(r.year) === year);
-          if (monthRow) {
-            //console.log(`✓ Found data for month ${month}/${year}:`, monthRow);
-            byMonth.push({ 
-              actual: Number(monthRow.actual_value || 0), 
-              target: Number(monthRow.target_value || 0) 
-            });
-          } else {
-            //console.warn(`✗ No data found for month ${month}/${year}`);
-            byMonth.push({ actual: 0, target: 0 });
-          }
+          const monthRows = rows.filter(r => Number(r.month) === month && Number(r.year) === year);
+          const targetRow = monthRows.find(r => normalizeValueType(r.value_type) === 'target');
+          const actualRow = monthRows.find(r => normalizeValueType(r.value_type) === 'actual');
+          const actual = actualRow ? parseNumeric(actualRow.value) : 0;
+          const target = targetRow ? parseNumeric(targetRow.value) : 0;
+          console.log(`    ✅ On Time Delivery data: month=${month}, year=${year}, actual=${actual}, target=${target}`);
+          byMonth.push({ actual, target });
         } catch (err) {
-          //console.warn(`Failed to load data for month ${month}, year ${year}:`, err.message);
+          console.warn(`Failed to load data for month ${month}, year ${year}:`, err.message);
           byMonth.push({ actual: 0, target: 0 });
         }
       }
@@ -1119,11 +1133,10 @@ function ManagementDashboard() {
     }
   };
 
-  const loadThemeChart = async () => {
+  const loadThemeChart = async (fiscalValues) => {
     try {
       setThemeChartLoading(true);
-      
-      const fiscalValues = await getKpiValuesForFiscalYear();
+      console.log(`📊 Loading Theme Chart for Fiscal Year: ${selectedFiscalYear}`);
       
       // Match "THEME OF THE YEAR 2025-26 - UNLOCK THE POWER OF "YOU"" exactly
       const themeValue = findKpiValueByData(
@@ -1132,7 +1145,7 @@ function ManagementDashboard() {
       );
       
       if (!themeValue) {
-        //console.warn('KPI value not found for THEME OF THE YEAR');
+        console.warn('KPI value not found for THEME OF THE YEAR');
         setThemeChart(null);
         return;
       }
@@ -1141,13 +1154,16 @@ function ManagementDashboard() {
       for (let idx = 0; idx < FISCAL_MONTH_SEQUENCE.length; idx++) {
         const { month, year } = FISCAL_MONTH_SEQUENCE[idx];
         try {
+          console.log(`  📅 Fetching Theme data for month ${month}, year ${year} (Fiscal Year ${selectedFiscalYear})`);
           const resp = await api.get(`/kpi-data-values/${themeValue.id}/monthly`, {
             params: { year }
           });
           const rows = resp.data?.data || [];
-          const monthRow = rows.find(r => Number(r.month) === month && Number(r.year) === year);
-          if (monthRow) themeByMonth.push(Number(monthRow.actual_value || 0));
-          else themeByMonth.push(0);
+          const monthRows = rows.filter(r => Number(r.month) === month && Number(r.year) === year);
+          const actualRow = monthRows.find(r => normalizeValueType(r.value_type) === 'actual');
+          const value = actualRow ? parseNumeric(actualRow.value) : 0;
+          console.log(`    ✅ Theme data: month=${month}, year=${year}, value=${value}`);
+          themeByMonth.push(value);
         } catch (err) {
           console.warn(`Failed to load data for month ${month}, year ${year}:`, err);
           themeByMonth.push(0);
@@ -1163,11 +1179,10 @@ function ManagementDashboard() {
     } finally { setThemeChartLoading(false); }
   };
 
-  const loadEmployeesChart = async () => {
+  const loadEmployeesChart = async (fiscalValues) => {
     try {
       setEmployeesChartLoading(true);
-      
-      const fiscalValues = await getKpiValuesForFiscalYear();
+      console.log(`📊 Loading Employees Chart for Fiscal Year: ${selectedFiscalYear}`);
       
       // Match "NO. OF EMPLOYEES WHO LEFT" exactly
       const employeesValue = findKpiValueByData(
@@ -1185,13 +1200,16 @@ function ManagementDashboard() {
       for (let idx = 0; idx < FISCAL_MONTH_SEQUENCE.length; idx++) {
         const { month, year } = FISCAL_MONTH_SEQUENCE[idx];
         try {
+          console.log(`  📅 Fetching Employees data for month ${month}, year ${year} (Fiscal Year ${selectedFiscalYear})`);
           const resp = await api.get(`/kpi-data-values/${employeesValue.id}/monthly`, {
             params: { year }
           });
           const rows = resp.data?.data || [];
-          const monthRow = rows.find(r => Number(r.month) === month && Number(r.year) === year);
-          if (monthRow) employeesByMonth.push(Number(monthRow.actual_value || 0));
-          else employeesByMonth.push(0);
+          const monthRows = rows.filter(r => Number(r.month) === month && Number(r.year) === year);
+          const actualRow = monthRows.find(r => normalizeValueType(r.value_type) === 'actual');
+          const value = actualRow ? parseNumeric(actualRow.value) : 0;
+          console.log(`    ✅ Employees data: month=${month}, year=${year}, value=${value}`);
+          employeesByMonth.push(value);
         } catch (err) {
           console.warn(`Failed to load data for month ${month}, year ${year}:`, err);
           employeesByMonth.push(0);
@@ -1201,15 +1219,14 @@ function ManagementDashboard() {
       const labels = FISCAL_MONTH_SEQUENCE.map(entry => MONTH_LABELS[entry.month - 1]);
       setEmployeesChart({ title: 'No. of Employees Who Left', subtitle: 'Monthly Attrition', labels, values: employeesByMonth });
     } catch (err) {
-      //console.error('Failed to load Employees chart', err);
+      console.error('Failed to load Employees chart', err);
       setEmployeesChart(null);
     } finally { setEmployeesChartLoading(false); }
   };
 
-  const loadPlantEfficiency = async () => {
+  const loadPlantEfficiency = async (fiscalValues) => {
     try {
       setEfficiencyLoading(true);
-      const fiscalValues = await getKpiValuesForFiscalYear();
       
       // Debug: log all KPI values to find the exact OPE data field
       //console.log('All fiscal KPI values:', fiscalValues.map(v => ({ id: v.id, data: v.data })));
@@ -1239,18 +1256,17 @@ function ManagementDashboard() {
           });
           const rows = resp.data?.data || [];
           //console.log(`Month ${month}/${year} - Data rows:`, rows);
-          const monthRow = rows.find(r => Number(r.month) === month && Number(r.year) === year);
-          //console.log(`Month ${month}/${year} - Matched row:`, monthRow);
-          if (monthRow) {
-            const target = Number(monthRow.target_value || 0);
-            const actual = Number(monthRow.actual_value || 0);
-            // If target is missing, assume actual is already a percent value.
-            const efficiency = target > 0 ? Math.min(100, (actual / target) * 100) : Math.min(100, actual);
-            efficiencyByIndex[idx] = Math.round(efficiency * 10) / 10;
-            //console.log(`Month ${month}/${year} - Efficiency calculated: ${efficiencyByIndex[idx]}% (actual: ${actual}, target: ${target})`);
-          } else {
-            efficiencyByIndex[idx] = 0;
-          }
+          const monthRows = rows.filter(r => Number(r.month) === month && Number(r.year) === year);
+          const targetRow = monthRows.find(r => normalizeValueType(r.value_type) === 'target');
+          const actualRow = monthRows.find(r => normalizeValueType(r.value_type) === 'actual');
+          //console.log(`Month ${month}/${year} - Target:`, targetRow, 'Actual:', actualRow);
+          
+          const target = targetRow ? parseNumeric(targetRow.value) : 0;
+          const actual = actualRow ? parseNumeric(actualRow.value) : 0;
+          // If target is missing, assume actual is already a percent value.
+          const efficiency = target > 0 ? Math.min(100, (actual / target) * 100) : Math.min(100, actual);
+          efficiencyByIndex[idx] = Math.round(efficiency * 10) / 10;
+          //console.log(`Month ${month}/${year} - Efficiency calculated: ${efficiencyByIndex[idx]}% (actual: ${actual}, target: ${target})`);
         } catch (err) {
           //console.warn(`Failed to load efficiency for month ${month}, year ${year}:`, err);
           efficiencyByIndex[idx] = 0;
@@ -1293,17 +1309,17 @@ function ManagementDashboard() {
     }
   };
 
-  const loadIndustry40Chart = async () => {
+  const loadIndustry40Chart = async (fiscalValues) => {
     try {
       setIndustry40Loading(true);
+      console.log(`📊 Loading Industry 4.0 Chart for Fiscal Year: ${selectedFiscalYear}`);
 
-      const fiscalValues = await getKpiValuesForFiscalYear();
       const industry40Value = findKpiValueByData(fiscalValues, (text) =>
         text.includes('industry 4.0') || text.includes('industry4.0') || text.includes('industry4')
       );
       
       if (!industry40Value) {
-        //console.warn('KPI value not found for Industry 4.0');
+        console.warn('KPI value not found for Industry 4.0');
         setIndustry40Chart(null);
         return;
       }
@@ -1313,16 +1329,20 @@ function ManagementDashboard() {
       for (let idx = 0; idx < FISCAL_MONTH_SEQUENCE.length; idx++) {
         const { month, year } = FISCAL_MONTH_SEQUENCE[idx];
         try {
+          console.log(`  📅 Fetching Industry 4.0 data for month ${month}, year ${year} (Fiscal Year ${selectedFiscalYear})`);
           const resp = await api.get(`/kpi-data-values/${industry40Value.id}/monthly`, {
             params: { year }
           });
           const allRows = resp.data?.data || [];
 
-          // API returns one row per month/year with actual_value + target_value
-          const monthRow = allRows.find(r => Number(r.month) === month && Number(r.year) === year);
+          // API returns multiple rows per month with value_type: 'Target' or 'Achieved'
+          const monthRows = allRows.filter(r => Number(r.month) === month && Number(r.year) === year);
+          const targetRow = monthRows.find(r => normalizeValueType(r.value_type) === 'target');
+          const actualRow = monthRows.find(r => normalizeValueType(r.value_type) === 'actual');
 
-          const actualValue = monthRow ? Number(monthRow.actual_value || 0) : 0;
-          const targetValue = monthRow ? Number(monthRow.target_value || 0) : 0;
+          const actualValue = actualRow ? parseNumeric(actualRow.value) : 0;
+          const targetValue = targetRow ? parseNumeric(targetRow.value) : 0;
+          console.log(`    ✅ Industry 4.0 data: month=${month}, year=${year}, actual=${actualValue}, target=${targetValue}`);
           
           byMonth.push({ 
             actual: actualValue, 
@@ -1339,31 +1359,32 @@ function ManagementDashboard() {
       const targets = byMonth.map(d => d.target);
       const displayYear = `${FISCAL_MONTH_SEQUENCE[0].year}-${FISCAL_MONTH_SEQUENCE[FISCAL_MONTH_SEQUENCE.length - 1].year}`;
 
-      setIndustry40Chart({
+      const chartData = {
         title: `Industry 4.0 Performance Trend (${displayYear})`,
         labels,
         actuals,
         targets,
-      });
+      };
+      setIndustry40Chart(chartData);
     } catch (err) {
-      //console.error('Failed to load Industry 4.0 chart', err);
+      console.error('Failed to load Industry 4.0 chart', err);
       setIndustry40Chart(null);
     } finally {
       setIndustry40Loading(false);
     }
   };
 
-  const loadZeroQualityChart = async () => {
+  const loadZeroQualityChart = async (fiscalValues) => {
     try {
       setZeroQualityLoading(true);
+      console.log(`📊 Loading Zero Quality Chart for Fiscal Year: ${selectedFiscalYear}`);
 
-      const fiscalValues = await getKpiValuesForFiscalYear();
       const qualityValue = findKpiValueByData(fiscalValues, (text) =>
         text.includes('zero quality') || (text.includes('quality') && text.includes('complaint'))
       );
       
       if (!qualityValue) {
-        //console.warn('KPI value not found for ZERO QUALITY COMPLAINTS FROM CUSTOMERS');
+        console.warn('KPI value not found for ZERO QUALITY COMPLAINTS FROM CUSTOMERS');
         setZeroQualityChart(null);
         return;
       }
@@ -1373,16 +1394,20 @@ function ManagementDashboard() {
       for (let idx = 0; idx < FISCAL_MONTH_SEQUENCE.length; idx++) {
         const { month, year } = FISCAL_MONTH_SEQUENCE[idx];
         try {
+          console.log(`  📅 Fetching Zero Quality data for month ${month}, year ${year} (Fiscal Year ${selectedFiscalYear})`);
           const resp = await api.get(`/kpi-data-values/${qualityValue.id}/monthly`, {
             params: { year }
           });
           const allRows = resp.data?.data || [];
 
-          // API returns one row per month/year with actual_value + target_value
-          const monthRow = allRows.find(r => Number(r.month) === month && Number(r.year) === year);
+          // API returns multiple rows per month with value_type: 'Target' or 'Achieved'
+          const monthRows = allRows.filter(r => Number(r.month) === month && Number(r.year) === year);
+          const targetRow = monthRows.find(r => normalizeValueType(r.value_type) === 'target');
+          const actualRow = monthRows.find(r => normalizeValueType(r.value_type) === 'actual');
 
-          const actualValue = monthRow ? Number(monthRow.actual_value || 0) : 0;
-          const targetValue = monthRow ? Number(monthRow.target_value || 0) : 0;
+          const actualValue = actualRow ? parseNumeric(actualRow.value) : 0;
+          const targetValue = targetRow ? parseNumeric(targetRow.value) : 0;
+          console.log(`    ✅ Zero Quality data: month=${month}, year=${year}, actual=${actualValue}, target=${targetValue}`);
           
           byMonth.push({ 
             actual: actualValue, 
@@ -1413,15 +1438,24 @@ function ManagementDashboard() {
     }
   };
 
-  const loadSalesChart = async () => {
+  const loadSalesChart = async (fiscalValues) => {
     try {
       setSalesLoading(true);
+      console.log(`📊 Loading Sales Chart for Fiscal Year: ${selectedFiscalYear} (${FISCAL_MONTH_SEQUENCE[0].year}-${FISCAL_MONTH_SEQUENCE[FISCAL_MONTH_SEQUENCE.length - 1].year})`);
 
-      const fiscalValues = await getKpiValuesForFiscalYear();
-      const salesValue = findKpiValueByData(fiscalValues, (text) =>
-        text === 'sales' || text.includes('sales')
-      );
-      
+      const fiscalKpis = await getKpisForFiscalYear();
+      const salesKpi = fiscalKpis.find((kpi) => normalizeText(kpi?.title) === 'sales');
+
+      if (!salesKpi) {
+        console.warn('KPI not found for Sales (title "sales")');
+        setMonthlySalesData([]);
+        return;
+      }
+
+      const salesValuesResponse = await api.get(`/kpi-values/kpi/${salesKpi.id}`);
+      const salesValues = salesValuesResponse?.data?.data || [];
+      const salesValue = salesValues.find((value) => normalizeText(value?.data) === 'sales');
+
       if (!salesValue) {
         console.warn('KPI value not found for SALES');
         setMonthlySalesData([]);
@@ -1434,16 +1468,21 @@ function ManagementDashboard() {
       for (let idx = 0; idx < FISCAL_MONTH_SEQUENCE.length; idx++) {
         const { month, year } = FISCAL_MONTH_SEQUENCE[idx];
         try {
+          console.log(`  📅 Fetching Sales data for month ${month}, year ${year} (Fiscal Year ${selectedFiscalYear})`);
           const resp = await api.get(`/kpi-data-values/${salesValue.id}/monthly`, {
             params: { year }
           });
           const allRows = resp.data?.data || [];
 
-          // API returns one row per month/year with actual_value + target_value
-          const monthRow = allRows.find(r => Number(r.month) === month && Number(r.year) === year);
+          // API returns multiple rows per month with value_type: 'Target' or 'Achieved'
+          const monthRows = allRows.filter(r => Number(r.month) === month && Number(r.year) === year);
+          const targetRow = monthRows.find(r => normalizeValueType(r.value_type) === 'target');
+          const actualRow = monthRows.find(r => normalizeValueType(r.value_type) === 'actual');
 
-          const actualValue = monthRow ? Number(monthRow.actual_value || 0) : 0;
-          const targetValue = monthRow ? Number(monthRow.target_value || 0) : 0;
+          const actualValue = actualRow ? parseNumeric(actualRow.value) : 0;
+          const targetValue = targetRow ? parseNumeric(targetRow.value) : 0;
+          
+          console.log(`    ✅ Sales data: month=${month}, year=${year}, actual=${actualValue}, target=${targetValue}`);
           
           salesByMonth.push({ 
             month, 
@@ -1458,6 +1497,8 @@ function ManagementDashboard() {
       }
 
       setMonthlySalesData(salesByMonth);
+      const displayYear = `${FISCAL_MONTH_SEQUENCE[0].year}-${FISCAL_MONTH_SEQUENCE[FISCAL_MONTH_SEQUENCE.length - 1].year}`;
+      setSalesDisplayYear(displayYear);
       setSelectedSalesIndex(0);
     } catch (err) {
       console.error('Failed to load Sales data', err);
@@ -1467,17 +1508,17 @@ function ManagementDashboard() {
     }
   };
 
-  const loadProfitabilityData = async () => {
+  const loadProfitabilityData = async (fiscalValues) => {
     try {
       setProfitabilityLoading(true);
+      console.log(`📊 Loading Profitability Chart for Fiscal Year: ${selectedFiscalYear}`);
 
-      const fiscalValues = await getKpiValuesForFiscalYear();
       const profitValue = findKpiValueByData(fiscalValues, (text) =>
         text.includes('profit') || text.includes('p & l') || text.includes('p&l')
       );
       
       if (!profitValue) {
-        //console.warn('KPI value not found for PROFITABILITY AS PER LATEST P & L STATEMENT');
+        console.warn('KPI value not found for PROFITABILITY AS PER LATEST P & L STATEMENT');
         setMonthlyProfitData([]);
         return;
       }
@@ -1488,16 +1529,20 @@ function ManagementDashboard() {
       for (let idx = 0; idx < FISCAL_MONTH_SEQUENCE.length; idx++) {
         const { month, year } = FISCAL_MONTH_SEQUENCE[idx];
         try {
+          console.log(`  📅 Fetching Profitability data for month ${month}, year ${year} (Fiscal Year ${selectedFiscalYear})`);
           const resp = await api.get(`/kpi-data-values/${profitValue.id}/monthly`, {
             params: { year }
           });
           const allRows = resp.data?.data || [];
 
-          // API returns one row per month/year with actual_value + target_value
-          const monthRow = allRows.find(r => Number(r.month) === month && Number(r.year) === year);
+          // API returns multiple rows per month with value_type: 'Target' or 'Achieved'
+          const monthRows = allRows.filter(r => Number(r.month) === month && Number(r.year) === year);
+          const targetRow = monthRows.find(r => normalizeValueType(r.value_type) === 'target');
+          const actualRow = monthRows.find(r => normalizeValueType(r.value_type) === 'actual');
 
-          const actualValue = monthRow ? Number(monthRow.actual_value || 0) : 0;
-          const targetValue = monthRow ? Number(monthRow.target_value || 0) : 100;
+          const actualValue = actualRow ? parseNumeric(actualRow.value) : 0;
+          const targetValue = targetRow ? parseNumeric(targetRow.value) : 100;
+          console.log(`    ✅ Profitability data: month=${month}, year=${year}, profit=${actualValue}, target=${targetValue}`);
           
           profitByMonth.push({ 
             month, 
@@ -1609,6 +1654,35 @@ function ManagementDashboard() {
           </div>
           <div className="text-3xl font-bold text-gray-800">{loading ? 0 : departmentStats.total}</div>
         </div>
+      </div>
+
+      {/* Pillars Section */}
+      <div className="mt-8">
+        <h2 className="text-2xl font-bold text-gray-800 mb-6">🏛️ Explore Pillars</h2>
+        {pillerStats.pillers.length === 0 ? (
+          <div className="bg-white rounded-lg shadow p-8 text-center">
+            <p className="text-gray-500">No pillars available</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+            {[...pillerStats.pillers].sort((a, b) => (a.piller_name || '').localeCompare(b.piller_name || '')).map((piller) => (
+              <button
+                key={piller.id}
+                onClick={() => navigate(`/management/pillar/${piller.id}`)}
+                className="bg-gradient-to-br from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 p-4 text-left border border-blue-200 hover:border-blue-400"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-sm font-bold text-blue-900 flex-1 truncate">{piller.piller_name}</h3>
+                  <span className="text-lg ml-1">→</span>
+                </div>
+                {piller.short_name && (
+                  <p className="text-xs text-blue-700 font-semibold mb-1">({piller.short_name})</p>
+                )}
+                <p className="text-xs text-blue-600">View KPIs</p>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Performance Dashboard Section */}
@@ -1817,7 +1891,6 @@ function ManagementDashboard() {
                   >
                     ‹
                   </button>
-                  
                   <div className="flex flex-col items-center flex-1 min-w-0 justify-center h-full">
                     <h5 className="text-xs md:text-sm font-semibold text-gray-800 mb-1 md:mb-2">
                       {MONTH_LABELS[(monthlySalesData[selectedSalesIndex]?.month || 1) - 1]} {monthlySalesData[selectedSalesIndex]?.year || ''}
@@ -1830,12 +1903,12 @@ function ManagementDashboard() {
                         </filter>
                       </defs>
                       {(() => {
-                        const salesData = monthlySalesData[selectedSalesIndex] || { actual: 0, target: 100 };
+                        const salesData = monthlySalesData[selectedSalesIndex] || { actual: 0, target: 0 };
                         const radius = 70;
                         const cx = 100;
                         const cy = 100;
-                        const actual = salesData.actual;
-                        const target = salesData.target;
+                        const actual = Number(salesData.actual || 0);
+                        const target = Number(salesData.target || 0);
                         const percentageAchieved = target > 0 ? Math.min((actual / target) * 100, 100) : 0;
                         
                         const achievedAngle = (percentageAchieved / 100) * 360;
@@ -1891,15 +1964,14 @@ function ManagementDashboard() {
                     <div className="flex flex-col gap-1 md:gap-2 mt-2 md:mt-3">
                       <div className="flex items-center gap-2 text-[10px] md:text-xs text-gray-600">
                         <span className="w-2.5 h-2.5 md:w-3 md:h-3 bg-[#0d47a1] rounded flex-shrink-0"></span>
-                        <span className="whitespace-nowrap">Actual: {(monthlySalesData[selectedSalesIndex]?.actual || 0).toFixed(0)}</span>
+                        <span className="whitespace-nowrap">Actual: {Number(monthlySalesData[selectedSalesIndex]?.actual || 0).toFixed(0)}</span>
                       </div>
                       <div className="flex items-center gap-2 text-[10px] md:text-xs text-gray-600">
                         <span className="w-2.5 h-2.5 md:w-3 md:h-3 bg-[#0d47a1] rounded flex-shrink-0"></span>
-                        <span className="whitespace-nowrap">Target: {(monthlySalesData[selectedSalesIndex]?.target || 0).toFixed(0)}</span>
+                        <span className="whitespace-nowrap">Target: {Number(monthlySalesData[selectedSalesIndex]?.target || 0).toFixed(0)}</span>
                       </div>
                     </div>
                   </div>
-
                   <button 
                     className="bg-gray-100 border border-gray-300 rounded-full w-7 h-7 md:w-8 md:h-8 flex items-center justify-center cursor-pointer text-base md:text-lg text-gray-600 hover:bg-gray-200 hover:text-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex-shrink-0"
                     onClick={(e) => {
@@ -2341,12 +2413,12 @@ function ManagementDashboard() {
                               </filter>
                             </defs>
                             {(() => {
-                              const salesData = monthlySalesData[selectedSalesIndex] || { actual: 0, target: 100 };
+                              const salesData = monthlySalesData[selectedSalesIndex] || { actual: 0, target: 0 };
                               const radius = 70;
                               const cx = 100;
                               const cy = 100;
-                              const actual = salesData.actual;
-                              const target = salesData.target;
+                              const actual = Number(salesData.actual || 0);
+                              const target = Number(salesData.target || 0);
                               const percentageAchieved = target > 0 ? Math.min((actual / target) * 100, 100) : 0;
                               const achievedAngle = (percentageAchieved / 100) * 360;
                               const achievedRadians = (achievedAngle * Math.PI) / 180;
@@ -2393,11 +2465,11 @@ function ManagementDashboard() {
                         <div className="flex flex-col gap-1 mt-2">
                           <div className="flex items-center gap-2 text-xs text-gray-600">
                             <span className="w-3 h-3 bg-[#0d47a1] rounded"></span>
-                            <span>Actual: {(monthlySalesData[selectedSalesIndex]?.actual || 0).toFixed(0)}</span>
+                            <span>Actual: {Number(monthlySalesData[selectedSalesIndex]?.actual || 0).toFixed(0)}</span>
                           </div>
                           <div className="flex items-center gap-2 text-xs text-gray-600">
                             <span className="w-3 h-3 bg-[#0d47a1] rounded"></span>
-                            <span>Target: {(monthlySalesData[selectedSalesIndex]?.target || 0).toFixed(0)}</span>
+                            <span>Target: {Number(monthlySalesData[selectedSalesIndex]?.target || 0).toFixed(0)}</span>
                           </div>
                         </div>
                       </div>

@@ -15,6 +15,9 @@ router.get('/:empId/kpis', employeeKpiController.getEmployeeKPIs);
 // GET /api/employees/:empId/kpis/:kpiId/values - Get KPI values for specific KPI for an employee
 router.get('/:empId/kpis/:kpiId/values', employeeKpiController.getKPIValueForEmployee);
 
+// GET /api/employees/kpi/:kpiId/assignees - Get employees assigned to a KPI
+router.get('/kpi/:kpiId/assignees', employeeKpiController.getKPIAssignees);
+
 // POST /api/employees/kpi-data - Submit monthly KPI data
 router.post('/kpi-data', employeeKpiController.submitKPIData);
 

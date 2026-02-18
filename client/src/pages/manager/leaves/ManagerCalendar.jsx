@@ -157,7 +157,37 @@ const ManagerCalendar = ({ joinDate }) => {
       if (from && to && !isNaN(from) && !isNaN(to)) {
         const diff = Math.round((to - from) / (1000 * 60 * 60 * 24)) + 1;
         updatedForm.duration = diff > 0 ? diff : 1;
+        // If dates differ, force day_type to 'full'
+        if (updatedForm.from_date !== updatedForm.to_date) {
+          updatedForm.day_type = 'full';
+        }
       } else {
+        updatedForm.duration = 1;
+      }
+    }
+    // Set duration and leave_duration based on day_type
+    if (name === 'day_type') {
+      if (value === 'full') {
+        updatedForm.duration = 1;
+        updatedForm.leave_duration = 'Full Day';
+      } else if (value === 'morning') {
+        updatedForm.duration = 0.5;
+        updatedForm.leave_duration = 'Morning Half';
+      } else if (value === 'afternoon') {
+        updatedForm.duration = 0.5;
+        updatedForm.leave_duration = 'Afternoon Half';
+      }
+    }
+    // Also, if from_date and to_date are the same, update leave_duration if day_type is not full
+    if ((name === 'from_date' || name === 'to_date') && updatedForm.from_date === updatedForm.to_date) {
+      if (updatedForm.day_type === 'morning') {
+        updatedForm.leave_duration = 'Morning Half';
+        updatedForm.duration = 0.5;
+      } else if (updatedForm.day_type === 'afternoon') {
+        updatedForm.leave_duration = 'Afternoon Half';
+        updatedForm.duration = 0.5;
+      } else {
+        updatedForm.leave_duration = 'Full Day';
         updatedForm.duration = 1;
       }
     }
@@ -1069,7 +1099,7 @@ const ManagerCalendar = ({ joinDate }) => {
                           handleCloseDateDetail();
                         }
                       }}
-                      className={`flex-1 px-4 py-2 rounded ${(leave.status === 'Approved' || leave.status === 'Rejected') ? 'bg-gray-400 text-gray-200 cursor-not-allowed' : 'bg-blue-500 text-white hover:bg-purple-600'}`}
+                      className={`flex-1 px-4 py-2 rounded ${(leave.status === 'Approved' || leave.status === 'Rejected') ? 'bg-gray-400 text-gray-200 cursor-not-allowed' : 'bg-blue-500 text-white hover:bg-blue-600'}`}
                       disabled={leave.status === 'Approved' || leave.status === 'Rejected'}
                       title={(leave.status === 'Approved' || leave.status === 'Rejected') ? 'Cannot edit approved or rejected leave' : 'Edit leave'}
                     >
@@ -1117,6 +1147,7 @@ const ManagerCalendar = ({ joinDate }) => {
             </div>
 
             <form onSubmit={handleSubmitLeave} className="space-y-4">
+
               <div className="grid grid-cols-7 gap-4 items-end">
                 <div className="col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">From Date *</label>
@@ -1126,7 +1157,7 @@ const ManagerCalendar = ({ joinDate }) => {
                     value={leaveForm.from_date}
                     onChange={handleFormChange}
                     required
-                    className="w-28 px-2 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    className="w-28 px-2 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     style={{minWidth:'10.5rem',maxWidth:'13rem'}}
                   />
                 </div>
@@ -1138,18 +1169,33 @@ const ManagerCalendar = ({ joinDate }) => {
                     value={leaveForm.to_date}
                     onChange={handleFormChange}
                     required
-                    className="w-28 px-2 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    className="w-28 px-2 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     style={{minWidth:'10.5rem',maxWidth:'13rem'}}
                   />
                 </div>
+                <div className="col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Day Type</label>
+                  <select
+                    name="day_type"
+                    value={leaveForm.day_type || 'full'}
+                    onChange={handleFormChange}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base"
+                    disabled={leaveForm.from_date !== leaveForm.to_date}
+                  >
+                    <option value="full">Full day</option>
+                    <option value="morning">Morning half</option>
+                    <option value="afternoon">Afternoon half</option>
+                  </select>
+                </div>
                 <div className="col-span-1 flex flex-col">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Duration (days)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">(days)</label>
                   <input
                     type="text"
                     inputMode="numeric"
                     pattern="[0-9]*"
                     name="duration"
-                    value={leaveForm.duration < 10 ? `0${leaveForm.duration}` : leaveForm.duration}
+                    value={Number(leaveForm.duration) === 0.5 ? '0.5' : (Number(leaveForm.duration) < 10 && Number.isInteger(Number(leaveForm.duration)) ? `0${leaveForm.duration}` : leaveForm.duration)}
                     readOnly
                     className="w-20 px-2 py-2 border border-gray-300 rounded-lg bg-gray-100 focus:outline-none text-center"
                     style={{minWidth:'3.5rem',maxWidth:'4.5rem'}}
@@ -1169,7 +1215,7 @@ const ManagerCalendar = ({ joinDate }) => {
                   onChange={handleFormChange}
                   required
                   rows="3"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="Please provide a reason for your leave..."
                 />
               </div>
@@ -1183,7 +1229,7 @@ const ManagerCalendar = ({ joinDate }) => {
                     name="alternate_person"
                     value={leaveForm.alternate_person}
                     onChange={handleFormChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="">Select alternate person</option>
                     {colleagues && colleagues.length > 0 ? (
@@ -1200,7 +1246,6 @@ const ManagerCalendar = ({ joinDate }) => {
                     Person from your department who will cover your responsibilities
                   </p>
                 </div>
-
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Additional Alternate (Optional)
@@ -1209,7 +1254,7 @@ const ManagerCalendar = ({ joinDate }) => {
                     name="additional_alternate"
                     value={leaveForm.additional_alternate}
                     onChange={handleFormChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="">Select additional alternate</option>
                     {colleagues && colleagues.length > 0 ? (
@@ -1227,7 +1272,6 @@ const ManagerCalendar = ({ joinDate }) => {
                   </p>
                 </div>
               </div>
-
               <div className="grid grid-cols-2 gap-4 items-center">
                 <div className="flex items-center">
                   <input
@@ -1235,13 +1279,12 @@ const ManagerCalendar = ({ joinDate }) => {
                     name="available_on_phone"
                     checked={leaveForm.available_on_phone}
                     onChange={handleFormChange}
-                    className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                   />
                   <label className="ml-2 text-sm text-gray-700">
                     Available on phone during leave
                   </label>
                 </div>
-
                 {leaveBalance && (
                   <div className="bg-purple-50 p-3 rounded-lg">
                     <p className="text-sm text-gray-700">
@@ -1250,12 +1293,11 @@ const ManagerCalendar = ({ joinDate }) => {
                   </div>
                 )}
               </div>
-
               <div className="flex justify-end gap-3 pt-4">
                 <button
                   type="button"
                   onClick={handleCloseLeaveForm}
-                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                 className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
                 >
                   Cancel
                 </button>

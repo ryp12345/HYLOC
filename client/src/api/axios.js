@@ -46,21 +46,43 @@ axiosInstance.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
     const url = originalRequest?.url || '';
+    const authEndpoints = [
+      '/auth/login',
+      '/auth/register',
+      '/auth/refresh-token',
+      '/auth/request-password-reset',
+      '/auth/verify-otp',
+      '/auth/reset-password'
+    ];
+    const isAuthEndpoint = authEndpoints.some((endpoint) => url.includes(endpoint));
+    const pathname = window.location?.pathname || '';
+    const isAuthScreen =
+      pathname.startsWith('/login') ||
+      pathname.startsWith('/forgot-password') ||
+      pathname.startsWith('/reset-password');
 
     // CRITICAL: Never attempt refresh or redirect for auth endpoints
-    if (url.includes('/auth/login') || url.includes('/auth/register')) {
+    if (isAuthEndpoint) {
+      return Promise.reject(error);
+    }
+
+    // If already on an auth screen, do not attempt refresh/redirect
+    if (isAuthScreen) {
       return Promise.reject(error);
     }
 
     // Handle both 401 and 403 errors (token expiration) - but NOT for auth endpoints
-    if ((error.response?.status === 401 || error.response?.status === 403) && !originalRequest._retry) {
+    if ((error.response?.status === 401 || error.response?.status === 403) && !originalRequest?._retry) {
       originalRequest._retry = true;
 
       try {
         const refreshToken = localStorage.getItem('refreshToken');
         
         if (!refreshToken) {
-          throw new Error('No refresh token available');
+          if (!isAuthScreen) {
+            window.location.href = '/login';
+          }
+          return Promise.reject(error);
         }
 
         const response = await axiosInstance.post('/auth/refresh-token', {
@@ -77,7 +99,9 @@ axiosInstance.interceptors.response.use(
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
         localStorage.removeItem('user');
-        window.location.href = '/login';
+        if (!isAuthScreen) {
+          window.location.href = '/login';
+        }
         return Promise.reject(refreshError);
       }
     }
