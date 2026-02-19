@@ -1196,12 +1196,12 @@ const ManagerCalendar = ({ joinDate }) => {
                     pattern="[0-9]*"
                     name="duration"
                     value={Number(leaveForm.duration) === 0.5 ? '0.5' : (Number(leaveForm.duration) < 10 && Number.isInteger(Number(leaveForm.duration)) ? `0${leaveForm.duration}` : leaveForm.duration)}
-                    readOnly
+                    readOnly 
                     className="w-20 px-2 py-2 border border-gray-300 rounded-lg bg-gray-100 focus:outline-none text-center"
                     style={{minWidth:'3.5rem',maxWidth:'4.5rem'}}
                   />
                 </div>
-              </div>
+                              </div>
 
               <p className="text-xs text-gray-500">
                 Note: Half-day leaves are limited to a single day

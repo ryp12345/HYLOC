@@ -437,6 +437,7 @@ const KPIDetailPage = () => {
         categoryPerformance[categoryName].count++;
         categoryPerformance[categoryName].performanceSum += kpiPerformance;
         categoryPerformance[categoryName].kpis.push({
+          id: kpi.id,
           title: kpi.title,
           performance: kpiPerformance,
           level: level
@@ -519,16 +520,24 @@ const KPIDetailPage = () => {
       const catData = categoryPerformance[categoryName];
       if (catData.count > 0) {
         const avgPerf = (catData.performanceSum / catData.count);
+        const topKPIs = [...catData.kpis]
+          .filter((kpi) => kpi.performance >= 100)
+          .sort((a, b) => b.performance - a.performance)
+          .slice(0, 5);
+
+        const getKPIKey = (kpi) => `${kpi.id ?? 'no-id'}::${kpi.title ?? ''}::${kpi.level ?? ''}`;
+        const topKPIIds = new Set(topKPIs.map((kpi) => getKPIKey(kpi)));
+        const bottomKPIs = [...catData.kpis]
+          .filter((kpi) => kpi.performance < 90 && !topKPIIds.has(getKPIKey(kpi)))
+          .sort((a, b) => a.performance - b.performance)
+          .slice(0, 5);
+
         insights.byCategory[categoryName] = {
           categoryName: categoryName,
           avgPerformance: avgPerf.toFixed(1),
           kpiCount: catData.count,
-          topKPIs: catData.kpis
-            .sort((a, b) => b.performance - a.performance)
-            .slice(0, 5),
-          bottomKPIs: catData.kpis
-            .sort((a, b) => a.performance - b.performance)
-            .slice(0, 5),
+          topKPIs,
+          bottomKPIs,
           excelling: catData.kpis.filter(k => k.performance >= 110).length,
           needsAttention: catData.kpis.filter(k => k.performance < 85).length,
           performanceStatus: avgPerf >= 100 ? 'Exceeding' : avgPerf >= 90 ? 'On Track' : avgPerf >= 80 ? 'Needs Attention' : 'Critical'

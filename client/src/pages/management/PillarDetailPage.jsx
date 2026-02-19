@@ -2,8 +2,40 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getPillerById } from '../../api/pillerApi';
 import { getKPIValuesByPillar, getMonthlyDataByKPIValue } from '../../api/kpiApi';
+import { getAllUnitMasters } from '../../api/unitMasterApi';
 
-const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const FISCAL_MONTHS = [
+  { label: 'Apr', month: 4, yearOffset: 0 },
+  { label: 'May', month: 5, yearOffset: 0 },
+  { label: 'Jun', month: 6, yearOffset: 0 },
+  { label: 'Jul', month: 7, yearOffset: 0 },
+  { label: 'Aug', month: 8, yearOffset: 0 },
+  { label: 'Sep', month: 9, yearOffset: 0 },
+  { label: 'Oct', month: 10, yearOffset: 0 },
+  { label: 'Nov', month: 11, yearOffset: 0 },
+  { label: 'Dec', month: 12, yearOffset: 0 },
+  { label: 'Jan', month: 1, yearOffset: 1 },
+  { label: 'Feb', month: 2, yearOffset: 1 },
+  { label: 'Mar', month: 3, yearOffset: 1 },
+];
+
+const formatIndianCurrency = (value) => {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return String(value);
+  return `₹${new Intl.NumberFormat('en-IN', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(numeric)}`;
+};
+
+const formatIndianNumber = (value) => {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return String(value);
+  return new Intl.NumberFormat('en-IN', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(numeric);
+};
 
 // Simple Line Chart Component for KPI visualization
 const KPILineChart = ({
@@ -67,6 +99,15 @@ const KPILineChart = ({
                   strokeWidth="1"
                   strokeDasharray="5,5"
                 />
+                <text
+                  x={padding - 10}
+                  y={y + 4}
+                  textAnchor="end"
+                  fontSize="10"
+                  fill="#666"
+                >
+                  {formatY(tick)}
+                </text>
               </g>
             );
           });
@@ -142,6 +183,7 @@ export default function PillarDetailPage() {
   const [pillar, setPillar] = useState(null);
   const [kpiValues, setKpiValues] = useState([]);
   const [kpiDataMap, setKpiDataMap] = useState({});
+  const [unitMap, setUnitMap] = useState({});
   const [loading, setLoading] = useState(true);
   const [showScrollToTop, setShowScrollToTop] = useState(false);
 
@@ -173,12 +215,26 @@ export default function PillarDetailPage() {
     const loadPillarData = async () => {
       setLoading(true);
       try {
-        // Fetch pillar details
-        const pillarRes = await getPillerById(pillerId);
+        // Fetch pillar details, KPI values, and unit master data in parallel
+        const [pillarRes, kpiRes, unitRes] = await Promise.all([
+          getPillerById(pillerId),
+          getKPIValuesByPillar(pillerId),
+          getAllUnitMasters(),
+        ]);
+
         setPillar(pillarRes.data?.data);
 
-        // Fetch KPI values associated with this pillar
-        const kpiRes = await getKPIValuesByPillar(pillerId);
+        // Build unit map by id for resolving uom labels
+        const units = unitRes.data?.data || [];
+        const unitsById = units.reduce((acc, unit) => {
+          if (unit?.id != null) {
+            acc[Number(unit.id)] = unit;
+          }
+          return acc;
+        }, {});
+        setUnitMap(unitsById);
+
+        // KPI values associated with this pillar
         const kpiVals = kpiRes.data?.data || [];
         setKpiValues(kpiVals);
 
@@ -229,23 +285,109 @@ export default function PillarDetailPage() {
 
   const getChartData = (kpiValueId) => {
     const data = kpiDataMap[kpiValueId] || [];
-    const months = Array.from({ length: 12 }, (_, i) => i + 1);
 
-    const actuals = months.map(month => {
-      const entry = data.find(d => d.month === month && d.value_type?.toLowerCase() === 'actual');
-      return entry ? Number(entry.value) : 0;
-    });
+    const normalizeValueType = (valueType) => {
+      const type = String(valueType || '').toLowerCase();
+      if (type.includes('target')) return 'target';
+      if (type.includes('actual') || type.includes('achiev')) return 'actual';
+      return '';
+    };
 
-    const targets = months.map(month => {
-      const entry = data.find(d => d.month === month && d.value_type?.toLowerCase() === 'target');
-      return entry ? Number(entry.value) : 0;
-    });
+    const toNumberOrZero = (value) => {
+      const numeric = Number(value);
+      return Number.isFinite(numeric) ? numeric : 0;
+    };
 
-    return { actuals, targets, labels: MONTH_LABELS };
+    const pickLatestRow = (rows) => {
+      if (!rows || rows.length === 0) return null;
+
+      return rows.reduce((latest, current) => {
+        const latestId = Number(latest?.id || 0);
+        const currentId = Number(current?.id || 0);
+        return currentId > latestId ? current : latest;
+      }, rows[0]);
+    };
+
+    const getMonthValue = (month, year, type) => {
+      const monthEntries = data.filter((entry) => (
+        Number(entry.month) === month && Number(entry.year) === year
+      ));
+
+      const typedRows = monthEntries.filter((entry) => normalizeValueType(entry.value_type) === type);
+      const typedEntry = pickLatestRow(typedRows);
+      if (typedEntry) {
+        return toNumberOrZero(typedEntry.value);
+      }
+
+      const monthOnlyRows = data.filter((entry) => Number(entry.month) === month);
+      const monthOnlyTypedRows = monthOnlyRows.filter((entry) => normalizeValueType(entry.value_type) === type);
+      const monthOnlyTypedEntry = pickLatestRow(monthOnlyTypedRows);
+      if (monthOnlyTypedEntry) {
+        return toNumberOrZero(monthOnlyTypedEntry.value);
+      }
+
+      const aggregatedRows = monthEntries.filter((entry) =>
+        type === 'target' ? entry.target_value !== undefined : entry.actual_value !== undefined
+      );
+      const aggregatedEntry = pickLatestRow(aggregatedRows);
+
+      if (aggregatedEntry) {
+        return type === 'target'
+          ? toNumberOrZero(aggregatedEntry.target_value)
+          : toNumberOrZero(aggregatedEntry.actual_value);
+      }
+
+      const monthOnlyAggregatedRows = monthOnlyRows.filter((entry) =>
+        type === 'target' ? entry.target_value !== undefined : entry.actual_value !== undefined
+      );
+      const monthOnlyAggregatedEntry = pickLatestRow(monthOnlyAggregatedRows);
+      if (monthOnlyAggregatedEntry) {
+        return type === 'target'
+          ? toNumberOrZero(monthOnlyAggregatedEntry.target_value)
+          : toNumberOrZero(monthOnlyAggregatedEntry.actual_value);
+      }
+
+      return 0;
+    };
+
+    const actuals = FISCAL_MONTHS.map(({ month, yearOffset }) =>
+      getMonthValue(month, fiscalYear + yearOffset, 'actual')
+    );
+
+    const targets = FISCAL_MONTHS.map(({ month, yearOffset }) =>
+      getMonthValue(month, fiscalYear + yearOffset, 'target')
+    );
+
+    return {
+      actuals,
+      targets,
+      labels: FISCAL_MONTHS.map(({ label }) => label),
+    };
   };
+
+  const getUnitDisplayName = (uom) => {
+    if (uom === null || uom === undefined || uom === '') return '-';
+
+    const unitId = Number(uom);
+    if (!Number.isNaN(unitId) && unitMap[unitId]?.unit_name) {
+      return unitMap[unitId].unit_name;
+    }
+
+    return String(uom);
+  };
+
+  const isRupeeUnit = (uom) => {
+    const unitText = getUnitDisplayName(uom).toLowerCase();
+    return unitText.includes('rupee') || unitText.includes('inr') || unitText === 'rs' || unitText === 'rs.';
+  };
+
+  const formatMetricValue = (value, isCurrency) => (
+    isCurrency ? formatIndianCurrency(value) : formatIndianNumber(value)
+  );
 
   const analysis = kpiValues.map(kpiVal => {
     const chartData = getChartData(kpiVal.id);
+    const currencyUnit = isRupeeUnit(kpiVal.uom);
     const avgActual = chartData.actuals.filter(v => v > 0).length > 0
       ? chartData.actuals.reduce((a, b) => a + b, 0) / chartData.actuals.filter(v => v > 0).length
       : 0;
@@ -257,6 +399,7 @@ export default function PillarDetailPage() {
     return {
       kpiVal,
       chartData,
+      currencyUnit,
       avgActual,
       avgTarget,
       achievementPercent
@@ -338,11 +481,11 @@ export default function PillarDetailPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div className="bg-blue-50 rounded p-4">
                       <div className="text-sm text-gray-600">Average Actual</div>
-                      <div className="text-2xl font-bold text-blue-600">{item.avgActual.toFixed(2)}</div>
+                      <div className="text-2xl font-bold text-blue-600">{formatMetricValue(item.avgActual, item.currencyUnit)}</div>
                     </div>
                     <div className="bg-orange-50 rounded p-4">
                       <div className="text-sm text-gray-600">Average Target</div>
-                      <div className="text-2xl font-bold text-orange-600">{item.avgTarget.toFixed(2)}</div>
+                      <div className="text-2xl font-bold text-orange-600">{formatMetricValue(item.avgTarget, item.currencyUnit)}</div>
                     </div>
                     <div className={`rounded p-4 ${item.achievementPercent >= 100 ? 'bg-green-50' : 'bg-red-50'}`}>
                       <div className="text-sm text-gray-600">Achievement %</div>
@@ -360,6 +503,7 @@ export default function PillarDetailPage() {
                     labels={item.chartData.labels}
                     actuals={item.chartData.actuals}
                     targets={item.chartData.targets}
+                    yAxisFormatter={(value) => item.currencyUnit ? formatIndianCurrency(value) : formatIndianNumber(value)}
                   />
                 </div>
 
@@ -369,7 +513,7 @@ export default function PillarDetailPage() {
                     {item.kpiVal.uom && (
                       <div>
                         <span className="text-gray-600">Unit of Measurement:</span>
-                        <span className="ml-2 font-semibold text-gray-900">{item.kpiVal.uom}</span>
+                        <span className="ml-2 font-semibold text-gray-900">{getUnitDisplayName(item.kpiVal.uom)}</span>
                       </div>
                     )}
                     {item.kpiVal.kpi_type && (

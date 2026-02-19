@@ -58,7 +58,7 @@ const startOverdueScheduler = () => {
   //const CRON_EXPRESSION = '45 18 31 1 *'; // Jan 31st at 6:45 PM(mins hrs dd mm yyyy)
   //const CRON_EXPRESSION = '48 14 13 2 *'; // Feb 4th at 12:01PM
   //daily((mins hrs dd mm yyyy))
-  const CRON = '50 14 17 2 *';
+  const CRON = '50 15 19 2 *';
   cron.schedule(CRON, async () => {
     try {
       const res = await runOnce();

@@ -247,19 +247,33 @@ exports.updateTicket = async (req, res) => {
           // Send custom format to creator
           const creatorMessage = `Type: Ticket rejected\nTitle: ${existing.title}\nDescription: ${existing.description || ''}`;
           await notificationModel.createNotification({ created_by: requesterId, assigned_to: existing.user_id, message: creatorMessage, type: 'ticket_status' });
-          
+
           // Send standard format to managers
-          for (const managerId of managerIds) {
+          /* for (const managerId of managerIds) {
             const managerMessage = `Ticket #${existing.id} ('${existing.title}') status changed to ${payload.status} by user #${requesterId}`;
             await notificationModel.createNotification({ created_by: requesterId, assigned_to: managerId, message: managerMessage, type: 'ticket_status' });
+          } */
+
+          // Treat 'Rejected' as a transient state for all cases:
+          // - Revert status back to 'Open'
+          // - Unassign the ticket so the creator can reassign
+          try {
+            payload.status = 'Open';
+            payload.assigned_to = null;
+          } catch (e) {
+            console.error('Error handling transient Rejected state:', e);
           }
+        } else if (payload.status === 'Resolved') {
+          // When assignee resolves the ticket, notify the creator with a resolved notification
+          const creatorMessage = `Type: Ticket resolved\nTitle: ${existing.title}\nDescription: ${existing.description || ''}`;
+          await notificationModel.createNotification({ created_by: requesterId, assigned_to: existing.user_id, message: creatorMessage, type: 'ticket_status' });
         } else {
-          // For other status changes, send standard format to all recipients
-          const recipients = new Set([existing.user_id, ...managerIds]);
+          // For other status changes, send standard format to all recipients (kept commented intentionally)
+          /* const recipients = new Set([existing.user_id, ...managerIds]);
           for (const recipientId of recipients) {
             const message = `Ticket #${existing.id} ('${existing.title}') status changed to ${payload.status} by user #${requesterId}`;
             await notificationModel.createNotification({ created_by: requesterId, assigned_to: recipientId, message, type: 'ticket_status' });
-          }
+          } */
         }
         sentStatusNotification = true;
       } catch (notifErr) {
@@ -280,10 +294,10 @@ exports.updateTicket = async (req, res) => {
         }
         return payload[f] !== existing[f];
       });
-      if (changedFields.length > 0 && existing.assigned_to) {
+      /* if (changedFields.length > 0 && existing.assigned_to) {
         const message = `Ticket #${existing.id} ('${existing.title}') was updated (${changedFields.join(', ')}) by user #${requesterId}`;
         await notificationModel.createNotification({ created_by: requesterId, assigned_to: existing.assigned_to, message, type: 'ticket_edit' });
-      }
+      } */
     }
 
     console.log('DEBUG: Updating ticket', { id, payload });

@@ -157,20 +157,38 @@ const Navbar = () => {
                             {(() => {
                               const normalized = (n.message || '').replace(/\s+Title:/i, '\nTitle:').replace(/\s+Description:/i, '\nDescription:');
                               const lines = normalized.split('\n').map(l => l.trim()).filter(Boolean);
-                              const initialLineRaw = lines.find(l => /you were assigned/i.test(l)) || lines[0] || '';
-                              const initialSentence = (() => {
-                                if (!initialLineRaw) return '';
-                                const idx = initialLineRaw.indexOf('.');
-                                if (idx !== -1) return initialLineRaw.slice(0, idx + 1).trim();
-                                return initialLineRaw;
-                              })();
+
+                              // First visible line should be the stored first line (backend now prepends 'You have a notification')
+                              const firstLine = lines[0] || '';
+
+                              // Derive a friendly Type label from notification.type and message content when needed
+                              const deriveTypeLabel = (notif) => {
+                                const t = String(notif.type || '').toLowerCase();
+                                const msg = String(notif.message || '');
+                                if (/^ticket_overdue(:|$)/i.test(t) || t === 'ticket_overdue') return 'Ticket overdue';
+                                if (t === 'ticket_status') {
+                                  if (/rejected/i.test(msg) || /^Type:\s*Ticket rejected/i.test(msg)) return 'Ticket rejected';
+                                  return 'Ticket status changed';
+                                }
+                                if (t === 'ticket') {
+                                  if (/you were assigned/i.test(msg)) return 'Ticket assigned';
+                                  return 'Ticket created';
+                                }
+                                if (t === 'ticket_edit') return 'Ticket updated';
+                                return 'Ticket';
+                              };
+
+                              const typeLabel = deriveTypeLabel(n);
+
                               const titleLine = lines.find(l => l.toLowerCase().startsWith('title:'));
                               const descLine = lines.find(l => l.toLowerCase().startsWith('description:'));
                               const titleText = titleLine ? titleLine.split(':').slice(1).join(':').trim() : (lines[1] || '');
-                              const descText = descLine ? descLine.split(':').slice(1).join(':').trim() : (lines.filter(l => l !== titleLine && l !== initialLineRaw)[1] || lines.slice(2).join(' '));
+                              const descText = descLine ? descLine.split(':').slice(1).join(':').trim() : (lines.filter(l => l !== titleLine && l !== firstLine)[1] || lines.slice(2).join(' '));
+
                               return (
                                 <>
-                                  {initialSentence ? <div className="text-sm text-gray-800">{initialSentence}</div> : null}
+                                  {firstLine ? <div className="text-sm text-gray-800">{firstLine}</div> : null}
+                                  <div className="text-sm text-gray-700 font-medium mt-1">{`Type: ${typeLabel}`}</div>
                                   {titleText ? <div className="font-medium mt-1 truncate max-w-[18rem]">{`Title: ${titleText}`}</div> : null}
                                   {descText ? <div className="text-sm text-gray-600 truncate max-w-[18rem] mt-1">{`Description: ${descText}`}</div> : null}
                                   <div className="text-xs text-gray-400 mt-1">{new Date(n.created_at).toLocaleString()}</div>

@@ -36,9 +36,17 @@ exports.getNotificationsForUser = async (userId) => {
 // Create notification
 exports.createNotification = async ({ created_by, assigned_to, message, type = null, is_read = false }) => {
   try {
+    // Ensure message is a string
+    let msg = typeof message === 'string' ? message : String(message || '');
+    // Prepend the required first line if not already present
+    const prefix = 'You have a notification';
+    if (!msg.startsWith(prefix)) {
+      msg = `${prefix}\n${msg}`;
+    }
+
     const result = await pool.query(
       'INSERT INTO notifications (created_by, assigned_to, message, type, is_read, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) RETURNING *',
-      [created_by, assigned_to, message, type, is_read]
+      [created_by, assigned_to, msg, type, is_read]
     );
     return result.rows[0];
   } catch (error) {
