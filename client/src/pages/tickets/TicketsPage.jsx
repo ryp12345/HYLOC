@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { deleteTicket } from '../../api/ticketApi';
 import Notification from '../../components/common/Notification';
 import { getAllTickets, updateTicket, createTicket, getTicketCategories, getTicketPriorities, getTicketStatuses } from '../../api/ticketApi';
@@ -32,7 +33,56 @@ export default function TicketsPage() {
   const [categories, setCategories] = useState([]);
   const [priorities, setPriorities] = useState([]);
   const [statuses, setStatuses] = useState([]);
-  const [filter, setFilter] = useState('mine');
+  const [filter, setFilter] = useState('all');
+  // UI-only filter controls (inline, no backend changes)
+  const [assigneeFilter, setAssigneeFilter] = useState('');
+  const [priorityFilter, setPriorityFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [overdueOnly, setOverdueOnly] = useState(false);
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [sortBy, setSortBy] = useState('created_at');
+  const [sortDir, setSortDir] = useState('desc');
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  // Initialize state from URL (bookmarkable)
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const a = params.get('assignee') || '';
+    const p = params.get('priority') || '';
+    const s = params.get('status') || '';
+    const q = params.get('q') || '';
+    const o = params.get('overdue') === '1';
+    const f = params.get('filter') || 'all';
+    const sb = params.get('sortBy') || 'created_at';
+    const sd = params.get('sortDir') || 'desc';
+    setAssigneeFilter(a);
+    setPriorityFilter(p);
+    setStatusFilter(s);
+    setSearch(q);
+    setOverdueOnly(o);
+    setFilter(f);
+    setSortBy(sb);
+    setSortDir(sd);
+  }, []); // run once on mount
+
+  // Persist important UI state to URL when changed
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (assigneeFilter) params.set('assignee', assigneeFilter); else params.delete('assignee');
+    if (priorityFilter) params.set('priority', priorityFilter); else params.delete('priority');
+    if (statusFilter) params.set('status', statusFilter); else params.delete('status');
+    if (search) params.set('q', search); else params.delete('q');
+    if (overdueOnly) params.set('overdue', '1'); else params.delete('overdue');
+    if (filter) params.set('filter', filter); else params.delete('filter');
+    if (sortBy) params.set('sortBy', sortBy); else params.delete('sortBy');
+    if (sortDir) params.set('sortDir', sortDir); else params.delete('sortDir');
+    const newSearch = params.toString();
+    if (newSearch !== location.search.replace(/^[?]/, '')) {
+      const path = params.toString() ? `${location.pathname}?${params.toString()}` : location.pathname;
+      navigate(path, { replace: true });
+    }
+  }, [assigneeFilter, priorityFilter, statusFilter, search, overdueOnly, filter, sortBy, sortDir]);
 
   // Delete ticket handler with confirmation modal
   const handleDelete = (id) => {
@@ -143,6 +193,15 @@ export default function TicketsPage() {
     setError('');
   };
 
+  // Normalize assigned_to to an ID string whether the ticket has an id or an object
+  const getAssignedId = (r) => {
+    if (!r) return '';
+    const a = r.assigned_to;
+    if (a == null) return '';
+    if (typeof a === 'object') return String(a.id ?? a.user_id ?? '');
+    return String(a);
+  };
+
   const openCreate = () => {
     onClose();
     setForm({ ...initialForm, user_id: user?.id ?? '' });
@@ -153,7 +212,7 @@ export default function TicketsPage() {
     setEditingId(row.id);
     // If ticket is Open and unassigned (after rejection), clear assigned_to
     let initialStatus = row.status || 'Open';
-    let assignedTo = row.assigned_to ? String(row.assigned_to) : '';
+    let assignedTo = getAssignedId(row);
     if (initialStatus === 'Open' && !row.assigned_to) {
       assignedTo = '';
     } else if (row.assigned_to && (initialStatus === '' || String(initialStatus) === 'Open')) {
@@ -242,42 +301,98 @@ export default function TicketsPage() {
   const PAGE_SIZE = 10;
 
   // Filtered, sorted, and paginated data
-  const filtered = useMemo(() => {
-    const sorted = [...rows].sort((a, b) => {
-      const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
-      const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
-      if (bTime !== aTime) return bTime - aTime;
-      return (b.id || 0) - (a.id || 0);
-    });
-    const q = search.toLowerCase();
-    const today = new Date();
-    today.setHours(0, 0, 0, 0); // Set to start of today
+  const counts = useMemo(() => {
+    const today = new Date(); today.setHours(0,0,0,0);
+    const allCount = rows.length;
+    const mineCount = rows.filter(r => String(getAssignedId(r)) === String(user?.id)).length;
+    const overdueCount = rows.filter(r => {
+      if (!r.due_date || r.status === 'Closed') return false;
+      const d = new Date(r.due_date); d.setHours(0,0,0,0);
+      return d < today;
+    }).length;
+    return { allCount, mineCount, overdueCount };
+  }, [rows, user]);
 
-    return sorted.filter(r => {
-      // First check search criteria
+  const isOverdue = (r) => {
+    if (!r?.due_date || r?.status === 'Closed') return false;
+    const d = new Date(r.due_date); d.setHours(0,0,0,0);
+    const today = new Date(); today.setHours(0,0,0,0);
+    return d < today;
+  };
+
+  const renderPriorityChip = (p) => {
+    const key = (p || '').toLowerCase();
+    const map = {
+      critical: 'bg-red-100 text-red-800',
+      high: 'bg-red-100 text-red-800',
+      medium: 'bg-yellow-100 text-yellow-800',
+      low: 'bg-green-100 text-green-800',
+    };
+    const cls = map[key] || 'bg-gray-100 text-gray-800';
+    return <span className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded ${cls}`}>{p}</span>;
+  };
+
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase();
+    const today = new Date(); today.setHours(0,0,0,0);
+
+    let result = rows.filter(r => {
       const matchesSearch =
         r.title?.toLowerCase().includes(q) ||
         r.description?.toLowerCase().includes(q) ||
         r.status?.toLowerCase().includes(q) ||
         r.category?.toLowerCase().includes(q) ||
         r.priority?.toLowerCase().includes(q);
-
       if (!matchesSearch) return false;
 
-      // Apply filter logic
-      if (filter === 'all') return true;
-      if (filter === 'mine') return Number(r.assigned_to) === Number(user?.id);
+      // legacy quick filter compatibility - only enforce 'mine' when no explicit inline filters
+      // (assignee/priority/status/overdue/search). This lets selecting Priority or Status work
+      // even if the URL has filter=mine from an older view.
+      if (
+        filter === 'mine' &&
+        !assigneeFilter &&
+        !priorityFilter &&
+        !statusFilter &&
+        !overdueOnly &&
+        !search &&
+        String(getAssignedId(r)) !== String(user?.id)
+      ) return false;
       if (filter === 'overdue') {
-        // Check if ticket is overdue: due_date is in the past AND status is not "Closed"
         if (!r.due_date || r.status === 'Closed') return false;
-        const dueDate = new Date(r.due_date);
-        dueDate.setHours(0, 0, 0, 0);
-        return dueDate < today;
+        const dueDate = new Date(r.due_date); dueDate.setHours(0,0,0,0);
+        if (!(dueDate < today)) return false;
       }
 
-      return false;
+      // new inline filters
+      if (assigneeFilter && String(getAssignedId(r)) !== String(assigneeFilter)) return false;
+      if (priorityFilter && String(r.priority) !== String(priorityFilter)) return false;
+      if (statusFilter && String(r.status) !== String(statusFilter)) return false;
+      if (overdueOnly) {
+        if (!r.due_date || r.status === 'Closed') return false;
+        const dueDate = new Date(r.due_date); dueDate.setHours(0,0,0,0);
+        if (!(dueDate < today)) return false;
+      }
+
+      return true;
     });
-  }, [rows, search, filter, user]);
+
+    // local sorting
+    result.sort((a,b) => {
+      const get = (obj, key) => {
+        const val = obj?.[key];
+        if (!val) return '';
+        if (key.includes('date') || key.includes('created') || key.includes('due')) return new Date(val).getTime();
+        return String(val).toLowerCase();
+      };
+      const va = get(a, sortBy);
+      const vb = get(b, sortBy);
+      if (va < vb) return sortDir === 'asc' ? -1 : 1;
+      if (va > vb) return sortDir === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+    return result;
+  }, [rows, search, filter, user, assigneeFilter, priorityFilter, statusFilter, overdueOnly, sortBy, sortDir]);
 
   const paginated = useMemo(() => {
     const start = (page - 1) * PAGE_SIZE;
@@ -305,26 +420,94 @@ export default function TicketsPage() {
         </div>
 
         <div className="mb-4">
-          <div className="flex items-center justify-start gap-3">
-            <button
-              onClick={() => setFilter('mine')}
-              className={`px-4 py-2 rounded-lg border transition ${filter === 'mine' ? 'bg-blue-600 text-white border-blue-600' : 'bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-200'}`}
-            >
-              My Tickets
-            </button>
-            <button
-              onClick={() => setFilter('overdue')}
-              className={`px-4 py-2 rounded-lg border transition ${filter === 'overdue' ? 'bg-blue-600 text-white border-blue-600' : 'bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-200'}`}
-            >
-              Overdue Tickets
-            </button>
-            <button
-              onClick={() => setFilter('all')}
-              className={`px-4 py-2 rounded-lg border transition ${filter === 'all' ? 'bg-blue-600 text-white border-blue-600' : 'bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-200'}`}
-            >
-              All Tickets
-            </button>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-4">
+              <button onClick={() => setPanelOpen(p => !p)} className="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-300 bg-slate-200 text-slate-800 hover:bg-slate-300 shadow-sm">
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L15 12v7a1 1 0 01-1 1h-4a1 1 0 01-1-1v-7L3.293 6.707A1 1 0 013 6V4z" /></svg>
+                <span className="text-sm font-semibold">Filters</span>
+                <svg xmlns="http://www.w3.org/2000/svg" className={`w-3 h-3 text-gray-500 transform ${panelOpen ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.25 8.29a.75.75 0 01-.02-1.06z" clipRule="evenodd" /></svg>
+              </button>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setFilter('all')}
+                  aria-pressed={filter === 'all'}
+                  className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium cursor-pointer ${filter === 'all' ? 'bg-blue-600 text-white' : 'bg-blue-50 text-blue-700'}`}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-current" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7h18M5 7v10a2 2 0 002 2h10a2 2 0 002-2V7" /></svg>
+                  <span>All</span>
+                  <span className={`ml-2 inline-flex items-center justify-center w-6 h-6 text-xs font-semibold rounded-full bg-white ${filter === 'all' ? 'text-blue-600' : 'text-blue-600'}`}>{counts.allCount}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setFilter('mine')}
+                  aria-pressed={filter === 'mine'}
+                  className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium cursor-pointer ${filter === 'mine' ? 'bg-green-500 text-white' : 'bg-green-200 text-green-400'}`}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-current" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 11c0-1.657-1.343-3-3-3S6 9.343 6 11s1.343 3 3 3 3-1.343 3-3zM21 11v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6" /></svg>
+                  <span>Mine</span>
+                  <span className={`ml-2 inline-flex items-center justify-center w-6 h-6 text-xs font-semibold rounded-full bg-white ${filter === 'mine' ? 'text-green-600' : 'text-green-700'}`}>{counts.mineCount}</span>
+                </button>
+
+                {/* <button
+                  type="button"
+                  onClick={() => setFilter('overdue')}
+                  aria-pressed={filter === 'overdue'}
+                  className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium cursor-pointer ${filter === 'overdue' ? 'bg-red-600 text-white' : 'bg-red-50 text-red-700'}`}
+                > */}
+                  {/* <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-current" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M12.9 2.3c-.4-.7-1.4-.7-1.8 0L2.6 18.4c-.4.7.1 1.6.9 1.6h18.9c.8 0 1.3-.9.9-1.6L12.9 2.3z" fill="currentColor" className="opacity-90" />
+                    <rect x="11" y="8" width="2" height="6" rx="1" fill="white" />
+                    <rect x="11" y="16" width="2" height="2" rx="1" fill="white" />
+                  </svg> */}
+                  {/* <span>Overdue</span> */}
+                  {/* <span className={`ml-2 inline-flex items-center justify-center w-6 h-6 text-xs font-semibold rounded-full bg-white ${filter === 'overdue' ? 'text-red-600' : 'text-red-700'} ${counts.overdueCount>0 ? 'animate-pulse' : ''}`}>{counts.overdueCount}</span> */}
+                {/* </button> */}
+              </div>
+            </div>
+            
           </div>
+          {/* Bulk actions removed (selection checkboxes and toolbar) */}
+
+          {panelOpen && (
+            <div className="mt-4 p-4 bg-white rounded-lg shadow-sm border border-gray-100">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
+                <div>
+                  <label className="block text-xs text-gray-600 mb-1">Assignee</label>
+                  <select value={assigneeFilter} onChange={e=>setAssigneeFilter(e.target.value)} className="w-full px-3 py-2 border rounded">
+                    <option value="">Any</option>
+                    {users.map(u=> <option key={u.id} value={u.id}>{`${u.firstname || u.name || u.full_name || u.email}${u.lastname ? ' ' + u.lastname : ''}`}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-600 mb-1">Priority</label>
+                  <select value={priorityFilter} onChange={e=>setPriorityFilter(e.target.value)} className="w-full px-3 py-2 border rounded">
+                    <option value="">Any</option>
+                    {priorities.map(p => <option key={p} value={p}>{p}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-600 mb-1">Status</label>
+                  <select value={statusFilter} onChange={e=>setStatusFilter(e.target.value)} className="w-full px-3 py-2 border rounded">
+                    <option value="">Any</option>
+                    {statuses.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-600 mb-1">Options</label>
+                  <div className="flex items-center gap-3">
+                    <label className="inline-flex items-center px-2 py-1 text-xs rounded-full bg-red-600 text-white">
+                      <input type="checkbox" className="mr-2" checked={overdueOnly} onChange={e=>setOverdueOnly(e.target.checked)} />
+                      <span>Only overdue</span>
+                    </label>
+                    <button onClick={() => { setAssigneeFilter(''); setPriorityFilter(''); setStatusFilter(''); setOverdueOnly(false); setSearch(''); setFilter('all'); }} className="bg-gray-200 text-gray-700 px-4 py-2 rounded font-semibold hover:bg-gray-300 transition">Clear</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="flex flex-col items-start justify-between gap-4 mb-6 sm:flex-row sm:items-center">
@@ -345,11 +528,11 @@ export default function TicketsPage() {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-blue-600">
                 <tr>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">S.NO</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">Title</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">Priority</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">Category</th>
+                  <th onClick={()=>{ setSortBy('id'); setSortDir(sortBy==='id' ? (sortDir==='asc' ? 'desc' : 'asc') : 'desc'); }} className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider cursor-pointer">S.NO {sortBy==='id' ? (sortDir==='asc' ? '▲' : '▼') : ''}</th>
+                  <th onClick={()=>{ setSortBy('title'); setSortDir(sortBy==='title' ? (sortDir==='asc' ? 'desc' : 'asc') : 'asc'); }} className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider cursor-pointer">Title {sortBy==='title' ? (sortDir==='asc' ? '▲' : '▼') : ''}</th>
+                  <th onClick={()=>{ setSortBy('status'); setSortDir(sortBy==='status' ? (sortDir==='asc' ? 'desc' : 'asc') : 'asc'); }} className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider cursor-pointer">Status {sortBy==='status' ? (sortDir==='asc' ? '▲' : '▼') : ''}</th>
+                  <th onClick={()=>{ setSortBy('priority'); setSortDir(sortBy==='priority' ? (sortDir==='asc' ? 'desc' : 'asc') : 'asc'); }} className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider cursor-pointer">Priority {sortBy==='priority' ? (sortDir==='asc' ? '▲' : '▼') : ''}</th>
+                  <th onClick={()=>{ setSortBy('category'); setSortDir(sortBy==='category' ? (sortDir==='asc' ? 'desc' : 'asc') : 'asc'); }} className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider cursor-pointer">Category {sortBy==='category' ? (sortDir==='asc' ? '▲' : '▼') : ''}</th>
                   <th className="px-6 py-4 text-center text-xs font-medium text-white uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
@@ -358,11 +541,13 @@ export default function TicketsPage() {
                   <tr><td colSpan="6" className="px-6 py-12 text-center text-gray-500">No tickets found</td></tr>
                 ) : (
                   paginated.map((row, idx) => (
-                    <tr key={row.id} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-colors duration-150`}>
+                    <tr key={row.id} className={`${isOverdue(row) ? 'border-l-4 border-red-400 bg-red-50' : ''} ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-colors duration-150`}>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{(page - 1) * PAGE_SIZE + idx + 1}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{row.title}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{row.status}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{row.priority}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded bg-blue-100 text-blue-800">{row.status}</span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{renderPriorityChip(row.priority)}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{row.category}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
                         <div className="flex items-center justify-center space-x-2">

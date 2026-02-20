@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { getKPIById, getChildKPIs, getKPIValuesByKPI, getMonthlyDataByKPIValue } from '../../api/kpiApi';
+import { getUserById } from '../../api/userApi';
 import { useAuth } from '../../context/AuthContext';
 
 const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -24,6 +25,8 @@ const parseNumeric = (value) => {
   const parsed = Number(cleaned);
   return Number.isFinite(parsed) ? parsed : null;
 };
+
+  
 
 const KPIDetailPage = () => {
   const { kpiId } = useParams();
@@ -50,6 +53,52 @@ const KPIDetailPage = () => {
   const [managementInsights, setManagementInsights] = useState(null);
   const [showScrollToTop, setShowScrollToTop] = useState(false);
   const [modalChart, setModalChart] = useState(null);
+  const [userCache, setUserCache] = useState({});
+
+  const ensureUserCached = async (userId) => {
+    if (!userId) return null;
+    const id = Number(userId);
+    if (!Number.isFinite(id)) return null;
+    if (userCache[id]) return userCache[id];
+    try {
+      const res = await getUserById(id);
+      const resData = res?.data ?? null;
+      // support multiple response shapes: { data: { ... } }, { user: { ... } }, or direct object
+      const u = resData?.data ?? resData?.user ?? resData ?? null;
+      const name = u?.name || u?.fullname || u?.username || u?.emp_name || u?.empid || u?.emp_name_english || null;
+      const resolved = name || String(id);
+      setUserCache(prev => ({ ...prev, [id]: resolved }));
+      return resolved;
+    } catch (err) {
+      setUserCache(prev => ({ ...prev, [id]: String(id) }));
+      return String(id);
+    }
+  };
+
+  const getOperatorDisplay = (rows) => {
+    if (!rows || rows.length === 0) return null;
+    for (const row of rows) {
+      if (!row) continue;
+      const candidate = row.operator ?? row.data_operator ?? row.entered_by ?? row.operator_name ?? (row.user && (row.user.name || row.user.fullname)) ?? row.created_by ?? row.entered_by_name;
+      if (!candidate && (row.user && (row.user.id || row.user.empid))) {
+        const id = row.user.id || row.user.empid;
+        if (userCache[id]) return userCache[id];
+        ensureUserCached(id);
+        return String(id);
+      }
+
+      if (candidate != null) {
+        const numeric = Number(candidate);
+        if (Number.isFinite(numeric)) {
+          if (userCache[numeric]) return userCache[numeric];
+          ensureUserCached(numeric);
+          return String(numeric);
+        }
+        return String(candidate);
+      }
+    }
+    return null;
+  };
 
   useEffect(() => {
     loadKPIHierarchy();
@@ -70,6 +119,25 @@ const KPIDetailPage = () => {
 
   const openChartModal = (chart) => {
     setModalChart(chart);
+    // Prefetch operator usernames for modal rows (fire-and-forget)
+    try {
+      const rows = chart?.data || [];
+      const ids = new Set();
+      rows.forEach(r => {
+        if (!r) return;
+        const candidate = r.operator ?? r.data_operator ?? r.entered_by ?? r.operator_name ?? (r.user && (r.user.id || r.user.empid)) ?? r.created_by ?? r.entered_by_name;
+        if (candidate != null) {
+          const n = Number(candidate);
+          if (Number.isFinite(n)) ids.add(n);
+        } else if (r.user && (r.user.id || r.user.empid)) {
+          const id = Number(r.user.id || r.user.empid);
+          if (Number.isFinite(id)) ids.add(id);
+        }
+      });
+      ids.forEach(id => ensureUserCached(id).catch(() => {}));
+    } catch (err) {
+      // swallow
+    }
   };
 
   const closeChartModal = () => {
@@ -626,7 +694,7 @@ const KPIDetailPage = () => {
     setExpandedNodes(newExpanded);
   };
 
-  const LineChart = ({ data, title, size = 'default' }) => {
+  const LineChart = ({ data, title, size = 'default', operator }) => {
     // Debug logging for all metrics
     console.log(`[LineChart] Title: ${title}`);
     console.log(`[LineChart] Data received:`, data);
@@ -743,8 +811,24 @@ const KPIDetailPage = () => {
     // Calculate achievement rate and trend using the proper method
     const lastActual = actualValues.filter(v => v !== null).slice(-1)[0];
     const lastTarget = targetValues.filter(v => v !== null).slice(-1)[0];
-    const achievementRate = (lastTarget > 0 || lastActual > 0) 
-      ? calculateAchievementRate(lastActual, lastTarget, title).toFixed(1) 
+    // Fallback: if month-mapped values are missing, try to find the latest numeric values from raw rows
+    const findLatestNumeric = (rows, keys) => {
+      if (!rows || rows.length === 0) return null;
+      for (let i = rows.length - 1; i >= 0; i--) {
+        const row = rows[i];
+        for (const k of keys) {
+          const val = parseNumeric(row?.[k]);
+          if (val !== null) return val;
+        }
+      }
+      return null;
+    };
+    const fallbackActual = findLatestNumeric(data, ['actual_value', 'actual', 'value']);
+    const fallbackTarget = findLatestNumeric(data, ['target_value', 'target', 'value']);
+    const effectiveLastActual = (lastActual === undefined || lastActual === null) ? fallbackActual : lastActual;
+    const effectiveLastTarget = (lastTarget === undefined || lastTarget === null) ? fallbackTarget : lastTarget;
+    const achievementRate = (effectiveLastTarget > 0 || effectiveLastActual > 0)
+      ? calculateAchievementRate(effectiveLastActual, effectiveLastTarget, title).toFixed(1)
       : 'N/A';
     
     // Determine if this is an inverse metric for display purposes
@@ -753,8 +837,11 @@ const KPIDetailPage = () => {
     return (
       <div className="bg-white p-4 rounded-lg shadow">
         <div className="flex justify-between items-start mb-3">
-          <h3 className="font-semibold text-gray-800">{title}</h3>
-          {lastActual !== undefined && lastTarget !== undefined && achievementRate !== 'N/A' && (
+          <div>
+            <h3 className="font-semibold text-gray-800">{title}</h3>
+            {operator && <div className="text-xs text-gray-500 mt-1">Data by: {operator}</div>}
+          </div>
+          {effectiveLastActual !== undefined && effectiveLastTarget !== undefined && achievementRate !== 'N/A' && (
             <div className={`px-3 py-1 rounded text-sm font-semibold ${
               parseFloat(achievementRate) >= 100 ? 'bg-green-100 text-green-800' :
               parseFloat(achievementRate) >= 90 ? 'bg-yellow-100 text-yellow-800' :
@@ -912,15 +999,15 @@ const KPIDetailPage = () => {
         </div>
 
         {/* Quick stats */}
-        {lastActual !== undefined && lastTarget !== undefined && (
+        {effectiveLastActual !== undefined && effectiveLastTarget !== undefined && (
           <div className="mt-3 pt-3 border-t border-gray-200 grid grid-cols-4 gap-2 text-xs">
             <div>
               <span className="text-gray-500 block">Latest Actual:</span>
-              <span className="font-semibold text-blue-600">{lastActual.toFixed(2)}</span>
+              <span className="font-semibold text-blue-600">{(effectiveLastActual ?? 0).toFixed(2)}</span>
             </div>
             <div>
               <span className="text-gray-500 block">Target:</span>
-              <span className="font-semibold text-orange-600">{lastTarget.toFixed(2)}</span>
+              <span className="font-semibold text-orange-600">{(effectiveLastTarget ?? 0).toFixed(2)}</span>
             </div>
             <div>
               <span className="text-gray-500 block">Variance:</span>
@@ -929,7 +1016,7 @@ const KPIDetailPage = () => {
                   ? (lastActual <= lastTarget ? 'text-green-600' : 'text-red-600')
                   : (lastActual >= lastTarget ? 'text-green-600' : 'text-red-600')
               }`}>
-                {lastActual >= lastTarget ? '+' : ''}{(lastActual - lastTarget).toFixed(2)}
+                {(effectiveLastActual >= effectiveLastTarget ? '+' : '')}{((effectiveLastActual ?? 0) - (effectiveLastTarget ?? 0)).toFixed(2)}
               </span>
             </div>
             <div>
@@ -944,6 +1031,113 @@ const KPIDetailPage = () => {
             </div>
           </div>
         )}
+      </div>
+    );
+  };
+
+  // Simple bar chart for KPI values that have only actuals (no target)
+  const SimpleBarChart = ({ data, title, size = 'default', operator }) => {
+    if (!data || data.length === 0) {
+      return (
+        <div className="bg-white p-4 rounded-lg shadow">
+          <h3 className="font-semibold text-gray-800 mb-2">{title}</h3>
+          <div className="text-gray-500 text-sm">No data available</div>
+        </div>
+      );
+    }
+
+    const fiscalSequence = getFiscalMonthSequence(fiscalYear);
+
+    const normalizeMonthValue = (value) => {
+      if (value == null) return null;
+      if (typeof value === 'number') return value;
+      const text = String(value).trim();
+      const numeric = Number(text);
+      if (Number.isFinite(numeric) && numeric >= 1 && numeric <= 12) return numeric;
+      const monthKey = text.slice(0, 3).toLowerCase();
+      const monthIndex = MONTH_LABELS.map(label => label.toLowerCase()).indexOf(monthKey);
+      if (monthIndex >= 0) return monthIndex + 1;
+      const parsedDate = new Date(text);
+      if (!Number.isNaN(parsedDate.getTime())) return parsedDate.getMonth() + 1;
+      return null;
+    };
+
+    const actualsByMonth = {};
+    data.forEach((row) => {
+      const month = normalizeMonthValue(row.month);
+      if (!month) return;
+      const type = normalizeValueType(row.value_type);
+      if (type !== 'actual' && row.actual_value == null && row.actual == null && row.value == null) return;
+      const actualVal = parseNumeric(row.actual_value ?? row.actual ?? (type === 'actual' ? row.value : null));
+      if (actualVal !== null) {
+        // keep last actual for month
+        actualsByMonth[month] = actualVal;
+      }
+    });
+
+    const values = fiscalSequence.map(({ month }) => (Object.prototype.hasOwnProperty.call(actualsByMonth, month) ? actualsByMonth[month] : null));
+    const labels = fiscalSequence.map(({ label }) => label);
+
+    const maxValRaw = values.filter(v => v !== null).length > 0 ? Math.max(...values.filter(v => v !== null)) : 0;
+    const minValRaw = values.filter(v => v !== null).length > 0 ? Math.min(...values.filter(v => v !== null)) : 0;
+    const minVal = Math.min(0, minValRaw);
+    const maxVal = maxValRaw === minVal ? minVal + 1 : maxValRaw;
+
+    const chartSizes = {
+      compact: { svgWidth: 600, svgHeight: 260, padding: 40, minHeight: '280px' },
+      default: { svgWidth: 700, svgHeight: 320, padding: 50, minHeight: '340px' },
+      modal: { svgWidth: 900, svgHeight: 420, padding: 60, minHeight: '460px' }
+    };
+    const { svgWidth, svgHeight, padding, minHeight } = chartSizes[size] || chartSizes.default;
+
+    const barWidth = (svgWidth - 2 * padding) / (labels.length || 1) * 0.7;
+
+    const getY = (val) => svgHeight - padding - ((val - minVal) / (maxVal - minVal || 1)) * (svgHeight - 2 * padding);
+
+    return (
+      <div className="bg-white p-4 rounded-lg shadow">
+        <div className="flex justify-between items-start mb-3">
+          <div>
+            <h3 className="font-semibold text-gray-800">{title}</h3>
+            {operator && <div className="text-xs text-gray-500 mt-1">Data by: {operator}</div>}
+          </div>
+        </div>
+        <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="w-full border border-gray-300 bg-white" style={{ minHeight, display: 'block' }}>
+          {/* Bars */}
+          {values.map((val, idx) => {
+            const x = padding + idx * ((svgWidth - 2 * padding) / (labels.length || 1)) + ((svgWidth - 2 * padding) / (labels.length || 1) - barWidth) / 2;
+            const y = val === null ? svgHeight - padding : getY(val);
+            const height = val === null ? 0 : (svgHeight - padding - y);
+            return (
+              <g key={`bar-${idx}`}>
+                <rect x={x} y={y} width={barWidth} height={height} fill="#41aafe" rx="3" />
+                {val !== null && (
+                  <text x={x + barWidth / 2} y={y - 8} textAnchor="middle" fontSize="10" fill="#0369a1" fontWeight="600">
+                    {val.toFixed(1)}
+                  </text>
+                )}
+              </g>
+            );
+          })}
+
+          {/* X-axis labels */}
+          {labels.map((label, idx) => (
+            <text key={`x-${idx}`} x={padding + idx * ((svgWidth - 2 * padding) / (labels.length || 1)) + ((svgWidth - 2 * padding) / (labels.length || 1)) / 2} y={svgHeight - padding + 20} textAnchor="middle" fontSize="11" fill="#4b5563">
+              {label}
+            </text>
+          ))}
+
+          {/* Y-axis labels */}
+          {[...Array(4)].map((_, i) => {
+            const value = minVal + (i / 3) * (maxVal - minVal);
+            const y = svgHeight - padding - (i / 3) * (svgHeight - 2 * padding);
+            return (
+              <text key={`y-${i}`} x={padding - 10} y={y + 5} textAnchor="end" fontSize="11" fill="#4b5563">
+                {value.toFixed(0)}
+              </text>
+            );
+          })}
+        </svg>
       </div>
     );
   };
@@ -1054,11 +1248,21 @@ const KPIDetailPage = () => {
                   dataLength: chartData?.length || 0,
                   data: chartData
                 });
-                const chart = (
+                const hasTargetForValue = chartData && chartData.some(d => normalizeValueType(d.value_type) === 'target' || d.target_value != null || d.target != null);
+                const operatorName = getOperatorDisplay(chartData);
+                const chart = hasTargetForValue ? (
                   <LineChart
                     data={chartData}
                     title={value.data}
                     size={isSingleChart ? 'compact' : 'default'}
+                    operator={operatorName}
+                  />
+                ) : (
+                  <SimpleBarChart
+                    data={chartData}
+                    title={value.data}
+                    size={isSingleChart ? 'compact' : 'default'}
+                    operator={operatorName}
                   />
                 );
 
@@ -1563,11 +1767,21 @@ const KPIDetailPage = () => {
               {parentKPIValues.map((value) => {
                 const chartData = parentMonthlyData[value.id];
                 const isSingleChart = parentKPIValues.length === 1;
-                const chart = (
+                const hasTargetForValue = chartData && chartData.some(d => normalizeValueType(d.value_type) === 'target' || d.target_value != null || d.target != null);
+                const operatorName = getOperatorDisplay(chartData);
+                const chart = hasTargetForValue ? (
                   <LineChart
                     data={chartData}
                     title={value.data}
                     size={isSingleChart ? 'compact' : 'default'}
+                    operator={operatorName}
+                  />
+                ) : (
+                  <SimpleBarChart
+                    data={chartData}
+                    title={value.data}
+                    size={isSingleChart ? 'compact' : 'default'}
+                    operator={operatorName}
                   />
                 );
 
@@ -1613,8 +1827,15 @@ const KPIDetailPage = () => {
                   {parentKPIValues.map((value) => {
                     const chartData = parentMonthlyData[value.id];
                     const isSingleChart = parentKPIValues.length === 1;
-                    const chart = (
+                    const hasTargetForValue = chartData && chartData.some(d => normalizeValueType(d.value_type) === 'target' || d.target_value != null || d.target != null);
+                    const chart = hasTargetForValue ? (
                       <LineChart
+                        data={chartData}
+                        title={value.data}
+                        size={isSingleChart ? 'compact' : 'default'}
+                      />
+                    ) : (
+                      <SimpleBarChart
                         data={chartData}
                         title={value.data}
                         size={isSingleChart ? 'compact' : 'default'}
@@ -1698,17 +1919,120 @@ const KPIDetailPage = () => {
             className="bg-white rounded-lg shadow-xl w-full max-w-5xl p-4"
             onClick={(event) => event.stopPropagation()}
           >
-            <div className="flex justify-end mb-3">
-              <button
-                type="button"
-                onClick={closeChartModal}
-                className="text-gray-500 hover:text-gray-700 text-sm font-semibold"
-                aria-label="Close chart"
-              >
-                Close
-              </button>
+            <div className="flex justify-between items-center mb-3">
+              <div className="text-lg font-semibold">{modalChart.title}</div>
+              <div>
+                <button
+                  type="button"
+                  onClick={closeChartModal}
+                  className="text-gray-500 hover:text-gray-700 text-sm font-semibold"
+                  aria-label="Close chart"
+                >
+                  Close
+                </button>
+              </div>
             </div>
-            <LineChart data={modalChart.data} title={modalChart.title} size="modal" />
+
+            {/* Modal content: chart + data table */}
+            <div className="grid gap-4 lg:grid-cols-2">
+              <div>
+                {(() => {
+                  const hasTarget = (modalChart.data || []).some(d => normalizeValueType(d.value_type) === 'target' || d.target_value != null || d.target != null);
+                  return hasTarget ? (
+                    <LineChart data={modalChart.data} title={modalChart.title} size="modal" />
+                  ) : (
+                    <SimpleBarChart data={modalChart.data} title={modalChart.title} size="modal" />
+                  );
+                })()}
+              </div>
+
+              <div className="overflow-auto max-h-[60vh] p-2 border rounded">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="font-semibold">Data</h4>
+                  <div className="text-xs text-gray-500">Rows: {(modalChart.data || []).length}</div>
+                </div>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-xs text-gray-600">
+                      <th className="pr-4">Month</th>
+                      <th className="pr-4">Value Type</th>
+                      <th className="pr-4">Data Operator</th>
+                      <th className="pr-4">Actual</th>
+                      <th className="pr-4">Target</th>
+                      <th className="pr-4">Raw Value</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(() => {
+                      const normalizeOperator = (row) => {
+                        if (!row) return null;
+                        const candidate = row.operator ?? row.data_operator ?? row.entered_by ?? row.operator_name ?? (row.user && (row.user.name || row.user.fullname)) ?? row.created_by ?? row.entered_by_name ?? null;
+                        if (candidate == null) return null;
+                        const numeric = Number(candidate);
+                        if (Number.isFinite(numeric)) {
+                          if (userCache[numeric]) return userCache[numeric];
+                          ensureUserCached(numeric);
+                          return String(numeric);
+                        }
+                        return String(candidate);
+                      };
+
+                      const rows = (modalChart.data || []).map(row => {
+                        // normalize month
+                        let monthNum = null;
+                        if (row.month != null) {
+                          if (typeof row.month === 'number') monthNum = row.month;
+                          else {
+                            const txt = String(row.month).trim();
+                            const n = Number(txt);
+                            if (Number.isFinite(n) && n >= 1 && n <= 12) monthNum = n;
+                            else {
+                              const key = txt.slice(0,3).toLowerCase();
+                              const idx = MONTH_LABELS.map(l => l.toLowerCase()).indexOf(key);
+                              if (idx >= 0) monthNum = idx + 1;
+                              else {
+                                const pd = new Date(txt);
+                                if (!Number.isNaN(pd.getTime())) monthNum = pd.getMonth() + 1;
+                              }
+                            }
+                          }
+                        }
+
+                        return {
+                          monthNum,
+                          monthLabel: monthNum ? MONTH_LABELS[monthNum - 1] : String(row.month ?? ''),
+                          value_type: row.value_type ?? '',
+                          operator: normalizeOperator(row),
+                          actual: row.actual_value ?? row.actual ?? null,
+                          target: row.target_value ?? row.target ?? null,
+                          raw: row.value ?? null
+                        };
+                      });
+
+                      // sort by fiscal sequence order
+                      const orderMap = {};
+                      getFiscalMonthSequence(fiscalYear).forEach((m, i) => { orderMap[m.month] = i; });
+                      rows.sort((a, b) => {
+                        const ia = a.monthNum && orderMap[a.monthNum] != null ? orderMap[a.monthNum] : Infinity;
+                        const ib = b.monthNum && orderMap[b.monthNum] != null ? orderMap[b.monthNum] : Infinity;
+                        return ia - ib;
+                      });
+
+                      return rows.map((r, idx) => (
+                        <tr key={idx} className="border-t">
+                          <td className="py-2 pr-4">{r.monthLabel}</td>
+                          <td className="py-2 pr-4">{r.value_type}</td>
+                          <td className="py-2 pr-4">{r.operator ?? '-'}</td>
+                          <td className="py-2 pr-4">{r.actual != null ? parseNumeric(r.actual).toFixed(2) : '-'}</td>
+                          <td className="py-2 pr-4">{r.target != null ? parseNumeric(r.target).toFixed(2) : '-'}</td>
+                          <td className="py-2 pr-4 text-gray-600">{r.raw != null ? String(r.raw) : '-'}</td>
+                        </tr>
+                      ));
+                    })()}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         </div>
       )}

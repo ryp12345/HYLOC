@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { getPillerById } from '../../api/pillerApi';
 import { getKPIValuesByPillar, getMonthlyDataByKPIValue } from '../../api/kpiApi';
 import { getAllUnitMasters } from '../../api/unitMasterApi';
+import { getUserById } from '../../api/userApi';
 
 const FISCAL_MONTHS = [
   { label: 'Apr', month: 4, yearOffset: 0 },
@@ -48,6 +49,7 @@ const KPILineChart = ({
   showPointLabels = false,
   xAxisTitle = 'Month',
   yAxisTitle = 'Value',
+  operator,
 }) => {
   const svgWidth = 900;
   const svgHeight = 350;
@@ -79,7 +81,10 @@ const KPILineChart = ({
 
   return (
     <div className="w-full h-full flex flex-col">
-      <h2 className="text-lg font-semibold text-gray-800 mb-4 text-center">{title}</h2>
+      <div className="text-center mb-3">
+        <h2 className="text-lg font-semibold text-gray-800 mb-1">{title}</h2>
+        {operator && <div className="text-xs text-gray-500">Data by: {operator}</div>}
+      </div>
       <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="w-full flex-1" style={{ maxHeight: '300px' }}>
         {/* Grid lines + Y ticks */}
         {(() => {
@@ -406,6 +411,49 @@ export default function PillarDetailPage() {
     };
   });
 
+  const [userCache, setUserCache] = useState({});
+
+  const ensureUserCached = async (userId) => {
+    if (!userId) return null;
+    const id = Number(userId);
+    if (!Number.isFinite(id)) return null;
+    if (userCache[id]) return userCache[id];
+    try {
+      const res = await getUserById(id);
+      const u = res?.data?.data || null;
+      const name = u?.name || u?.fullname || u?.username || u?.emp_name || u?.empid || null;
+      setUserCache(prev => ({ ...prev, [id]: name || String(id) }));
+      return name || String(id);
+    } catch (err) {
+      setUserCache(prev => ({ ...prev, [id]: String(id) }));
+      return String(id);
+    }
+  };
+
+  const getOperatorDisplay = (rows) => {
+    if (!rows || rows.length === 0) return null;
+    for (const row of rows) {
+      if (!row) continue;
+      const candidate = row.operator ?? row.data_operator ?? row.entered_by ?? row.operator_name ?? (row.user && (row.user.name || row.user.fullname)) ?? row.created_by ?? row.entered_by_name;
+      if (!candidate && (row.user && (row.user.id || row.user.empid))) {
+        const id = row.user.id || row.user.empid;
+        if (userCache[id]) return userCache[id];
+        ensureUserCached(id);
+        return String(id);
+      }
+      if (candidate != null) {
+        const numeric = Number(candidate);
+        if (Number.isFinite(numeric)) {
+          if (userCache[numeric]) return userCache[numeric];
+          ensureUserCached(numeric);
+          return String(numeric);
+        }
+        return String(candidate);
+      }
+    }
+    return null;
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
@@ -503,7 +551,8 @@ export default function PillarDetailPage() {
                     labels={item.chartData.labels}
                     actuals={item.chartData.actuals}
                     targets={item.chartData.targets}
-                    yAxisFormatter={(value) => item.currencyUnit ? formatIndianCurrency(value) : formatIndianNumber(value)}
+                      yAxisFormatter={(value) => item.currencyUnit ? formatIndianCurrency(value) : formatIndianNumber(value)}
+                      operator={getOperatorDisplay(kpiDataMap[item.kpiVal.id])}
                   />
                 </div>
 

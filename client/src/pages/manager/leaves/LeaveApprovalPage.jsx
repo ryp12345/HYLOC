@@ -283,20 +283,15 @@ const LeaveApprovalPage = () => {
                   <div className="relative">
                     <input
                       type="text"
-                      className="border rounded px-3 py-2 pr-10 w-full"
+                      placeholder="Search names..."
+                      className="w-full py-2 pl-10 pr-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       value={filter.username}
-                      onChange={e => setFilter(f => ({ ...f, username: e.target.value }))}
+                      onChange={e => { setFilter(f => ({ ...f, username: e.target.value })); setShowFilteredTable(true); setCurrentPage(1); }}
+                      onKeyDown={e => { if (e.key === 'Enter') { setShowFilteredTable(true); setCurrentPage(1); } }}
                     />
-                    <button
-                      type="button"
-                      onClick={() => { setShowFilteredTable(true); setCurrentPage(1); }}
-                      className="absolute right-2 inset-y-0 flex items-center text-gray-500 hover:text-gray-700"
-                      aria-label="Search"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z" />
-                      </svg>
-                    </button>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400 absolute left-3 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
                   </div>
                 </div>
                 <div>
