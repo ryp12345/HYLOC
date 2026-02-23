@@ -14,6 +14,33 @@ exports.getMyTickets = async (req, res) => {
 };
 const ticketModel = require('../models/ticket.model');
 const notificationModel = require('../models/notification.model');
+const fs = require('fs');
+const path = require('path');
+
+const publicRoot = path.resolve(__dirname, '../../public');
+
+const toLocalUploadPath = (attachmentPath) => {
+  if (!attachmentPath || typeof attachmentPath !== 'string') return null;
+  const normalized = attachmentPath.replace(/\\/g, '/');
+  if (!normalized.startsWith('/uploads/')) return null;
+
+  const relativePath = normalized.replace(/^\/+/, '');
+  const absolutePath = path.resolve(publicRoot, relativePath);
+  if (!absolutePath.startsWith(publicRoot)) return null;
+  return absolutePath;
+};
+
+const removeLocalAttachmentIfExists = async (attachmentPath) => {
+  const localPath = toLocalUploadPath(attachmentPath);
+  if (!localPath) return;
+  try {
+    await fs.promises.unlink(localPath);
+  } catch (err) {
+    if (err?.code !== 'ENOENT') {
+      console.error('Attachment cleanup error:', err);
+    }
+  }
+};
 
 exports.getTicketCategories = async (req, res) => {
   try {
@@ -129,6 +156,12 @@ exports.updateTicket = async (req, res) => {
   try {
     const id = req.params.id;
     const payload = { ...req.body };
+
+    if (req.file && req.file.filename) {
+      payload.attachment = `/uploads/tickets/${req.file.filename}`;
+    } else if (payload.attachment === '') {
+      payload.attachment = null;
+    }
 
     // fetch existing ticket to enforce rules
     const existing = await ticketModel.getTicketById(id);
@@ -304,6 +337,11 @@ exports.updateTicket = async (req, res) => {
     const updated = await ticketModel.updateTicket(id, payload);
     console.log('DEBUG: Updated ticket result', updated);
     if (!updated) return res.status(404).json({ success: false, message: 'Ticket not found' });
+
+    const replacedOrClearedAttachment = Boolean(req.file && req.file.filename) || payload.attachment === null;
+    if (replacedOrClearedAttachment && existing.attachment && existing.attachment !== updated.attachment) {
+      await removeLocalAttachmentIfExists(existing.attachment);
+    }
 
     // If reassigned to a different user, create an in-app notification for the new assignee.
     try {

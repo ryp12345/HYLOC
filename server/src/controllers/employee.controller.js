@@ -352,13 +352,13 @@ exports.getKPIAssignees = async (req, res) => {
     }
 
     const result = await pool.query(
-      `SELECT DISTINCT u.id, u.empid, u.first_name, u.last_name, u.email,
+      `SELECT DISTINCT u.id, u.empid, u.firstname AS first_name, u.lastname AS last_name, u.email,
               STRING_AGG(DISTINCT kv.data, ', ') as kpi_values
        FROM kpi_values kv
        JOIN users u ON kv."data operator" = u.empid
        WHERE kv.kpi_id = $1
-       GROUP BY u.id, u.empid, u.first_name, u.last_name, u.email
-       ORDER BY u.first_name, u.last_name`,
+       GROUP BY u.id, u.empid, u.firstname, u.lastname, u.email
+       ORDER BY u.firstname, u.lastname`,
       [kpiId]
     );
 

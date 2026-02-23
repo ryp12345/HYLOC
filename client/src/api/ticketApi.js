@@ -37,6 +37,9 @@ export const getTicketById = async (id) => {
 };
 
 export const updateTicket = async (id, data) => {
+  if (data instanceof FormData) {
+    return await axios.put(`/tickets/${id}`, data, { headers: { 'Content-Type': 'multipart/form-data' } });
+  }
   return await axios.put(`/tickets/${id}`, data);
 };
 

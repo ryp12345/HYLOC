@@ -26,8 +26,8 @@ router.get('/', authenticate, ticketController.getAllTickets);
 // GET /api/tickets/:id
 router.get('/:id', authenticate, ticketController.getTicketById);
 
-// PUT /api/tickets/:id - update ticket
-router.put('/:id', authenticate, ticketController.updateTicket);
+// PUT /api/tickets/:id - update ticket (accepts optional file 'attachment')
+router.put('/:id', authenticate, upload.single('attachment'), ticketController.updateTicket);
 
 // DELETE /api/tickets/:id
 router.delete('/:id', authenticate, ticketController.deleteTicket);

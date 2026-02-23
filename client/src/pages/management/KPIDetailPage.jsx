@@ -26,6 +26,135 @@ const parseNumeric = (value) => {
   return Number.isFinite(parsed) ? parsed : null;
 };
 
+const normalizeMonthValue = (value) => {
+  if (value == null) return null;
+  if (typeof value === 'number') {
+    if (Number.isFinite(value) && value >= 1 && value <= 12) return value;
+    return null;
+  }
+  const text = String(value).trim();
+  const numeric = Number(text);
+  if (Number.isFinite(numeric) && numeric >= 1 && numeric <= 12) return numeric;
+  const monthKey = text.slice(0, 3).toLowerCase();
+  const monthIndex = MONTH_LABELS.map(label => label.toLowerCase()).indexOf(monthKey);
+  if (monthIndex >= 0) return monthIndex + 1;
+  const parsedDate = new Date(text);
+  if (!Number.isNaN(parsedDate.getTime())) return parsedDate.getMonth() + 1;
+  return null;
+};
+
+const extractRowMonth = (row) => {
+  if (!row) return null;
+  const candidates = [
+    row.month,
+    row.month_no,
+    row.month_number,
+    row.monthName,
+    row.month_name,
+    row.month_label,
+    row.period_month,
+    row.period,
+    row.date,
+    row.entry_date,
+    row.created_at,
+    row.updated_at,
+  ];
+
+  for (const candidate of candidates) {
+    const normalized = normalizeMonthValue(candidate);
+    if (normalized) return normalized;
+  }
+  return null;
+};
+
+const extractRowYear = (row) => {
+  if (!row) return null;
+
+  const directCandidates = [
+    row.year,
+    row.calendar_year,
+    row.period_year,
+    row.fy_year,
+    row.fiscal_year,
+  ];
+
+  for (const candidate of directCandidates) {
+    const numeric = Number(candidate);
+    if (Number.isFinite(numeric) && numeric >= 1900 && numeric <= 3000) {
+      return numeric;
+    }
+  }
+
+  const dateCandidates = [
+    row.date,
+    row.entry_date,
+    row.created_at,
+    row.updated_at,
+  ];
+
+  for (const candidate of dateCandidates) {
+    if (!candidate) continue;
+    const parsedDate = new Date(candidate);
+    if (!Number.isNaN(parsedDate.getTime())) {
+      return parsedDate.getFullYear();
+    }
+  }
+
+  return null;
+};
+
+const filterRowsForFiscalWindow = (rows, fetchedYear, fiscalYear) => {
+  if (!Array.isArray(rows) || rows.length === 0) return [];
+
+  return rows.filter((row) => {
+    const month = extractRowMonth(row);
+    if (!month) return true;
+
+    const rowYear = extractRowYear(row) ?? fetchedYear;
+
+    if (rowYear === fiscalYear) {
+      return month >= 4;
+    }
+
+    if (rowYear === fiscalYear + 1) {
+      return month <= 3;
+    }
+
+    return false;
+  });
+};
+
+const extractRowType = (row) => {
+  return normalizeValueType(row?.value_type ?? row?.valueType ?? row?.metric_type ?? row?.type);
+};
+
+const extractActualTarget = (row) => {
+  const type = extractRowType(row);
+  const actual = parseNumeric(
+    row?.actual_value ?? row?.actual ?? row?.actuals ?? row?.achieved ?? row?.achieved_value ??
+    row?.qa ?? row?.qa_value ?? (type === 'actual' ? row?.value : null)
+  );
+  const target = parseNumeric(
+    row?.target_value ?? row?.target ?? row?.targets ?? row?.targets_value ?? row?.goal ?? row?.goal_value ??
+    row?.plan ?? row?.planned_value ?? (type === 'target' ? row?.value : null)
+  );
+
+  return { actual, target, type };
+};
+
+const rowHasTarget = (row) => {
+  const { target, type } = extractActualTarget(row);
+  return target !== null || type === 'target';
+};
+
+const sortByExtractedMonth = (a, b) => {
+  const ma = extractRowMonth(a);
+  const mb = extractRowMonth(b);
+  const av = ma ?? Number.MAX_SAFE_INTEGER;
+  const bv = mb ?? Number.MAX_SAFE_INTEGER;
+  return av - bv;
+};
+
   
 
 const KPIDetailPage = () => {
@@ -211,7 +340,8 @@ const KPIDetailPage = () => {
           try {
             const dataRes1 = await getMonthlyDataByKPIValue(value.id, fyYear);
             if (dataRes1.data.data && Array.isArray(dataRes1.data.data)) {
-              allMonthlyData.push(...dataRes1.data.data);
+              const filteredYearOne = filterRowsForFiscalWindow(dataRes1.data.data, fyYear, fyYear);
+              allMonthlyData.push(...filteredYearOne);
             }
           } catch (err) {
             // No data available for this year
@@ -221,7 +351,8 @@ const KPIDetailPage = () => {
           try {
             const dataRes2 = await getMonthlyDataByKPIValue(value.id, fyYear + 1);
             if (dataRes2.data.data && Array.isArray(dataRes2.data.data)) {
-              allMonthlyData.push(...dataRes2.data.data);
+              const filteredYearTwo = filterRowsForFiscalWindow(dataRes2.data.data, fyYear + 1, fyYear);
+              allMonthlyData.push(...filteredYearTwo);
             }
           } catch (err) {
             // No data available for this year
@@ -278,7 +409,9 @@ const KPIDetailPage = () => {
               const dataRes1 = await getMonthlyDataByKPIValue(value.id, fiscalYear);
               console.log(`    📅 Fetched data for ${value.data} (ID: ${value.id}) year ${fiscalYear}:`, dataRes1.data?.data?.length || 0, 'records');
               if (dataRes1.data?.data && Array.isArray(dataRes1.data.data)) {
-                allMonthlyData.push(...dataRes1.data.data);
+                const filteredYearOne = filterRowsForFiscalWindow(dataRes1.data.data, fiscalYear, fiscalYear);
+                console.log(`    🧹 Fiscal-filtered year ${fiscalYear} rows for ${value.data}:`, filteredYearOne.length);
+                allMonthlyData.push(...filteredYearOne);
               }
             } catch (err) {
               console.warn(`    ⚠️ No data for ${value.data} year ${fiscalYear}:`, err.message);
@@ -289,7 +422,9 @@ const KPIDetailPage = () => {
               const dataRes2 = await getMonthlyDataByKPIValue(value.id, fiscalYear + 1);
               console.log(`    📅 Fetched data for ${value.data} (ID: ${value.id}) year ${fiscalYear + 1}:`, dataRes2.data?.data?.length || 0, 'records');
               if (dataRes2.data?.data && Array.isArray(dataRes2.data.data)) {
-                allMonthlyData.push(...dataRes2.data.data);
+                const filteredYearTwo = filterRowsForFiscalWindow(dataRes2.data.data, fiscalYear + 1, fiscalYear);
+                console.log(`    🧹 Fiscal-filtered year ${fiscalYear + 1} rows for ${value.data}:`, filteredYearTwo.length);
+                allMonthlyData.push(...filteredYearTwo);
               }
             } catch (err) {
               console.warn(`    ⚠️ No data for ${value.data} year ${fiscalYear + 1}:`, err.message);
@@ -404,18 +539,18 @@ const KPIDetailPage = () => {
         const data = monthlyData[value.id] || [];
         
         const actuals = data
-          .filter(d => normalizeValueType(d.value_type) === 'actual')
-          .sort((a, b) => a.month - b.month);
+          .filter(d => extractRowType(d) === 'actual')
+          .sort(sortByExtractedMonth);
         const targets = data
-          .filter(d => normalizeValueType(d.value_type) === 'target')
-          .sort((a, b) => a.month - b.month);
+          .filter(d => extractRowType(d) === 'target')
+          .sort(sortByExtractedMonth);
 
         if (actuals.length > 0 && targets.length > 0) {
           hasAnyData = true;
           
           // Calculate achievement rate for this specific metric
-          const latestActual = parseNumeric(actuals[actuals.length - 1].value) || 0;
-          const latestTarget = parseNumeric(targets[targets.length - 1].value) || 0;
+          const latestActual = extractActualTarget(actuals[actuals.length - 1]).actual ?? parseNumeric(actuals[actuals.length - 1].value) ?? 0;
+          const latestTarget = extractActualTarget(targets[targets.length - 1]).target ?? parseNumeric(targets[targets.length - 1].value) ?? 0;
           
           if (latestTarget > 0 || latestActual > 0) {
             const achievementRate = calculateAchievementRate(latestActual, latestTarget, value.data);
@@ -694,10 +829,10 @@ const KPIDetailPage = () => {
     setExpandedNodes(newExpanded);
   };
 
-  const LineChart = ({ data, title, size = 'default', operator }) => {
+  const LineChart = ({ data, title, size = 'default', operator, valueId, parentKpiId }) => {
     // Debug logging for all metrics
-    console.log(`[LineChart] Title: ${title}`);
-    console.log(`[LineChart] Data received:`, data);
+    console.log(`[LineChart] parentKpiId: ${parentKpiId} valueId: ${valueId} Title: ${title}`);
+    console.log(`[LineChart] Data received for parent ${parentKpiId} value ${valueId}:`, data);
     console.log(`[LineChart] Data length:`, data?.length);
     
     if (!data || data.length === 0) {
@@ -710,63 +845,24 @@ const KPIDetailPage = () => {
       );
     }
 
-    const normalizeValueType = (valueType) => {
-      const normalized = (valueType || '').toString().trim().toLowerCase();
-      if (!normalized) return '';
-      if (normalized === 'actual' || normalized === 'achieved' || normalized === 'qa') return 'actual';
-      if (normalized === 'target') return 'target';
-      if (normalized.includes('actual') || normalized.includes('achieved')) return 'actual';
-      if (normalized.includes('target')) return 'target';
-      if (normalized.includes('qa') && !normalized.includes('target')) return 'actual';
-      return normalized ? 'actual' : normalized;
-    };
-
     const actuals = data
-      .filter((d) => normalizeValueType(d.value_type) === 'actual')
-      .sort((a, b) => a.month - b.month);
+      .filter((d) => extractRowType(d) === 'actual')
+      .sort(sortByExtractedMonth);
     const targets = data
-      .filter((d) => normalizeValueType(d.value_type) === 'target')
-      .sort((a, b) => a.month - b.month);
+      .filter((d) => extractRowType(d) === 'target')
+      .sort(sortByExtractedMonth);
 
     console.log(`[LineChart] ${title} - Actuals:`, actuals.length, 'Targets:', targets.length);
 
     // Map to fiscal year order
     const fiscalSequence = getFiscalMonthSequence(fiscalYear);
-    const parseNumeric = (value) => {
-      if (value == null) return null;
-      if (typeof value === 'number') return Number.isFinite(value) ? value : null;
-      const cleaned = String(value).replace(/[^0-9.-]/g, '').trim();
-      const parsed = Number(cleaned);
-      return Number.isFinite(parsed) ? parsed : null;
-    };
-
-    const normalizeMonthValue = (value) => {
-      if (value == null) return null;
-      if (typeof value === 'number') return Number.isFinite(value) ? value : null;
-      const text = String(value).trim();
-      const numeric = Number(text);
-      if (Number.isFinite(numeric) && numeric >= 1 && numeric <= 12) return numeric;
-      const monthKey = text.slice(0, 3).toLowerCase();
-      const monthIndex = MONTH_LABELS.map(label => label.toLowerCase()).indexOf(monthKey);
-      if (monthIndex >= 0) return monthIndex + 1;
-      const parsedDate = new Date(text);
-      if (!Number.isNaN(parsedDate.getTime())) return parsedDate.getMonth() + 1;
-      return null;
-    };
-
     const actualsByMonth = {};
     const targetsByMonth = {};
 
     data.forEach((row) => {
-      const month = normalizeMonthValue(row.month);
+      const month = extractRowMonth(row);
       if (!month) return;
-      const type = normalizeValueType(row.value_type);
-      const actualVal = parseNumeric(
-        row.actual_value ?? row.actual ?? (type === 'actual' ? row.value : null)
-      );
-      const targetVal = parseNumeric(
-        row.target_value ?? row.target ?? (type === 'target' ? row.value : null)
-      );
+      const { actual: actualVal, target: targetVal } = extractActualTarget(row);
 
       if (actualVal !== null) {
         actualsByMonth[month] = actualVal;
@@ -1036,7 +1132,9 @@ const KPIDetailPage = () => {
   };
 
   // Simple bar chart for KPI values that have only actuals (no target)
-  const SimpleBarChart = ({ data, title, size = 'default', operator }) => {
+  const SimpleBarChart = ({ data, title, size = 'default', operator, valueId, parentKpiId }) => {
+    console.log(`[SimpleBarChart] parentKpiId: ${parentKpiId} valueId: ${valueId} Title: ${title}`);
+    console.log(`[SimpleBarChart] Data length:`, data?.length);
     if (!data || data.length === 0) {
       return (
         <div className="bg-white p-4 rounded-lg shadow">
@@ -1048,27 +1146,12 @@ const KPIDetailPage = () => {
 
     const fiscalSequence = getFiscalMonthSequence(fiscalYear);
 
-    const normalizeMonthValue = (value) => {
-      if (value == null) return null;
-      if (typeof value === 'number') return value;
-      const text = String(value).trim();
-      const numeric = Number(text);
-      if (Number.isFinite(numeric) && numeric >= 1 && numeric <= 12) return numeric;
-      const monthKey = text.slice(0, 3).toLowerCase();
-      const monthIndex = MONTH_LABELS.map(label => label.toLowerCase()).indexOf(monthKey);
-      if (monthIndex >= 0) return monthIndex + 1;
-      const parsedDate = new Date(text);
-      if (!Number.isNaN(parsedDate.getTime())) return parsedDate.getMonth() + 1;
-      return null;
-    };
-
     const actualsByMonth = {};
     data.forEach((row) => {
-      const month = normalizeMonthValue(row.month);
+      const month = extractRowMonth(row);
       if (!month) return;
-      const type = normalizeValueType(row.value_type);
-      if (type !== 'actual' && row.actual_value == null && row.actual == null && row.value == null) return;
-      const actualVal = parseNumeric(row.actual_value ?? row.actual ?? (type === 'actual' ? row.value : null));
+      const { actual: actualVal, type } = extractActualTarget(row);
+      if (type !== 'actual' && actualVal == null) return;
       if (actualVal !== null) {
         // keep last actual for month
         actualsByMonth[month] = actualVal;
@@ -1153,12 +1236,12 @@ const KPIDetailPage = () => {
 
     values.forEach(value => {
       const data = monthlyData[value.id] || [];
-      const actuals = data.filter(d => normalizeValueType(d.value_type) === 'actual');
-      const targets = data.filter(d => normalizeValueType(d.value_type) === 'target');
+      const actuals = data.filter(d => extractRowType(d) === 'actual');
+      const targets = data.filter(d => extractRowType(d) === 'target');
       
       if (actuals.length > 0 && targets.length > 0) {
-        const latestActual = parseNumeric(actuals[actuals.length - 1].value) || 0;
-        const latestTarget = parseNumeric(targets[targets.length - 1].value) || 0;
+        const latestActual = extractActualTarget(actuals[actuals.length - 1]).actual ?? parseNumeric(actuals[actuals.length - 1].value) ?? 0;
+        const latestTarget = extractActualTarget(targets[targets.length - 1]).target ?? parseNumeric(targets[targets.length - 1].value) ?? 0;
         
         if (latestTarget > 0 || latestActual > 0) {
           const rate = calculateAchievementRate(latestActual, latestTarget, value.data);
@@ -1248,7 +1331,7 @@ const KPIDetailPage = () => {
                   dataLength: chartData?.length || 0,
                   data: chartData
                 });
-                const hasTargetForValue = chartData && chartData.some(d => normalizeValueType(d.value_type) === 'target' || d.target_value != null || d.target != null);
+                const hasTargetForValue = chartData && chartData.some((d) => rowHasTarget(d));
                 const operatorName = getOperatorDisplay(chartData);
                 const chart = hasTargetForValue ? (
                   <LineChart
@@ -1767,7 +1850,7 @@ const KPIDetailPage = () => {
               {parentKPIValues.map((value) => {
                 const chartData = parentMonthlyData[value.id];
                 const isSingleChart = parentKPIValues.length === 1;
-                const hasTargetForValue = chartData && chartData.some(d => normalizeValueType(d.value_type) === 'target' || d.target_value != null || d.target != null);
+                const hasTargetForValue = chartData && chartData.some((d) => rowHasTarget(d));
                 const operatorName = getOperatorDisplay(chartData);
                 const chart = hasTargetForValue ? (
                   <LineChart
@@ -1827,7 +1910,7 @@ const KPIDetailPage = () => {
                   {parentKPIValues.map((value) => {
                     const chartData = parentMonthlyData[value.id];
                     const isSingleChart = parentKPIValues.length === 1;
-                    const hasTargetForValue = chartData && chartData.some(d => normalizeValueType(d.value_type) === 'target' || d.target_value != null || d.target != null);
+                    const hasTargetForValue = chartData && chartData.some((d) => rowHasTarget(d));
                     const chart = hasTargetForValue ? (
                       <LineChart
                         data={chartData}
@@ -1937,7 +2020,7 @@ const KPIDetailPage = () => {
             <div className="grid gap-4 lg:grid-cols-2">
               <div>
                 {(() => {
-                  const hasTarget = (modalChart.data || []).some(d => normalizeValueType(d.value_type) === 'target' || d.target_value != null || d.target != null);
+                  const hasTarget = (modalChart.data || []).some((d) => rowHasTarget(d));
                   return hasTarget ? (
                     <LineChart data={modalChart.data} title={modalChart.title} size="modal" />
                   ) : (

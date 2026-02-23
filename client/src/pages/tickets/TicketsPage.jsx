@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { deleteTicket } from '../../api/ticketApi';
+import { API_URL } from '../../api/axios';
 import Notification from '../../components/common/Notification';
 import { getAllTickets, updateTicket, createTicket, getTicketCategories, getTicketPriorities, getTicketStatuses } from '../../api/ticketApi';
 import { getUsers, getAssignableUsers } from '../../api/userApi';
@@ -202,6 +203,28 @@ export default function TicketsPage() {
     return String(a);
   };
 
+  const getDisplayAttachmentPath = (attachmentPath) => {
+    if (!attachmentPath) return '';
+    try {
+      return decodeURIComponent(attachmentPath);
+    } catch {
+      return attachmentPath;
+    }
+  };
+
+  const getAttachmentHref = (attachmentPath) => {
+    if (!attachmentPath) return '';
+    if (/^https?:\/\//i.test(attachmentPath)) return attachmentPath;
+    if (!attachmentPath.startsWith('/')) return attachmentPath;
+
+    try {
+      const apiOrigin = API_URL.startsWith('http') ? new URL(API_URL).origin : window.location.origin;
+      return `${apiOrigin}${attachmentPath}`;
+    } catch {
+      return attachmentPath;
+    }
+  };
+
   const openCreate = () => {
     onClose();
     setForm({ ...initialForm, user_id: user?.id ?? '' });
@@ -259,7 +282,21 @@ export default function TicketsPage() {
           payload.status = 'Assigned';
         }
         if (payload.assigned_to !== '' && payload.assigned_to !== null) payload.assigned_to = Number(payload.assigned_to);
-        await updateTicket(editingId, payload);
+        if (form.attachment && form.attachment instanceof File) {
+          const fd = new FormData();
+          fd.append('title', payload.title);
+          fd.append('description', payload.description);
+          fd.append('category', payload.category);
+          fd.append('priority', payload.priority);
+          fd.append('status', payload.status);
+          fd.append('user_id', String(payload.user_id));
+          if (payload.assigned_to !== '' && payload.assigned_to !== null) fd.append('assigned_to', String(payload.assigned_to));
+          fd.append('due_date', payload.due_date);
+          fd.append('attachment', form.attachment);
+          await updateTicket(editingId, fd);
+        } else {
+          await updateTicket(editingId, payload);
+        }
         showNotification('Ticket updated successfully!', 'success');
       } else {
         // Create: if attachment is a File, send multipart/form-data
@@ -533,12 +570,13 @@ export default function TicketsPage() {
                   <th onClick={()=>{ setSortBy('status'); setSortDir(sortBy==='status' ? (sortDir==='asc' ? 'desc' : 'asc') : 'asc'); }} className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider cursor-pointer">Status {sortBy==='status' ? (sortDir==='asc' ? '▲' : '▼') : ''}</th>
                   <th onClick={()=>{ setSortBy('priority'); setSortDir(sortBy==='priority' ? (sortDir==='asc' ? 'desc' : 'asc') : 'asc'); }} className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider cursor-pointer">Priority {sortBy==='priority' ? (sortDir==='asc' ? '▲' : '▼') : ''}</th>
                   <th onClick={()=>{ setSortBy('category'); setSortDir(sortBy==='category' ? (sortDir==='asc' ? 'desc' : 'asc') : 'asc'); }} className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider cursor-pointer">Category {sortBy==='category' ? (sortDir==='asc' ? '▲' : '▼') : ''}</th>
+                  <th className="px-6 py-4 text-center text-xs font-medium text-white uppercase tracking-wider">Attachment</th>
                   <th className="px-6 py-4 text-center text-xs font-medium text-white uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {filtered.length === 0 ? (
-                  <tr><td colSpan="6" className="px-6 py-12 text-center text-gray-500">No tickets found</td></tr>
+                  <tr><td colSpan="7" className="px-6 py-12 text-center text-gray-500">No tickets found</td></tr>
                 ) : (
                   paginated.map((row, idx) => (
                     <tr key={row.id} className={`${isOverdue(row) ? 'border-l-4 border-red-400 bg-red-50' : ''} ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-colors duration-150`}>
@@ -549,6 +587,25 @@ export default function TicketsPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{renderPriorityChip(row.priority)}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{row.category}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-center text-sm">
+                        {row.attachment ? (
+                          <a
+                            href={getAttachmentHref(row.attachment)}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center justify-center p-2 text-blue-600 hover:text-blue-800"
+                            title="View Attachment"
+                            aria-label="View Attachment"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                          </a>
+                        ) : (
+                          <span className="text-gray-400">--NA--</span>
+                        )}
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
                         <div className="flex items-center justify-center space-x-2">
                           <button
@@ -755,11 +812,37 @@ export default function TicketsPage() {
                       </div>
                       <div className="flex-1">
                         <label className="block mb-2 text-sm font-medium text-gray-700">Attachment</label>
+                        {editingId && typeof form.attachment === 'string' && form.attachment && (
+                          <div className="mb-2">
+                            <div className="flex items-center gap-3">
+                              <input
+                                type="text"
+                                readOnly
+                                value={getDisplayAttachmentPath(form.attachment)}
+                                className="block w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-50 text-gray-700"
+                              />
+                              <a
+                                href={getAttachmentHref(form.attachment)}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-blue-600 hover:underline whitespace-nowrap"
+                              >
+                                Open
+                              </a>
+                            </div>
+                            <div className="text-xs text-gray-500 mt-1">If you do not choose a new file, this attachment will be kept on update.</div>
+                          </div>
+                        )}
+                        {typeof form.attachment === 'object' && form.attachment?.name && (
+                          <div className="mb-2 text-sm text-gray-600">
+                            New file selected: {form.attachment.name}
+                          </div>
+                        )}
                         <input
                           type="file"
                           onChange={e => {
                             const file = e.target.files[0];
-                            setForm({ ...form, attachment: file });
+                            setForm({ ...form, attachment: file || '' });
                           }}
                           className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         />
