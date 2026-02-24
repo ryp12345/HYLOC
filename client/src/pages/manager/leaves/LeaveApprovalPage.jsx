@@ -214,7 +214,7 @@ const LeaveApprovalPage = () => {
   return (
     <div className="min-h-screen p-6 bg-gray-50">
       <div className="max-w-7xl mx-auto">
-        <div className="mb-6">
+        <div className="mb-12 text-center">
           <h1 className="text-3xl font-bold text-gray-800">Leave Approval (Manager)</h1>
           <p className="text-sm text-gray-600">Approve or reject employee leave requests</p>
         </div>

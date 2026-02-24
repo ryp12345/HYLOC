@@ -549,10 +549,10 @@ const EmployeeCalendar = ({ joinDate }) => {
         </div>
       )}
 
-      {/* Leave Balance Cards */}
+      {/* Leave Details Cards */}
       {leaveBalance && (
         <div>
-          <h3 className="text-lg font-semibold text-gray-800 mb-4">Leave Balance - {currentDate.getFullYear()}</h3>
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">Leave Details - {currentDate.getFullYear()}</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg shadow-lg p-6 text-white">
               <p className="text-sm opacity-90 mb-2">Entitled</p>
