@@ -155,6 +155,85 @@ const sortByExtractedMonth = (a, b) => {
   return av - bv;
 };
 
+const getRowRecencyScore = (row) => {
+  const updatedAt = row?.updated_at ? new Date(row.updated_at).getTime() : Number.NaN;
+  if (Number.isFinite(updatedAt)) return updatedAt;
+
+  const createdAt = row?.created_at ? new Date(row.created_at).getTime() : Number.NaN;
+  if (Number.isFinite(createdAt)) return createdAt;
+
+  const idValue = Number(row?.id);
+  return Number.isFinite(idValue) ? idValue : Number.NEGATIVE_INFINITY;
+};
+
+const buildFiscalSeries = (rows, fiscalYear) => {
+  const fiscalSequence = FISCAL_MONTHS.map((month) => ({
+    month,
+    year: month >= 4 ? fiscalYear : fiscalYear + 1,
+    label: MONTH_LABELS[month - 1],
+  }));
+
+  const actualBySlot = {};
+  const targetBySlot = {};
+
+  (Array.isArray(rows) ? rows : []).forEach((row) => {
+    const month = extractRowMonth(row);
+    if (!month) return;
+
+    const rawYear = extractRowYear(row);
+    const year = Number.isFinite(rawYear)
+      ? rawYear
+      : (month >= 4 ? fiscalYear : fiscalYear + 1);
+
+    const inFiscalWindow = (year === fiscalYear && month >= 4) || (year === fiscalYear + 1 && month <= 3);
+    if (!inFiscalWindow) return;
+
+    const slotKey = `${year}-${month}`;
+    const recency = getRowRecencyScore(row);
+    const { actual, target } = extractActualTarget(row);
+
+    if (actual !== null) {
+      const previous = actualBySlot[slotKey];
+      if (!previous || recency >= previous.recency) {
+        actualBySlot[slotKey] = { value: actual, recency };
+      }
+    }
+
+    if (target !== null) {
+      const previous = targetBySlot[slotKey];
+      if (!previous || recency >= previous.recency) {
+        targetBySlot[slotKey] = { value: target, recency };
+      }
+    }
+  });
+
+  const actualValues = fiscalSequence.map(({ month, year }) => {
+    const slot = actualBySlot[`${year}-${month}`];
+    return slot ? slot.value : null;
+  });
+
+  const targetValues = fiscalSequence.map(({ month, year }) => {
+    const slot = targetBySlot[`${year}-${month}`];
+    return slot ? slot.value : null;
+  });
+
+  return {
+    actualValues,
+    targetValues,
+    labels: fiscalSequence.map(({ label }) => label),
+  };
+};
+
+const getLatestSeriesValue = (seriesValues) => {
+  for (let index = seriesValues.length - 1; index >= 0; index -= 1) {
+    const value = seriesValues[index];
+    if (value !== null && value !== undefined) {
+      return value;
+    }
+  }
+  return null;
+};
+
   
 
 const KPIDetailPage = () => {
@@ -854,31 +933,7 @@ const KPIDetailPage = () => {
 
     console.log(`[LineChart] ${title} - Actuals:`, actuals.length, 'Targets:', targets.length);
 
-    // Map to fiscal year order
-    const fiscalSequence = getFiscalMonthSequence(fiscalYear);
-    const actualsByMonth = {};
-    const targetsByMonth = {};
-
-    data.forEach((row) => {
-      const month = extractRowMonth(row);
-      if (!month) return;
-      const { actual: actualVal, target: targetVal } = extractActualTarget(row);
-
-      if (actualVal !== null) {
-        actualsByMonth[month] = actualVal;
-      }
-      if (targetVal !== null) {
-        targetsByMonth[month] = targetVal;
-      }
-    });
-
-    const actualValues = fiscalSequence.map(({ month }) => (
-      Object.prototype.hasOwnProperty.call(actualsByMonth, month) ? actualsByMonth[month] : null
-    ));
-    const targetValues = fiscalSequence.map(({ month }) => (
-      Object.prototype.hasOwnProperty.call(targetsByMonth, month) ? targetsByMonth[month] : null
-    ));
-    const labels = fiscalSequence.map(({ label }) => label);
+    const { actualValues, targetValues, labels } = buildFiscalSeries(data, fiscalYear);
 
     console.log(`[LineChart] ${title} - Actual values:`, actualValues);
     console.log(`[LineChart] ${title} - Target values:`, targetValues);
@@ -905,8 +960,8 @@ const KPIDetailPage = () => {
     };
 
     // Calculate achievement rate and trend using the proper method
-    const lastActual = actualValues.filter(v => v !== null).slice(-1)[0];
-    const lastTarget = targetValues.filter(v => v !== null).slice(-1)[0];
+    const lastActual = getLatestSeriesValue(actualValues);
+    const lastTarget = getLatestSeriesValue(targetValues);
     // Fallback: if month-mapped values are missing, try to find the latest numeric values from raw rows
     const findLatestNumeric = (rows, keys) => {
       if (!rows || rows.length === 0) return null;
@@ -957,7 +1012,7 @@ const KPIDetailPage = () => {
           {/* Grid lines with values */}
           {[...Array(5)].map((_, i) => {
             const value = minVal + (i / 4) * (maxVal - minVal);
-            const y = padding + (i * (svgHeight - 2 * padding)) / 4;
+            const y = svgHeight - padding - (i / 4) * (svgHeight - 2 * padding);
             return (
               <g key={`grid-${i}`}>
                 <line
@@ -1109,8 +1164,8 @@ const KPIDetailPage = () => {
               <span className="text-gray-500 block">Variance:</span>
               <span className={`font-semibold ${
                 isInverse 
-                  ? (lastActual <= lastTarget ? 'text-green-600' : 'text-red-600')
-                  : (lastActual >= lastTarget ? 'text-green-600' : 'text-red-600')
+                  ? (effectiveLastActual <= effectiveLastTarget ? 'text-green-600' : 'text-red-600')
+                  : (effectiveLastActual >= effectiveLastTarget ? 'text-green-600' : 'text-red-600')
               }`}>
                 {(effectiveLastActual >= effectiveLastTarget ? '+' : '')}{((effectiveLastActual ?? 0) - (effectiveLastTarget ?? 0)).toFixed(2)}
               </span>
@@ -1144,22 +1199,7 @@ const KPIDetailPage = () => {
       );
     }
 
-    const fiscalSequence = getFiscalMonthSequence(fiscalYear);
-
-    const actualsByMonth = {};
-    data.forEach((row) => {
-      const month = extractRowMonth(row);
-      if (!month) return;
-      const { actual: actualVal, type } = extractActualTarget(row);
-      if (type !== 'actual' && actualVal == null) return;
-      if (actualVal !== null) {
-        // keep last actual for month
-        actualsByMonth[month] = actualVal;
-      }
-    });
-
-    const values = fiscalSequence.map(({ month }) => (Object.prototype.hasOwnProperty.call(actualsByMonth, month) ? actualsByMonth[month] : null));
-    const labels = fiscalSequence.map(({ label }) => label);
+    const { actualValues: values, labels } = buildFiscalSeries(data, fiscalYear);
 
     const maxValRaw = values.filter(v => v !== null).length > 0 ? Math.max(...values.filter(v => v !== null)) : 0;
     const minValRaw = values.filter(v => v !== null).length > 0 ? Math.min(...values.filter(v => v !== null)) : 0;
@@ -1211,9 +1251,9 @@ const KPIDetailPage = () => {
           ))}
 
           {/* Y-axis labels */}
-          {[...Array(4)].map((_, i) => {
-            const value = minVal + (i / 3) * (maxVal - minVal);
-            const y = svgHeight - padding - (i / 3) * (svgHeight - 2 * padding);
+          {[...Array(5)].map((_, i) => {
+            const value = minVal + (i / 4) * (maxVal - minVal);
+            const y = svgHeight - padding - (i / 4) * (svgHeight - 2 * padding);
             return (
               <text key={`y-${i}`} x={padding - 10} y={y + 5} textAnchor="end" fontSize="11" fill="#4b5563">
                 {value.toFixed(0)}
@@ -1236,18 +1276,15 @@ const KPIDetailPage = () => {
 
     values.forEach(value => {
       const data = monthlyData[value.id] || [];
-      const actuals = data.filter(d => extractRowType(d) === 'actual');
-      const targets = data.filter(d => extractRowType(d) === 'target');
-      
-      if (actuals.length > 0 && targets.length > 0) {
-        const latestActual = extractActualTarget(actuals[actuals.length - 1]).actual ?? parseNumeric(actuals[actuals.length - 1].value) ?? 0;
-        const latestTarget = extractActualTarget(targets[targets.length - 1]).target ?? parseNumeric(targets[targets.length - 1].value) ?? 0;
-        
-        if (latestTarget > 0 || latestActual > 0) {
-          const rate = calculateAchievementRate(latestActual, latestTarget, value.data);
-          achievementRates.push(rate);
-          hasData = true;
-        }
+      const { actualValues, targetValues } = buildFiscalSeries(data, fiscalYear);
+      const hasTarget = targetValues.some((entry) => entry !== null);
+      const latestActual = getLatestSeriesValue(actualValues) ?? 0;
+      const latestTarget = getLatestSeriesValue(targetValues) ?? 0;
+
+      if (hasTarget && (latestTarget > 0 || latestActual > 0)) {
+        const rate = calculateAchievementRate(latestActual, latestTarget, value.data);
+        achievementRates.push(rate);
+        hasData = true;
       }
     });
 
@@ -2101,16 +2138,20 @@ const KPIDetailPage = () => {
                         return ia - ib;
                       });
 
-                      return rows.map((r, idx) => (
+                      return rows.map((r, idx) => {
+                        const parsedActual = r.actual != null ? parseNumeric(r.actual) : null;
+                        const parsedTarget = r.target != null ? parseNumeric(r.target) : null;
+                        return (
                         <tr key={idx} className="border-t">
                           <td className="py-2 pr-4">{r.monthLabel}</td>
                           <td className="py-2 pr-4">{r.value_type}</td>
                           <td className="py-2 pr-4">{r.operator ?? '-'}</td>
-                          <td className="py-2 pr-4">{r.actual != null ? parseNumeric(r.actual).toFixed(2) : '-'}</td>
-                          <td className="py-2 pr-4">{r.target != null ? parseNumeric(r.target).toFixed(2) : '-'}</td>
+                          <td className="py-2 pr-4">{parsedActual != null ? parsedActual.toFixed(2) : '-'}</td>
+                          <td className="py-2 pr-4">{parsedTarget != null ? parsedTarget.toFixed(2) : '-'}</td>
                           <td className="py-2 pr-4 text-gray-600">{r.raw != null ? String(r.raw) : '-'}</td>
                         </tr>
-                      ));
+                        );
+                      });
                     })()}
                   </tbody>
                 </table>

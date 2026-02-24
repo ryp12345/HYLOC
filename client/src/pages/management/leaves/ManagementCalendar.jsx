@@ -265,10 +265,22 @@ const ManagementCalendar = () => {
 		});
 	};
 
-	const openLeaveModal = (date) => {
+	// Check if a leave belongs to the logged-in user (robust fallback)
+	const isLeaveByCurrentUser = (leave) => {
+		if (!leave || !user) return false;
+		if (typeof leave.user_id !== 'undefined' && leave.user_id !== null && user.id) {
+			return Number(leave.user_id) === Number(user.id);
+		}
+		if (leave.empid && user.empid) return String(leave.empid) === String(user.empid);
+		if (leave.user_name && user.firstname) return String(leave.user_name).trim() === `${user.firstname} ${user.lastname}`.trim();
+		return false;
+	};
+
+	const openLeaveModal = (date) => {  
 		const dayLeaves = getTeamLeavesForDate(date);
+		const otherLeaves = (dayLeaves || []).filter(l => !isLeaveByCurrentUser(l));
 		setSelectedLeaveDate(date);
-		setSelectedDateLeaves(dayLeaves);
+		setSelectedDateLeaves(otherLeaves);
 		setShowLeaveModal(true);
 	};
 
@@ -971,6 +983,7 @@ const ManagementCalendar = () => {
 								<div className="grid grid-cols-7 gap-1">
 									{monthDays.map((date, index) => {
 										const teamLeaves = getTeamLeavesForDate(date);
+										const otherLeaves = (teamLeaves || []).filter(l => !isLeaveByCurrentUser(l));
 										const myLeave = getMyLeaveForDate(date);
 										return (
 											<div
@@ -997,7 +1010,7 @@ const ManagementCalendar = () => {
 																	onClick={(e) => { e.stopPropagation(); handleDateClick(date); }}
 																	onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); handleDateClick(date); } }}
 																>
-																	<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+																																		<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
 																		<path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
 																	</svg>
 																	<span className="text-[10px]">Me</span>
@@ -1006,19 +1019,19 @@ const ManagementCalendar = () => {
 														)}
 													</>
 												)}
-												{teamLeaves.length > 0 && (
+																								{otherLeaves.length > 0 && (
 													<div className="mt-2">
 														<button
 															className="inline-flex items-center gap-2 bg-purple-600 text-white text-xs font-semibold px-2 py-0.5 rounded-full shadow-sm hover:bg-purple-700 focus:outline-none"
 															title="Org. leaves"
-															aria-label={`View ${teamLeaves.length} org leave${teamLeaves.length > 1 ? 's' : ''}`}
+																														aria-label={`View ${otherLeaves.length} org leave${otherLeaves.length > 1 ? 's' : ''}`}
 															onClick={(e) => { e.stopPropagation(); openLeaveModal(date); }}
 															onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); openLeaveModal(date); } }}
 														>
-															<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4" aria-hidden="true"><path d="M2 22C2 17.5817 5.58172 14 10 14C14.4183 14 18 17.5817 18 22H16C16 18.6863 13.3137 16 10 16C6.68629 16 4 18.6863 4 22H2ZM10 13C6.685 13 4 10.315 4 7C4 3.685 6.685 1 10 1C13.315 1 16 3.685 16 7C16 10.315 13.315 13 10 13ZM10 11C12.21 11 14 9.21 14 7C14 4.79 12.21 3 10 3C7.79 3 6 4.79 6 7C6 9.21 7.79 11 10 11ZM18.2837 14.7028C21.0644 15.9561 23 18.752 23 22H21C21 19.564 19.5483 17.4671 17.4628 16.5271L18.2837 14.7028ZM17.5962 3.41321C19.5944 4.23703 21 6.20361 21 8.5C21 11.3702 18.8042 13.7252 16 13.9776V11.9646C17.6967 11.7222 19 10.264 19 8.5C19 7.11935 18.2016 5.92603 17.041 5.35635L17.5962 3.41321Z"/></svg>
-															{teamLeaves.length >= 1 && (
-																<span className="bg-white text-purple-700 text-[10px] font-semibold rounded-full px-1 py-0.5">{teamLeaves.length}</span>
-															)}
+															<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" className="h-6 w-6" aria-hidden="true"><path d="M2 22C2 17.5817 5.58172 14 10 14C14.4183 14 18 17.5817 18 22H16C16 18.6863 13.3137 16 10 16C6.68629 16 4 18.6863 4 22H2ZM10 13C6.685 13 4 10.315 4 7C4 3.685 6.685 1 10 1C13.315 1 16 3.685 16 7C16 10.315 13.315 13 10 13ZM10 11C12.21 11 14 9.21 14 7C14 4.79 12.21 3 10 3C7.79 3 6 4.79 6 7C6 9.21 7.79 11 10 11ZM18.2837 14.7028C21.0644 15.9561 23 18.752 23 22H21C21 19.564 19.5483 17.4671 17.4628 16.5271L18.2837 14.7028ZM17.5962 3.41321C19.5944 4.23703 21 6.20361 21 8.5C21 11.3702 18.8042 13.7252 16 13.9776V11.9646C17.6967 11.7222 19 10.264 19 8.5C19 7.11935 18.2016 5.92603 17.041 5.35635L17.5962 3.41321Z"/></svg>
+																														{otherLeaves.length >= 1 && (
+																																<span className="bg-white text-purple-700 text-[10px] font-semibold rounded-full px-1 py-0.5">{otherLeaves.length}</span>
+																														)}
 														</button>
 													</div>
 												)}
@@ -1032,7 +1045,7 @@ const ManagementCalendar = () => {
 																aria-label={`View ${dayTickets.length} ticket${dayTickets.length > 1 ? 's' : ''}`}
 																onClick={(e) => { e.stopPropagation(); openTicketModal(date); }}
 															>
-																	<span aria-hidden="true" className="text-base">🎫</span>
+																	<span aria-hidden="true" className="h-6 w-6 inline-flex items-center justify-center text-[24px]">🎫</span>
 																{dayTickets.length >= 1 && (
 																	<span className="bg-white text-green-700 text-[10px] font-semibold rounded-full px-1 py-0.5">{dayTickets.length}</span>
 																)}
@@ -1057,6 +1070,7 @@ const ManagementCalendar = () => {
 								<div className="grid grid-cols-7 gap-2">
 									{weekDays.map((date, index) => {
 										const teamLeaves = getTeamLeavesForDate(date);
+										const otherLeaves = (teamLeaves || []).filter(l => !isLeaveByCurrentUser(l));
 										const myLeave = getMyLeaveForDate(date);
 										return (
 											<div key={index} className="border rounded p-3">
@@ -1078,18 +1092,18 @@ const ManagementCalendar = () => {
 															</button>
 														</div>
 													)}
-													{teamLeaves.length > 0 && (
+													{otherLeaves.length > 0 && (
 														<div>
 															<button
 																className="inline-flex items-center gap-2 bg-purple-600 text-white text-xs font-semibold px-2 py-0.5 rounded-full shadow-sm hover:bg-purple-700 focus:outline-none"
 																title="Org. leaves"
-																aria-label={`View ${teamLeaves.length} org leave${teamLeaves.length > 1 ? 's' : ''}`}
+																aria-label={`View ${otherLeaves.length} org leave${otherLeaves.length > 1 ? 's' : ''}`}
 																onClick={(e) => { e.stopPropagation(); openLeaveModal(date); }}
 																onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); openLeaveModal(date); } }}
 															>
-																<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="currentColor" className="h-4 w-4" aria-hidden="true"><path d="M2 22C2 17.5817 5.58172 14 10 14C14.4183 14 18 17.5817 18 22H16C16 18.6863 13.3137 16 10 16C6.68629 16 4 18.6863 4 22H2ZM10 13C6.685 13 4 10.315 4 7C4 3.685 6.685 1 10 1C13.315 1 16 3.685 16 7C16 10.315 13.315 13 10 13ZM10 11C12.21 11 14 9.21 14 7C14 4.79 12.21 3 10 3C7.79 3 6 4.79 6 7C6 9.21 7.79 11 10 11ZM18.2837 14.7028C21.0644 15.9561 23 18.752 23 22H21C21 19.564 19.5483 17.4671 17.4628 16.5271L18.2837 14.7028ZM17.5962 3.41321C19.5944 4.23703 21 6.20361 21 8.5C21 11.3702 18.8042 13.7252 16 13.9776V11.9646C17.6967 11.7222 19 10.264 19 8.5C19 7.11935 18.2016 5.92603 17.041 5.35635L17.5962 3.41321Z"></path></svg>
-																{teamLeaves.length >= 1 && (
-																	<span className="bg-white text-purple-700 text-[10px] font-semibold rounded-full px-1 py-0.5">{teamLeaves.length}</span>
+																<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="currentColor" className="h-6 w-6" aria-hidden="true"><path d="M2 22C2 17.5817 5.58172 14 10 14C14.4183 14 18 17.5817 18 22H16C16 18.6863 13.3137 16 10 16C6.68629 16 4 18.6863 4 22H2ZM10 13C6.685 13 4 10.315 4 7C4 3.685 6.685 1 10 1C13.315 1 16 3.685 16 7C16 10.315 13.315 13 10 13ZM10 11C12.21 11 14 9.21 14 7C14 4.79 12.21 3 10 3C7.79 3 6 4.79 6 7C6 9.21 7.79 11 10 11ZM18.2837 14.7028C21.0644 15.9561 23 18.752 23 22H21C21 19.564 19.5483 17.4671 17.4628 16.5271L18.2837 14.7028ZM17.5962 3.41321C19.5944 4.23703 21 6.20361 21 8.5C21 11.3702 18.8042 13.7252 16 13.9776V11.9646C17.6967 11.7222 19 10.264 19 8.5C19 7.11935 18.2016 5.92603 17.041 5.35635L17.5962 3.41321Z"></path></svg>
+																{otherLeaves.length >= 1 && (
+																	<span className="bg-white text-purple-700 text-[10px] font-semibold rounded-full px-1 py-0.5">{otherLeaves.length}</span>
 																)}
 															</button>
 														</div>
@@ -1104,7 +1118,7 @@ const ManagementCalendar = () => {
 																	aria-label={`View ${dayTickets.length} ticket${dayTickets.length > 1 ? 's' : ''}`}
 																	onClick={(e) => { e.stopPropagation(); openTicketModal(date); }}
 																>
-																	<span aria-hidden="true" className="text-base">🎫</span>
+																	<span aria-hidden="true" className="h-6 w-6 inline-flex items-center justify-center text-[24px]">🎫</span>
 																	{dayTickets.length >= 1 && (
 																		<span className="bg-white text-green-700 text-[10px] font-semibold rounded-full px-1 py-0.5">{dayTickets.length}</span>
 																	)}

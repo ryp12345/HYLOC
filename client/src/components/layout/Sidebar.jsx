@@ -112,8 +112,10 @@ const Sidebar = () => {
             }
           }}
           className="text-gray-400 hover:text-white focus:outline-none"
+          aria-label="Toggle sidebar"
         >
-          {isOpen || (!isOpen && expandedMenu) ? '◄' : '►'}
+          {/* three horizontal dots, larger for visibility */}
+          <span className="text-xl select-none">• • •</span>
         </button>
       </div>
 
