@@ -41,6 +41,7 @@ import ManagerLeavesPage from '../pages/manager/leaves/LeavesPage';
 import ManagerLeaveApprovalPage from '../pages/manager/leaves/LeaveApprovalPage';
 import ManagementLeaveApprovalPage from '../pages/management/leaves/LeaveApprovalPage';
 import ForgotPasswordPage from '../pages/auth/ForgotPasswordPage';
+import ProfilePage from '../pages/auth/ProfilePage';
 import RaiseTicket from '../pages/dev-tickets/RaiseTicket';
 import TicketsPage from '../pages/tickets/TicketsPage';
 
@@ -189,6 +190,18 @@ const AppRoutes = () => {
               <AuthRoute>
                 <ForgotPasswordPage />
               </AuthRoute>
+            }
+          />
+
+          {/* Profile Route - Accessible to all authenticated users */}
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <ProfilePage />
+                </DashboardLayout>
+              </ProtectedRoute>
             }
           />
 

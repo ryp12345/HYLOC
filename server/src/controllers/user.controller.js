@@ -193,6 +193,47 @@ exports.getMyProfile = async (req, res) => {
   }
 };
 
+// Update current user profile (self-update)
+exports.updateMyProfile = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { firstName, middleName, lastName, email, phone, address, bloodGroup, departmentId, designationId } = req.body;
+
+    // Validate required fields
+    if (!firstName || !lastName || !email) {
+      return sendError(res, 'First name, last name, and email are required', 400);
+    }
+
+    // Check if email is being changed and if it's already taken by another user
+    if (email) {
+      const existingUser = await userModel.findUserByEmail(email);
+      if (existingUser && existingUser.id !== userId) {
+        return sendError(res, 'Email already exists', 400);
+      }
+    }
+
+    // Update user with allowed fields only (convert to snake_case for database)
+    const updateData = {
+      firstname: firstName,
+      middlename: middleName || null,
+      lastname: lastName,
+      email,
+      phone: phone || null,
+      address: address || null,
+      bloodgroup: bloodGroup || null,
+      department_id: departmentId || null,
+      designation_id: designationId || null
+    };
+
+    const updatedUser = await userModel.updateUser(userId, updateData);
+    
+    return sendSuccess(res, updatedUser, 'Profile updated successfully');
+  } catch (error) {
+    console.error('Update profile error:', error);
+    return sendError(res, 'Failed to update profile', 500);
+  }
+};
+
 // Get minimal list of assignable users (safe for non-admins)
 exports.getAssignableUsers = async (req, res) => {
   try {

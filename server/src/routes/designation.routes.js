@@ -8,11 +8,11 @@ const router = express.Router();
 // All designation routes require authentication
 router.use(authenticate);
 
-// Get all designations (accessible by admin and management)
-router.get('/', authorize('admin', 'management'), designationController.getAllDesignations);
+// Get all designations (accessible by any authenticated user)
+router.get('/', designationController.getAllDesignations);
 
-// Get designation by ID (accessible by admin and management)
-router.get('/:id', authorize('admin', 'management'), designationController.getDesignationById);
+// Get designation by ID (accessible by any authenticated user)
+router.get('/:id', designationController.getDesignationById);
 
 // Create designation (only admin)
 router.post('/', authorize('admin'), designationController.createDesignation);
