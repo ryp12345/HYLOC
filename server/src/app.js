@@ -33,7 +33,9 @@ app.use(cors(config.cors));
 
 const path = require('path');
 // Serve uploaded files
-app.use('/uploads', express.static(path.join(__dirname, '../public/uploads')));
+const uploadsPath = path.join(__dirname, '../public/uploads');
+app.use('/uploads', express.static(uploadsPath));
+app.use('/api/uploads', express.static(uploadsPath));
 
 // Request logging middleware
 app.use((req, res, next) => {
