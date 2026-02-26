@@ -18,10 +18,14 @@ const fs = require('fs');
 const path = require('path');
 
 const publicRoot = path.resolve(__dirname, '../../public');
+const ticketUploadsBasePath = '/api/uploads/tickets';
 
 const toLocalUploadPath = (attachmentPath) => {
   if (!attachmentPath || typeof attachmentPath !== 'string') return null;
-  const normalized = attachmentPath.replace(/\\/g, '/');
+  let normalized = attachmentPath.replace(/\\/g, '/');
+  if (normalized.startsWith('/api/uploads/')) {
+    normalized = normalized.replace(/^\/api\/uploads\//, '/uploads/');
+  }
   if (!normalized.startsWith('/uploads/')) return null;
 
   const relativePath = normalized.replace(/^\/+/, '');
@@ -82,8 +86,8 @@ exports.createTicket = async (req, res) => {
     // If a file was uploaded, build a URL path for it
     let attachmentUrl = null;
     if (req.file && req.file.filename) {
-      // Serve from /uploads/tickets/<filename>
-      attachmentUrl = `/uploads/tickets/${req.file.filename}`;
+      // Serve from /api/uploads/tickets/<filename>
+      attachmentUrl = `${ticketUploadsBasePath}/${req.file.filename}`;
     } else if (req.body.attachment) {
       // fallback when client posted a string
       attachmentUrl = req.body.attachment;
@@ -158,7 +162,7 @@ exports.updateTicket = async (req, res) => {
     const payload = { ...req.body };
 
     if (req.file && req.file.filename) {
-      payload.attachment = `/uploads/tickets/${req.file.filename}`;
+      payload.attachment = `${ticketUploadsBasePath}/${req.file.filename}`;
     } else if (payload.attachment === '') {
       payload.attachment = null;
     }

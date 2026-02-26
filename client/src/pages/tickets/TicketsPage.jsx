@@ -218,15 +218,18 @@ export default function TicketsPage() {
     if (!attachmentPath.startsWith('/')) return attachmentPath;
 
     try {
-      // Dev: API_URL = http://host:3001/api => serve from backend origin
-      if (API_URL.startsWith('http')) {
-        const apiOrigin = new URL(API_URL).origin;
-        return `${apiOrigin}${attachmentPath}`;
+      const appOrigin = API_URL.startsWith('http') ? new URL(API_URL).origin : window.location.origin;
+      const apiBase = API_URL.startsWith('http') ? API_URL : `${window.location.origin}${API_URL}`;
+
+      if (attachmentPath.startsWith('/uploads/')) {
+        return `${apiBase}${attachmentPath}`;
       }
 
-      // Prod behind reverse proxy: API_URL = /api => serve via proxy path
-      const apiBase = API_URL.endsWith('/') ? API_URL.slice(0, -1) : API_URL;
-      return `${apiBase}${attachmentPath}`;
+      if (attachmentPath.startsWith('/api/')) {
+        return `${appOrigin}${attachmentPath}`;
+      }
+
+      return `${appOrigin}${attachmentPath}`;
     } catch {
       return attachmentPath;
     }
@@ -553,6 +556,7 @@ export default function TicketsPage() {
             </div>
           )}
         </div>
+
         <div className="flex flex-col items-start justify-between gap-4 mb-6 sm:flex-row sm:items-center">
           <div className="relative w-full sm:w-72">
             <input value={search} onChange={(e)=>setSearch(e.target.value)} placeholder="Search tickets..." className="w-full py-2 pl-10 pr-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
@@ -563,6 +567,9 @@ export default function TicketsPage() {
             Add Ticket
           </button>
         </div>
+
+        
+
         <div className="mb-10 overflow-hidden bg-white shadow-xl rounded-xl">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">

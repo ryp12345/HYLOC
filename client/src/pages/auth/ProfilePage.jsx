@@ -181,7 +181,6 @@ export default function ProfilePage() {
         type={notification.type}
         onClose={() => setNotification({ show: false, message: '', type: '' })}
       />
-
       <div className="bg-white rounded-lg shadow-lg overflow-hidden">
         {/* Header */}
         <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-8">
