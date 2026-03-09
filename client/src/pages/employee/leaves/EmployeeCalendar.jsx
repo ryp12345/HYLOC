@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getMyTickets } from '../../../api/ticketApi';
 import { useAuth } from '../../../context/AuthContext';
+import Notification from '../../../components/common/Notification';
 import { 
   applyLeave, 
   getMyLeaves, 
@@ -26,6 +27,7 @@ const EmployeeCalendar = ({ joinDate }) => {
   const [colleagues, setColleagues] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [notification, setNotification] = useState({ show: false, message: '', type: '' });
 
   // Calendar department leaves (colleagues on leave)
   const [calendarLeaves, setCalendarLeaves] = useState([]);
@@ -300,6 +302,7 @@ const EmployeeCalendar = ({ joinDate }) => {
       if (editingLeave) {
         // Update existing leave
         await updateLeave(editingLeave.id, leaveForm);
+        showNotification('Leave request sent!', 'success');
       } else {
         // Create new leave
         const response = await applyLeave(leaveForm);
@@ -307,6 +310,7 @@ const EmployeeCalendar = ({ joinDate }) => {
           const count = response?.data?.data?.records?.length || 2;
           window.alert(`Your leave was split into ${count} separate requests (Paid/Unpaid).`);
         }
+        showNotification('Leave request sent!', 'success');
       }
       
       handleCloseLeaveForm();
@@ -317,6 +321,11 @@ const EmployeeCalendar = ({ joinDate }) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const showNotification = (message, type = 'success') => {
+    setNotification({ show: true, message, type });
+    setTimeout(() => setNotification({ show: false, message: '', type: '' }), 4000);
   };
 
   // Cancel leave
@@ -542,6 +551,13 @@ const EmployeeCalendar = ({ joinDate }) => {
 
   return (
     <div className="w-full space-y-6">
+      <Notification
+        show={notification.show}
+        message={notification.message}
+        type={notification.type}
+        onClose={() => setNotification({ show: false, message: '', type: '' })}
+      />
+
       {/* Error Message */}
       {error && (
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
