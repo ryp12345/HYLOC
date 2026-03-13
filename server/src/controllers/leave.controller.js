@@ -43,6 +43,42 @@ exports.applyLeave = async (req, res, next) => {
     
     const leaveRecord = await leaveService.applyLeave(userId, req.body, userRole);
 
+    // Send notification to department managers when an Employee applies for leave
+    try {
+      const normalizedRole = (userRole || '').toLowerCase();
+      if (normalizedRole === 'employee') {
+        const notificationModel = require('../models/notification.model');
+        const applicant = await userModel.findUserById(userId);
+        if (applicant && applicant.department_id) {
+          const managers = await userModel.getManagersByDepartment(applicant.department_id);
+          if (managers && managers.length > 0) {
+            const applicantName = [applicant.firstname, applicant.lastname].filter(Boolean).join(' ');
+            const fromDate = req.body.from_date;
+            const toDate = req.body.to_date;
+            const leaveType = req.body.leave_type || 'Leave';
+            let dateText = fromDate;
+            if (toDate && fromDate !== toDate) {
+              dateText = `${fromDate} to ${toDate}`;
+            }
+            for (const manager of managers) {
+              if (manager && manager.id) {
+                await notificationModel.createNotification({
+                  created_by: userId,
+                  assigned_to: manager.id,
+                  message: `${applicantName} from your department has applied for ${leaveType} leave from ${dateText}.`,
+                  type: 'leave',
+                  is_read: false
+                });
+              }
+            }
+          }
+        }
+      }
+    } catch (notifyErr) {
+      // Log error but don't block leave application
+      console.error('Manager notification error:', notifyErr);
+    }
+
     // Send notification to alternate person if present//////////////////////
     if (req.body.alternate_person) {
       try {

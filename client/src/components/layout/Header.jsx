@@ -175,6 +175,7 @@ const Navbar = () => {
                                   return 'Ticket created';
                                 }
                                 if (t === 'ticket_edit') return 'Ticket updated';
+                                if (t === 'leave') return 'Leave';
                                 return 'Ticket';
                               };
 

@@ -63,13 +63,36 @@ const ManagerCalendar = ({ joinDate }) => {
   // Load tickets for the user
   const loadTickets = async () => {
     try {
-      // Managers should see all tickets; employees see only their own
+      // Managers should see all tickets.
+      // Non-managers should see tickets they created OR tickets assigned to them.
       if (userRole === 'manager' || userRole === 'management') {
         const res = await getAllTickets();
         setTickets(res.data.data || []);
       } else {
-        const res = await getMyTickets();
-        setTickets(res.data.data || []);
+        const res = await getAllTickets();
+        const all = res.data.data || [];
+        // DEBUG: inspect tickets shape to ensure assigned_to/user_id fields exist
+        try {
+          console.groupCollapsed('[ManagerCalendar] fetched tickets sample');
+          console.log('total fetched:', all.length);
+          console.log('sample tickets (first 10):', all.slice(0, 10).map(t => ({ id: t.id, user_id: t.user_id, created_at: t.created_at, assigned_to: t.assigned_to })));
+          console.groupEnd();
+        } catch (e) {
+          console.debug('Error while logging tickets sample', e);
+        }
+        const uid = Number(user?.id);
+        const filtered = all.filter((ticket) => {
+          const creatorId = Number(ticket.user_id ?? ticket.user?.id ?? ticket.userId ?? ticket.created_by ?? ticket.createdBy ?? NaN);
+          const a = ticket.assigned_to;
+          let assignedId = NaN;
+          if (a != null) {
+            if (typeof a === 'object') assignedId = Number(a.id ?? a.user_id ?? a.userId ?? NaN);
+            else assignedId = Number(a);
+          }
+
+          return (!isNaN(creatorId) && creatorId === uid) || (!isNaN(assignedId) && assignedId === uid);
+        });
+        setTickets(filtered);
       }
     } catch (err) {
       // optionally handle error
