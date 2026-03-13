@@ -218,8 +218,18 @@ export default function TicketsPage() {
     if (!attachmentPath.startsWith('/')) return attachmentPath;
 
     try {
-      const apiOrigin = API_URL.startsWith('http') ? new URL(API_URL).origin : window.location.origin;
-      return `${apiOrigin}${attachmentPath}`;
+      const appOrigin = API_URL.startsWith('http') ? new URL(API_URL).origin : window.location.origin;
+      const apiBase = API_URL.startsWith('http') ? API_URL : `${window.location.origin}${API_URL}`;
+
+      if (attachmentPath.startsWith('/uploads/')) {
+        return `${apiBase}${attachmentPath}`;
+      }
+
+      if (attachmentPath.startsWith('/api/')) {
+        return `${appOrigin}${attachmentPath}`;
+      }
+
+      return `${appOrigin}${attachmentPath}`;
     } catch {
       return attachmentPath;
     }

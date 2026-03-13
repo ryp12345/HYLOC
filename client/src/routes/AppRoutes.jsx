@@ -6,7 +6,6 @@ import { AuthProvider } from '../context/AuthContext';
 import Login from '../pages/auth/Login';
 import Register from '../pages/auth/Register';
 import AdminDashboard from '../pages/admin/Dashboard';
-
 import ManagementDashboard from '../pages/management/ManagementDashboard';
 import KPIDetailPage from '../pages/management/KPIDetailPage';
 import PlantEfficiency from '../pages/management/PlantEfficiency';
@@ -16,7 +15,6 @@ import MgtKmiPage from '../pages/management/MgtKmiPage';
 import MgtKmiDetail from '../pages/management/MgtKmiDetail';
 import ManagementMyLeavePage from '../pages/management/leaves/MyLeavePage';
 import ManagerMyLeavePage from '../pages/manager/leaves/MyLeavePage';
-
 import ManagementLeavesPage from '../pages/management/leaves/LeavesPage';
 import EmployeeDashboard from '../pages/employee/EmployeeDashboard';
 import EmpKpiKaiPage from '../pages/employee/EmpKpiKaiPage';
@@ -41,6 +39,7 @@ import ManagerLeavesPage from '../pages/manager/leaves/LeavesPage';
 import ManagerLeaveApprovalPage from '../pages/manager/leaves/LeaveApprovalPage';
 import ManagementLeaveApprovalPage from '../pages/management/leaves/LeaveApprovalPage';
 import ForgotPasswordPage from '../pages/auth/ForgotPasswordPage';
+import ProfilePage from '../pages/auth/ProfilePage';
 import RaiseTicket from '../pages/dev-tickets/RaiseTicket';
 import TicketsPage from '../pages/tickets/TicketsPage';
 
@@ -189,6 +188,18 @@ const AppRoutes = () => {
               <AuthRoute>
                 <ForgotPasswordPage />
               </AuthRoute>
+            }
+          />
+
+          {/* Profile Route - Accessible to all authenticated users */}
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <ProfilePage />
+                </DashboardLayout>
+              </ProtectedRoute>
             }
           />
 

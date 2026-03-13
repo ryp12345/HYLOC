@@ -12,3 +12,5 @@ coverage/
 
 server/src/config/db.js
 server/src/server.js
+
+server\public\uploads\tickets

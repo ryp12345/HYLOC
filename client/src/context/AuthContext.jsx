@@ -203,6 +203,12 @@ export const AuthProvider = ({ children }) => {
     setError(null);
   };
 
+  const updateUserContext = (updatedUser) => {
+    const newUser = { ...user, ...updatedUser };
+    setUser(newUser);
+    localStorage.setItem('user', JSON.stringify(newUser));
+  };
+
   const value = {
     user,
     loading,
@@ -211,6 +217,7 @@ export const AuthProvider = ({ children }) => {
     register,
     logout,
     refreshAccessToken,
+    updateUserContext,
     isAuthenticated: !!user
   };
 
