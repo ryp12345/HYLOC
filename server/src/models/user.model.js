@@ -211,6 +211,29 @@ exports.getAllUsers = async () => {
 };
 
 /**
+ * Get managers by department ID
+ * @param {number} departmentId - Department ID
+ * @returns {Promise<Array>} Array of manager users
+ */
+exports.getManagersByDepartment = async (departmentId) => {
+  const query = `
+    SELECT u.id, u.email, u.firstname, u.middlename, u.lastname, u.empid,
+           u.phone, u.address, u.bloodgroup, u.department_id, u.designation_id,
+           u.status, u.created_at
+    FROM users u
+    JOIN user_roles ur ON ur.user_id = u.id AND ur.status = 'active'
+    JOIN roles r ON r.id = ur.role_id
+    WHERE u.department_id = $1
+      AND u.status = 'active'
+      AND LOWER(r.role_name) = 'manager'
+    ORDER BY u.firstname, u.lastname
+  `;
+
+  const result = await db.query(query, [departmentId]);
+  return result.rows;
+};
+
+/**
  * Get users by department ID
  * @param {number} departmentId - Department ID
  * @returns {Promise<Array>} Array of users

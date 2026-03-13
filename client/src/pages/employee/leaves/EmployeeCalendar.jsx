@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getMyTickets } from '../../../api/ticketApi';
+import { getAllTickets } from '../../../api/ticketApi';
 import { useAuth } from '../../../context/AuthContext';
 import Notification from '../../../components/common/Notification';
 import { 
@@ -107,8 +107,32 @@ const EmployeeCalendar = ({ joinDate }) => {
   // Load tickets for the user
   const loadTickets = async () => {
     try {
-      const res = await getMyTickets();
-      setTickets(res.data.data || []);
+      const res = await getAllTickets();
+      const all = res.data.data || [];
+      // DEBUG: inspect tickets shape
+      try {
+        console.groupCollapsed('[EmployeeCalendar] fetched tickets sample');
+        console.log('total fetched:', all.length);
+        console.log('sample tickets (first 10):', all.slice(0, 10).map(t => ({ id: t.id, user_id: t.user_id, created_at: t.created_at, assigned_to: t.assigned_to })));
+        console.groupEnd();
+      } catch (e) {
+        console.debug('Error while logging tickets sample', e);
+      }
+
+      const uid = Number(userId);
+      const filtered = all.filter((ticket) => {
+        const creatorId = Number(ticket.user_id ?? ticket.user?.id ?? ticket.userId ?? ticket.created_by ?? ticket.createdBy ?? NaN);
+        const a = ticket.assigned_to;
+        let assignedId = NaN;
+        if (a != null) {
+          if (typeof a === 'object') assignedId = Number(a.id ?? a.user_id ?? a.userId ?? NaN);
+          else assignedId = Number(a);
+        }
+
+        return (!isNaN(creatorId) && creatorId === uid) || (!isNaN(assignedId) && assignedId === uid);
+      });
+
+      setTickets(filtered);
     } catch (err) {
       // Optionally set error
     }
