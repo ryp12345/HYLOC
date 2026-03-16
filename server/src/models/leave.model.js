@@ -45,9 +45,18 @@ exports.getLeaveById = async (id) => {
     SELECT l.*, 
            u.firstname || ' ' || u.lastname as user_name,
            u.empid,
+           COALESCE(user_role.role_name, 'Employee') as user_role,
            approver.firstname || ' ' || approver.lastname as approver_name
     FROM leaves l
     LEFT JOIN users u ON l.user_id = u.id
+    LEFT JOIN LATERAL (
+      SELECT r.role_name
+      FROM user_roles ur
+      JOIN roles r ON ur.role_id = r.id
+      WHERE ur.user_id = u.id
+      ORDER BY ur.id ASC
+      LIMIT 1
+    ) user_role ON TRUE
     LEFT JOIN users approver ON l.approved_by = approver.id
     WHERE l.id = $1
   `;

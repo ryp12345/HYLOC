@@ -323,3 +323,17 @@ exports.deleteEntitlement = async (userId, year) => {
   const result = await db.query(query, [userId, year]);
   return result.rowCount > 0;
 };
+
+/**
+ * Get entitlement by its primary id
+ * @param {number} id - Entitlement record id
+ * @returns {Promise<Object|null>} Entitlement record or null
+ */
+exports.getEntitlementById = async (id) => {
+  const query = `
+    SELECT * FROM leaves_entitlement
+    WHERE id = $1
+  `;
+  const result = await db.query(query, [id]);
+  return result.rows[0] || null;
+};

@@ -68,6 +68,13 @@ export const cancelLeave = async (id) => {
 };
 
 /**
+ * Request approver permission to edit/cancel an approved/rejected leave
+ */
+export const requestLeaveChange = async (id) => {
+  return await axios.post(`/leaves/${id}/request-change`, {});
+};
+
+/**
  * Get my leave balance
  */
 export const getMyLeaveBalance = async (year = null) => {

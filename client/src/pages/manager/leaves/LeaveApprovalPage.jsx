@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { getMyLeaves, getAllLeaves, approveLeave, rejectLeave } from '../../../api/leaveApi';
 import { updateLeave } from '../../../api/leaveApi';
 import { useAuth } from '../../../context/AuthContext';
+import Notification from '../../../components/common/Notification';
 
 const LeaveApprovalPage = () => {
   const { user } = useAuth();
@@ -9,10 +10,12 @@ const LeaveApprovalPage = () => {
   const [employeeLeaves, setEmployeeLeaves] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [notification, setNotification] = useState({ show: false, message: '', type: '' });
   const [activeTab, setActiveTab] = useState('Pending');
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingLeave, setEditingLeave] = useState(null);
   const [editStatus, setEditStatus] = useState('');
+  const [isEditMode, setIsEditMode] = useState(false);
   // Leave Search Filters state
   const currentYear = new Date().getFullYear();
   const [filter, setFilter] = useState({
@@ -69,7 +72,7 @@ const LeaveApprovalPage = () => {
     setError(null);
     try {
       // Manager sees ALL Employee leaves from same department (any duration)
-      const response = await getAllLeaves({});
+      const response = await getAllLeaves({ year: filter.year });
       const allLeaves = response.data.data || [];
       const managerDepartmentId = user?.departmentId || user?.department_id;
       const filtered = allLeaves.filter(leave => {
@@ -88,7 +91,7 @@ const LeaveApprovalPage = () => {
 
   useEffect(() => {
     loadEmployeeLeaves();
-  }, []);
+  }, [filter.year]);
 
   const handleApprove = async (leaveId) => {
     if (!window.confirm('Approve this leave request?')) {
@@ -129,25 +132,40 @@ const LeaveApprovalPage = () => {
   const handleEditClick = (leave) => {
     setEditingLeave(leave);
     setEditStatus(leave.status);
+    setIsEditMode(true);
     setShowEditModal(true);
   };
 
-  const handleEditStatusSave = async () => {
+  const showNotification = (message, type = 'success') => {
+    setNotification({ show: true, message, type });
+    setTimeout(() => setNotification({ show: false, message: '', type: '' }), 4000);
+  };
+
+  const handleEditStatusSave = async (newStatus) => {
     if (!editingLeave) return;
+    const statusToSave = newStatus || editStatus;
+    if (!statusToSave) return;
     setLoading(true);
     setError(null);
     try {
       // Update leave status in backend
-      await updateLeave(editingLeave.id, { status: editStatus });
+      await updateLeave(editingLeave.id, { status: statusToSave });
       // Refresh the table from backend
       await loadEmployeeLeaves();
       // Update local state instantly
       setEmployeeLeaves(prevLeaves => prevLeaves.map(l =>
-        l.id === editingLeave.id ? { ...l, status: editStatus, user_name: editingLeave.user_name, user_role: editingLeave.user_role } : l
+        l.id === editingLeave.id ? { ...l, status: statusToSave, user_name: editingLeave.user_name, user_role: editingLeave.user_role } : l
       ));
       setShowEditModal(false);
       setEditingLeave(null);
       setEditStatus('');
+      setIsEditMode(false);
+      const wasApprovedOrRejected = ['Approved', 'Rejected'].includes(editingLeave.status);
+      const isNowPending = statusToSave === 'Pending';
+      const message = wasApprovedOrRejected && isNowPending
+        ? 'Leave request change success'
+        : 'Leave status updated successfully';
+      showNotification(message, 'success');
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to update leave status');
       console.error('Error updating leave status:', err);
@@ -188,6 +206,14 @@ const LeaveApprovalPage = () => {
           return leaveDept.toLowerCase().includes(filter.department.toLowerCase());
         });
       }
+
+      // Filter by year (kept in local filter too, to avoid edge mismatches)
+      if (filter.year) {
+        result = result.filter(leave => {
+          const leaveYear = new Date(leave.from_date).getFullYear();
+          return leaveYear === Number(filter.year);
+        });
+      }
       
       // Filter by username
       if (filter.username) {
@@ -214,6 +240,12 @@ const LeaveApprovalPage = () => {
   return (
     <div className="min-h-screen p-6 bg-gray-50">
       <div className="max-w-7xl mx-auto">
+        <Notification
+          show={notification.show}
+          message={notification.message}
+          type={notification.type}
+          onClose={() => setNotification({ show: false, message: '', type: '' })}
+        />
         <div className="mb-12 text-center">
           <h1 className="text-3xl font-bold text-gray-800">Leave Approval (Manager)</h1>
           <p className="text-sm text-gray-600">Approve or reject employee leave requests</p>
@@ -246,7 +278,7 @@ const LeaveApprovalPage = () => {
         {['Pending', 'Approved', 'Rejected'].includes(activeTab) && (
           <div className="mb-8">
             <div className="bg-white rounded-lg shadow-lg p-4 mb-4">
-              <div className="flex flex-nowrap items-end gap-4 w-full">
+              <div className="flex flex-wrap items-end gap-4 w-full">
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1">From Date</label>
                   <input
@@ -265,7 +297,7 @@ const LeaveApprovalPage = () => {
                     onChange={e => setFilter(f => ({ ...f, to: e.target.value }))}
                   />
                 </div>
-                <div className="min-w-[320px] max-w-[380px]">
+                <div className="min-w-[200px] max-w-[320px] flex-1">
                   <label className="block text-xs font-semibold text-gray-600 mb-1">Department</label>
                   <select
                     className="border rounded px-3 py-2 w-full"
@@ -278,7 +310,7 @@ const LeaveApprovalPage = () => {
                     ))}
                   </select>
                 </div>
-                <div className="flex-[4] min-w-[360px]">
+                <div className="flex-1 min-w-[200px]">
                   <label className="block text-xs font-semibold text-gray-600 mb-1">Username</label>
                   <div className="relative">
                     <input
@@ -286,7 +318,7 @@ const LeaveApprovalPage = () => {
                       placeholder="Search names..."
                       className="w-full py-2 pl-10 pr-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       value={filter.username}
-                      onChange={e => { setFilter(f => ({ ...f, username: e.target.value })); setShowFilteredTable(true); setCurrentPage(1); }}
+                      onChange={e => setFilter(f => ({ ...f, username: e.target.value }))}
                       onKeyDown={e => { if (e.key === 'Enter') { setShowFilteredTable(true); setCurrentPage(1); } }}
                     />
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400 absolute left-3 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -306,8 +338,19 @@ const LeaveApprovalPage = () => {
                     ))}
                   </select>
                 </div>
-                {/* Reset Button (shown when results displayed) */}
-                <div className="ml-auto">
+                {/* Search + Reset Buttons */}
+                <div className="flex flex-row items-end gap-2">
+                  <button
+                    type="button"
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition"
+                    onClick={async () => {
+                      setShowFilteredTable(true);
+                      setCurrentPage(1);
+                      await loadLeaves({ year: filter.year });
+                    }}
+                  >
+                    Search
+                  </button>
                   {showFilteredTable && (
                     <button
                       className="bg-gray-200 text-gray-700 px-4 py-2 rounded font-semibold hover:bg-gray-300 transition"
@@ -357,9 +400,20 @@ const LeaveApprovalPage = () => {
                           : leave.firstname || leave.lastname || '-')
                       }</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{formatDate(leave.from_date)} - {formatDate(leave.to_date)}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-700 underline cursor-pointer">
-                        <button onClick={() => { setEditingLeave(leave); setShowEditModal(true); }}>
-                          View Details
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-700 cursor-pointer">
+                        <button
+                          type="button"
+                          title="View Details"
+                          className="relative inline-flex items-center justify-center group"
+                          onClick={() => { setEditingLeave(leave); setEditStatus(leave.status); setIsEditMode(false); setShowEditModal(true); }}
+                        >
+                          <span className="sr-only">View Details</span>
+                          <span className="pointer-events-none absolute -top-9 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-gray-900 px-2 py-1 text-xs font-medium text-white opacity-0 shadow-md transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100">
+                            View Details
+                          </span>
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                            <path d="M12.0003 3C17.3924 3 21.8784 6.87976 22.8189 12C21.8784 17.1202 17.3924 21 12.0003 21C6.60812 21 2.12215 17.1202 1.18164 12C2.12215 6.87976 6.60812 3 12.0003 3ZM12.0003 19C16.2359 19 19.8603 16.052 20.7777 12C19.8603 7.94803 16.2359 5 12.0003 5C7.7646 5 4.14022 7.94803 3.22278 12C4.14022 16.052 7.7646 19 12.0003 19ZM12.0003 16.5C9.51498 16.5 7.50026 14.4853 7.50026 12C7.50026 9.51472 9.51498 7.5 12.0003 7.5C14.4855 7.5 16.5003 9.51472 16.5003 12C16.5003 14.4853 14.4855 16.5 12.0003 16.5ZM12.0003 14.5C13.381 14.5 14.5003 13.3807 14.5003 12C14.5003 10.6193 13.381 9.5 12.0003 9.5C10.6196 9.5 9.50026 10.6193 9.50026 12C9.50026 13.3807 10.6196 14.5 12.0003 14.5Z"></path>
+                          </svg>
                         </button>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
@@ -448,12 +502,12 @@ const LeaveApprovalPage = () => {
       {showEditModal && editingLeave && (
         <div className="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true">
           <div className="flex items-end justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-            <div className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" onClick={() => setShowEditModal(false)} />
+            <div className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" onClick={() => { setShowEditModal(false); setIsEditMode(false); }} />
             <div className="inline-block overflow-hidden text-left align-bottom transition-all transform bg-white rounded-lg shadow-xl sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
               <div className="px-6 py-4 bg-blue-600">
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-medium leading-6 text-white">Leave Details</h3>
-                  <button className="text-white hover:text-gray-200" onClick={() => setShowEditModal(false)}>
+                  <button className="text-white hover:text-gray-200" onClick={() => { setShowEditModal(false); setIsEditMode(false); }}>
                     <svg className="w-6 h-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                   </button>
                 </div>
@@ -476,6 +530,42 @@ const LeaveApprovalPage = () => {
                 </div>
                 {['Approved', 'Rejected'].includes(editingLeave.status) && editingLeave.approver_name && (
                   <div className="mb-2 text-gray-500 text-xs">by: {editingLeave.approver_name}</div>
+                )}
+                {isEditMode && (
+                <div className="mt-4 pt-4 border-t border-gray-200">
+                  <div className="mb-3">
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">Change Status</label>
+                    <select
+                      value={editStatus || editingLeave.status}
+                      onChange={(e) => setEditStatus(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="Pending">Pending</option>
+                      <option value="Approved">Approved</option>
+                      <option value="Rejected">Rejected</option>
+                    </select>
+                  </div>
+                  <div className="flex flex-col sm:flex-row gap-2 justify-end">
+                    <button
+                      type="button"
+                      onClick={() => handleEditStatusSave()}
+                      className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:bg-gray-400"
+                      disabled={loading || ((editStatus || editingLeave.status) === editingLeave.status)}
+                    >
+                      Save Status
+                    </button>
+                    {['Approved', 'Rejected'].includes(editingLeave.status) && (
+                      <button
+                        type="button"
+                        onClick={() => handleEditStatusSave('Pending')}
+                        className="px-4 py-2 rounded-lg bg-green-600 text-white text-sm font-semibold hover:bg-green-700 disabled:bg-gray-400"
+                        disabled={loading}
+                      >
+                        Allow Leave Request Change
+                      </button>
+                    )}
+                  </div>
+                </div>
                 )}
               </div>
             </div>

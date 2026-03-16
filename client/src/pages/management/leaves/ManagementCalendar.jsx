@@ -325,9 +325,23 @@ const ManagementCalendar = () => {
 		}
 	};
 
+	// Map stored identifier (usually EMPID) to a readable colleague label
+	const getAlternateDisplay = (identifier) => {
+		if (!identifier) return '';
+		const idStr = String(identifier).trim();
+		const match = (colleagues || []).find((c) => {
+			if (!c) return false;
+			if (c.empid && String(c.empid).trim() === idStr) return true;
+			const fullName = [c.firstname, c.lastname].filter(Boolean).join(' ').trim();
+			return fullName && fullName === idStr;
+		});
+		if (!match) return idStr;
+		return [match.firstname, match.lastname].filter(Boolean).join(' ').trim() || idStr;
+	};
+
 	const formatAlternate = (leave) => {
-		const primary = leave.alternate_person || '';
-		const additional = leave.additional_alternate || '';
+		const primary = getAlternateDisplay(leave.alternate_person || '');
+		const additional = getAlternateDisplay(leave.additional_alternate || '');
 		if (primary && additional) return `${primary}, ${additional}`;
 		return primary || additional || '—';
 	};
@@ -1281,14 +1295,14 @@ const ManagementCalendar = () => {
 									{leave.alternate_person && (
 										<div>
 											<p className="text-sm font-semibold text-gray-700">Alternate Person:</p>
-											<p className="text-gray-800">{leave.alternate_person}</p>
+											<p className="text-gray-800">{getAlternateDisplay(leave.alternate_person)}</p>
 										</div>
 									)}
 
 									{leave.additional_alternate && (
 										<div>
 											<p className="text-sm font-semibold text-gray-700">Additional Alternate:</p>
-											<p className="text-gray-800">{leave.additional_alternate}</p>
+											<p className="text-gray-800">{getAlternateDisplay(leave.additional_alternate)}</p>
 										</div>
 									)}
 

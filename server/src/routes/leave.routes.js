@@ -18,6 +18,7 @@ router.get('/balance', authorize('Employee', 'Manager', 'Management'), leaveCont
 router.get('/history/:year', authorize('Employee', 'Manager', 'Management'), leaveController.getLeaveHistory);
 router.put('/:id', authorize('Employee', 'Manager', 'Management'), leaveController.updateLeave);
 router.delete('/:id', authorize('Employee', 'Manager', 'Management'), leaveController.cancelLeave);
+router.post('/:id/request-change', authorize('Employee', 'Manager', 'Management'), leaveController.requestLeaveChange);
 
 // Manager and Management routes (approval/rejection)
 router.get('/pending', authorize('Manager', 'Management'), leaveController.getPendingLeaves);

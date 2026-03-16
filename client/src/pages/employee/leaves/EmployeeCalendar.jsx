@@ -8,6 +8,7 @@ import {
   getMyLeaveBalance, 
   updateLeave, 
   cancelLeave,
+  requestLeaveChange,
   checkLeaveEligibility,
   getDepartmentColleagues
   , getDepartmentLeaves
@@ -372,6 +373,29 @@ const EmployeeCalendar = ({ joinDate }) => {
     }
   };
 
+  // Request unlock for approved/rejected leave so approver can move it back to Pending
+  const handleRequestLeaveChange = async (leave) => {
+    if (!leave?.id) return;
+    if (!window.confirm('Send request to approver to allow leave request change?')) {
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      await requestLeaveChange(leave.id);
+      showNotification('Leave request change success', 'success');
+      handleCloseDateDetail();
+      await loadData();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to request leave change');
+      console.error('Error requesting leave change:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Date helpers (avoid UTC shifting)
   const parseDateOnly = (dateValue) => {
     if (!dateValue) return null;
@@ -439,9 +463,27 @@ const EmployeeCalendar = ({ joinDate }) => {
     setSelectedCalendarLeaves([]);
   };
 
+  // Map stored identifier (usually EMPID) to a readable colleague label
+  const getAlternateDisplay = (identifier) => {
+    if (!identifier) return '';
+
+    const idStr = String(identifier).trim();
+    const match = (colleagues || []).find((c) => {
+      if (!c) return false;
+      if (c.empid && String(c.empid).trim() === idStr) return true;
+      const fullName = [c.firstname, c.lastname].filter(Boolean).join(' ').trim();
+      return fullName && fullName === idStr;
+    });
+
+    if (!match) return idStr;
+
+    const fullName = [match.firstname, match.lastname].filter(Boolean).join(' ').trim();
+    return fullName || idStr;
+  };
+
   const formatAlternate = (leave) => {
-    const primary = leave.alternate_person || '';
-    const additional = leave.additional_alternate || '';
+    const primary = getAlternateDisplay(leave.alternate_person || '');
+    const additional = getAlternateDisplay(leave.additional_alternate || '');
     if (primary && additional) return `${primary}, ${additional}`;
     return primary || additional || '—';
   };
@@ -1042,58 +1084,77 @@ const EmployeeCalendar = ({ joinDate }) => {
                     <p className="text-gray-800">{leave.leave_reason}</p>
                   </div>
 
-                  {leave.alternate_person && (
-                    <div>
-                      <p className="text-sm font-semibold text-gray-700">Alternate Person:</p>
-                      <p className="text-gray-800">{leave.alternate_person}</p>
+                  {(leave.alternate_person || leave.approver_name) && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-sm font-semibold text-gray-700">Alternate Person:</p>
+                        <p className="text-gray-800">{leave.alternate_person ? getAlternateDisplay(leave.alternate_person) : '-'}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-gray-700">
+                          {leave.status === 'Approved' ? 'Approved by:' : 'Rejected by:'}
+                        </p>
+                        <p className="text-gray-800">{leave.approver_name || '-'}</p>
+                      </div>
                     </div>
                   )}
 
                   {leave.additional_alternate && (
                     <div>
                       <p className="text-sm font-semibold text-gray-700">Additional Alternate:</p>
-                      <p className="text-gray-800">{leave.additional_alternate}</p>
+                      <p className="text-gray-800">{getAlternateDisplay(leave.additional_alternate)}</p>
                     </div>
                   )}
 
-                  {leave.approver_name && (
-                    <div>
-                      <p className="text-sm font-semibold text-gray-700">
-                        {leave.status === 'Approved' ? 'Approved by:' : 'Rejected by:'}
-                      </p>
-                      <p className="text-gray-800">{leave.approver_name}</p>
-                    </div>
-                  )}
-
-                  <div className="flex gap-2 pt-4">
-                    <button
-                      onClick={() => {
-                        if (leave.status !== 'Approved' && leave.status !== 'Rejected') {
-                          openEditForm(leave);
-                          handleCloseDateDetail();
-                        }
-                      }}
-                      className={`flex-1 px-4 py-2 rounded ${(leave.status === 'Approved' || leave.status === 'Rejected') ? 'bg-gray-400 text-gray-200 cursor-not-allowed' : 'bg-blue-500 text-white hover:bg-blue-600'}`}
-                      disabled={leave.status === 'Approved' || leave.status === 'Rejected'}
-                      title={(leave.status === 'Approved' || leave.status === 'Rejected') ? 'Cannot edit approved or rejected leave' : 'Edit leave'}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => {
-                        if (leave.status !== 'Approved' && leave.status !== 'Rejected') {
-                          if (window.confirm('Are you sure you want to cancel this leave?')) {
-                            handleCancelLeave(leave.id);
+                  <div className="pt-4 space-y-2">
+                    <div className="flex justify-center gap-2">
+                      <button
+                        onClick={() => {
+                          if (leave.status !== 'Approved' && leave.status !== 'Rejected') {
+                            openEditForm(leave);
                             handleCloseDateDetail();
                           }
-                        }
-                      }}
-                      className={`flex-1 px-4 py-2 rounded ${(leave.status === 'Approved' || leave.status === 'Rejected') ? 'bg-gray-400 text-gray-200 cursor-not-allowed' : 'bg-red-500 text-white hover:bg-red-600'}`}
-                      disabled={leave.status === 'Approved' || leave.status === 'Rejected'}
-                      title={(leave.status === 'Approved' || leave.status === 'Rejected') ? 'Cannot cancel approved or rejected leave' : 'Cancel leave'}
-                    >
-                      Cancel Leave
-                    </button>
+                        }}
+                        className={`px-4 py-2 rounded min-w-[120px] ${(leave.status === 'Approved' || leave.status === 'Rejected') ? 'bg-gray-400 text-gray-200 cursor-not-allowed' : 'bg-blue-500 text-white hover:bg-blue-600'}`}
+                        disabled={leave.status === 'Approved' || leave.status === 'Rejected'}
+                        title={(leave.status === 'Approved' || leave.status === 'Rejected') ? 'Cannot edit approved or rejected leave' : 'Edit leave'}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (leave.status !== 'Approved' && leave.status !== 'Rejected') {
+                            if (window.confirm('Are you sure you want to cancel this leave?')) {
+                              handleCancelLeave(leave.id);
+                              handleCloseDateDetail();
+                            }
+                          }
+                        }}
+                        className={`px-4 py-2 rounded min-w-[120px] ${(leave.status === 'Approved' || leave.status === 'Rejected') ? 'bg-gray-400 text-gray-200 cursor-not-allowed' : 'bg-red-500 text-white hover:bg-red-600'}`}
+                        disabled={leave.status === 'Approved' || leave.status === 'Rejected'}
+                        title={(leave.status === 'Approved' || leave.status === 'Rejected') ? 'Cannot cancel approved or rejected leave' : 'Cancel leave'}
+                      >
+                        Cancel Leave
+                      </button>
+                    </div>
+                    <div className="flex justify-center">
+                      <button
+                        onClick={() => {
+                          if (leave.status === 'Approved' || leave.status === 'Rejected') {
+                            handleRequestLeaveChange(leave);
+                          }
+                        }}
+                        className={`px-4 py-2 rounded min-w-[160px] ${
+                          (leave.status === 'Approved' || leave.status === 'Rejected')
+                            ? 'bg-indigo-600 text-white hover:bg-indigo-700'
+                            : 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                        }`}
+                        disabled={leave.status !== 'Approved' && leave.status !== 'Rejected'}
+                        title={(leave.status === 'Approved' || leave.status === 'Rejected') ? 'Request approver to allow changes' : 'Available only for approved/rejected leave'}
+                      >
+                        Notify to Approve/Reject Status change
+                      </button>
+                    </div>
                   </div>
                 </div>
               ) : null;
