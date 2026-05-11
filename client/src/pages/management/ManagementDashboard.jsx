@@ -691,6 +691,168 @@ const Box4EmployeesLineChart = ({ title, subtitle, labels, values, showAxisLabel
   );
 };
 
+// Radar chart for pillar overview
+const PillarRadarChart = ({ pillars, onPillarClick }) => {
+  const size = 360;
+  const center = size / 2;
+  const radius = 130;
+  const ringSteps = 5;
+
+  const normalizedPillars = (pillars || []).map((pillar, index) => {
+    const rawValue =
+      pillar?.kpi_count ??
+      pillar?.kpis_count ??
+      pillar?.kpiCount ??
+      pillar?.total_kpis ??
+      pillar?.kpis?.length ??
+      pillar?.count ??
+      1;
+
+    return {
+      id: pillar?.id,
+      name: pillar?.piller_name || pillar?.pillar_name || pillar?.short_name || `Pillar ${index + 1}`,
+      shortName: pillar?.short_name || '',
+      value: Number(rawValue) || 0,
+    };
+  });
+
+  const maxValue = Math.max(...normalizedPillars.map((pillar) => pillar.value), 1);
+  const angleStep = normalizedPillars.length > 0 ? (Math.PI * 2) / normalizedPillars.length : 0;
+
+  const toPoint = (value, angle) => {
+    const scaledRadius = (value / maxValue) * radius;
+    return {
+      x: center + scaledRadius * Math.sin(angle),
+      y: center - scaledRadius * Math.cos(angle),
+    };
+  };
+
+  const polygonPoints = normalizedPillars.map((pillar, index) => {
+    const angle = index * angleStep;
+    const point = toPoint(pillar.value, angle);
+    return `${point.x},${point.y}`;
+  }).join(' ');
+
+  return (
+    <div className="bg-white rounded-lg shadow-lg border border-slate-200 p-4">
+      <div className="flex items-center justify-between mb-3">
+        <div>
+          <h3 className="text-xl font-bold text-gray-800">Explore Pillars</h3>
+          <p className="text-sm text-gray-500">Radar view of pillar KPIs for the selected financial year</p>
+        </div>
+      </div>
+
+      {normalizedPillars.length === 0 ? (
+        <div className="py-16 text-center text-gray-500">No pillars available</div>
+      ) : (
+        <div className="flex flex-col lg:flex-row gap-6 items-center lg:items-start">
+          <div className="w-full lg:w-[420px] flex justify-center">
+            <svg viewBox={`0 0 ${size} ${size}`} className="w-full max-w-[360px] h-auto">
+              {[...Array(ringSteps)].map((_, ringIndex) => {
+                const ringRadius = ((ringIndex + 1) / ringSteps) * radius;
+                return (
+                  <circle
+                    key={`ring-${ringIndex}`}
+                    cx={center}
+                    cy={center}
+                    r={ringRadius}
+                    fill="none"
+                    stroke="#e5e7eb"
+                    strokeDasharray="4 4"
+                  />
+                );
+              })}
+
+              {[...Array(normalizedPillars.length)].map((_, index) => {
+                const angle = index * angleStep;
+                const end = toPoint(maxValue, angle);
+                return (
+                  <line
+                    key={`axis-${index}`}
+                    x1={center}
+                    y1={center}
+                    x2={end.x}
+                    y2={end.y}
+                    stroke="#cbd5e1"
+                    strokeWidth="1.5"
+                  />
+                );
+              })}
+
+              <polygon
+                points={polygonPoints}
+                fill="rgba(59, 130, 246, 0.25)"
+                stroke="#2563eb"
+                strokeWidth="2.5"
+              />
+
+              {normalizedPillars.map((pillar, index) => {
+                const angle = index * angleStep;
+                const point = toPoint(pillar.value, angle);
+                const labelRadius = radius + 22;
+                const labelPoint = toPoint(maxValue, angle);
+                const labelX = center + labelRadius * Math.sin(angle);
+                const labelY = center - labelRadius * Math.cos(angle);
+
+                return (
+                  <g key={pillar.id || pillar.name}>
+                    <circle cx={point.x} cy={point.y} r="5" fill="#2563eb" stroke="white" strokeWidth="2" />
+                    <text
+                      x={labelX}
+                      y={labelY}
+                      textAnchor="middle"
+                      fontSize="12"
+                      fontWeight="700"
+                      fill="#1e3a8a"
+                      style={{ cursor: 'pointer' }}
+                      onClick={() => onPillarClick?.(pillar)}
+                    >
+                      {pillar.shortName || pillar.name}
+                    </text>
+                    <text
+                      x={labelPoint.x}
+                      y={labelPoint.y}
+                      textAnchor="middle"
+                      fontSize="10"
+                      fontWeight="600"
+                      fill="#64748b"
+                    >
+                      {pillar.value}
+                    </text>
+                  </g>
+                );
+              })}
+
+              <circle cx={center} cy={center} r="3" fill="#2563eb" />
+            </svg>
+          </div>
+
+          <div className="flex-1 w-full">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {normalizedPillars.map((pillar) => (
+                <button
+                  key={pillar.id || pillar.name}
+                  type="button"
+                  onClick={() => onPillarClick?.(pillar)}
+                  className="text-left rounded-lg border border-slate-200 bg-slate-50 hover:bg-blue-50 hover:border-blue-300 transition-colors px-4 py-3"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <div className="text-sm font-semibold text-slate-900">{pillar.name}</div>
+                      {pillar.shortName && <div className="text-xs text-slate-500">{pillar.shortName}</div>}
+                    </div>
+                    <div className="text-lg font-bold text-blue-700">{pillar.value}</div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 // Helper function to get current fiscal year (April to March)
 const getCurrentFiscalYear = () => {
   const today = new Date();
@@ -1658,31 +1820,14 @@ function ManagementDashboard() {
 
       {/* Pillars Section */}
       <div className="mt-8">
-        <h2 className="text-2xl font-bold text-gray-800 mb-6">🏛️ Explore Pillars</h2>
-        {pillerStats.pillers.length === 0 ? (
-          <div className="bg-white rounded-lg shadow p-8 text-center">
-            <p className="text-gray-500">No pillars available</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-            {[...pillerStats.pillers].sort((a, b) => (a.piller_name || '').localeCompare(b.piller_name || '')).map((piller) => (
-              <button
-                key={piller.id}
-                onClick={() => navigate(`/management/pillar/${piller.id}`)}
-                className="bg-gradient-to-br from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 p-4 text-left border border-blue-200 hover:border-blue-400"
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-sm font-bold text-blue-900 flex-1 truncate">{piller.piller_name}</h3>
-                  <span className="text-lg ml-1">→</span>
-                </div>
-                {piller.short_name && (
-                  <p className="text-xs text-blue-700 font-semibold mb-1">({piller.short_name})</p>
-                )}
-                <p className="text-xs text-blue-600">View KPIs</p>
-              </button>
-            ))}
-          </div>
-        )}
+        <PillarRadarChart
+          pillars={[...pillerStats.pillers].sort((a, b) => (a.piller_name || '').localeCompare(b.piller_name || ''))}
+          onPillarClick={(pillar) => {
+            if (pillar?.id) {
+              navigate(`/management/pillar/${pillar.id}`);
+            }
+          }}
+        />
       </div>
 
       {/* Performance Dashboard Section */}

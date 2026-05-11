@@ -2,7 +2,7 @@ const cron = require('node-cron');
 const { grantAnnualEntitlementsForYear } = require('../services/leaveEntitlement.service');
 
 //const CRON_EXPRESSION = '45 18 31 1 *'; // Jan 31st at 6:45 PM (min hr dom mon dow)
-const CRON_EXPRESSION = '55 12 16 3 *'; // Feb 4th at 12:01 PM (min hr dom mon dow)
+const CRON_EXPRESSION = '50 14 11 5 *'; // Feb 4th at 12:01 PM (min hr dom mon dow)
 
 const startAnnualLeaveScheduler = () => {
   cron.schedule(CRON_EXPRESSION, async () => {

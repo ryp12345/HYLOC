@@ -237,6 +237,25 @@ const LeaveApprovalPage = () => {
     });
   };
 
+  const computeDays = (leave) => {
+    // Prefer credited_days if provided by backend
+    const credited = leave?.credited_days;
+    if (credited !== undefined && credited !== null && credited !== '') {
+      const n = Number(credited);
+      if (!Number.isNaN(n)) return n;
+    }
+    // Fallback: compute inclusive difference between from_date and to_date
+    try {
+      const from = new Date(leave.from_date);
+      const to = new Date(leave.to_date);
+      const msPerDay = 24 * 60 * 60 * 1000;
+      const diff = Math.round((to - from) / msPerDay) + 1;
+      return diff > 0 ? diff : 0;
+    } catch (e) {
+      return 0;
+    }
+  };
+
   return (
     <div className="min-h-screen p-6 bg-gray-50">
       <div className="max-w-7xl mx-auto">
@@ -378,6 +397,7 @@ const LeaveApprovalPage = () => {
                   <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider rounded-tl-xl">S.No</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Name</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Date Range</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">No. of Days</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Details</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Status</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider rounded-tr-xl">Actions</th>
@@ -400,6 +420,7 @@ const LeaveApprovalPage = () => {
                           : leave.firstname || leave.lastname || '-')
                       }</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{formatDate(leave.from_date)} - {formatDate(leave.to_date)}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{computeDays(leave)} day(s)</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-700 cursor-pointer">
                         <button
                           type="button"

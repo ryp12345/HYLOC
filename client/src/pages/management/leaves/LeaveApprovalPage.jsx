@@ -213,6 +213,25 @@ const LeaveApprovalPage = () => {
     });
   };
 
+  const computeDays = (leave) => {
+    // Prefer known fields if available
+    const credited = leave?.credited_days ?? leave?.leave_duration ?? leave?.duration;
+    if (credited !== undefined && credited !== null && credited !== '') {
+      const n = Number(credited);
+      if (!Number.isNaN(n)) return n;
+    }
+    // Fallback: inclusive date difference
+    try {
+      const from = new Date(leave.from_date);
+      const to = new Date(leave.to_date);
+      const msPerDay = 24 * 60 * 60 * 1000;
+      const diff = Math.round((to - from) / msPerDay) + 1;
+      return diff > 0 ? diff : 0;
+    } catch (e) {
+      return 0;
+    }
+  };
+
   return (
     <div className="min-h-screen p-6 bg-gray-50">
       <div className="max-w-7xl mx-auto">
@@ -349,6 +368,7 @@ const LeaveApprovalPage = () => {
                   <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider rounded-tl-xl">S.No</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Name</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Date Range</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">No. of Days</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Details</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Status</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider rounded-tr-xl">Actions</th>
@@ -356,15 +376,16 @@ const LeaveApprovalPage = () => {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {loading ? (
-                  <tr><td colSpan="8" className="p-8 text-center text-gray-500">Loading...</td></tr>
+                  <tr><td colSpan="7" className="p-8 text-center text-gray-500">Loading...</td></tr>
                 ) : filteredLeaves.length === 0 ? (
-                  <tr><td colSpan="8" className="p-8 text-center text-gray-500">No {activeTab.toLowerCase()} leave requests</td></tr>
+                  <tr><td colSpan="7" className="p-8 text-center text-gray-500">No {activeTab.toLowerCase()} leave requests</td></tr>
                 ) : (
                   filteredLeaves.map((leave, idx) => (
                     <tr key={leave.id} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-colors duration-150`}>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{idx + 1}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{leave.user_name}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{formatDate(leave.from_date)} - {formatDate(leave.to_date)}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{computeDays(leave)} day(s)</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-700 cursor-pointer">
                         <button
                           type="button"
@@ -457,8 +478,8 @@ const LeaveApprovalPage = () => {
                 <div className="mb-2 text-gray-700">
                   <span className="font-semibold">Name:</span> {editingLeave.user_name}
                 </div>
-                <div className="mb-2 text-black font-semibold">
-                  Duration: {String(editingLeave.leave_duration)} day(s)
+                <div className="mb-2 text-gray-700 font-semibold">
+                  Duration: {computeDays(editingLeave)} day(s)
                 </div>
                 <div className="mb-2 text-gray-700">
                   <span className="font-semibold">Date Range:</span> {formatDate(editingLeave.from_date)} - {formatDate(editingLeave.to_date)}
