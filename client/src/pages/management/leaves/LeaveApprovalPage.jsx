@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { getAllLeaves, approveLeave, rejectLeave, updateLeave } from '../../../api/leaveApi';
+import Notification from '../../../components/common/Notification';
 
 const LeaveApprovalPage = () => {
   const [leaves, setLeaves] = useState([]);
@@ -10,6 +11,8 @@ const LeaveApprovalPage = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingLeave, setEditingLeave] = useState(null);
   const [editStatus, setEditStatus] = useState('');
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [notification, setNotification] = useState({ show: false, message: '', type: '' });
   // Leave Search Filter state
   const currentYear = new Date().getFullYear();
   const [filter, setFilter] = useState({
@@ -115,25 +118,40 @@ const LeaveApprovalPage = () => {
   const handleEditClick = (leave) => {
     setEditingLeave(leave);
     setEditStatus(leave.status);
+    setIsEditMode(true);
     setShowEditModal(true);
   };
 
-  const handleEditStatusSave = async () => {
+  const showNotification = (message, type = 'success') => {
+    setNotification({ show: true, message, type });
+    setTimeout(() => setNotification({ show: false, message: '', type: '' }), 4000);
+  };
+
+  const handleEditStatusSave = async (newStatus) => {
     if (!editingLeave) return;
+    const statusToSave = newStatus || editStatus;
+    if (!statusToSave) return;
     setLoading(true);
     setError(null);
     try {
       // Update leave status in backend
-      await updateLeave(editingLeave.id, { status: editStatus });
+      await updateLeave(editingLeave.id, { status: statusToSave });
       // Refresh the table from backend
       await loadLeaves();
       // Update local state instantly
       setLeaves(prevLeaves => prevLeaves.map(l =>
-        l.id === editingLeave.id ? { ...l, status: editStatus, user_name: editingLeave.user_name, user_role: editingLeave.user_role } : l
+        l.id === editingLeave.id ? { ...l, status: statusToSave, user_name: editingLeave.user_name, user_role: editingLeave.user_role } : l
       ));
       setShowEditModal(false);
       setEditingLeave(null);
       setEditStatus('');
+      setIsEditMode(false);
+      const wasApprovedOrRejected = ['Approved', 'Rejected'].includes(editingLeave.status);
+      const isNowPending = statusToSave === 'Pending';
+      const message = wasApprovedOrRejected && isNowPending
+        ? 'Leave request change success'
+        : 'Leave status updated successfully';
+      showNotification(message, 'success');
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to update leave status');
       console.error('Error updating leave status:', err);
@@ -195,9 +213,34 @@ const LeaveApprovalPage = () => {
     });
   };
 
+  const computeDays = (leave) => {
+    // Prefer known fields if available
+    const credited = leave?.credited_days ?? leave?.leave_duration ?? leave?.duration;
+    if (credited !== undefined && credited !== null && credited !== '') {
+      const n = Number(credited);
+      if (!Number.isNaN(n)) return n;
+    }
+    // Fallback: inclusive date difference
+    try {
+      const from = new Date(leave.from_date);
+      const to = new Date(leave.to_date);
+      const msPerDay = 24 * 60 * 60 * 1000;
+      const diff = Math.round((to - from) / msPerDay) + 1;
+      return diff > 0 ? diff : 0;
+    } catch (e) {
+      return 0;
+    }
+  };
+
   return (
     <div className="min-h-screen p-6 bg-gray-50">
       <div className="max-w-7xl mx-auto">
+        <Notification
+          show={notification.show}
+          message={notification.message}
+          type={notification.type}
+          onClose={() => setNotification({ show: false, message: '', type: '' })}
+        />
         <div className="mb-12 text-center">
           <h1 className="text-3xl font-bold text-gray-800">Leave Approval (Management)</h1>
           <p className="text-sm text-gray-600">Approve or reject leave requests</p>
@@ -210,7 +253,22 @@ const LeaveApprovalPage = () => {
         )}
 
 
-        {/* Removed view toggle buttons. Only approval table is shown. */}
+        {/* Status Tabs */}
+        <div className="mb-6 flex gap-2">
+          {['Pending', 'Approved', 'Rejected'].map(tab => (
+            <button
+              key={tab}
+              onClick={() => { setActiveTab(tab); setCurrentPage(1); }}
+              className={`px-6 py-3 rounded-lg font-medium transition-colors ${
+                activeTab === tab
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-blue-100 text-gray-700 hover:bg-blue-200'
+              }`}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
 
         {/* Leave List with Filters (only for tab selected) */}
         {['Pending', 'Approved', 'Rejected'].includes(activeTab) && (
@@ -310,6 +368,7 @@ const LeaveApprovalPage = () => {
                   <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider rounded-tl-xl">S.No</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Name</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Date Range</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">No. of Days</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Details</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Status</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider rounded-tr-xl">Actions</th>
@@ -317,18 +376,30 @@ const LeaveApprovalPage = () => {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {loading ? (
-                  <tr><td colSpan="8" className="p-8 text-center text-gray-500">Loading...</td></tr>
+                  <tr><td colSpan="7" className="p-8 text-center text-gray-500">Loading...</td></tr>
                 ) : filteredLeaves.length === 0 ? (
-                  <tr><td colSpan="8" className="p-8 text-center text-gray-500">No {activeTab.toLowerCase()} leave requests</td></tr>
+                  <tr><td colSpan="7" className="p-8 text-center text-gray-500">No {activeTab.toLowerCase()} leave requests</td></tr>
                 ) : (
                   filteredLeaves.map((leave, idx) => (
                     <tr key={leave.id} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-colors duration-150`}>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{idx + 1}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{leave.user_name}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{formatDate(leave.from_date)} - {formatDate(leave.to_date)}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-700 underline cursor-pointer">
-                        <button onClick={() => { setEditingLeave(leave); setShowEditModal(true); }}>
-                          View Details
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{computeDays(leave)} day(s)</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-700 cursor-pointer">
+                        <button
+                          type="button"
+                          title="View Details"
+                          className="relative inline-flex items-center justify-center group"
+                          onClick={() => { setEditingLeave(leave); setEditStatus(leave.status); setIsEditMode(false); setShowEditModal(true); }}
+                        >
+                          <span className="sr-only">View Details</span>
+                          <span className="pointer-events-none absolute -top-9 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-gray-900 px-2 py-1 text-xs font-medium text-white opacity-0 shadow-md transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100">
+                            View Details
+                          </span>
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                            <path d="M12.0003 3C17.3924 3 21.8784 6.87976 22.8189 12C21.8784 17.1202 17.3924 21 12.0003 21C6.60812 21 2.12215 17.1202 1.18164 12C2.12215 6.87976 6.60812 3 12.0003 3ZM12.0003 19C16.2359 19 19.8603 16.052 20.7777 12C19.8603 7.94803 16.2359 5 12.0003 5C7.7646 5 4.14022 7.94803 3.22278 12C4.14022 16.052 7.7646 19 12.0003 19ZM12.0003 16.5C9.51498 16.5 7.50026 14.4853 7.50026 12C7.50026 9.51472 9.51498 7.5 12.0003 7.5C14.4855 7.5 16.5003 9.51472 16.5003 12C16.5003 14.4853 14.4855 16.5 12.0003 16.5ZM12.0003 14.5C13.381 14.5 14.5003 13.3807 14.5003 12C14.5003 10.6193 13.381 9.5 12.0003 9.5C10.6196 9.5 9.50026 10.6193 9.50026 12C9.50026 13.3807 10.6196 14.5 12.0003 14.5Z"></path>
+                          </svg>
                         </button>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
@@ -370,11 +441,7 @@ const LeaveApprovalPage = () => {
                         )}
                           {['Approved', 'Rejected'].includes(leave.status) && (
                             <button
-                              onClick={() => {
-                                setEditingLeave(leave);
-                                setEditStatus(leave.status);
-                                setShowEditModal(true);
-                              }}
+                              onClick={() => handleEditClick(leave)}
                               className="p-2 text-blue-600 hover:text-blue-800 rounded-lg"
                               title="Edit Status"
                             >
@@ -397,12 +464,12 @@ const LeaveApprovalPage = () => {
       {showEditModal && editingLeave && (
         <div className="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true">
           <div className="flex items-end justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-            <div className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" onClick={() => setShowEditModal(false)} />
+            <div className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" onClick={() => { setShowEditModal(false); setIsEditMode(false); }} />
             <div className="inline-block overflow-hidden text-left align-bottom transition-all transform bg-white rounded-lg shadow-xl sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
               <div className="px-6 py-4 bg-blue-600">
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-medium leading-6 text-white">Leave Details</h3>
-                  <button className="text-white hover:text-gray-200" onClick={() => setShowEditModal(false)}>
+                  <button className="text-white hover:text-gray-200" onClick={() => { setShowEditModal(false); setIsEditMode(false); }}>
                     <svg className="w-6 h-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                   </button>
                 </div>
@@ -411,8 +478,8 @@ const LeaveApprovalPage = () => {
                 <div className="mb-2 text-gray-700">
                   <span className="font-semibold">Name:</span> {editingLeave.user_name}
                 </div>
-                <div className="mb-2 text-black font-semibold">
-                  Duration: {String(editingLeave.leave_duration)} day(s)
+                <div className="mb-2 text-gray-700 font-semibold">
+                  Duration: {computeDays(editingLeave)} day(s)
                 </div>
                 <div className="mb-2 text-gray-700">
                   <span className="font-semibold">Date Range:</span> {formatDate(editingLeave.from_date)} - {formatDate(editingLeave.to_date)}
@@ -425,6 +492,42 @@ const LeaveApprovalPage = () => {
                 </div>
                 {['Approved', 'Rejected'].includes(editingLeave.status) && editingLeave.approver_name && (
                   <div className="mb-2 text-gray-500 text-xs">by: {editingLeave.approver_name}</div>
+                )}
+                {(isEditMode || ['Approved', 'Rejected'].includes(editingLeave.status)) && (
+                <div className="mt-4 pt-4 border-t border-gray-200">
+                  <div className="mb-3">
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">Change Status</label>
+                    <select
+                      value={editStatus || editingLeave.status}
+                      onChange={(e) => setEditStatus(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="Pending">Pending</option>
+                      <option value="Approved">Approved</option>
+                      <option value="Rejected">Rejected</option>
+                    </select>
+                  </div>
+                  <div className="flex flex-col sm:flex-row gap-2 justify-end">
+                    <button
+                      type="button"
+                      onClick={() => handleEditStatusSave()}
+                      className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:bg-gray-400"
+                      disabled={loading || ((editStatus || editingLeave.status) === editingLeave.status)}
+                    >
+                      Save Status
+                    </button>
+                    {['Approved', 'Rejected'].includes(editingLeave.status) && (
+                      <button
+                        type="button"
+                        onClick={() => handleEditStatusSave('Pending')}
+                        className="px-4 py-2 rounded-lg bg-green-600 text-white text-sm font-semibold hover:bg-green-700 disabled:bg-gray-400"
+                        disabled={loading}
+                      >
+                        Allow Leave Request Change
+                      </button>
+                    )}
+                  </div>
+                </div>
                 )}
               </div>
             </div>

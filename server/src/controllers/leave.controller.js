@@ -2,7 +2,15 @@ const leaveService = require('../services/leave.service');
 const leaveModel = require('../models/leave.model');
 const entitlementModel = require('../models/leaveEntitlement.model');
 const userModel = require('../models/user.model');
+const notificationModel = require('../models/notification.model');
 const db = require('../config/db');
+
+// Helper to format a date as 'Thu Mar 19 2026' (no time or timezone)
+const formatDate = (d) => {
+  if (!d) return '';
+  const dt = (d instanceof Date) ? d : new Date(d);
+  return dt.toDateString();
+};
 
 /**
  * Check eligibility to apply for leave
@@ -60,16 +68,16 @@ exports.applyLeave = async (req, res, next) => {
             if (toDate && fromDate !== toDate) {
               dateText = `${fromDate} to ${toDate}`;
             }
-            for (const manager of managers) {
-              if (manager && manager.id) {
-                await notificationModel.createNotification({
-                  created_by: userId,
-                  assigned_to: manager.id,
-                  message: `${applicantName} from your department has applied for ${leaveType} leave from ${dateText}.`,
-                  type: 'leave',
-                  is_read: false
-                });
-              }
+            // Deduplicate manager IDs in case of duplicate rows
+            const uniqueManagerIds = Array.from(new Set((managers || []).map(m => m && m.id).filter(Boolean)));
+            for (const managerId of uniqueManagerIds) {
+              await notificationModel.createNotification({
+                created_by: userId,
+                assigned_to: managerId,
+                message: `${applicantName} from your department has applied for ${leaveType}  from ${dateText}.`,
+                type: 'leave',
+                is_read: false
+              });
             }
           }
         }
@@ -106,6 +114,55 @@ exports.applyLeave = async (req, res, next) => {
         // Log error but don't block leave application
         console.error('Notification error:', notifyErr);
       }
+    }
+    // Notify Management for long (>2 days) Employee leave applications
+    try {
+      const normalizedRole = (userRole || '').toLowerCase();
+      if (normalizedRole === 'employee') {
+        const { creditedDays } = leaveService.calculateCreditedDays(
+          req.body.from_date,
+          req.body.to_date || req.body.from_date,
+          req.body.leave_duration || 'Full Day'
+        );
+
+        if (Number(creditedDays) > 2) {
+          const mgmtResult = await db.query(
+            `
+              SELECT u.id
+              FROM users u
+              JOIN user_roles ur ON ur.user_id = u.id AND ur.status = 'active'
+              JOIN roles r ON r.id = ur.role_id
+              WHERE u.status = 'active'
+                AND LOWER(r.role_name) = 'management'
+            `
+          );
+
+          const managers = mgmtResult.rows || [];
+          const applicant = await userModel.findUserById(userId);
+          const applicantName = [applicant?.firstname, applicant?.lastname].filter(Boolean).join(' ') || 'Employee';
+          const fromDate = req.body.from_date;
+          const toDate = req.body.to_date;
+          const leaveType = req.body.leave_type || 'Leave';
+          let dateText = fromDate;
+          if (toDate && fromDate !== toDate) {
+            dateText = `${fromDate} to ${toDate}`;
+          }
+
+          // Deduplicate management recipient IDs before creating notifications
+          const uniqueMgmtIds = Array.from(new Set((managers || []).map(m => m && m.id).filter(Boolean)));
+          for (const mgmtId of uniqueMgmtIds) {
+            await notificationModel.createNotification({
+              created_by: userId,
+              assigned_to: mgmtId,
+              message: `${applicantName} has applied for ${leaveType} leave from ${dateText}. Please review if necessary.`,
+              type: 'leave',
+              is_read: false
+            });
+          }
+        }
+      }
+    } catch (mgmtNotifyErr) {
+      console.error('Management notification error:', mgmtNotifyErr);
     }
     /////////////////////////notification code////////////////////////////
 
@@ -220,6 +277,14 @@ exports.updateLeave = async (req, res, next) => {
     const leaveId = parseInt(req.params.id);
     const userId = req.user.userId;
     const userRole = req.user.role;
+    const previousLeave = await leaveModel.getLeaveById(leaveId);
+
+    if (!previousLeave) {
+      return res.status(404).json({
+        success: false,
+        message: 'Leave not found'
+      });
+    }
     
     const updatedLeave = await leaveService.updatePendingLeave(
       leaveId,
@@ -227,10 +292,57 @@ exports.updateLeave = async (req, res, next) => {
       req.body,
       userRole
     );
+
+    const normalizedRole = String(userRole || '').toLowerCase();
+    const isApprover = normalizedRole === 'manager' || normalizedRole === 'management';
+    const movedBackToPending = ['Approved', 'Rejected'].includes(previousLeave.status) && updatedLeave?.status === 'Pending';
+    const updatedByApprover = isApprover && previousLeave.user_id !== userId;
+
+    if (movedBackToPending && updatedByApprover) {
+      try {
+        const fFrom = formatDate(previousLeave.from_date);
+        const fTo = formatDate(previousLeave.to_date);
+        const dateText = fTo && fFrom !== fTo ? `${fFrom} to ${fTo}` : fFrom;
+        await notificationModel.createNotification({
+          created_by: userId,
+          assigned_to: previousLeave.user_id,
+          message: `Your leave request change has been permitted for ${dateText}. You can now edit or cancel the leave request.`,
+          type: 'Leave',
+          is_read: false
+        });
+      } catch (notifyErr) {
+        console.error('Notification error (allow leave change):', notifyErr);
+      }
+    }
+
+    // Notify applicant when approver changes status to Approved/Rejected
+    try {
+      const newStatus = updatedLeave?.status;
+      const oldStatus = previousLeave?.status;
+      if (updatedByApprover && newStatus && oldStatus !== newStatus && ['Approved', 'Rejected'].includes(newStatus)) {
+        const fFrom = formatDate(previousLeave.from_date);
+        const fTo = formatDate(previousLeave.to_date);
+        const dateText = fTo && fFrom !== fTo ? `${fFrom} to ${fTo}` : fFrom;
+        const statusText = newStatus === 'Approved' ? 'approved' : 'rejected';
+        await notificationModel.createNotification({
+          created_by: userId,
+          assigned_to: previousLeave.user_id,
+          message: `Your leave request for ${dateText} has been ${statusText}.`,
+          type: 'Leave',
+          is_read: false
+        });
+      }
+    } catch (notifyErr) {
+      console.error('Notification error (status change):', notifyErr);
+    }
+
+    const responseMessage = movedBackToPending && updatedByApprover
+      ? 'Leave request change success'
+      : 'Leave updated successfully';
     
     res.status(200).json({
       success: true,
-      message: 'Leave updated successfully',
+      message: responseMessage,
       data: updatedLeave
     });
   } catch (error) {
@@ -262,6 +374,100 @@ exports.updateLeave = async (req, res, next) => {
       });
     }
     
+    next(error);
+  }
+};
+
+/**
+ * Request leave change unlock for approved/rejected leave
+ * POST /api/leaves/:id/request-change
+ */
+exports.requestLeaveChange = async (req, res, next) => {
+  try {
+    const leaveId = parseInt(req.params.id);
+    const userId = req.user.userId;
+    const userRole = req.user.role;
+
+    if (String(userRole || '').toLowerCase() !== 'employee') {
+      return res.status(403).json({
+        success: false,
+        message: 'Only Employee can request leave change unlock'
+      });
+    }
+
+    const leave = await leaveModel.getLeaveById(leaveId);
+    if (!leave) {
+      return res.status(404).json({
+        success: false,
+        message: 'Leave not found'
+      });
+    }
+
+    if (leave.user_id !== userId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Forbidden: You can only request change for your own leave'
+      });
+    }
+
+    if (!['Approved', 'Rejected'].includes(leave.status)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Change request is allowed only for Approved/Rejected leaves'
+      });
+    }
+
+    const applicant = await userModel.findUserById(userId);
+    const applicantName = [applicant?.firstname, applicant?.lastname].filter(Boolean).join(' ') || 'Employee';
+    const fFrom = formatDate(leave.from_date);
+    const fTo = formatDate(leave.to_date);
+    const dateText = fTo && fFrom !== fTo ? `${fFrom} to ${fTo}` : fFrom;
+
+    let recipients = [];
+    const creditedDays = Number(leave.credited_days || 0);
+
+    if (creditedDays > 2) {
+      const mgmtResult = await db.query(
+        `
+          SELECT u.id
+          FROM users u
+          JOIN user_roles ur ON ur.user_id = u.id AND ur.status = 'active'
+          JOIN roles r ON r.id = ur.role_id
+          WHERE u.status = 'active'
+            AND LOWER(r.role_name) = 'management'
+        `
+      );
+      recipients = mgmtResult.rows || [];
+    } else {
+      const managers = await userModel.getManagersByDepartment(applicant?.department_id);
+      recipients = managers || [];
+    }
+
+    const uniqueRecipientIds = Array.from(new Set((recipients || []).map(r => Number(r.id)).filter(Boolean)));
+
+    if (uniqueRecipientIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No approver found for this leave change request'
+      });
+    }
+
+    for (const recipientId of uniqueRecipientIds) {
+      if (recipientId === Number(userId)) continue;
+      await notificationModel.createNotification({
+        created_by: userId,
+        assigned_to: recipientId,
+        message: `${applicantName} requested to modify a ${leave.status.toLowerCase()} leave (${dateText}). Please review and allow leave request change if appropriate.`,
+        type: 'Leave',
+        is_read: false
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Leave request change success'
+    });
+  } catch (error) {
     next(error);
   }
 };
@@ -531,6 +737,26 @@ exports.approveLeave = async (req, res, next) => {
     }
     
     const approvedLeave = await leaveModel.approveLeave(leaveId, approverId);
+    // Notify applicant about approval
+    try {
+      const fromDate = leave.from_date;
+      const toDate = leave.to_date;
+      const fFrom = formatDate(fromDate);
+      const fTo = formatDate(toDate);
+      let dateText = fFrom;
+      if (fTo && fFrom !== fTo) {
+        dateText = `${fFrom} to ${fTo}`;
+      }
+      await notificationModel.createNotification({
+        created_by: approverId,
+        assigned_to: leave.user_id,
+        message: `Your leave request change from ${dateText} has been Approved.`,
+        type: 'Leave',
+        is_read: false
+      });
+    } catch (notifyErr) {
+      console.error('Notification error (approve):', notifyErr);
+    }
     
     res.status(200).json({
       success: true,
@@ -602,6 +828,27 @@ exports.rejectLeave = async (req, res, next) => {
     }
     
     const rejectedLeave = await leaveModel.rejectLeave(leaveId, rejectorId);
+
+    // Notify applicant about rejection
+    try {
+      const fromDate = leave.from_date;
+      const toDate = leave.to_date;
+      const fFrom = formatDate(fromDate);
+      const fTo = formatDate(toDate);
+      let dateText = fFrom;
+      if (fTo && fFrom !== fTo) {
+        dateText = `${fFrom} to ${fTo}`;
+      }
+      await notificationModel.createNotification({
+        created_by: rejectorId,
+        assigned_to: leave.user_id,
+        message: `Your leave request change from ${dateText} has been Rejected.`,
+        type: 'Leave',
+        is_read: false
+      });
+    } catch (notifyErr) {
+      console.error('Notification error (reject):', notifyErr);
+    }
     
     res.status(200).json({
       success: true,

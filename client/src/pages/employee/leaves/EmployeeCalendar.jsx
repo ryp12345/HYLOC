@@ -8,6 +8,7 @@ import {
   getMyLeaveBalance, 
   updateLeave, 
   cancelLeave,
+  requestLeaveChange,
   checkLeaveEligibility,
   getDepartmentColleagues
   , getDepartmentLeaves
@@ -34,6 +35,8 @@ const EmployeeCalendar = ({ joinDate }) => {
   const [selectedCalendarLeaves, setSelectedCalendarLeaves] = useState([]);
   const [selectedCalendarDate, setSelectedCalendarDate] = useState(null);
   const [showCalendarLeaveModal, setShowCalendarLeaveModal] = useState(false);
+  const [showMyLeaveModal, setShowMyLeaveModal] = useState(false);
+  const [selectedMyLeave, setSelectedMyLeave] = useState(null);
 
   // Ticket state
   const [tickets, setTickets] = useState([]);
@@ -289,9 +292,16 @@ const EmployeeCalendar = ({ joinDate }) => {
   const handleDateClick = (date) => {
     setSelectedDate(date);
     const leave = getLeaveForDate(date);
-    
+
     if (leave) {
-      // If leave exists, show detail modal
+      // If the leave belongs to the current user, open the quick "My Leave" modal
+      if (isLeaveByCurrentUser(leave)) {
+        setSelectedMyLeave(leave);
+        setShowMyLeaveModal(true);
+        return;
+      }
+
+      // Otherwise, show the detailed date modal
       setShowDateDetail(true);
     } else {
       // If no leave, directly open the form with this date
@@ -372,6 +382,29 @@ const EmployeeCalendar = ({ joinDate }) => {
     }
   };
 
+  // Request unlock for approved/rejected leave so approver can move it back to Pending
+  const handleRequestLeaveChange = async (leave) => {
+    if (!leave?.id) return;
+    if (!window.confirm('Send request to approver to allow leave request change?')) {
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      await requestLeaveChange(leave.id);
+      showNotification('Leave request change success', 'success');
+      handleCloseDateDetail();
+      await loadData();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to request leave change');
+      console.error('Error requesting leave change:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Date helpers (avoid UTC shifting)
   const parseDateOnly = (dateValue) => {
     if (!dateValue) return null;
@@ -439,9 +472,27 @@ const EmployeeCalendar = ({ joinDate }) => {
     setSelectedCalendarLeaves([]);
   };
 
+  // Map stored identifier (usually EMPID) to a readable colleague label
+  const getAlternateDisplay = (identifier) => {
+    if (!identifier) return '';
+
+    const idStr = String(identifier).trim();
+    const match = (colleagues || []).find((c) => {
+      if (!c) return false;
+      if (c.empid && String(c.empid).trim() === idStr) return true;
+      const fullName = [c.firstname, c.lastname].filter(Boolean).join(' ').trim();
+      return fullName && fullName === idStr;
+    });
+
+    if (!match) return idStr;
+
+    const fullName = [match.firstname, match.lastname].filter(Boolean).join(' ').trim();
+    return fullName || idStr;
+  };
+
   const formatAlternate = (leave) => {
-    const primary = leave.alternate_person || '';
-    const additional = leave.additional_alternate || '';
+    const primary = getAlternateDisplay(leave.alternate_person || '');
+    const additional = getAlternateDisplay(leave.additional_alternate || '');
     if (primary && additional) return `${primary}, ${additional}`;
     return primary || additional || '—';
   };
@@ -722,13 +773,13 @@ const EmployeeCalendar = ({ joinDate }) => {
                       )}
                       {leave && (
                         <div className="mt-1">
-                          <button
-                            className="inline-flex items-center gap-2 bg-blue-600 text-white text-xs font-semibold px-2 py-0.5 rounded-full shadow-sm hover:bg-blue-700 focus:outline-none"
-                            title="Click to view/edit my leave"
-                            aria-label="View my leave"
-                            onClick={(e) => { e.stopPropagation(); handleDateClick(date); }}
-                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); handleDateClick(date); } }}
-                          >
+                              <button
+                                className="inline-flex items-center gap-2 bg-blue-600 text-white text-xs font-semibold px-2 py-0.5 rounded-full shadow-sm hover:bg-blue-700 focus:outline-none"
+                                title="Click to view/edit my leave"
+                                aria-label="View my leave"
+                                onClick={(e) => { e.stopPropagation(); setSelectedMyLeave(leave); setShowMyLeaveModal(true); }}
+                                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); setSelectedMyLeave(leave); setShowMyLeaveModal(true); } }}
+                              >
                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                               <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
                             </svg>
@@ -772,6 +823,76 @@ const EmployeeCalendar = ({ joinDate }) => {
                 </div>
               );
             })}
+                {/* My Leave Quick Modal */}
+                {showMyLeaveModal && selectedMyLeave && (
+                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+                    <div className="bg-white rounded-lg shadow-xl w-full max-w-5xl max-h-[90vh] overflow-y-auto p-6 relative">
+                      <button
+                        className="absolute top-2 right-2 text-gray-500 hover:text-gray-800 text-xl font-bold"
+                        onClick={() => { setShowMyLeaveModal(false); setSelectedMyLeave(null); }}
+                      >
+                        &times;
+                      </button>
+                      <h3 className="text-lg font-semibold mb-4">My Leave</h3>
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full bg-white border rounded-lg">
+                          <thead>
+                            <tr className="bg-gray-100 text-gray-700">
+                              <th className="py-2 px-4 text-left">From</th>
+                              <th className="py-2 px-4 text-left">To</th>
+                              <th className="py-2 px-4 text-left">Duration</th>
+                              <th className="py-2 px-4 text-left">Reason</th>
+                              <th className="py-2 px-4 text-center">Action</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <tr className="border-b hover:bg-gray-50">
+                              <td className="py-2 px-4">{formatFullDate(parseDateOnly(selectedMyLeave.from_date))}</td>
+                              <td className="py-2 px-4">{formatFullDate(parseDateOnly(selectedMyLeave.to_date))}</td>
+                              <td className="py-2 px-4">{selectedMyLeave.leave_duration || ''} ({selectedMyLeave.duration ?? selectedMyLeave.credited_days} day{(selectedMyLeave.duration ?? selectedMyLeave.credited_days) === 1 ? '' : 's'})</td>
+                              <td className="py-2 px-4">{selectedMyLeave.leave_reason || '-'}</td>
+                              <td className="py-2 px-4 text-center">
+                                <div className="flex justify-center gap-2">
+                                  <button
+                                    onClick={() => { if (selectedMyLeave.status !== 'Approved' && selectedMyLeave.status !== 'Rejected') { openEditForm(selectedMyLeave); setShowMyLeaveModal(false); } }}
+                                    className={`p-2 text-white transition-colors duration-200 ${selectedMyLeave.status === 'Approved' || selectedMyLeave.status === 'Rejected' ? 'bg-gray-400 cursor-not-allowed rounded-lg' : 'bg-blue-600 rounded-lg hover:bg-blue-700'}`}
+                                    disabled={selectedMyLeave.status === 'Approved' || selectedMyLeave.status === 'Rejected'}
+                                    title="Edit Leave"
+                                  >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                    </svg>
+                                  </button>
+                                  <button
+                                    onClick={() => { if (selectedMyLeave.status !== 'Approved' && selectedMyLeave.status !== 'Rejected') { if (window.confirm('Are you sure you want to cancel this leave?')) { handleCancelLeave(selectedMyLeave.id); setShowMyLeaveModal(false); } } }}
+                                    className={`p-2 text-white transition-colors duration-200 ${selectedMyLeave.status === 'Approved' || selectedMyLeave.status === 'Rejected' ? 'bg-gray-400 cursor-not-allowed rounded-lg' : 'bg-red-500 rounded-lg hover:bg-red-600'}`}
+                                    disabled={selectedMyLeave.status === 'Approved' || selectedMyLeave.status === 'Rejected'}
+                                    title="Cancel Leave"
+                                  >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                  </button>
+                                  <button
+                                    onClick={() => { if (selectedMyLeave.status === 'Approved' || selectedMyLeave.status === 'Rejected') { handleRequestLeaveChange(selectedMyLeave); setShowMyLeaveModal(false); } }}
+                                    className={`p-2 text-white transition-colors duration-200 ${selectedMyLeave.status === 'Approved' || selectedMyLeave.status === 'Rejected' ? 'bg-indigo-600 rounded-lg hover:bg-indigo-700' : 'bg-gray-400 cursor-not-allowed rounded-lg'}`}
+                                    disabled={selectedMyLeave.status !== 'Approved' && selectedMyLeave.status !== 'Rejected'}
+                                    title="Notify approver"
+                                  >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                                    </svg>
+                                    <span className="sr-only">Notify</span>
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 {/* Ticket Modal */}
                 {showTicketModal && (
                   <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
@@ -969,13 +1090,12 @@ const EmployeeCalendar = ({ joinDate }) => {
                             onClick={() => {
                               if (leave.status !== 'Approved' && leave.status !== 'Rejected') openEditForm(leave);
                             }}
-                            className={`p-2 rounded ${(leave.status === 'Approved' || leave.status === 'Rejected') ? 'bg-gray-400 text-gray-200 cursor-not-allowed' : 'bg-blue-500 text-white hover:bg-blue-600'}`}
+                            className={`p-2 text-white transition-colors duration-200 ${leave.status === 'Approved' || leave.status === 'Rejected' ? 'bg-gray-400 cursor-not-allowed rounded-lg' : 'bg-blue-600 rounded-lg hover:bg-blue-700'}`}
                             disabled={leave.status === 'Approved' || leave.status === 'Rejected'}
                             title={(leave.status === 'Approved' || leave.status === 'Rejected') ? 'Cannot edit approved or rejected leave' : 'Edit leave'}
                           >
-                            {/* Pencil SVG */}
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536M9 13l6.536-6.536a2 2 0 112.828 2.828L11.828 15.828a2 2 0 01-2.828 0L9 13z" />
+                            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                             </svg>
                           </button>
                           <button
@@ -1042,58 +1162,84 @@ const EmployeeCalendar = ({ joinDate }) => {
                     <p className="text-gray-800">{leave.leave_reason}</p>
                   </div>
 
-                  {leave.alternate_person && (
-                    <div>
-                      <p className="text-sm font-semibold text-gray-700">Alternate Person:</p>
-                      <p className="text-gray-800">{leave.alternate_person}</p>
+                  {(leave.alternate_person || leave.approver_name) && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-sm font-semibold text-gray-700">Alternate Person:</p>
+                        <p className="text-gray-800">{leave.alternate_person ? getAlternateDisplay(leave.alternate_person) : '-'}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-gray-700">
+                          {leave.status === 'Approved' ? 'Approved by:' : 'Rejected by:'}
+                        </p>
+                        <p className="text-gray-800">{leave.approver_name || '-'}</p>
+                      </div>
                     </div>
                   )}
 
                   {leave.additional_alternate && (
                     <div>
                       <p className="text-sm font-semibold text-gray-700">Additional Alternate:</p>
-                      <p className="text-gray-800">{leave.additional_alternate}</p>
+                      <p className="text-gray-800">{getAlternateDisplay(leave.additional_alternate)}</p>
                     </div>
                   )}
 
-                  {leave.approver_name && (
-                    <div>
-                      <p className="text-sm font-semibold text-gray-700">
-                        {leave.status === 'Approved' ? 'Approved by:' : 'Rejected by:'}
-                      </p>
-                      <p className="text-gray-800">{leave.approver_name}</p>
-                    </div>
-                  )}
-
-                  <div className="flex gap-2 pt-4">
-                    <button
-                      onClick={() => {
-                        if (leave.status !== 'Approved' && leave.status !== 'Rejected') {
-                          openEditForm(leave);
-                          handleCloseDateDetail();
-                        }
-                      }}
-                      className={`flex-1 px-4 py-2 rounded ${(leave.status === 'Approved' || leave.status === 'Rejected') ? 'bg-gray-400 text-gray-200 cursor-not-allowed' : 'bg-blue-500 text-white hover:bg-blue-600'}`}
-                      disabled={leave.status === 'Approved' || leave.status === 'Rejected'}
-                      title={(leave.status === 'Approved' || leave.status === 'Rejected') ? 'Cannot edit approved or rejected leave' : 'Edit leave'}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => {
-                        if (leave.status !== 'Approved' && leave.status !== 'Rejected') {
-                          if (window.confirm('Are you sure you want to cancel this leave?')) {
-                            handleCancelLeave(leave.id);
+                  <div className="pt-4 space-y-2">
+                    <div className="flex justify-center gap-2">
+                      <button
+                        onClick={() => {
+                          if (leave.status !== 'Approved' && leave.status !== 'Rejected') {
+                            openEditForm(leave);
                             handleCloseDateDetail();
                           }
-                        }
-                      }}
-                      className={`flex-1 px-4 py-2 rounded ${(leave.status === 'Approved' || leave.status === 'Rejected') ? 'bg-gray-400 text-gray-200 cursor-not-allowed' : 'bg-red-500 text-white hover:bg-red-600'}`}
-                      disabled={leave.status === 'Approved' || leave.status === 'Rejected'}
-                      title={(leave.status === 'Approved' || leave.status === 'Rejected') ? 'Cannot cancel approved or rejected leave' : 'Cancel leave'}
-                    >
-                      Cancel Leave
-                    </button>
+                        }}
+                        className={`p-2 text-white transition-colors duration-200 ${leave.status === 'Approved' || leave.status === 'Rejected' ? 'bg-gray-400 cursor-not-allowed rounded-lg' : 'bg-blue-600 rounded-lg hover:bg-blue-700'}`}
+                        disabled={leave.status === 'Approved' || leave.status === 'Rejected'}
+                        title={(leave.status === 'Approved' || leave.status === 'Rejected') ? 'Cannot edit approved or rejected leave' : 'Edit leave'}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (leave.status !== 'Approved' && leave.status !== 'Rejected') {
+                            if (window.confirm('Are you sure you want to cancel this leave?')) {
+                              handleCancelLeave(leave.id);
+                              handleCloseDateDetail();
+                            }
+                          }
+                        }}
+                        className={`p-2 text-white transition-colors duration-200 ${leave.status === 'Approved' || leave.status === 'Rejected' ? 'bg-gray-400 cursor-not-allowed rounded-lg' : 'bg-red-500 rounded-lg hover:bg-red-600'}`}
+                        disabled={leave.status === 'Approved' || leave.status === 'Rejected'}
+                        title={(leave.status === 'Approved' || leave.status === 'Rejected') ? 'Cannot cancel approved or rejected leave' : 'Cancel leave'}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                    <div className="flex justify-center">
+                      <button
+                        onClick={() => {
+                          if (leave.status === 'Approved' || leave.status === 'Rejected') {
+                            handleRequestLeaveChange(leave);
+                          }
+                        }}
+                        className={`px-4 py-2 rounded min-w-[160px] flex items-center justify-center gap-2 ${
+                          (leave.status === 'Approved' || leave.status === 'Rejected')
+                            ? 'bg-indigo-600 text-white hover:bg-indigo-700'
+                            : 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                        }`}
+                        disabled={leave.status !== 'Approved' && leave.status !== 'Rejected'}
+                        title={(leave.status === 'Approved' || leave.status === 'Rejected') ? 'Request approver to allow changes' : 'Available only for approved/rejected leave'}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                        </svg>
+                        <span>Notify</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
               ) : null;

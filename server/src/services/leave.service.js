@@ -404,6 +404,20 @@ exports.cancelLeave = async (leaveId, userId, userRole) => {
       );
     }
     ////////////////////Notification code///////////////////////////
+    // Remove all notifications related to this leave request.
+    // Since notifications currently don't track a leave_id, remove any
+    // notification of type 'leave' that was created by or assigned to
+    // the user who owned the leave. This is a code-only cleanup (no DB
+    // migration). It may be refined later by adding a leave_id to
+    // notifications for precise deletes.
+    try {
+      await db.query(
+        'DELETE FROM notifications WHERE LOWER(type) = $1 AND (created_by = $2 OR assigned_to = $2)',
+        ['leave', userId]
+      );
+    } catch (notifDelErr) {
+      console.error('Error deleting related notifications on leave cancel:', notifDelErr);
+    }
     
     await client.query('COMMIT');
     

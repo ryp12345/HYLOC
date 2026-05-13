@@ -32,11 +32,21 @@ function EmpKpiKaiPage() {
   const [loading, setLoading] = useState(true);
   const [notification, setNotification] = useState({ show: false, message: '', type: '' });
   const [searchQuery, setSearchQuery] = useState('');
-  const [expandedNodes, setExpandedNodes] = useState(new Set());
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [formulaDetailsModal, setFormulaDetailsModal] = useState({ show: false, data: null });
   const [recentlyUpdatedKPIs, setRecentlyUpdatedKPIs] = useState([]);
-  const [kpiAssignees, setKpiAssignees] = useState({}); // Map of kpi_id to assignee list
+
+  const employeeAssignedKPIValues = useMemo(() => {
+    const currentEmpId = String(user?.empid ?? user?.id ?? '');
+    if (!currentEmpId) return assignedKPIValues;
+
+    return assignedKPIValues.filter((kv) => {
+      const ownerCandidates = [kv?.empid, kv?.emp_id, kv?.employee_id, kv?.user_id, kv?.assigned_to, kv?.owner_empid];
+      const owner = ownerCandidates.find((value) => value !== null && value !== undefined && value !== '');
+      if (owner === undefined) return true;
+      return String(owner) === currentEmpId;
+    });
+  }, [assignedKPIValues, user]);
 
   // Financial year months (April to March)
   const months = [
@@ -57,7 +67,7 @@ function EmpKpiKaiPage() {
     // When year changes, reload all KPI values' monthly data for the new year and surrounding years
     const yearsToLoad = [year - 1, year, year + 1];
     
-    for (const kpiValue of assignedKPIValues) {
+    for (const kpiValue of employeeAssignedKPIValues) {
       for (const fyear of yearsToLoad) {
         await loadMonthlyData(kpiValue.id, fyear);
       }
@@ -141,7 +151,7 @@ function EmpKpiKaiPage() {
     };
 
     return (
-      <div className="rounded-lg border-2 p-4 option3 transition-all bg-white border-slate-200">
+      <div className="rounded-lg border p-2 option3 transition-all bg-white border-slate-200">
         <div className="flex items-center justify-between mb-3">
           <h5 className="font-semibold text-slate-900">{month}</h5>
           {initialTarget !== null && initialTarget !== undefined && initialTarget !== '' && targetFormula && onViewFormula && (
@@ -207,7 +217,7 @@ function EmpKpiKaiPage() {
     };
 
     return (
-      <div className="rounded-lg border-2 p-4 option2 transition-all bg-white border-slate-200">
+      <div className="rounded-lg border p-2 option2 transition-all bg-white border-slate-200">
         <div className="flex items-center justify-between mb-3">
           <h5 className="font-semibold text-slate-900">{month}</h5>
           {initialActual !== null && initialActual !== undefined && initialActual !== '' && formula && onViewFormula && (
@@ -265,36 +275,25 @@ function EmpKpiKaiPage() {
 
   const assignedKPIIdsForYear = useMemo(() => {
     return new Set(
-      assignedKPIValues
+      employeeAssignedKPIValues
         .filter((kv) => {
           const kpi = kpiById.get(normalizeKpiId(kv.kpi_id));
           return shouldIncludeForSelectedYear(kpi?.fin_year, selectedYear);
         })
         .map((kv) => normalizeKpiId(kv.kpi_id))
     );
-  }, [assignedKPIValues, kpiById, selectedYear]);
+  }, [employeeAssignedKPIValues, kpiById, selectedYear]);
 
   const assignedKPIValuesForYear = useMemo(
-    () => assignedKPIValues.filter((kv) => assignedKPIIdsForYear.has(normalizeKpiId(kv.kpi_id))),
-    [assignedKPIValues, assignedKPIIdsForYear]
+    () => employeeAssignedKPIValues.filter((kv) => assignedKPIIdsForYear.has(normalizeKpiId(kv.kpi_id))),
+    [employeeAssignedKPIValues, assignedKPIIdsForYear]
   );
 
   const visibleKPIsForYear = useMemo(() => {
-    const included = new Set();
-
-    const addWithParents = (id) => {
-      let currentId = normalizeKpiId(id);
-      while (currentId && !included.has(currentId)) {
-        included.add(currentId);
-        const parentId = kpiById.get(currentId)?.parent_kpi_id;
-        currentId = parentId ? normalizeKpiId(parentId) : '';
-      }
-    };
-
-    assignedKPIIdsForYear.forEach(addWithParents);
-
     const base = kpis.filter(
-      (kpi) => shouldIncludeForSelectedYear(kpi.fin_year, selectedYear) && included.has(normalizeKpiId(kpi.id))
+      (kpi) =>
+        shouldIncludeForSelectedYear(kpi.fin_year, selectedYear) &&
+        assignedKPIIdsForYear.has(normalizeKpiId(kpi.id))
     );
 
     if (!searchQuery.trim()) return base;
@@ -370,26 +369,6 @@ function EmpKpiKaiPage() {
         }
       }
       
-      // Load assignees for KPIs that don't have values for current user
-      const loadAssigneesForUnassignedKPIs = async () => {
-        const assignedKpiIds = new Set(kpiValues.map(kv => normalizeKpiId(kv.kpi_id)));
-        const unassignedKpis = allKPIs.filter(kpi => !assignedKpiIds.has(normalizeKpiId(kpi.id)));
-        
-        for (const kpi of unassignedKpis) {
-          try {
-            const assigneesResponse = await api.get(`/employees/kpi/${kpi.id}/assignees`);
-            setKpiAssignees(prev => ({
-              ...prev,
-              [kpi.id]: assigneesResponse.data?.data || []
-            }));
-          } catch (err) {
-            // Silently skip if assignees can't be loaded
-          }
-        }
-      };
-      
-      await loadAssigneesForUnassignedKPIs();
-      
       // Don't automatically select a KPI - let the user choose from the hierarchy view
       setSelectedKPI(null);
     } catch (error) {
@@ -401,20 +380,12 @@ function EmpKpiKaiPage() {
   };
 
   const selectKPI = async (kpi, kpiValues = null) => {
-    setSelectedKPI(kpi);
-    
-    // Fetch assignees for this KPI if no values for current user
-    if (!kpiValues || kpiValues.length === 0) {
-      try {
-        const assigneesResponse = await api.get(`/employees/kpi/${kpi.id}/assignees`);
-        setKpiAssignees(prev => ({
-          ...prev,
-          [kpi.id]: assigneesResponse.data?.data || []
-        }));
-      } catch (err) {
-        console.warn(`Failed to load assignees for KPI ${kpi.id}:`, err);
-      }
+    // Toggle: collapse if same KPI is already expanded
+    if (selectedKPI?.id === kpi.id) {
+      setSelectedKPI(null);
+      return;
     }
+    setSelectedKPI(kpi);
     
     // Filter kpi_values for this specific KPI
     const kpiValuesForSelected = kpiValues || assignedKPIValuesForYear.filter(
@@ -803,76 +774,23 @@ function EmpKpiKaiPage() {
 
   
 
-  // Build full hierarchy (nodes shaped as { kpi, children: [] }) from visible KPIs
+  // Build flat KPI list nodes (no parent/child hierarchy)
   const fullHierarchy = useMemo(() => {
-    const map = new Map();
-    visibleKPIsForYear.forEach(kpi => map.set(normalizeKpiId(kpi.id), { kpi, children: [] }));
-
-    // attach children to parents when parent exists in the visible set
-    map.forEach(node => {
-      const parentId = node.kpi.parent_kpi_id ? normalizeKpiId(node.kpi.parent_kpi_id) : '';
-      if (parentId && map.has(parentId)) {
-        map.get(parentId).children.push(node);
-      }
-    });
-
-    // roots are nodes whose parent is not present in the map
-    const roots = Array.from(map.values()).filter(node => {
-      if (!node.kpi.parent_kpi_id) return true;
-      return !map.has(normalizeKpiId(node.kpi.parent_kpi_id));
-    });
-    // sort children and roots for stable ordering
-    const sortRec = (node) => {
-      node.children.sort((a, b) => (a.kpi.title || '').localeCompare(b.kpi.title || ''));
-      node.children.forEach(sortRec);
-    };
-    roots.forEach(sortRec);
-    return roots;
+    return [...visibleKPIsForYear]
+      .sort((a, b) => (a.title || '').localeCompare(b.title || ''))
+      .map((kpi) => ({ kpi, children: [] }));
   }, [visibleKPIsForYear]);
 
-  // Recursive filter of the hierarchy based on searchQuery (keeps matching nodes and their ancestors)
+  // Filter flat KPI list based on searchQuery
   const filteredHierarchy = useMemo(() => {
     if (!searchQuery.trim()) return fullHierarchy;
     const q = searchQuery.toLowerCase();
-
-    const filterNode = (node) => {
+    return fullHierarchy.filter((node) => {
       const titleMatch = (node.kpi.title || '').toLowerCase().includes(q);
       const categoryMatch = getCategoryName(node.kpi).toLowerCase().includes(q);
-      const children = node.children || [];
-      const filteredChildren = children.map(filterNode).filter(c => c !== null);
-      if (titleMatch || categoryMatch || filteredChildren.length > 0) {
-        return { ...node, children: filteredChildren };
-      }
-      return null;
-    };
-
-    return fullHierarchy.map(n => filterNode(n)).filter(n => n !== null);
-  }, [fullHierarchy, searchQuery]);
-
-  // Auto-expand nodes when search is active so matches are visible
-  useEffect(() => {
-    if (searchQuery.trim()) {
-      const nodesToExpand = new Set();
-      const collect = (node) => {
-        nodesToExpand.add(node.kpi.id);
-        (node.children || []).forEach(collect);
-      };
-      filteredHierarchy.forEach(node => collect(node));
-      setExpandedNodes(nodesToExpand);
-    }
-  }, [searchQuery, filteredHierarchy, fullHierarchy]);
-
-  const toggleExpand = (id) => {
-    setExpandedNodes((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
-      return next;
+      return titleMatch || categoryMatch;
     });
-  };
+  }, [fullHierarchy, searchQuery]);
 
   // Helper function to build KPI hierarchy
   const buildKPIHierarchy = (parentKPI) => {
@@ -903,78 +821,53 @@ function EmpKpiKaiPage() {
     return hierarchy[0];
   };
 
-  // Helper function to render KPI node with expandable children
-  const renderKPINode = (node, depth = 0) => {
-    const isExpanded = expandedNodes.has(node.kpi.id);
-    const hasChildren = (node.children || []).length > 0;
+  // Helper function to render a flat KPI row (expandable inline)
+  const renderKPINode = (node) => {
     const kpiValues = assignedKPIValuesForYear.filter(
       (kv) => normalizeKpiId(kv.kpi_id) === normalizeKpiId(node.kpi.id)
     );
-    
-    return (
-      <div key={node.kpi.id} className="space-y-2" style={{ marginLeft: `${depth * 16}px` }}>
-        <div className="bg-white rounded-lg border-2 border-slate-200 hover:border-blue-400 hover:shadow-md transition-all duration-200 p-4">
-          <div className="flex items-center justify-between gap-4">
-            {/* Expand/Collapse Button */}
-            <button
-              className={`flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${
-                hasChildren 
-                  ? 'bg-blue-100 hover:bg-blue-200 text-blue-600 cursor-pointer' 
-                  : 'text-slate-300'
-              }`}
-              onClick={() => hasChildren && toggleExpand(node.kpi.id)}
-              aria-label={hasChildren ? 'Toggle children' : 'No children'}
-              type="button"
-            >
-              {hasChildren ? (isExpanded ? '▼' : '▶') : '●'}
-            </button>
+    const isExpanded = normalizeKpiId(selectedKPI?.id) === normalizeKpiId(node.kpi.id);
 
-            {/* KPI Info */}
-            <div className="flex-1 min-w-0">
-              <h3 className="text-base font-semibold text-slate-900 truncate">{node.kpi.title}</h3>
-              <div className="flex items-center gap-2 mt-2 flex-wrap">
-                {kpiValues.length > 0 ? (
-                  <>
-                    <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 text-amber-700 rounded-full text-xs font-medium border border-amber-200">
-                      📊 {kpiValues.length} Value{kpiValues.length !== 1 ? 's' : ''}
-                    </span>
-                    <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 text-slate-700 rounded-full text-xs font-medium border border-slate-200">
-                      📁 {getCategoryName(node.kpi)}
-                    </span>
-                  </>
-                ) : kpiAssignees[node.kpi.id] && kpiAssignees[node.kpi.id].length > 0 ? (
-                  <>
-                    <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-medium border border-blue-200">
-                      👤 Assigned to: {kpiAssignees[node.kpi.id].map(a => `${a.first_name} ${a.last_name}`).join(', ')}
-                    </span>
-                    <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 text-slate-700 rounded-full text-xs font-medium border border-slate-200">
-                      📁 {getCategoryName(node.kpi)}
-                    </span>
-                  </>
-                ) : (
+    return (
+      <div key={node.kpi.id} className={`bg-white rounded-lg border-2 transition-all duration-200 ${isExpanded ? 'border-blue-400 shadow-md' : 'border-slate-200 hover:border-blue-300 hover:shadow-sm'}`}>
+        {/* Clickable header row */}
+        <div
+          className="p-4 flex items-center justify-between gap-4 cursor-pointer select-none"
+          onClick={() => selectKPI(node.kpi, kpiValues)}
+        >
+          <div className="flex-1 min-w-0">
+            <h3 className="text-base font-semibold text-slate-900 truncate">{node.kpi.title}</h3>
+            <div className="flex items-center gap-2 mt-2 flex-wrap">
+              {kpiValues.length > 0 ? (
+                <>
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 text-amber-700 rounded-full text-xs font-medium border border-amber-200">
+                    📊 {kpiValues.length} Value{kpiValues.length !== 1 ? 's' : ''}
+                  </span>
                   <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 text-slate-700 rounded-full text-xs font-medium border border-slate-200">
                     📁 {getCategoryName(node.kpi)}
                   </span>
-                )}
-              </div>
+                </>
+              ) : (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 text-slate-700 rounded-full text-xs font-medium border border-slate-200">
+                  📁 {getCategoryName(node.kpi)}
+                </span>
+              )}
             </div>
-
-            {/* View Button (always visible) */}
-            <button
-              className="p-1.5 hover:bg-gray-100 rounded text-sm"
-              type="button"
-              onClick={() => selectKPI(node.kpi, kpiValues)}
-              title={kpiValues.length > 0 ? 'View KPI details' : 'View KPI (no values)'}
-            >
-              👁️ View
-            </button>
           </div>
+          <button
+            className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${isExpanded ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
+            type="button"
+            onClick={(e) => { e.stopPropagation(); selectKPI(node.kpi, kpiValues); }}
+            title={isExpanded ? 'Minimize' : 'Expand to enter data'}
+          >
+            {isExpanded ? '▲ Minimize' : '▼ Enter Data'}
+          </button>
         </div>
 
-        {/* Child KPIs */}
-        {hasChildren && isExpanded && (
-          <div className="space-y-2 pl-2 border-l-2 border-slate-200">
-            {node.children.map((child) => renderKPINode(child, depth + 1))}
+        {/* Inline expanded data entry */}
+        {isExpanded && (
+          <div className="border-t border-slate-200">
+            {renderKPIWithValues(node)}
           </div>
         )}
       </div>
@@ -988,39 +881,32 @@ function EmpKpiKaiPage() {
     );
     
     return (
-      <div key={node.kpi.id} className="space-y-6">
-        {/* KPI Header Section */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8">
-          <h2 className="text-3xl font-bold text-slate-900 mb-2">{node.kpi.title}</h2>
-          <div className="flex flex-wrap items-center gap-3 mt-4">
-            <span className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 rounded-full text-sm font-semibold border border-blue-200">
-              📁 {getCategoryName(node.kpi)}
-            </span>
-            {kpiValues.length > 0 && (
-              <span className="inline-flex items-center gap-2 px-4 py-2 bg-green-50 text-green-700 rounded-full text-sm font-semibold border border-green-200">
-                ✓ {kpiValues.length} Value{kpiValues.length !== 1 ? 's' : ''}
-              </span>
-            )}
+      <div key={node.kpi.id} className="space-y-2">
+        {/* Recently auto-computed KPIs notice */}
+        {recentlyUpdatedKPIs.length > 0 && (
+          <div className="bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-2 mx-3 mt-3">
+            <p className="text-xs font-semibold text-emerald-700 mb-1">✓ Recently Auto-Computed</p>
+            <div className="flex flex-wrap gap-3">
+              {recentlyUpdatedKPIs.map((kpi, idx) => (
+                <span key={idx} className="text-xs text-emerald-800 font-medium">{kpi.name}: <strong>{formatValue(kpi.value, kpi.unit)}{kpi.unit && ` ${kpi.unit}`}</strong></span>
+              ))}
+            </div>
           </div>
-        </div>
-
+        )}
         {/* KPI Values Cards */}
         {kpiValues.length > 0 ? (
-          <div className="space-y-6">
+          <div className="space-y-2">
             {kpiValues.map((kpiValue) => (
-              <div key={kpiValue.id} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow">
+              <div key={kpiValue.id} className="bg-white rounded-lg border border-slate-200 overflow-hidden">
                 {/* Value Header */}
-                <div className="bg-gradient-to-r from-blue-50 to-slate-50 border-b border-slate-200 p-6">
-                  <div className="flex items-start justify-between mb-4">
-                    <div>
-                      <h3 className="text-xl font-bold text-slate-900">{kpiValue.data}</h3>
-                      <p className="text-sm text-slate-600 mt-1">KPI Value ID: {kpiValue.id}</p>
-                    </div>
-                  </div>
+                <div className="bg-gradient-to-r from-blue-50 to-slate-50 border-b border-slate-200 px-4 py-2">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-base font-bold text-slate-900">{kpiValue.data}</h3>
                   
+                  </div>
                   {/* Metadata Badges */}
-                  <div className="flex flex-wrap items-center gap-3">
-                    <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold border ${
+                  <div className="flex flex-wrap items-center gap-2 mt-1">
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border ${
                       String(kpiValue.kpi_type).toLowerCase() === 'computed' 
                         ? 'bg-purple-50 text-purple-700 border-purple-200' 
                         : 'bg-indigo-50 text-indigo-700 border-indigo-200'
@@ -1028,37 +914,28 @@ function EmpKpiKaiPage() {
                       {String(kpiValue.kpi_type).toLowerCase() === 'computed' ? '🧮 Computed' : '📝 Manual'}
                     </span>
                     {kpiValue.uom && unitSymbolById[kpiValue.uom] && (
-                      <span className="unit-badge inline-flex items-center gap-2 px-3 py-1 bg-orange-50 text-orange-700 rounded-full text-xs font-semibold border border-orange-200" title="Unit of Measurement">
+                      <span className="unit-badge inline-flex items-center gap-1 px-2 py-0.5 bg-orange-50 text-orange-700 rounded-full text-xs font-semibold border border-orange-200" title="Unit of Measurement">
                         📏{unitSymbolById[kpiValue.uom]}
                       </span>
                     )}
                     {kpiValue.target_required && (
-                      <span className="inline-flex items-center gap-2 px-3 py-1 bg-red-50 text-red-700 rounded-full text-xs font-semibold border border-red-200">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-50 text-red-700 rounded-full text-xs font-semibold border border-red-200">
                         🎯 Target Required
                       </span>
+                    )}
+                    {String(kpiValue.kpi_type).toLowerCase() === 'computed' && kpiValue.formula && (
+                      <code className="inline-block px-2 py-0.5 bg-white border border-slate-300 rounded text-xs font-mono text-slate-700 max-w-xs truncate" title={kpiValue.formula}>
+                        {kpiValue.formula}
+                      </code>
                     )}
                   </div>
                 </div>
 
-                {/* Formula Section */}
-                {String(kpiValue.kpi_type).toLowerCase() === 'computed' && kpiValue.formula && (
-                  <div className="px-6 py-4 bg-slate-50 border-b border-slate-200">
-                    <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">Formula</p>
-                    <code className="inline-block px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm font-mono text-slate-900 break-all">
-                      {kpiValue.formula}
-                    </code>
-                  </div>
-                )}
-
                 {/* Monthly Data Section */}
-                <div className="p-6">
-                  <h4 className="text-lg font-semibold text-slate-900 mb-6 flex items-center gap-2">
-                    <span className="text-2xl">📅</span>
-                    Monthly Data - FY {selectedYear}-{String(selectedYear + 1).slice(-2)}
-                  </h4>
+                <div className="p-3">
                   
                   {String(kpiValue.kpi_type).toLowerCase() === 'manual' ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
                       {months.map((month, index) => {
                         const monthData = getMonthData(kpiValue.id, index);
                         return (
@@ -1078,7 +955,7 @@ function EmpKpiKaiPage() {
                       })}
                     </div>
                   ) : String(kpiValue.kpi_type).toLowerCase() === 'computed' && (kpiValue.computation_type === 'target_computed' || (kpiValue.target_formula && kpiValue.target_formula.trim() !== '')) ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
                       {months.map((month, index) => {
                         const monthData = getMonthData(kpiValue.id, index);
                         return (
@@ -1098,7 +975,7 @@ function EmpKpiKaiPage() {
                       })}
                     </div>
                   ) : String(kpiValue.kpi_type).toLowerCase() === 'computed' && kpiValue.computation_type === 'actual_computed' ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
                       {months.map((month, index) => {
                         const monthData = getMonthData(kpiValue.id, index);
                         return (
@@ -1119,7 +996,7 @@ function EmpKpiKaiPage() {
                       })}
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
                       {months.map((month, index) => {
                         const monthData = getMonthData(kpiValue.id, index);
                         const hasComputedValue = monthData.actual_value !== null && monthData.actual_value !== undefined && monthData.actual_value !== '';
@@ -1135,7 +1012,7 @@ function EmpKpiKaiPage() {
                         return (
                           <div
                             key={index}
-                            className={`rounded-lg border-2 p-4 transition-all ${containerClass}`}
+                            className={`rounded-lg border p-2 transition-all ${containerClass}`}
                           >
                             <div className="flex items-start justify-between mb-2">
                               <h5 className="font-semibold text-slate-900">{month}</h5>
@@ -1190,30 +1067,6 @@ function EmpKpiKaiPage() {
               </div>
             ))}
           </div>
-        ) : kpiAssignees[node.kpi.id] && kpiAssignees[node.kpi.id].length > 0 ? (
-          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl shadow-md border-2 border-blue-300 p-8">
-            <div className="text-center">
-              <div className="text-5xl mb-4">👤</div>
-              <h3 className="text-2xl font-bold text-blue-900 mb-4">Data Owner</h3>
-              <p className="text-slate-600 text-sm mb-8">This KPI is being tracked by:</p>
-              
-              <div className="space-y-3">
-                {kpiAssignees[node.kpi.id].map((assignee) => (
-                  <div key={assignee.id} className="bg-white rounded-lg p-5 shadow-sm border border-blue-200">
-                    <p className="text-lg font-bold text-blue-900">
-                      {assignee.first_name} {assignee.last_name}
-                    </p>
-                    <p className="text-sm text-slate-600 mt-1">Employee ID: {assignee.empid}</p>
-                    {assignee.kpi_values && (
-                      <p className="text-xs text-slate-500 mt-2 italic">
-                        Responsible for: {assignee.kpi_values}
-                      </p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
         ) : (
           <div className="bg-white rounded-xl border-2 border-dashed border-slate-300 p-12 text-center">
             <div className="text-5xl mb-4">📭</div>
@@ -1222,13 +1075,6 @@ function EmpKpiKaiPage() {
           </div>
         )}
 
-        {/* Child KPIs */}
-        {node.children && node.children.length > 0 && (
-          <div className="space-y-6 mt-8 pl-6 border-l-4 border-blue-200">
-            <h3 className="text-lg font-semibold text-slate-900">Child KPIs</h3>
-            {node.children.map(child => renderKPIWithValues(child))}
-          </div>
-        )}
       </div>
     );
   };
@@ -1236,10 +1082,9 @@ function EmpKpiKaiPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-6 py-8">
+      <div className="max-w-7xl mx-auto px-4 py-4">
         <Notification show={notification.show} message={notification.message} type={notification.type} onClose={() => setNotification({ show: false, message: '', type: '' })} />
-        {!selectedKPI ? (
-          <div className="space-y-6">
+        <div className="space-y-4">
             {/* Filters Section */}
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 hover:shadow-md transition-shadow">
               <h2 className="text-lg font-semibold text-blue-900 mb-6 flex items-center gap-2">
@@ -1315,84 +1160,16 @@ function EmpKpiKaiPage() {
                 <p className="text-sm text-slate-500 mt-2">Please contact your administrator to assign KPIs.</p>
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {filteredHierarchy.map(node => renderKPINode(node))}
               </div>
             )}
           </div>
-        ) : (
-          <div className="space-y-6">
-
-            {/* Back Button, Breadcrumb & Financial Year Selector Combined */}
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
-                <div className="flex items-center gap-3">
-                  <button 
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium transition-colors"
-                    onClick={() => setSelectedKPI(null)}
-                    title="Back to KPI list"
-                  >
-                    ← Back
-                  </button>
-                  {/* Breadcrumb in colored box */}
-                  <div className="px-4 py-3 rounded-lg bg-blue-600">
-                    <nav className="flex items-center gap-2 flex-wrap">
-                      {buildBreadcrumb(selectedKPI).map((kpi, index, array) => (
-                        <div key={kpi.id} className="flex items-center gap-2">
-                          <span className="inline-flex items-center text-bold gap-2 px-3 py-1 bg-blue-500 text-white rounded-full text-xs font-semibold border border-blue-700">
-                            <span className="text-white">●</span>
-                            <span className="font-bold">{getCategoryName(kpi)}</span>
-                          </span>
-                          <span className="text-white font-medium">{kpi.title}</span>
-                          {index < array.length - 1 && <span className="text-slate-400 text-xl">›</span>}
-                        </div>
-                      ))}
-                    </nav>
-                  </div>
-                </div>
-                <div className="flex flex-col gap-2 min-w-[180px]">
-                  <label htmlFor="financial-year-detail" className="text-sm font-semibold text-slate-700">
-                    Financial Year
-                  </label>
-                  <select
-                    id="financial-year-detail"
-                    value={selectedYear}
-                    onChange={(e) => updateFinancialYear(parseInt(e.target.value))}
-                    className="px-4 py-3 border-2 border-slate-200 rounded-lg text-sm font-medium focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-colors bg-white hover:border-slate-300"
-                  >
-                    {[...Array(5)].map((_, i) => {
-                      const year = selectedYear - 2 + i;
-                      return <option key={year} value={year}>{year}-{String(year + 1).slice(-2)}</option>;
-                    })}
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            {/* KPI Details */}
-            <div className="space-y-6">
-              {recentlyUpdatedKPIs.length > 0 && (
-                <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
-                  <h3 className="text-sm font-semibold text-emerald-700">✓ Recently Auto-Computed KPIs</h3>
-                  <div className="mt-2">
-                    {recentlyUpdatedKPIs.map((kpi, idx) => (
-                      <div key={idx} className="flex items-center justify-between py-1">
-                        <div className="text-sm font-medium">{kpi.name}</div>
-                        <div className="text-sm font-semibold">{formatValue(kpi.value, kpi.unit)}{kpi.unit && <span className="ml-1 text-xs"> {kpi.unit}</span>}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {renderKPIWithValues(buildKPIHierarchy(selectedKPI))}
-            </div>
-          </div>
-        )}
-      </div>
+        </div>
 
       {/* Scroll to Top Button */}
       {showScrollTop && (
+
         <button
           className="fixed bottom-8 right-8 w-12 h-12 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg flex items-center justify-center transition-all duration-300 hover:scale-110 active:scale-95"
           onClick={scrollToTop}
@@ -1527,12 +1304,12 @@ function MonthlyDataForm({ month, monthIndex, kpiValueId, targetRequired, initia
   };
 
   return (
-    <div className={`rounded-lg border-2 p-4 transition-all ${
+    <div className={`rounded-lg border p-2 transition-all ${
       isEditing
         ? 'bg-blue-50 border-blue-300'
-        : 'bg-white border-slate-200 hover:border-slate-300 hover:shadow-md'
+        : 'bg-white border-slate-200 hover:border-slate-300 hover:shadow-sm'
     }`}>
-      <h5 className="font-semibold text-slate-900 mb-4 text-center text-sm">{month}</h5>
+      <h5 className="font-semibold text-slate-900 mb-2 text-center text-xs">{month}</h5>
       
       {isEditing ? (
         <div className="space-y-3">
