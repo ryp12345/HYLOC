@@ -325,6 +325,13 @@ const ManagementCalendar = () => {
 		}
 	};
 
+	// Detect unpaid leaves robustly (handles case/format variations)
+	const isUnpaidLeave = (leave) => {
+		if (!leave) return false;
+		const t = String(leave.leave_type || leave.type || '').toLowerCase();
+		return t.includes('unpaid') || t.includes('un-paid') || t.includes('un paid');
+	};
+
 	// Map stored identifier (usually EMPID) to a readable colleague label
 	const getAlternateDisplay = (identifier) => {
 		if (!identifier) return '';
@@ -1033,22 +1040,31 @@ const ManagementCalendar = () => {
 														)}
 													</>
 												)}
-																								{otherLeaves.length > 0 && (
-													<div className="mt-2">
-														<button
-															className="inline-flex items-center gap-2 bg-purple-600 text-white text-xs font-semibold px-2 py-0.5 rounded-full shadow-sm hover:bg-purple-700 focus:outline-none"
-															title="Org. leaves"
-																														aria-label={`View ${otherLeaves.length} org leave${otherLeaves.length > 1 ? 's' : ''}`}
-															onClick={(e) => { e.stopPropagation(); openLeaveModal(date); }}
-															onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); openLeaveModal(date); } }}
-														>
-															<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" className="h-6 w-6" aria-hidden="true"><path d="M2 22C2 17.5817 5.58172 14 10 14C14.4183 14 18 17.5817 18 22H16C16 18.6863 13.3137 16 10 16C6.68629 16 4 18.6863 4 22H2ZM10 13C6.685 13 4 10.315 4 7C4 3.685 6.685 1 10 1C13.315 1 16 3.685 16 7C16 10.315 13.315 13 10 13ZM10 11C12.21 11 14 9.21 14 7C14 4.79 12.21 3 10 3C7.79 3 6 4.79 6 7C6 9.21 7.79 11 10 11ZM18.2837 14.7028C21.0644 15.9561 23 18.752 23 22H21C21 19.564 19.5483 17.4671 17.4628 16.5271L18.2837 14.7028ZM17.5962 3.41321C19.5944 4.23703 21 6.20361 21 8.5C21 11.3702 18.8042 13.7252 16 13.9776V11.9646C17.6967 11.7222 19 10.264 19 8.5C19 7.11935 18.2016 5.92603 17.041 5.35635L17.5962 3.41321Z"/></svg>
-																														{otherLeaves.length >= 1 && (
-																																<span className="bg-white text-purple-700 text-[10px] font-semibold rounded-full px-1 py-0.5">{otherLeaves.length}</span>
-																														)}
-														</button>
-													</div>
-												)}
+																									{otherLeaves.length > 0 && (() => {
+																										const unpaidCount = (otherLeaves || []).filter(l => isUnpaidLeave(l)).length;
+																										const paidCount = (otherLeaves || []).length - unpaidCount;
+																										const total = otherLeaves.length;
+																										const paidPct = total > 0 ? Math.round((paidCount / total) * 100) : 50;
+																										const deptBadgeStyle = (paidCount > 0 && unpaidCount > 0) ? { background: `linear-gradient(to right, #3b82f6 ${paidPct}%, #ef4444 ${paidPct}%)` } : null;
+																										const deptBadgeClass = (paidCount > 0 && unpaidCount === 0) ? 'bg-blue-600 hover:bg-blue-700' : (unpaidCount > 0 && paidCount === 0) ? 'bg-red-600 hover:bg-red-700' : 'bg-purple-600 hover:bg-purple-700';
+																										return (
+																											<div className="mt-2">
+																												<button
+																													className={`inline-flex items-center gap-2 text-white text-xs font-semibold px-2 py-0.5 rounded-full shadow-sm focus:outline-none ${deptBadgeClass}`}
+																													style={deptBadgeStyle}
+																													title="Org. leaves"
+																													aria-label={`View ${otherLeaves.length} org leave${otherLeaves.length > 1 ? 's' : ''}`}
+																													onClick={(e) => { e.stopPropagation(); openLeaveModal(date); }}
+																													onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); openLeaveModal(date); } }}
+																												>
+																													<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" className="h-6 w-6" aria-hidden="true"><path d="M2 22C2 17.5817 5.58172 14 10 14C14.4183 14 18 17.5817 18 22H16C16 18.6863 13.3137 16 10 16C6.68629 16 4 18.6863 4 22H2ZM10 13C6.685 13 4 10.315 4 7C4 3.685 6.685 1 10 1C13.315 1 16 3.685 16 7C16 10.315 13.315 13 10 13ZM10 11C12.21 11 14 9.21 14 7C14 4.79 12.21 3 10 3C7.79 3 6 4.79 6 7C6 9.21 7.79 11 10 11ZM18.2837 14.7028C21.0644 15.9561 23 18.752 23 22H21C21 19.564 19.5483 17.4671 17.4628 16.5271L18.2837 14.7028ZM17.5962 3.41321C19.5944 4.23703 21 6.20361 21 8.5C21 11.3702 18.8042 13.7252 16 13.9776V11.9646C17.6967 11.7222 19 10.264 19 8.5C19 7.11935 18.2016 5.92603 17.041 5.35635L17.5962 3.41321Z"/></svg>
+																													{otherLeaves.length >= 1 && (
+																														<span className="bg-white text-purple-700 text-[10px] font-semibold rounded-full px-1 py-0.5">{otherLeaves.length}</span>
+																													)}
+																												</button>
+																												</div>
+																										);
+																									})()}
 												{(() => {
 													const dayTickets = getTicketsForDate(date);
 													return dayTickets.length > 0 ? (
@@ -1106,22 +1122,31 @@ const ManagementCalendar = () => {
 															</button>
 														</div>
 													)}
-													{otherLeaves.length > 0 && (
-														<div>
-															<button
-																className="inline-flex items-center gap-2 bg-purple-600 text-white text-xs font-semibold px-2 py-0.5 rounded-full shadow-sm hover:bg-purple-700 focus:outline-none"
-																title="Org. leaves"
-																aria-label={`View ${otherLeaves.length} org leave${otherLeaves.length > 1 ? 's' : ''}`}
-																onClick={(e) => { e.stopPropagation(); openLeaveModal(date); }}
-																onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); openLeaveModal(date); } }}
-															>
-																<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="currentColor" className="h-6 w-6" aria-hidden="true"><path d="M2 22C2 17.5817 5.58172 14 10 14C14.4183 14 18 17.5817 18 22H16C16 18.6863 13.3137 16 10 16C6.68629 16 4 18.6863 4 22H2ZM10 13C6.685 13 4 10.315 4 7C4 3.685 6.685 1 10 1C13.315 1 16 3.685 16 7C16 10.315 13.315 13 10 13ZM10 11C12.21 11 14 9.21 14 7C14 4.79 12.21 3 10 3C7.79 3 6 4.79 6 7C6 9.21 7.79 11 10 11ZM18.2837 14.7028C21.0644 15.9561 23 18.752 23 22H21C21 19.564 19.5483 17.4671 17.4628 16.5271L18.2837 14.7028ZM17.5962 3.41321C19.5944 4.23703 21 6.20361 21 8.5C21 11.3702 18.8042 13.7252 16 13.9776V11.9646C17.6967 11.7222 19 10.264 19 8.5C19 7.11935 18.2016 5.92603 17.041 5.35635L17.5962 3.41321Z"></path></svg>
-																{otherLeaves.length >= 1 && (
-																	<span className="bg-white text-purple-700 text-[10px] font-semibold rounded-full px-1 py-0.5">{otherLeaves.length}</span>
-																)}
-															</button>
-														</div>
-													)}
+													{otherLeaves.length > 0 && (() => {
+														const unpaidCount = (otherLeaves || []).filter(l => isUnpaidLeave(l)).length;
+														const paidCount = (otherLeaves || []).length - unpaidCount;
+														const total = otherLeaves.length;
+														const paidPct = total > 0 ? Math.round((paidCount / total) * 100) : 50;
+														const deptBadgeStyle = (paidCount > 0 && unpaidCount > 0) ? { background: `linear-gradient(to right, #3b82f6 ${paidPct}%, #ef4444 ${paidPct}%)` } : null;
+														const deptBadgeClass = (paidCount > 0 && unpaidCount === 0) ? 'bg-blue-600 hover:bg-blue-700' : (unpaidCount > 0 && paidCount === 0) ? 'bg-red-600 hover:bg-red-700' : 'bg-purple-600 hover:bg-purple-700';
+														return (
+															<div>
+																<button
+																	className={`inline-flex items-center gap-2 text-white text-xs font-semibold px-2 py-0.5 rounded-full shadow-sm focus:outline-none ${deptBadgeClass}`}
+																	style={deptBadgeStyle}
+																	title="Org. leaves"
+																	aria-label={`View ${otherLeaves.length} org leave${otherLeaves.length > 1 ? 's' : ''}`}
+																	onClick={(e) => { e.stopPropagation(); openLeaveModal(date); }}
+																	onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); openLeaveModal(date); } }}
+																>
+																	<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="currentColor" className="h-6 w-6" aria-hidden="true"><path d="M2 22C2 17.5817 5.58172 14 10 14C14.4183 14 18 17.5817 18 22H16C16 18.6863 13.3137 16 10 16C6.68629 16 4 18.6863 4 22H2ZM10 13C6.685 13 4 10.315 4 7C4 3.685 6.685 1 10 1C13.315 1 16 3.685 16 7C16 10.315 13.315 13 10 13ZM10 11C12.21 11 14 9.21 14 7C14 4.79 12.21 3 10 3C7.79 3 6 4.79 6 7C6 9.21 7.79 11 10 11ZM18.2837 14.7028C21.0644 15.9561 23 18.752 23 22H21C21 19.564 19.5483 17.4671 17.4628 16.5271L18.2837 14.7028ZM17.5962 3.41321C19.5944 4.23703 21 6.20361 21 8.5C21 11.3702 18.8042 13.7252 16 13.9776V11.9646C17.6967 11.7222 19 10.264 19 8.5C19 7.11935 18.2016 5.92603 17.041 5.35635L17.5962 3.41321Z"></path></svg>
+																	{otherLeaves.length >= 1 && (
+																		<span className="bg-white text-purple-700 text-[10px] font-semibold rounded-full px-1 py-0.5">{otherLeaves.length}</span>
+																	)}
+																</button>
+															</div>
+														);
+													})()}
 													{(() => {
 														const dayTickets = getTicketsForDate(date);
 														return dayTickets.length > 0 ? (
@@ -1570,18 +1595,24 @@ const ManagementCalendar = () => {
 											<th className="text-left px-4 py-2 border">To Date</th>
 											<th className="text-left px-4 py-2 border">Leave Reason</th>
 											<th className="text-left px-4 py-2 border">Alternate</th>
+											<th className="text-left px-4 py-2 border">Type</th>
 											<th className="text-left px-4 py-2 border">Status</th>
 										</tr>
 									</thead>
 									<tbody>
 										{selectedDateLeaves.map((leave) => (
-											<tr key={leave.id} className="border-t">
+											<tr key={leave.id} className={`border-t ${isUnpaidLeave(leave) ? 'bg-red-50 border-l-4 border-red-600' : ''}`}>
 												<td className="px-4 py-2 border">{leave.user_name}</td>
 												<td className="px-4 py-2 border">{leave.user_role || '—'}</td>
 												<td className="px-4 py-2 border">{formatFullDate(parseDateOnly(leave.from_date))}</td>
 												<td className="px-4 py-2 border">{formatFullDate(parseDateOnly(leave.to_date))}</td>
 												<td className="px-4 py-2 border">{leave.leave_reason || '—'}</td>
 												<td className="px-4 py-2 border">{formatAlternate(leave)}</td>
+												<td className="px-4 py-2 border">
+													<span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold text-white ${isUnpaidLeave(leave) ? 'bg-red-600' : 'bg-blue-600'}`}>
+														{leave.leave_type || '—'}
+													</span>
+												</td>
 												<td className="px-4 py-2 border">
 													<span className={`px-2 py-1 rounded text-xs font-semibold ${getLeaveBadgeColor(leave.status)}`}>
 														{leave.status}

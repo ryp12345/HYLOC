@@ -514,6 +514,13 @@ const ManagerCalendar = ({ joinDate }) => {
     }
   };
 
+  // Detect unpaid leaves robustly (handles case/format variations)
+  const isUnpaidLeave = (leave) => {
+    if (!leave) return false;
+    const t = String(leave.leave_type || leave.type || '').toLowerCase();
+    return t.includes('unpaid') || t.includes('un-paid') || t.includes('un paid');
+  };
+
   // Map stored identifier (usually EMPID) to a readable colleague label
   const getAlternateDisplay = (identifier) => {
     if (!identifier) return '';
@@ -767,38 +774,47 @@ const ManagerCalendar = ({ joinDate }) => {
                       {isToday(date) && (
                         <div className="text-blue-600 text-xs font-italic">Today</div>
                       )}
-                      {leave && (
-                        <div className="mt-1">
-                          <button
-                            className="inline-flex items-center gap-2 bg-blue-600 text-white text-xs font-semibold px-2 py-0.5 rounded-full shadow-sm hover:bg-blue-700 focus:outline-none"
-                            title="Click to view/edit my leave"
-                            aria-label="View my leave"
-                            onClick={(e) => { e.stopPropagation(); handleDateClick(date); }}
-                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); handleDateClick(date); } }}
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                              <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
-                            </svg>
-                            <span className="text-[10px]">Me</span>
-                          </button>
-                        </div>
-                      )}
-                      {otherLeaves.length > 0 && (
-                        <div className="mt-2">
-                          <button
-                            className="inline-flex items-center gap-2 bg-purple-600 text-white text-xs font-semibold px-2 py-0.5 rounded-full shadow-sm hover:bg-purple-700 focus:outline-none"
-                            title="Dept. leaves"
-                            aria-label={`View ${otherLeaves.length} dept leave${otherLeaves.length > 1 ? 's' : ''}`}
-                            onClick={(e) => { e.stopPropagation(); openCalendarLeaveModal(date); }}
-                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); openCalendarLeaveModal(date); } }}
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" className="h-6 w-6" aria-hidden="true"><path d="M2 22C2 17.5817 5.58172 14 10 14C14.4183 14 18 17.5817 18 22H16C16 18.6863 13.3137 16 10 16C6.68629 16 4 18.6863 4 22H2ZM10 13C6.685 13 4 10.315 4 7C4 3.685 6.685 1 10 1C13.315 1 16 3.685 16 7C16 10.315 13.315 13 10 13ZM10 11C12.21 11 14 9.21 14 7C14 4.79 12.21 3 10 3C7.79 3 6 4.79 6 7C6 9.21 7.79 11 10 11ZM18.2837 14.7028C21.0644 15.9561 23 18.752 23 22H21C21 19.564 19.5483 17.4671 17.4628 16.5271L18.2837 14.7028ZM17.5962 3.41321C19.5944 4.23703 21 6.20361 21 8.5C21 11.3702 18.8042 13.7252 16 13.9776V11.9646C17.6967 11.7222 19 10.264 19 8.5C19 7.11935 18.2016 5.92603 17.041 5.35635L17.5962 3.41321Z"></path></svg>
-                            {otherLeaves.length >= 1 && (
-                              <span className="bg-white text-purple-700 text-[10px] font-semibold rounded-full px-1 py-0.5">{otherLeaves.length}</span>
-                            )}
-                          </button>
-                        </div>
-                      )}
+                              {leave && (
+                                <div className="mt-1">
+                                  <button
+                                    className={`inline-flex items-center gap-2 text-white text-xs font-semibold px-2 py-0.5 rounded-full shadow-sm focus:outline-none ${leave.leave_type === 'Unpaid' ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'}`}
+                                    title="Click to view/edit my leave"
+                                    aria-label="View my leave"
+                                    onClick={(e) => { e.stopPropagation(); handleDateClick(date); }}
+                                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); handleDateClick(date); } }}
+                                  >
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                      <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+                                    </svg>
+                                    <span className="text-[10px]">Me</span>
+                                  </button>
+                                </div>
+                              )}
+                              {otherLeaves.length > 0 && (() => {
+                                const unpaidCount = (otherLeaves || []).filter(l => l.leave_type === 'Unpaid').length;
+                                const paidCount = (otherLeaves || []).length - unpaidCount;
+                                const total = otherLeaves.length;
+                                const paidPct = total > 0 ? Math.round((paidCount / total) * 100) : 50;
+                                const deptBadgeStyle = (paidCount > 0 && unpaidCount > 0) ? { background: `linear-gradient(to right, #3b82f6 ${paidPct}%, #ef4444 ${paidPct}%)` } : null;
+                                const deptBadgeClass = (paidCount > 0 && unpaidCount === 0) ? 'bg-blue-600 hover:bg-blue-700' : (unpaidCount > 0 && paidCount === 0) ? 'bg-red-600 hover:bg-red-700' : 'bg-purple-600 hover:bg-purple-700';
+                                return (
+                                <div className="mt-2">
+                                  <button
+                                    className={`inline-flex items-center gap-2 text-white text-xs font-semibold px-2 py-0.5 rounded-full shadow-sm focus:outline-none ${deptBadgeClass}`}
+                                    style={deptBadgeStyle}
+                                    title="Dept. leaves"
+                                    aria-label={`View ${otherLeaves.length} dept leave${otherLeaves.length > 1 ? 's' : ''}`}
+                                    onClick={(e) => { e.stopPropagation(); openCalendarLeaveModal(date); }}
+                                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); openCalendarLeaveModal(date); } }}
+                                  >
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" className="h-6 w-6" aria-hidden="true"><path d="M2 22C2 17.5817 5.58172 14 10 14C14.4183 14 18 17.5817 18 22H16C16 18.6863 13.3137 16 10 16C6.68629 16 4 18.6863 4 22H2ZM10 13C6.685 13 4 10.315 4 7C4 3.685 6.685 1 10 1C13.315 1 16 3.685 16 7C16 10.315 13.315 13 10 13ZM10 11C12.21 11 14 9.21 14 7C14 4.79 12.21 3 10 3C7.79 3 6 4.79 6 7C6 9.21 7.79 11 10 11ZM18.2837 14.7028C21.0644 15.9561 23 18.752 23 22H21C21 19.564 19.5483 17.4671 17.4628 16.5271L18.2837 14.7028ZM17.5962 3.41321C19.5944 4.23703 21 6.20361 21 8.5C21 11.3702 18.8042 13.7252 16 13.9776V11.9646C17.6967 11.7222 19 10.264 19 8.5C19 7.11935 18.2016 5.92603 17.041 5.35635L17.5962 3.41321Z"></path></svg>
+                                    {otherLeaves.length >= 1 && (
+                                      <span className="bg-white text-purple-700 text-[10px] font-semibold rounded-full px-1 py-0.5">{otherLeaves.length}</span>
+                                    )}
+                                  </button>
+                                </div>
+                                );
+                              })()}
                       {(() => {
                         const dayTickets = getTicketsForDate(date);
                         return dayTickets.length > 0 ? (
@@ -853,6 +869,13 @@ const ManagerCalendar = ({ joinDate }) => {
           <div className="grid grid-cols-7 gap-1">
             {weekDays.map((date) => {
               const dayCalendarLeaves = getCalendarLeavesForDate(date);
+              const otherLeaves = (dayCalendarLeaves || []).filter(l => !isLeaveByCurrentUser(l));
+              const unpaidCountWeek = (otherLeaves || []).filter(l => l.leave_type === 'Unpaid').length;
+              const paidCountWeek = (otherLeaves || []).length - unpaidCountWeek;
+              const totalWeek = otherLeaves.length;
+              const paidPctWeek = totalWeek > 0 ? Math.round((paidCountWeek / totalWeek) * 100) : 50;
+              const deptBadgeStyleWeek = (paidCountWeek > 0 && unpaidCountWeek > 0) ? { background: `linear-gradient(to right, #3b82f6 ${paidPctWeek}%, #ef4444 ${paidPctWeek}%)` } : null;
+              const deptBadgeClassWeek = (paidCountWeek > 0 && unpaidCountWeek === 0) ? 'bg-blue-600 hover:bg-blue-700' : (unpaidCountWeek > 0 && paidCountWeek === 0) ? 'bg-red-600 hover:bg-red-700' : 'bg-purple-600 hover:bg-purple-700';
               return (
               <div
                 key={date.toISOString()}
@@ -874,9 +897,10 @@ const ManagerCalendar = ({ joinDate }) => {
                       {otherLeaves.length > 0 && (
                   <div className="mt-2">
                     <button
-                      className="inline-flex items-center gap-2 bg-purple-600 text-white text-xs font-semibold px-2 py-0.5 rounded-full shadow-sm hover:bg-purple-700 focus:outline-none"
+                      className={`inline-flex items-center gap-2 text-white text-xs font-semibold px-2 py-0.5 rounded-full shadow-sm focus:outline-none ${deptBadgeClassWeek}`}
+                      style={deptBadgeStyleWeek}
                       title="Dept. leaves"
-                      aria-label={`View ${dayCalendarLeaves.length} dept leave${dayCalendarLeaves.length > 1 ? 's' : ''}`}
+                      aria-label={`View ${otherLeaves.length} dept leave${otherLeaves.length > 1 ? 's' : ''}`}
                       onClick={(e) => { e.stopPropagation(); openCalendarLeaveModal(date); }}
                       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); openCalendarLeaveModal(date); } }}
                     >
@@ -1020,18 +1044,24 @@ const ManagerCalendar = ({ joinDate }) => {
                       <th className="text-left px-4 py-2 border">To Date</th>
                       <th className="text-left px-4 py-2 border">Leave Reason</th>
                       <th className="text-left px-4 py-2 border">Alternate</th>
+                      <th className="text-left px-4 py-2 border">Type</th>
                       <th className="text-left px-4 py-2 border">Status</th>
                     </tr>
                   </thead>
                   <tbody>
                     {selectedCalendarLeaves.map((leave) => (
-                      <tr key={leave.id} className="border-t">
+                      <tr key={leave.id} className={`border-t ${isUnpaidLeave(leave) ? 'bg-red-50 border-l-4 border-red-600' : ''}`}>
                         <td className="px-4 py-2 border">{leave.user_name}</td>
                         <td className="px-4 py-2 border">{leave.user_role || '—'}</td>
                         <td className="px-4 py-2 border">{formatFullDate(parseDateOnly(leave.from_date))}</td>
                         <td className="px-4 py-2 border">{formatFullDate(parseDateOnly(leave.to_date))}</td>
                         <td className="px-4 py-2 border">{leave.leave_reason || '—'}</td>
                         <td className="px-4 py-2 border">{formatAlternate(leave)}</td>
+                        <td className="px-4 py-2 border">
+                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold text-white ${isUnpaidLeave(leave) ? 'bg-red-600' : 'bg-blue-600'}`}>
+                            {leave.leave_type || '—'}
+                          </span>
+                        </td>
                         <td className="px-4 py-2 border">
                           <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold text-white ${getLeaveBadgeColor(leave.status)}`}>
                             {leave.status || '—'}
@@ -1109,78 +1139,50 @@ const ManagerCalendar = ({ joinDate }) => {
             {(() => {
               const leave = getLeaveForDate(selectedDate);
               return leave ? (
-                <div className="space-y-4">
-                  <div className="border-b pb-3">
-                    <span className={`px-3 py-1 rounded text-white text-sm ${getLeaveBadgeColor(leave.status)}`}>
-                      {leave.status}
-                    </span>
-                    <span className="ml-2 text-sm text-gray-600">{leave.leave_duration}</span>
-                    <span className="ml-2 text-sm font-semibold text-gray-700">{leave.credited_days} day(s)</span>
-                  </div>
-
-                  <div>
-                    <p className="text-sm font-semibold text-gray-700">Duration:</p>
-                    <p className="text-gray-800">{leave.leave_duration}</p>
-                  </div>
-
-                  <div>
-                    <p className="text-sm font-semibold text-gray-700">Reason:</p>
-                    <p className="text-gray-800">{leave.leave_reason}</p>
-                  </div>
-
-                  {leave.alternate_person && (
-                    <div>
-                      <p className="text-sm font-semibold text-gray-700">Alternate Person:</p>
-                      <p className="text-gray-800">{getAlternateDisplay(leave.alternate_person)}</p>
-                    </div>
-                  )}
-
-                  {leave.additional_alternate && (
-                    <div>
-                      <p className="text-sm font-semibold text-gray-700">Additional Alternate:</p>
-                      <p className="text-gray-800">{getAlternateDisplay(leave.additional_alternate)}</p>
-                    </div>
-                  )}
-
-                  {leave.approver_name && (
-                    <div>
-                      <p className="text-sm font-semibold text-gray-700">
-                        {leave.status === 'Approved' ? 'Approved by:' : 'Rejected by:'}
-                      </p>
-                      <p className="text-gray-800">{leave.approver_name}</p>
-                    </div>
-                  )}
-
-                  <div className="flex gap-2 pt-4">
-                    <button
-                      onClick={() => {
-                        if (leave.status !== 'Approved' && leave.status !== 'Rejected') {
-                          openEditForm(leave);
-                          handleCloseDateDetail();
-                        }
-                      }}
-                      className={`flex-1 px-4 py-2 rounded ${(leave.status === 'Approved' || leave.status === 'Rejected') ? 'bg-gray-400 text-gray-200 cursor-not-allowed' : 'bg-blue-500 text-white hover:bg-blue-600'}`}
-                      disabled={leave.status === 'Approved' || leave.status === 'Rejected'}
-                      title={(leave.status === 'Approved' || leave.status === 'Rejected') ? 'Cannot edit approved or rejected leave' : 'Edit leave'}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => {
-                        if (leave.status !== 'Approved' && leave.status !== 'Rejected') {
-                          if (window.confirm('Are you sure you want to cancel this leave?')) {
-                            handleCancelLeave(leave.id);
-                            handleCloseDateDetail();
-                          }
-                        }
-                      }}
-                      className={`flex-1 px-4 py-2 rounded ${(leave.status === 'Approved' || leave.status === 'Rejected') ? 'bg-gray-400 text-gray-200 cursor-not-allowed' : 'bg-red-500 text-white hover:bg-red-600'}`}
-                      disabled={leave.status === 'Approved' || leave.status === 'Rejected'}
-                      title={(leave.status === 'Approved' || leave.status === 'Rejected') ? 'Cannot cancel approved or rejected leave' : 'Cancel leave'}
-                    >
-                      Cancel Leave
-                    </button>
-                  </div>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full bg-white border rounded-lg">
+                    <thead>
+                      <tr className="bg-gray-100 text-gray-700">
+                        <th className="py-2 px-4 text-left">From</th>
+                        <th className="py-2 px-4 text-left">To</th>
+                        <th className="py-2 px-4 text-left">Duration</th>
+                        <th className="py-2 px-4 text-left">Reason</th>
+                        <th className="py-2 px-4 text-center">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr className="border-b hover:bg-gray-50">
+                        <td className="py-2 px-4">{formatFullDate(parseDateOnly(leave.from_date))}</td>
+                        <td className="py-2 px-4">{formatFullDate(parseDateOnly(leave.to_date))}</td>
+                        <td className="py-2 px-4">{leave.leave_duration || ''} ({leave.duration ?? leave.credited_days} day{(leave.duration ?? leave.credited_days) === 1 ? '' : 's'})</td>
+                        <td className="py-2 px-4">{leave.leave_reason || '-'}</td>
+                        <td className="py-2 px-4 text-center">
+                          <div className="flex justify-center gap-2">
+                            <button
+                              onClick={() => { if (leave.status !== 'Approved' && leave.status !== 'Rejected') { openEditForm(leave); handleCloseDateDetail(); } }}
+                              className={`p-2 text-white transition-colors duration-200 ${leave.status === 'Approved' || leave.status === 'Rejected' ? 'bg-gray-400 cursor-not-allowed rounded-lg' : 'bg-blue-600 rounded-lg hover:bg-blue-700'}`}
+                              disabled={leave.status === 'Approved' || leave.status === 'Rejected'}
+                              title="Edit Leave"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                              </svg>
+                            </button>
+                            <button
+                              onClick={() => { if (leave.status !== 'Approved' && leave.status !== 'Rejected') { if (window.confirm('Are you sure you want to cancel this leave?')) { handleCancelLeave(leave.id); handleCloseDateDetail(); } } }}
+                              className={`p-2 text-white transition-colors duration-200 ${leave.status === 'Approved' || leave.status === 'Rejected' ? 'bg-gray-400 cursor-not-allowed rounded-lg' : 'bg-red-500 rounded-lg hover:bg-red-600'}`}
+                              disabled={leave.status === 'Approved' || leave.status === 'Rejected'}
+                              title="Cancel Leave"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
                 </div>
               ) : null;
             })()}
