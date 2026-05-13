@@ -68,16 +68,16 @@ exports.applyLeave = async (req, res, next) => {
             if (toDate && fromDate !== toDate) {
               dateText = `${fromDate} to ${toDate}`;
             }
-            for (const manager of managers) {
-              if (manager && manager.id) {
-                await notificationModel.createNotification({
-                  created_by: userId,
-                  assigned_to: manager.id,
-                  message: `${applicantName} from your department has applied for ${leaveType}  from ${dateText}.`,
-                  type: 'leave',
-                  is_read: false
-                });
-              }
+            // Deduplicate manager IDs in case of duplicate rows
+            const uniqueManagerIds = Array.from(new Set((managers || []).map(m => m && m.id).filter(Boolean)));
+            for (const managerId of uniqueManagerIds) {
+              await notificationModel.createNotification({
+                created_by: userId,
+                assigned_to: managerId,
+                message: `${applicantName} from your department has applied for ${leaveType}  from ${dateText}.`,
+                type: 'leave',
+                is_read: false
+              });
             }
           }
         }
@@ -114,6 +114,55 @@ exports.applyLeave = async (req, res, next) => {
         // Log error but don't block leave application
         console.error('Notification error:', notifyErr);
       }
+    }
+    // Notify Management for long (>2 days) Employee leave applications
+    try {
+      const normalizedRole = (userRole || '').toLowerCase();
+      if (normalizedRole === 'employee') {
+        const { creditedDays } = leaveService.calculateCreditedDays(
+          req.body.from_date,
+          req.body.to_date || req.body.from_date,
+          req.body.leave_duration || 'Full Day'
+        );
+
+        if (Number(creditedDays) > 2) {
+          const mgmtResult = await db.query(
+            `
+              SELECT u.id
+              FROM users u
+              JOIN user_roles ur ON ur.user_id = u.id AND ur.status = 'active'
+              JOIN roles r ON r.id = ur.role_id
+              WHERE u.status = 'active'
+                AND LOWER(r.role_name) = 'management'
+            `
+          );
+
+          const managers = mgmtResult.rows || [];
+          const applicant = await userModel.findUserById(userId);
+          const applicantName = [applicant?.firstname, applicant?.lastname].filter(Boolean).join(' ') || 'Employee';
+          const fromDate = req.body.from_date;
+          const toDate = req.body.to_date;
+          const leaveType = req.body.leave_type || 'Leave';
+          let dateText = fromDate;
+          if (toDate && fromDate !== toDate) {
+            dateText = `${fromDate} to ${toDate}`;
+          }
+
+          // Deduplicate management recipient IDs before creating notifications
+          const uniqueMgmtIds = Array.from(new Set((managers || []).map(m => m && m.id).filter(Boolean)));
+          for (const mgmtId of uniqueMgmtIds) {
+            await notificationModel.createNotification({
+              created_by: userId,
+              assigned_to: mgmtId,
+              message: `${applicantName} has applied for ${leaveType} leave from ${dateText}. Please review if necessary.`,
+              type: 'leave',
+              is_read: false
+            });
+          }
+        }
+      }
+    } catch (mgmtNotifyErr) {
+      console.error('Management notification error:', mgmtNotifyErr);
     }
     /////////////////////////notification code////////////////////////////
 

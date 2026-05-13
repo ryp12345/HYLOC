@@ -17,6 +17,12 @@ This document lists the leave-related behaviors that are implemented in the syst
 - Notifications 
    - Notifications are created for apply/approve/reject actions. 
 
+Notes:
+  - Notifications are going to all memebers of mgmt team.
+
+
+***********************************************************************************************
+
 2. Manager
 
 - Scope
@@ -33,6 +39,13 @@ This document lists the leave-related behaviors that are implemented in the syst
 
  - Update vs delete
    - Managers (and Management) may update status/`approved_by` via the update endpoint for others. Deletion/cancellation of a leave record is allowed only by the leave owner via the cancel endpoint.
+
+- Notes:
+  - A Mgrr from another department can approve/reject an Employee's leave.(Update if required)
+  - Notifications are going to all mgrs(only to the same deptartment)
+
+
+***********************************************************************************************
 
 3. Employee
 
