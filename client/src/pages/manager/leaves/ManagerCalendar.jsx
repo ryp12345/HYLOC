@@ -1122,12 +1122,12 @@ const ManagerCalendar = ({ joinDate }) => {
     {/* Date Detail Modal */}
     {showDateDetail && selectedDate && (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+        <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
           <div className="p-6">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xl font-bold text-gray-800">
-                {formatFullDate(selectedDate)}
-              </h3>
+              <div>
+                <h3 className="text-lg font-semibold mb-1">My Leave</h3>
+              </div>
               <button
                 onClick={handleCloseDateDetail}
                 className="text-gray-500 hover:text-gray-700 text-2xl"
@@ -1147,6 +1147,7 @@ const ManagerCalendar = ({ joinDate }) => {
                         <th className="py-2 px-4 text-left">To</th>
                         <th className="py-2 px-4 text-left">Duration</th>
                         <th className="py-2 px-4 text-left">Reason</th>
+                        <th className="py-2 px-4 text-left">Leave Type</th>
                         <th className="py-2 px-4 text-center">Action</th>
                       </tr>
                     </thead>
@@ -1156,6 +1157,7 @@ const ManagerCalendar = ({ joinDate }) => {
                         <td className="py-2 px-4">{formatFullDate(parseDateOnly(leave.to_date))}</td>
                         <td className="py-2 px-4">{leave.leave_duration || ''} ({leave.duration ?? leave.credited_days} day{(leave.duration ?? leave.credited_days) === 1 ? '' : 's'})</td>
                         <td className="py-2 px-4">{leave.leave_reason || '-'}</td>
+                        <td className="py-2 px-4">{leave.leave_type ?? leave.type ?? (isUnpaidLeave(leave) ? 'Unpaid' : '—')}</td>
                         <td className="py-2 px-4 text-center">
                           <div className="flex justify-center gap-2">
                             <button

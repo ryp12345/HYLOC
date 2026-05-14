@@ -858,6 +858,7 @@ const EmployeeCalendar = ({ joinDate }) => {
                               <th className="py-2 px-4 text-left">To</th>
                               <th className="py-2 px-4 text-left">Duration</th>
                               <th className="py-2 px-4 text-left">Reason</th>
+                              <th className="py-2 px-4 text-left">Leave Type</th>
                               <th className="py-2 px-4 text-center">Action</th>
                             </tr>
                           </thead>
@@ -867,6 +868,7 @@ const EmployeeCalendar = ({ joinDate }) => {
                               <td className="py-2 px-4">{formatFullDate(parseDateOnly(selectedMyLeave.to_date))}</td>
                               <td className="py-2 px-4">{selectedMyLeave.leave_duration || ''} ({selectedMyLeave.duration ?? selectedMyLeave.credited_days} day{(selectedMyLeave.duration ?? selectedMyLeave.credited_days) === 1 ? '' : 's'})</td>
                               <td className="py-2 px-4">{selectedMyLeave.leave_reason || '-'}</td>
+                              <td className="py-2 px-4">{selectedMyLeave.leave_type ?? selectedMyLeave.type ?? (isUnpaidLeave(selectedMyLeave) ? 'Unpaid' : '—')}</td>
                               <td className="py-2 px-4 text-center">
                                 <div className="flex justify-center gap-2">
                                   <button

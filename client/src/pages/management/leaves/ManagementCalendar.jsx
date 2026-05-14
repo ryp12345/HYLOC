@@ -672,6 +672,7 @@ const ManagementCalendar = () => {
 	}, [leaves, currentDate]);
 
 	return (
+		<>
 		<div className="w-full space-y-6">
 			{error && (
 				<div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
@@ -1063,7 +1064,7 @@ const ManagementCalendar = () => {
 																													)}
 																												</button>
 																												</div>
-																										);
+																												);
 																									})()}
 												{(() => {
 													const dayTickets = getTicketsForDate(date);
@@ -1285,7 +1286,7 @@ const ManagementCalendar = () => {
 					<div className="p-6">
 						<div className="flex justify-between items-center mb-4">
 							<h3 className="text-xl font-bold text-gray-800">
-								{formatFullDate(selectedDate)}
+								My Leave
 							</h3>
 							<button
 								onClick={handleCloseDateDetail}
@@ -1298,72 +1299,53 @@ const ManagementCalendar = () => {
 						{(() => {
 							const leave = getMyLeaveForDate(selectedDate);
 							return leave ? (
-								<div className="space-y-4">
-									<div className="border-b pb-3">
-										<span className={`px-3 py-1 rounded text-white text-sm ${getLeaveBadgeColor(leave.status)}`}>
-											{leave.status}
-										</span>
-										<span className="ml-2 text-sm text-gray-600">{leave.leave_duration}</span>
-										<span className="ml-2 text-sm font-semibold text-gray-700">{leave.credited_days} day(s)</span>
-									</div>
-
-									<div>
-										<p className="text-sm font-semibold text-gray-700">Duration:</p>
-										<p className="text-gray-800">{leave.leave_duration}</p>
-									</div>
-
-									<div>
-										<p className="text-sm font-semibold text-gray-700">Reason:</p>
-										<p className="text-gray-800">{leave.leave_reason}</p>
-									</div>
-
-									{leave.alternate_person && (
-										<div>
-											<p className="text-sm font-semibold text-gray-700">Alternate Person:</p>
-											<p className="text-gray-800">{getAlternateDisplay(leave.alternate_person)}</p>
-										</div>
-									)}
-
-									{leave.additional_alternate && (
-										<div>
-											<p className="text-sm font-semibold text-gray-700">Additional Alternate:</p>
-											<p className="text-gray-800">{getAlternateDisplay(leave.additional_alternate)}</p>
-										</div>
-									)}
-
-									{leave.approver_name && (
-										<div>
-											<p className="text-sm font-semibold text-gray-700">
-												{leave.status === 'Approved' ? 'Approved by:' : 'Rejected by:'}
-											</p>
-											<p className="text-gray-800">{leave.approver_name}</p>
-										</div>
-									)}
-
-									<div className="flex gap-2 pt-4">
-										<button
-											onClick={() => {
-												openEditForm(leave);
-												handleCloseDateDetail();
-											}}
-											className="flex-1 px-4 py-2 rounded bg-blue-500 text-white hover:bg-blue-600"
-											title="Edit leave"
-										>
-											Edit
-										</button>
-										<button
-											onClick={() => {
-												if (window.confirm('Are you sure you want to cancel this leave?')) {
-													handleCancelLeave(leave.id);
-													handleCloseDateDetail();
-												}
-											}}
-											className="flex-1 px-4 py-2 rounded bg-red-500 text-white hover:bg-red-600"
-											title="Cancel leave"
-										>
-											Cancel Leave
-										</button>
-									</div>
+								
+								<div className="overflow-x-auto">
+									<table className="min-w-full bg-white border rounded-lg">
+										<thead>
+											<tr className="bg-gray-100 text-gray-700">
+												<th className="py-2 px-4 text-left">From</th>
+												<th className="py-2 px-4 text-left">To</th>
+												<th className="py-2 px-4 text-left">Duration</th>
+												<th className="py-2 px-4 text-left">Reason</th>
+												<th className="py-2 px-4 text-left">Leave Type</th>
+												<th className="py-2 px-4 text-center">Action</th>
+											</tr>
+										</thead>
+										<tbody>
+											<tr className="border-b hover:bg-gray-50">
+												<td className="py-2 px-4">{formatFullDate(parseDateOnly(leave.from_date))}</td>
+												<td className="py-2 px-4">{formatFullDate(parseDateOnly(leave.to_date))}</td>
+												<td className="py-2 px-4">{leave.leave_duration || ''} ({leave.duration ?? leave.credited_days} day{(leave.duration ?? leave.credited_days) === 1 ? '' : 's'})</td>
+												<td className="py-2 px-4">{leave.leave_reason || '-'}</td>
+												<td className="py-2 px-4">{leave.leave_type ?? leave.type ?? (isUnpaidLeave(leave) ? 'Unpaid' : '—')}</td>
+												<td className="py-2 px-4 text-center">
+													<div className="flex justify-center gap-2">
+														<button
+															onClick={() => { if (leave.status !== 'Approved' && leave.status !== 'Rejected') { openEditForm(leave); handleCloseDateDetail(); } }}
+															className={`p-2 text-white transition-colors duration-200 ${leave.status === 'Approved' || leave.status === 'Rejected' ? 'bg-gray-400 cursor-not-allowed rounded-lg' : 'bg-blue-600 rounded-lg hover:bg-blue-700'}`}
+															disabled={leave.status === 'Approved' || leave.status === 'Rejected'}
+															title="Edit Leave"
+														>
+															<svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+																<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+															</svg>
+														</button>
+														<button
+															onClick={() => { if (leave.status !== 'Approved' && leave.status !== 'Rejected') { if (window.confirm('Are you sure you want to cancel this leave?')) { handleCancelLeave(leave.id); handleCloseDateDetail(); } } }}
+															className={`p-2 text-white transition-colors duration-200 ${leave.status === 'Approved' || leave.status === 'Rejected' ? 'bg-gray-400 cursor-not-allowed rounded-lg' : 'bg-red-500 rounded-lg hover:bg-red-600'}`}
+															disabled={leave.status === 'Approved' || leave.status === 'Rejected'}
+															title="Cancel Leave"
+														>
+															<svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+																<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+															</svg>
+														</button>
+													</div>
+												</td>
+											</tr>
+										</tbody>
+									</table>
 								</div>
 							) : null;
 						})()}
@@ -1629,6 +1611,7 @@ const ManagementCalendar = () => {
 			</div>
 		)}
 	</div>
+	</>
 );
 };
 

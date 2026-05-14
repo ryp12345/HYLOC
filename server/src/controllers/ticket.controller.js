@@ -259,8 +259,15 @@ exports.updateTicket = async (req, res) => {
       }
     }
 
-    // If the creator assigns the ticket, force status to 'Assigned'
-    if (payload.assigned_to !== undefined && payload.assigned_to !== null && String(existing.user_id) === String(requesterId)) {
+    // If the creator actually changes the assignee, keep the workflow in Assigned.
+    // Do not override status for unrelated creator edits such as closing a resolved ticket.
+    const payloadAssignedRaw = payload.assigned_to !== undefined && payload.assigned_to !== null ? String(payload.assigned_to) : null;
+    const existingAssignedRaw = existing.assigned_to !== undefined && existing.assigned_to !== null ? String(existing.assigned_to) : null;
+    if (
+      payloadAssignedRaw &&
+      String(existing.user_id) === String(requesterId) &&
+      payloadAssignedRaw !== existingAssignedRaw
+    ) {
       payload.status = 'Assigned';
     }
 
@@ -349,8 +356,8 @@ exports.updateTicket = async (req, res) => {
 
     // If reassigned to a different user, create an in-app notification for the new assignee.
     try {
-      const payloadAssigned = payload.assigned_to !== undefined && payload.assigned_to !== null ? String(payload.assigned_to) : null;
-      const existingAssigned = existing && existing.assigned_to ? String(existing.assigned_to) : null;
+      const payloadAssigned = payloadAssignedRaw;
+      const existingAssigned = existingAssignedRaw;
       if (payloadAssigned && payloadAssigned !== existingAssigned) {
         const assigneeId = Number(payload.assigned_to);
         const tTitle = updated.title || '';
