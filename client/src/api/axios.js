@@ -10,7 +10,7 @@ const getAPIUrl = () => {
   }
   
   // In development, use direct backend connection
-  const port = 3001;
+  const port = 3006;
   const url = `http://${hostname}:${port}/api`;
   console.log('API URL:', url);
   return url;

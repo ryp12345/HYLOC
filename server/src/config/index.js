@@ -2,12 +2,12 @@ require('dotenv').config();
 
 const getAllowedOrigins = () => {
   const allowedOrigins = [
-    'http://localhost:3000',
+    'http://localhost:3005',
     'http://localhost:5000',
-    'http://localhost:3001',
-    'http://127.0.0.1:3000',
+    'http://localhost:3006',
+    'http://127.0.0.1:3005',
     'http://127.0.0.1:5000',
-    'http://127.0.0.1:3001'
+    'http://127.0.0.1:3006'
   ];
 
   // Allow any IP-based origin for development (0.0.0.0:3000 or 192.168.x.x:3000, etc.)
@@ -41,7 +41,7 @@ const getAllowedOrigins = () => {
 
 module.exports = {
   nodeEnv: process.env.NODE_ENV || 'development',
-  port: process.env.PORT || 3001,
+  port: process.env.PORT || 3006,
   database: {
     host: process.env.DB_HOST || 'localhost',
     port: process.env.DB_PORT || 5432,

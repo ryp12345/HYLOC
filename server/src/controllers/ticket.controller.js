@@ -179,7 +179,7 @@ exports.updateTicket = async (req, res) => {
       Open: ['Assigned', 'Rejected'],
       Rejected: ['Open'],
       Assigned: ['In Progress', 'Rejected'],
-      'In Progress': ['Resolved'],
+      'In Progress': ['Resolved', 'Rejected'],
       Resolved: ['Closed'],
       Closed: [],
     };
