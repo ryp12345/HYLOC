@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import axios from '../../api/axios';
 
@@ -10,6 +11,7 @@ export default function MgtKmiDetail() {
   const [kpiValues, setKpiValues] = useState([]);
   const [pillers, setPillers] = useState([]);
   const [units, setUnits] = useState([]);
+  const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [monthlyData, setMonthlyData] = useState({});
@@ -32,6 +34,9 @@ export default function MgtKmiDetail() {
         
         const unitsRes = await axios.get('/unit-master');
         setUnits(unitsRes.data.data || []);
+
+        const usersRes = await axios.get('/users');
+        setUsers(usersRes.data.data || []);
         
         setError('');
       } catch (err) {
@@ -215,6 +220,34 @@ export default function MgtKmiDetail() {
     return units.find((u) => String(u.id) === String(unitId))?.unit_name || String(unitId);
   };
 
+  const getOperatorDisplay = (value) => {
+    if (!value) return '-';
+
+    const directName = value.operator_name || value.data_operator_name || value.entered_by_name || value.operator;
+    if (directName) {
+      return String(directName);
+    }
+
+    const operatorId = value.data_operator ?? value['data operator'] ?? value.operator_empid ?? null;
+    if (operatorId == null || operatorId === '') return '-';
+
+    const matchedUser = users.find((u) => String(u.empid ?? u.id) === String(operatorId));
+    if (matchedUser) {
+      const fullName = [
+        matchedUser.first_name ?? matchedUser.firstname ?? matchedUser.firstName,
+        matchedUser.middle_name ?? matchedUser.middlename ?? matchedUser.middleName,
+        matchedUser.last_name ?? matchedUser.lastname ?? matchedUser.lastName,
+      ].filter((part) => part != null && String(part).trim() !== '').join(' ');
+
+      if (fullName) return fullName;
+
+      const fallbackName = matchedUser.name || matchedUser.fullname || matchedUser.full_name || matchedUser.username;
+      if (fallbackName) return String(fallbackName);
+    }
+
+    return '-';
+  };
+
   const getMonthName = (month) => {
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     return months[month - 1] || month;
@@ -353,59 +386,55 @@ export default function MgtKmiDetail() {
         </button>
         <h2 className="text-2xl font-bold text-gray-800">KMI Details</h2>
       </div>
-      <div className="bg-white rounded-lg shadow p-6 mb-6">
-        <div className="space-y-3">
-          <div className="flex flex-col">
-            <span className="text-lg font-bold text-[#1B55C4]">{kmi.title}</span>
-          </div>
-          <div className="flex flex-col">
-            <span className="text-sm font-semibold text-gray-600 mb-1">Financial Year:</span>
-            <span className="inline-block px-3 py-1 bg-blue-100 text-blue-800 rounded text-sm font-medium w-fit">{kmi.fin_year || 'N/A'}</span>
-          </div>
+      <div className="bg-white rounded-lg shadow p-3 mb-3">
+        <div className="flex items-center gap-3 mb-1">
+          <span className="text-base font-bold text-[#1B55C4]">{kmi.title}</span>
+          <span className="text-xs font-semibold text-gray-600">Financial Year:</span>
+          <span className="inline-block px-2 py-0.5 bg-blue-100 text-blue-800 rounded text-xs font-medium w-fit">{kmi.fin_year || 'N/A'}</span>
         </div>
       </div>
 
       {/* Overall Performance Summary */}
       {overallStats && (
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg shadow p-6 mb-6 border border-blue-200">
-          <h3 className="text-lg font-bold text-gray-800 mb-4">📊 Overall Performance Summary</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-white rounded-lg p-4 shadow-sm">
-              <div className="text-xs font-semibold text-gray-500 uppercase mb-1">Average Achievement</div>
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg shadow p-3 mb-3 border border-blue-200">
+          <h3 className="text-base font-bold text-gray-800 mb-2">📊 Overall Performance Summary</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+            <div className="bg-white rounded-lg p-2 shadow-sm">
+              <div className="text-xs font-semibold text-gray-500 uppercase mb-0.5">Average Achievement</div>
               {overallStats.kpiWithAchievement > 0 ? (
                 <>
-                  <div className={`text-3xl font-bold ${overallStats.avgAchievementAcrossKpis >= 100 ? 'text-green-600' : overallStats.avgAchievementAcrossKpis >= 80 ? 'text-yellow-600' : 'text-red-600'}`}>
+                  <div className={`text-xl font-bold ${overallStats.avgAchievementAcrossKpis >= 100 ? 'text-green-600' : overallStats.avgAchievementAcrossKpis >= 80 ? 'text-yellow-600' : 'text-red-600'}`}> 
                     {overallStats.avgAchievementAcrossKpis.toFixed(1)}%
                   </div>
-                  <div className="text-xs text-gray-600 mt-1">Target-based KPIs only</div>
+                  <div className="text-xs text-gray-600 mt-0.5">Target-based KPIs only</div>
                 </>
               ) : (
                 <>
-                  <div className="text-3xl font-bold text-gray-400">-</div>
-                  <div className="text-xs text-gray-600 mt-1">No target-based data</div>
+                  <div className="text-xl font-bold text-gray-400">-</div>
+                  <div className="text-xs text-gray-600 mt-0.5">No target-based data</div>
                 </>
               )}
             </div>
-            <div className="bg-white rounded-lg p-4 shadow-sm">
-              <div className="text-xs font-semibold text-gray-500 uppercase mb-1">KPI Coverage</div>
-              <div className="text-3xl font-bold text-blue-600">
+            <div className="bg-white rounded-lg p-2 shadow-sm">
+              <div className="text-xs font-semibold text-gray-500 uppercase mb-0.5">KPI Coverage</div>
+              <div className="text-xl font-bold text-blue-600">
                 {overallStats.kpiWithData}/{overallStats.totalKpis}
               </div>
-              <div className="text-xs text-gray-600 mt-1">KPIs with data available</div>
+              <div className="text-xs text-gray-600 mt-0.5">KPIs with data available</div>
             </div>
-            <div className="bg-white rounded-lg p-4 shadow-sm">
-              <div className="text-xs font-semibold text-gray-500 uppercase mb-1">Overall Status</div>
+            <div className="bg-white rounded-lg p-2 shadow-sm">
+              <div className="text-xs font-semibold text-gray-500 uppercase mb-0.5">Overall Status</div>
               {overallStats.kpiWithAchievement > 0 ? (
                 <>
-                  <div className={`text-lg font-bold ${overallStats.avgAchievementAcrossKpis >= 100 ? 'text-green-600' : overallStats.avgAchievementAcrossKpis >= 80 ? 'text-yellow-600' : 'text-red-600'}`}>
+                  <div className={`text-base font-bold ${overallStats.avgAchievementAcrossKpis >= 100 ? 'text-green-600' : overallStats.avgAchievementAcrossKpis >= 80 ? 'text-yellow-600' : 'text-red-600'}`}> 
                     {overallStats.avgAchievementAcrossKpis >= 100 ? '✓ Exceeding Targets' : overallStats.avgAchievementAcrossKpis >= 80 ? '⚠ On Track' : '✗ Needs Attention'}
                   </div>
-                  <div className="text-xs text-gray-600 mt-1">Performance indicator</div>
+                  <div className="text-xs text-gray-600 mt-0.5">Performance indicator</div>
                 </>
               ) : (
                 <>
-                  <div className="text-lg font-bold text-blue-600">📊 Tracking</div>
-                  <div className="text-xs text-gray-600 mt-1">Monitoring actuals</div>
+                  <div className="text-base font-bold text-blue-600">📊 Tracking</div>
+                  <div className="text-xs text-gray-600 mt-0.5">Monitoring actuals</div>
                 </>
               )}
             </div>
@@ -422,41 +451,41 @@ export default function MgtKmiDetail() {
         ) : (
           <div className="bg-white rounded-lg shadow overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="w-full text-xs">
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Type</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Data</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Data Operator</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Unit of Measurement</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Piller</th>
-                    <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">Target Required</th>
-                    <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">Performance</th>
+                    <th className="px-2 py-2 text-left font-semibold text-gray-700 uppercase tracking-wider">Type</th>
+                    <th className="px-2 py-2 text-left font-semibold text-gray-700 uppercase tracking-wider">Data</th>
+                    <th className="px-2 py-2 text-left font-semibold text-gray-700 uppercase tracking-wider">Data Operator</th>
+                    <th className="px-2 py-2 text-left font-semibold text-gray-700 uppercase tracking-wider">Unit of Measurement</th>
+                    <th className="px-2 py-2 text-left font-semibold text-gray-700 uppercase tracking-wider">Piller</th>
+                    <th className="px-2 py-2 text-center font-semibold text-gray-700 uppercase tracking-wider">Target Required</th>
+                    <th className="px-2 py-2 text-center font-semibold text-gray-700 uppercase tracking-wider">Performance</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200">
+                <tbody className="divide-y divide-gray-100">
                   {kpiValues.map((value) => {
                     const valueInsights = monthlyData[value.id] ? calculateInsights(monthlyData[value.id], value.target_required) : null;
                     return (
                     <React.Fragment key={value.id}>
-                      <tr className="bg-gray-50 border-b-2 border-gray-300">
-                        <td className="px-4 py-3 text-sm text-gray-800">
-                          <span className="inline-block px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-medium">
+                      <tr className="bg-gray-50 border-b border-gray-200">
+                        <td className="px-2 py-2 text-gray-800">
+                          <span className="inline-block px-1.5 py-0.5 bg-blue-100 text-blue-800 rounded text-[10px] font-medium">
                             {value.kpi_type || 'manual'}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-sm font-medium text-gray-900">{value.data}</td>
-                        <td className="px-4 py-3 text-sm text-gray-600">
-                          {value.operator_name ? `${value.operator_name} (${value.operator_empid})` : '-'}
+                        <td className="px-2 py-2 font-medium text-gray-900">{value.data}</td>
+                        <td className="px-2 py-2 text-gray-600">
+                          {getOperatorDisplay(value)}
                         </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">{getUnitName(value.uom)}</td>
-                        <td className="px-4 py-3 text-sm text-gray-600">{getPillerName(value.piller_id)}</td>
-                        <td className="px-4 py-3 text-sm text-center">
-                          <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${value.target_required ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
+                        <td className="px-2 py-2 text-gray-600">{getUnitName(value.uom)}</td>
+                        <td className="px-2 py-2 text-gray-600">{getPillerName(value.piller_id)}</td>
+                        <td className="px-2 py-2 text-center">
+                          <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-medium ${value.target_required ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
                             {value.target_required ? 'Yes' : 'No'}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-sm text-center">
+                        <td className="px-2 py-2 text-center">
                           {valueInsights ? (
                             !value.target_required ? (
                               // For non-target KPIs, show actual trend
@@ -561,198 +590,147 @@ export default function MgtKmiDetail() {
                                         {/* Summary Cards - Different layouts for target vs non-target KPIs */}
                                         {!value.target_required ? (
                                           // Non-target KPI summary cards
-                                          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-                                            <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
-                                              <div className="text-xs font-semibold text-gray-500 uppercase mb-1">Total Actual</div>
-                                              <div className="text-2xl font-bold text-blue-600">
+                                          <div className="grid grid-cols-1 md:grid-cols-4 gap-2 mb-2">
+                                            <div className="bg-white rounded-lg shadow-sm p-2 border border-gray-200">
+                                              <div className="text-[10px] font-semibold text-gray-500 uppercase mb-0.5">Total Actual</div>
+                                              <div className="text-lg font-bold text-blue-600">
                                                 {insights.totalActual.toFixed(2)}
                                               </div>
-                                              <div className="text-xs text-gray-600 mt-1">
+                                              <div className="text-[10px] text-gray-600 mt-0.5">
                                                 {insights.monthsWithActual} months recorded
                                               </div>
                                             </div>
-                                            <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
-                                              <div className="text-xs font-semibold text-gray-500 uppercase mb-1">Average Monthly</div>
-                                              <div className="text-2xl font-bold text-indigo-600">
+                                            <div className="bg-white rounded-lg shadow-sm p-2 border border-gray-200">
+                                              <div className="text-[10px] font-semibold text-gray-500 uppercase mb-0.5">Average Monthly</div>
+                                              <div className="text-lg font-bold text-indigo-600">
                                                 {insights.monthsWithActual > 0 ? (insights.totalActual / insights.monthsWithActual).toFixed(2) : '0.00'}
                                               </div>
-                                              <div className="text-xs text-gray-600 mt-1">
+                                              <div className="text-[10px] text-gray-600 mt-0.5">
                                                 Per month average
                                               </div>
                                             </div>
-                                            <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
-                                              <div className="text-xs font-semibold text-gray-500 uppercase mb-1">Highest Month</div>
+                                            <div className="bg-white rounded-lg shadow-sm p-2 border border-gray-200">
+                                              <div className="text-[10px] font-semibold text-gray-500 uppercase mb-0.5">Highest Month</div>
                                               {insights.bestMonth ? (
                                                 <>
-                                                  <div className="text-lg font-bold text-green-600">
+                                                  <div className="text-xs font-bold text-green-600">
                                                     {getMonthName(insights.bestMonth.month)} '{insights.bestMonth.year % 100}
                                                   </div>
-                                                  <div className="text-xs text-gray-600 mt-1">
+                                                  <div className="text-[10px] text-gray-600 mt-0.5">
                                                     Value: {insights.bestMonth.value.toFixed(2)}
                                                   </div>
                                                 </>
                                               ) : (
-                                                <div className="text-lg font-bold text-gray-400">-</div>
+                                                <div className="text-xs font-bold text-gray-400">-</div>
                                               )}
                                             </div>
-                                            <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
-                                              <div className="text-xs font-semibold text-gray-500 uppercase mb-1">Trend</div>
-                                              <div className={`text-lg font-bold ${insights.trend === 'improving' ? 'text-green-600' : insights.trend === 'declining' ? 'text-red-600' : 'text-gray-600'}`}>
+                                            <div className="bg-white rounded-lg shadow-sm p-2 border border-gray-200">
+                                              <div className="text-[10px] font-semibold text-gray-500 uppercase mb-0.5">Trend</div>
+                                              <div className={`text-xs font-bold ${insights.trend === 'improving' ? 'text-green-600' : insights.trend === 'declining' ? 'text-red-600' : 'text-gray-600'}`}> 
                                                 {insights.trend === 'improving' ? '↗ Increasing' : insights.trend === 'declining' ? '↘ Decreasing' : '→ Stable'}
                                               </div>
-                                              <div className="text-xs text-gray-600 mt-1">
+                                              <div className="text-[10px] text-gray-600 mt-0.5">
                                                 Based on {insights.monthsWithActual} months
                                               </div>
                                             </div>
                                           </div>
                                         ) : (
                                           // Target-based KPI summary cards
-                                          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-                                          <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
-                                            <div className="text-xs font-semibold text-gray-500 uppercase mb-1">Overall Achievement</div>
-                                            {insights.monthsWithData > 0 ? (
-                                              <>
-                                                <div className={`text-2xl font-bold ${insights.overallAchievement >= 100 ? 'text-green-600' : insights.overallAchievement >= 80 ? 'text-yellow-600' : 'text-red-600'}`}>
-                                                  {insights.overallAchievement.toFixed(1)}%
-                                                </div>
-                                                <div className="text-xs text-gray-600 mt-1">
-                                                  {insights.totalActual.toFixed(1)} / {insights.totalTarget.toFixed(1)}
-                                                </div>
-                                              </>
-                                            ) : (
-                                              <>
-                                                <div className="text-2xl font-bold text-gray-400">-</div>
-                                                <div className="text-xs text-gray-500 mt-1">Need paired data</div>
-                                              </>
-                                            )}
+                                          <div className="grid grid-cols-1 md:grid-cols-4 gap-2 mb-2">
+                                            <div className="bg-white rounded-lg shadow-sm p-2 border border-gray-200">
+                                              <div className="text-[10px] font-semibold text-gray-500 uppercase mb-0.5">Overall Achievement</div>
+                                              {insights.monthsWithData > 0 ? (
+                                                <>
+                                                  <div className={`text-lg font-bold ${insights.overallAchievement >= 100 ? 'text-green-600' : insights.overallAchievement >= 80 ? 'text-yellow-600' : 'text-red-600'}`}> 
+                                                    {insights.overallAchievement.toFixed(1)}%
+                                                  </div>
+                                                  <div className="text-[10px] text-gray-600 mt-0.5">
+                                                    {insights.totalActual.toFixed(1)} / {insights.totalTarget.toFixed(1)}
+                                                  </div>
+                                                </>
+                                              ) : (
+                                                <>
+                                                  <div className="text-lg font-bold text-gray-400">-</div>
+                                                  <div className="text-[10px] text-gray-500 mt-0.5">Need paired data</div>
+                                                </>
+                                              )}
+                                            </div>
+                                            <div className="bg-white rounded-lg shadow-sm p-2 border border-gray-200">
+                                              <div className="text-[10px] font-semibold text-gray-500 uppercase mb-0.5">Avg Monthly Achievement</div>
+                                              {insights.monthsWithData > 0 ? (
+                                                <>
+                                                  <div className="text-lg font-bold text-blue-600">
+                                                    {insights.avgAchievement.toFixed(1)}%
+                                                  </div>
+                                                  <div className="text-[10px] text-gray-600 mt-0.5">
+                                                    {insights.monthsWithData} months paired
+                                                  </div>
+                                                </>
+                                              ) : (
+                                                <>
+                                                  <div className="text-lg font-bold text-gray-400">-</div>
+                                                  <div className="text-[10px] text-gray-500 mt-0.5">No paired data</div>
+                                                </>
+                                              )}
+                                            </div>
+                                            <div className="bg-white rounded-lg shadow-sm p-2 border border-gray-200">
+                                              <div className="text-[10px] font-semibold text-gray-500 uppercase mb-0.5">Best Month</div>
+                                              {insights.bestMonth ? (
+                                                <>
+                                                  <div className="text-xs font-bold text-green-600">
+                                                    {getMonthName(insights.bestMonth.month)} '{insights.bestMonth.year % 100}
+                                                  </div>
+                                                  <div className="text-[10px] text-gray-600 mt-0.5">
+                                                    {insights.bestMonth.achievement.toFixed(1)}% achievement
+                                                  </div>
+                                                </>
+                                              ) : (
+                                                <>
+                                                  <div className="text-xs font-bold text-gray-400">-</div>
+                                                  <div className="text-[10px] text-gray-500 mt-0.5">Need paired data</div>
+                                                </>
+                                              )}
+                                            </div>
+                                            <div className="bg-white rounded-lg shadow-sm p-2 border border-gray-200">
+                                              <div className="text-[10px] font-semibold text-gray-500 uppercase mb-0.5">Trend</div>
+                                              {insights.monthsWithData > 0 ? (
+                                                <>
+                                                  <div className={`text-xs font-bold ${insights.trend === 'improving' ? 'text-green-600' : insights.trend === 'declining' ? 'text-red-600' : 'text-gray-600'}`}> 
+                                                    {insights.trend === 'improving' ? '↗ Improving' : insights.trend === 'declining' ? '↘ Declining' : '→ Stable'}
+                                                  </div>
+                                                  <div className="text-[10px] text-gray-600 mt-0.5">
+                                                    Based on {insights.monthsWithData} months
+                                                  </div>
+                                                </>
+                                              ) : (
+                                                <>
+                                                  <div className="text-xs font-bold text-gray-400">-</div>
+                                                  <div className="text-[10px] text-gray-500 mt-0.5">Need paired data</div>
+                                                </>
+                                              )}
+                                            </div>
                                           </div>
-                                          <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
-                                            <div className="text-xs font-semibold text-gray-500 uppercase mb-1">Avg Monthly Achievement</div>
-                                            {insights.monthsWithData > 0 ? (
-                                              <>
-                                                <div className="text-2xl font-bold text-blue-600">
-                                                  {insights.avgAchievement.toFixed(1)}%
-                                                </div>
-                                                <div className="text-xs text-gray-600 mt-1">
-                                                  {insights.monthsWithData} months paired
-                                                </div>
-                                              </>
-                                            ) : (
-                                              <>
-                                                <div className="text-2xl font-bold text-gray-400">-</div>
-                                                <div className="text-xs text-gray-500 mt-1">No paired data</div>
-                                              </>
-                                            )}
-                                          </div>
-                                          <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
-                                            <div className="text-xs font-semibold text-gray-500 uppercase mb-1">Best Month</div>
-                                            {insights.bestMonth ? (
-                                              <>
-                                                <div className="text-lg font-bold text-green-600">
-                                                  {getMonthName(insights.bestMonth.month)} '{insights.bestMonth.year % 100}
-                                                </div>
-                                                <div className="text-xs text-gray-600 mt-1">
-                                                  {insights.bestMonth.achievement.toFixed(1)}% achievement
-                                                </div>
-                                              </>
-                                            ) : (
-                                              <>
-                                                <div className="text-lg font-bold text-gray-400">-</div>
-                                                <div className="text-xs text-gray-500 mt-1">Need paired data</div>
-                                              </>
-                                            )}
-                                          </div>
-                                          <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
-                                            <div className="text-xs font-semibold text-gray-500 uppercase mb-1">Trend</div>
-                                            {insights.monthsWithData > 0 ? (
-                                              <>
-                                                <div className={`text-lg font-bold ${insights.trend === 'improving' ? 'text-green-600' : insights.trend === 'declining' ? 'text-red-600' : 'text-gray-600'}`}>
-                                                  {insights.trend === 'improving' ? '↗ Improving' : insights.trend === 'declining' ? '↘ Declining' : '→ Stable'}
-                                                </div>
-                                                <div className="text-xs text-gray-600 mt-1">
-                                                  Based on {insights.monthsWithData} months
-                                                </div>
-                                              </>
-                                            ) : (
-                                              <>
-                                                <div className="text-lg font-bold text-gray-400">-</div>
-                                                <div className="text-xs text-gray-500 mt-1">Need paired data</div>
-                                              </>
-                                            )}
-                                          </div>
-                                        </div>
                                         )}
 
-                                        {/* Monthly Data Table */}
-                                        <div className="overflow-x-auto">
-                                          <table className="min-w-full border border-gray-200 rounded">
-                                            <thead className="bg-white">
-                                              <tr>
-                                                <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 border-b">Month</th>
-                                                {value.target_required && (
-                                                  <th className="px-3 py-2 text-right text-xs font-semibold text-gray-600 border-b">Target</th>
-                                                )}
-                                                <th className="px-3 py-2 text-right text-xs font-semibold text-gray-600 border-b">Actual</th>
-                                                {value.target_required && (
-                                                  <>
-                                                    <th className="px-3 py-2 text-right text-xs font-semibold text-gray-600 border-b">Variance</th>
-                                                    <th className="px-3 py-2 text-right text-xs font-semibold text-gray-600 border-b">Achievement</th>
-                                                    <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border-b">Status</th>
-                                                  </>
-                                                )}
-                                              </tr>
-                                            </thead>
-                                            <tbody className="bg-white divide-y divide-gray-200">
-                                              {monthlyData[value.id].map((data, idx) => {
-                                                const achievement = value.target_required && data.target_value && data.actual_value 
-                                                  ? (data.actual_value / data.target_value) * 100 
-                                                  : null;
-                                                const variance = value.target_required && data.target_value && data.actual_value 
-                                                  ? data.actual_value - data.target_value 
-                                                  : null;
-                                                return (
-                                                  <tr key={idx} className="hover:bg-gray-50">
-                                                    <td className="px-3 py-2 text-sm font-medium text-gray-700">
-                                                      {getMonthName(data.month)} {data.year}
-                                                    </td>
-                                                    {value.target_required && (
-                                                      <td className="px-3 py-2 text-sm text-right text-gray-700">
-                                                        {data.target_value !== null ? parseFloat(data.target_value).toFixed(2) : '-'}
-                                                      </td>
-                                                    )}
-                                                    <td className="px-3 py-2 text-sm text-right font-medium text-gray-900">
-                                                      {data.actual_value !== null ? parseFloat(data.actual_value).toFixed(2) : '-'}
-                                                    </td>
-                                                    {value.target_required && (
-                                                      <>
-                                                        <td className={`px-3 py-2 text-sm text-right font-medium ${variance !== null ? (variance >= 0 ? 'text-green-600' : 'text-red-600') : 'text-gray-500'}`}>
-                                                          {variance !== null ? (variance >= 0 ? '+' : '') + variance.toFixed(2) : '-'}
-                                                        </td>
-                                                        <td className="px-3 py-2 text-sm text-right font-semibold">
-                                                          {achievement !== null ? (
-                                                            <span className={achievement >= 100 ? 'text-green-600' : achievement >= 80 ? 'text-yellow-600' : 'text-red-600'}>
-                                                              {achievement.toFixed(1)}%
-                                                            </span>
-                                                          ) : (
-                                                            <span className="text-gray-500">-</span>
-                                                          )}
-                                                        </td>
-                                                        <td className="px-3 py-2 text-center">
-                                                          {achievement !== null ? (
-                                                            <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${getPerformanceColor(achievement)}`}>
-                                                              {getPerformanceStatus(achievement)}
-                                                            </span>
-                                                          ) : (
-                                                            <span className="text-gray-400 text-xs">No Data</span>
-                                                          )}
-                                                        </td>
-                                                      </>
-                                                    )}
-                                                  </tr>
-                                                );
-                                              })}
-                                            </tbody>
-                                          </table>
+                                        {/* Monthly Data Bar Chart */}
+                                        <div className="w-full h-64">
+                                          <ResponsiveContainer width="100%" height="100%">
+                                            <BarChart data={monthlyData[value.id]?.map(d => ({
+                                              name: `${getMonthName(d.month)} ${d.year}`,
+                                              Actual: d.actual_value,
+                                              ...(value.target_required ? { Target: d.target_value } : {})
+                                            })) || []} margin={{ top: 10, right: 30, left: 0, bottom: 5 }}>
+                                              <CartesianGrid strokeDasharray="3 3" />
+                                              <XAxis dataKey="name" fontSize={10} />
+                                              <YAxis fontSize={10} />
+                                              <Tooltip />
+                                              <Legend />
+                                              <Bar dataKey="Actual" fill="#2563eb" radius={[4, 4, 0, 0]} />
+                                              {value.target_required && (
+                                                <Bar dataKey="Target" fill="#f59e42" radius={[4, 4, 0, 0]} />
+                                              )}
+                                            </BarChart>
+                                          </ResponsiveContainer>
                                         </div>
                                       </div>
                                     ) : (

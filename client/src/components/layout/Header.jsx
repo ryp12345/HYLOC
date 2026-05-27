@@ -87,8 +87,9 @@ const Navbar = () => {
               alt="Hyloc logo"
               className="h-10 w-12 sm:h-11 sm:w-14"
             />
-            <h1 className="text-2xl sm:text-3xl font-bold">Hyloc Hydrotechnic Pvt Ltd</h1>
+            <h1 className="text-2xl sm:text-3xl font-extrabold  tracking-[0.08em] text-[#1a1ab3] font-['Orbitron']" >Hydrotechnic Pvt Ltd</h1>
           </div>
+          
 
           {/* User Info & Menu - Right aligned */}
           <div className="flex-1 flex justify-end items-center space-x-4 relative">

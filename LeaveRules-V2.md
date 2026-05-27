@@ -85,3 +85,5 @@ Notes:
 
 - Audit-related persistence
    - Leave records persist `created_at`/`approved_by` and other fields useful for auditing; notification records include timestamps and actor information.
+
+******************************************************************************

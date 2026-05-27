@@ -1442,20 +1442,16 @@ const KPIDetailPage = () => {
           <div className="flex justify-between items-start">
             <div>
               <h1 className="text-4xl font-bold text-gray-900">{parentKPI?.title}</h1>
-              <p className="text-gray-600 mt-2">
+              {/* <p className="text-gray-600 mt-2">
                 Comprehensive Hierarchical Analysis - FY {fiscalYear}-{(fiscalYear + 1).toString().slice(-2)}
-              </p>
+              </p> */}
             </div>
 
-            {/* Fiscal Year Display (Read-only) */}
-            <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg shadow-lg px-6 py-4">
-              <div className="text-xs font-medium opacity-90 mb-1">Viewing Fiscal Year</div>
-              <div className="text-2xl font-bold">
-                FY {fiscalYear}-{(fiscalYear + 1).toString().slice(-2)}
-              </div>
-              <div className="text-xs opacity-75 mt-1">
-                Apr {fiscalYear} - Mar {fiscalYear + 1}
-              </div>
+            {/* Compact Fiscal Year Display (Read-only) */}
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg shadow-lg px-4 py-2 flex items-center gap-2 min-h-0 h-10">
+              <span className="text-xs font-medium opacity-90">Fiscal Year</span>
+              <span className="text-base font-bold">FY {fiscalYear}-{(fiscalYear + 1).toString().slice(-2)}</span>
+              <span className="text-xs opacity-75">Apr {fiscalYear} - Mar {fiscalYear + 1}</span>
             </div>
           </div>
         </div>

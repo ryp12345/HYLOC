@@ -25,13 +25,14 @@ const Industry40LineChart = ({
   actuals,
   targets,
   yAxisFormatter,
+  showHeader = true,
   showAxisLabels = true,
   showPointLabels = false,
   xAxisTitle = 'Month',
   yAxisTitle = 'Value',
 }) => {
   const svgWidth = 900;
-  const svgHeight = 350;
+  const svgHeight = 310;
   const padding = 60;
   const plotWidth = svgWidth - padding * 2;
   const plotHeight = svgHeight - padding * 2;
@@ -61,8 +62,9 @@ const Industry40LineChart = ({
 
   return (
     <div className="w-full h-full flex flex-col">
-      <h2 className="text-base font-semibold text-gray-800 mb-4 text-center">{title}</h2>
-      <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="w-full flex-1" style={{maxHeight: '220px'}}>
+      {showHeader && <h2 className="text-base font-semibold text-gray-800 mb-4 text-center">{title}</h2>}
+      <div className="flex flex-row flex-1 min-h-0 items-center gap-1">
+      <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="flex-1 min-w-0 h-auto" style={{maxHeight: '135px'}}>
         {/* Grid lines + Y ticks */}
         {(() => {
           const ticks = 5;
@@ -168,16 +170,16 @@ const Industry40LineChart = ({
         )}
       </svg>
 
-      {/* Legend */}
-      <div className="flex flex-col items-center gap-3 mt-4 md:flex-row md:flex-wrap md:justify-center md:gap-6 w-full">
-        <div className="flex items-center gap-2">
-          <span className="w-[30px] h-[3px] bg-[#41aafe] rounded"></span>
-          <span className="text-xs sm:text-sm text-gray-600 whitespace-normal break-words">Actual Value</span>
+      <div className="flex flex-col justify-center gap-2 pl-2 w-14 flex-shrink-0">
+        <div className="flex items-center gap-1">
+          <span className="w-4 h-[3px] bg-[#41aafe] rounded flex-shrink-0"></span>
+          <span className="text-[10px] text-gray-600">Actual</span>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="w-[30px] h-[3px] bg-[#ffb74d] rounded"></span>
-          <span className="text-xs sm:text-sm text-gray-600 whitespace-normal break-words">Target Value</span>
+        <div className="flex items-center gap-1">
+          <span className="w-4 h-[3px] bg-[#ffb74d] rounded flex-shrink-0"></span>
+          <span className="text-[10px] text-gray-600">Target</span>
         </div>
+      </div>
       </div>
     </div>
   );
@@ -206,9 +208,9 @@ const SpeedometerGauge = ({ efficiency, month, year }) => {
   }
 
   return (
-    <div className="flex flex-col items-center p-4">
-      <h3 className="text-xs sm:text-base font-semibold text-gray-800 mb-4 whitespace-nowrap">{month} {year}</h3>
-      <svg viewBox="0 0 300 200" className="w-full max-w-[300px] h-auto">
+    <div className="flex flex-col items-center justify-center h-full min-h-0">
+      <h3 className="text-[10px] sm:text-xs font-semibold text-gray-800 mb-1 whitespace-nowrap">{month} {year}</h3>
+      <svg viewBox="0 0 300 200" className="w-full max-w-[300px] h-auto flex-1 min-h-0" style={{maxHeight: '100px'}}>
         {/* Background arc */}
         <path
           d="M 70 150 A 80 80 0 0 1 230 150"
@@ -263,9 +265,9 @@ const SpeedometerGauge = ({ efficiency, month, year }) => {
         <text x="225" y="175" fontSize="12" fontWeight="600" fill="#4b5563" textAnchor="middle">100</text>
       </svg>
       
-      <div className="mt-4 text-center">
-        <div className="text-3xl font-bold text-gray-800">{efficiency.toFixed(1)}%</div>
-        <div className={`text-sm font-semibold mt-1 px-3 py-1 rounded-full inline-block ${
+      <div className="mt-0.5 text-center">
+        <div className="text-base sm:text-lg font-extrabold text-gray-800">{efficiency.toFixed(1)}%</div>
+        <div className={`text-xs font-semibold mt-0.5 px-2 py-0.5 rounded-full inline-block ${
           status === 'Excellent' ? 'bg-green-100 text-green-700' :
           status === 'Good' ? 'bg-yellow-100 text-yellow-700' :
           'bg-red-100 text-red-700'
@@ -278,9 +280,9 @@ const SpeedometerGauge = ({ efficiency, month, year }) => {
 };
 
 // Bar Chart Component for Green Factory
-const GreenFactoryBarChart = ({ title, subtitle, labels, values, showAxisLabels = true, xAxisTitle = 'Month', yAxisTitle = 'Value' }) => {
+const GreenFactoryBarChart = ({ title, subtitle, labels, values, showHeader = true, showAxisLabels = true, xAxisTitle = 'Month', yAxisTitle = 'Value' }) => {
   const svgWidth = 900;
-  const svgHeight = 350;
+  const svgHeight = 270;
   const padding = 60;
   const plotWidth = svgWidth - padding * 2;
   const plotHeight = svgHeight - padding * 2;
@@ -296,9 +298,10 @@ const GreenFactoryBarChart = ({ title, subtitle, labels, values, showAxisLabels 
 
   return (
     <div className="w-full h-full flex flex-col">
-      <h2 className="text-base font-semibold text-gray-800 mb-4 text-center">{title}</h2>
-      <p className="text-sm text-gray-600 mb-4 text-center">{subtitle}</p>
-      <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="w-full flex-1" style={{maxHeight: '220px'}}>
+      {showHeader && <h2 className="text-base font-semibold text-gray-800 mb-4 text-center">{title}</h2>}
+      {showHeader && subtitle && <p className="text-sm text-gray-600 mb-4 text-center">{subtitle}</p>}
+      <div className="flex flex-row flex-1 min-h-0 items-center gap-1">
+      <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="flex-1 min-w-0 h-auto" style={{maxHeight: '135px'}}>
         {(() => {
           const ticks = 5;
           const tickValues = Array.from({ length: ticks + 1 }, (_, i) => minVal + (i / ticks) * range);
@@ -347,17 +350,18 @@ const GreenFactoryBarChart = ({ title, subtitle, labels, values, showAxisLabels 
           </>
         )}
       </svg>
-      <div className="flex flex-col items-center gap-3 mt-4 md:flex-row md:justify-center md:gap-6">
-        <div className="flex items-center gap-2"><span className="w-3 h-3 bg-[#10b981] rounded"></span><span className="text-sm text-gray-600">Green Factory %</span></div>
+      <div className="flex flex-col justify-center gap-2 pl-2 w-16 flex-shrink-0">
+        <div className="flex items-center gap-1"><span className="w-3 h-3 bg-[#10b981] rounded flex-shrink-0"></span><span className="text-[10px] text-gray-600">Value %</span></div>
+      </div>
       </div>
     </div>
   );
 };
 
 // Bar Chart component for Zero Accidents (shows actual vs target per month)
-const ZeroAccidentsBarChart = ({ title, subtitle, labels, actuals, targets, showAxisLabels = true, xAxisTitle = 'Month', yAxisTitle = 'Value' }) => {
+const ZeroAccidentsBarChart = ({ title, subtitle, labels, actuals, targets, showHeader = true, showAxisLabels = true, xAxisTitle = 'Month', yAxisTitle = 'Value' }) => {
   const svgWidth = 900;
-  const svgHeight = 350;
+  const svgHeight = 300;
   const padding = 60;
   const plotWidth = svgWidth - padding * 2;
   const plotHeight = svgHeight - padding * 2;
@@ -377,9 +381,10 @@ const ZeroAccidentsBarChart = ({ title, subtitle, labels, actuals, targets, show
 
   return (
     <div className="w-full h-full flex flex-col">
-      <h2 className="text-base font-semibold text-gray-800 mb-4 text-center">{title}</h2>
-      {subtitle && <p className="text-sm text-gray-600 mb-4 text-center">{subtitle}</p>}
-      <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="w-full flex-1" style={{maxHeight: '220px'}}>
+      {showHeader && <h2 className="text-base font-semibold text-gray-800 mb-4 text-center">{title}</h2>}
+      {showHeader && subtitle && <p className="text-sm text-gray-600 mb-4 text-center">{subtitle}</p>}
+      <div className="flex flex-row flex-1 min-h-0 items-center gap-1">
+      <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="flex-1 min-w-0 h-auto" style={{maxHeight: '135px'}}>
         {(() => {
           // Use integer ticks (0,1,2,3...) when values are small (<=10), otherwise fallback to 5 evenly spaced ticks
           let tickValues;
@@ -445,18 +450,19 @@ const ZeroAccidentsBarChart = ({ title, subtitle, labels, actuals, targets, show
         )}
       </svg>
 
-      <div className="flex flex-col items-center gap-3 mt-4 md:flex-row md:flex-wrap md:justify-center md:gap-4 w-full">
-        <div className="flex items-center gap-2"><span className="w-3 h-3 bg-[#41aafe] rounded"></span><span className="text-xs sm:text-sm text-gray-600 whitespace-normal break-words">Actual</span></div>
-        <div className="flex items-center gap-2"><span className="w-3 h-3 bg-[#ffb74d] rounded"></span><span className="text-xs sm:text-sm text-gray-600 whitespace-normal break-words">Target</span></div>
+      <div className="flex flex-col justify-center gap-2 pl-2 w-16 flex-shrink-0">
+        <div className="flex items-center gap-1"><span className="w-3 h-3 bg-[#41aafe] rounded flex-shrink-0"></span><span className="text-[10px] text-gray-600">Actual</span></div>
+        <div className="flex items-center gap-1"><span className="w-3 h-3 bg-[#ffb74d] rounded flex-shrink-0"></span><span className="text-[10px] text-gray-600">Target</span></div>
+      </div>
       </div>
     </div>
   );
 };
 
-// On Time Delivery grouped bar chart (Target vs Achieved)
-const OnTimeDeliveryBarChart = ({ title, subtitle, labels, actuals, targets, showAxisLabels = true, xAxisTitle = 'Month', yAxisTitle = 'Percent' }) => {
+// On Time Delivery mixed chart (Target line + Achieved bars)
+const OnTimeDeliveryBarChart = ({ title, subtitle, labels, actuals, targets, showHeader = true, showAxisLabels = true, xAxisTitle = 'Month', yAxisTitle = 'Percent' }) => {
   const svgWidth = 900;
-  const svgHeight = 350;
+  const svgHeight = 300;
   const padding = 60;
   const plotWidth = svgWidth - padding * 2;
   const plotHeight = svgHeight - padding * 2;
@@ -466,19 +472,23 @@ const OnTimeDeliveryBarChart = ({ title, subtitle, labels, actuals, targets, sho
   const range = maxVal - minVal;
 
   const groupWidth = plotWidth / labels.length;
-  const barWidth = Math.min(20, groupWidth * 0.28);
-  const getX = (idx, which) => {
-    const base = padding + idx * groupWidth + groupWidth / 2;
-    return base + (which === 'target' ? -barWidth - 4 : barWidth + 4 - barWidth);
+  const barWidth = Math.min(28, groupWidth * 0.45);
+  const getX = (idx) => {
+    const center = padding + idx * groupWidth + groupWidth / 2;
+    return center - barWidth / 2;
   };
   const getY = (val) => svgHeight - padding - ((val - minVal) / (range || 1)) * plotHeight;
   const getBarHeight = (val) => ((val - minVal) / (range || 1)) * plotHeight;
+  const targetPath = targets
+    .map((val, idx) => `${idx === 0 ? 'M' : 'L'} ${getX(idx) + barWidth / 2} ${getY(val || 0)}`)
+    .join(' ');
 
   return (
     <div className="w-full h-full flex flex-col">
-      <h2 className="text-base font-semibold text-gray-800 mb-4 text-center">{title}</h2>
-      {subtitle && <p className="text-sm text-gray-600 mb-4 text-center">{subtitle}</p>}
-      <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="w-full flex-1" style={{maxHeight: '220px'}}>
+      {showHeader && <h2 className="text-base font-semibold text-gray-800 mb-4 text-center">{title}</h2>}
+      {showHeader && subtitle && <p className="text-sm text-gray-600 mb-4 text-center">{subtitle}</p>}
+      <div className="flex flex-row flex-1 min-h-0 items-center gap-1">
+      <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="flex-1 min-w-0 h-auto" style={{maxHeight: '135px'}}>
         {(() => {
           const ticks = 5;
           const tickValues = Array.from({ length: ticks + 1 }, (_, i) => minVal + (i / ticks) * range);
@@ -496,13 +506,15 @@ const OnTimeDeliveryBarChart = ({ title, subtitle, labels, actuals, targets, sho
         <line x1={padding} y1={padding} x2={padding} y2={svgHeight - padding} stroke="#1f2937" strokeWidth="2" />
         <line x1={padding} y1={svgHeight - padding} x2={svgWidth - padding} y2={svgHeight - padding} stroke="#1f2937" strokeWidth="2" />
 
+        <path d={targetPath} stroke="#f59e0b" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+
         {labels.map((label, idx) => (
           <g key={`group-${idx}`}>
-            <rect x={getX(idx, 'target')} y={getY(targets[idx] || 0)} width={barWidth} height={getBarHeight(targets[idx] || 0)} fill="#fbbf24" rx="4" />
-            <rect x={getX(idx, 'actual')} y={getY(actuals[idx] || 0)} width={barWidth} height={getBarHeight(actuals[idx] || 0)} fill="#22c55e" rx="4" />
+            <rect x={getX(idx)} y={getY(actuals[idx] || 0)} width={barWidth} height={getBarHeight(actuals[idx] || 0)} fill="#22c55e" rx="4" />
+            <circle cx={getX(idx) + barWidth / 2} cy={getY(targets[idx] || 0)} r="4.5" fill="#f59e0b" stroke="#ffffff" strokeWidth="2" />
 
-            <text x={getX(idx, 'target') + barWidth / 2} y={getY(targets[idx] || 0) - 8} textAnchor="middle" fontSize="12" fontWeight="600" fill="#92400e">{Math.round(targets[idx] || 0)}</text>
-            <text x={getX(idx, 'actual') + barWidth / 2} y={getY(actuals[idx] || 0) - 8} textAnchor="middle" fontSize="12" fontWeight="600" fill="#166534">{Math.round(actuals[idx] || 0)}</text>
+            <text x={getX(idx) + barWidth / 2} y={getY(targets[idx] || 0) - 10} textAnchor="middle" fontSize="12" fontWeight="600" fill="#92400e">{Math.round(targets[idx] || 0)}</text>
+            <text x={getX(idx) + barWidth / 2} y={getY(actuals[idx] || 0) - 8} textAnchor="middle" fontSize="12" fontWeight="600" fill="#166534">{Math.round(actuals[idx] || 0)}</text>
           </g>
         ))}
 
@@ -531,18 +543,19 @@ const OnTimeDeliveryBarChart = ({ title, subtitle, labels, actuals, targets, sho
         )}
       </svg>
 
-      <div className="flex flex-col items-center gap-3 mt-4 md:flex-row md:flex-wrap md:justify-center md:gap-4 w-full">
-        <div className="flex items-center gap-2"><span className="w-3 h-3 bg-[#fbbf24] rounded"></span><span className="text-xs sm:text-sm text-gray-600 whitespace-normal break-words">Target</span></div>
-        <div className="flex items-center gap-2"><span className="w-3 h-3 bg-[#22c55e] rounded"></span><span className="text-xs sm:text-sm text-gray-600 whitespace-normal break-words">Achieved</span></div>
+      <div className="flex flex-col justify-center gap-2 pl-2 w-16 flex-shrink-0">
+        <div className="flex items-center gap-1"><span className="w-4 h-0.5 bg-[#f59e0b] rounded flex-shrink-0"></span><span className="text-[10px] text-gray-600">Target</span></div>
+        <div className="flex items-center gap-1"><span className="w-3 h-3 bg-[#22c55e] rounded flex-shrink-0"></span><span className="text-[10px] text-gray-600">Achieved</span></div>
+      </div>
       </div>
     </div>
   );
 };
 
 // Theme (Bar chart) component
-const Box4ThemeBarChart = ({ title, subtitle, labels, values, showAxisLabels = true, xAxisTitle = 'Month', yAxisTitle = 'Value', showHeader = true }) => {
+const Box4ThemeBarChart = ({ title, subtitle, labels, values, showAxisLabels = true, xAxisTitle = 'Month', yAxisTitle = 'Value', showHeader = true, showSubtitle }) => {
   const svgWidth = 900;
-  const svgHeight = 350;
+  const svgHeight = 420;
   const padding = 60;
   const plotWidth = svgWidth - padding * 2;
   const plotHeight = svgHeight - padding * 2;
@@ -558,9 +571,9 @@ const Box4ThemeBarChart = ({ title, subtitle, labels, values, showAxisLabels = t
 
   return (
     <div className="w-full h-full">
-      <h2 className="text-base font-semibold text-gray-800 mb-4 text-center">{title}</h2>
-      {subtitle && <p className="text-sm text-gray-600 mb-4 text-center">{subtitle}</p>}
-      <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="w-full h-auto max-h-[300px]">
+      {showHeader && <h2 className="text-base font-semibold text-gray-800 mb-4 text-center">{title}</h2>}
+      {(showHeader || showSubtitle) && subtitle && <p className="text-xs font-semibold text-gray-500 mb-1 text-center tracking-wide uppercase">{subtitle}</p>}
+      <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="w-full h-auto max-h-[135px]">
         {(() => {
           const ticks = 5;
           const tickValues = Array.from({ length: ticks + 1 }, (_, i) => minVal + (i / ticks) * range);
@@ -615,9 +628,9 @@ const Box4ThemeBarChart = ({ title, subtitle, labels, values, showAxisLabels = t
 };
 
 // Employees left line chart
-const Box4EmployeesLineChart = ({ title, subtitle, labels, values, showAxisLabels = true, showPointLabels = true, xAxisTitle = 'Month', yAxisTitle = 'Count', showHeader = true }) => {
+const Box4EmployeesLineChart = ({ title, subtitle, labels, values, showAxisLabels = true, showPointLabels = true, xAxisTitle = 'Month', yAxisTitle = 'Count', showHeader = true, showSubtitle }) => {
   const svgWidth = 900;
-  const svgHeight = 350;
+  const svgHeight = 420;
   const padding = 60;
   const plotWidth = svgWidth - padding * 2;
   const plotHeight = svgHeight - padding * 2;
@@ -633,9 +646,9 @@ const Box4EmployeesLineChart = ({ title, subtitle, labels, values, showAxisLabel
 
   return (
     <div className="w-full h-full">
-      <h2 className="text-base font-semibold text-gray-800 mb-4 text-center">{title}</h2>
-      {subtitle && <p className="text-sm text-gray-600 mb-4 text-center">{subtitle}</p>}
-      <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="w-full h-auto max-h-[300px]">
+      {showHeader && <h2 className="text-base font-semibold text-gray-800 mb-4 text-center">{title}</h2>}
+      {(showHeader || showSubtitle) && subtitle && <p className="text-xs font-semibold text-gray-500 mb-1 text-center tracking-wide uppercase">{subtitle}</p>}
+      <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="w-full h-auto max-h-[135px]">
         {(() => {
           const ticks = 5;
           const tickValues = Array.from({ length: ticks + 1 }, (_, i) => minVal + (i / ticks) * range);
@@ -692,10 +705,10 @@ const Box4EmployeesLineChart = ({ title, subtitle, labels, values, showAxisLabel
 };
 
 // Radar chart for pillar overview
-const PillarRadarChart = ({ pillars, onPillarClick }) => {
-  const size = 360;
+const PillarRadarChart = ({ pillars, onPillarClick, compact = false }) => {
+  const size = compact ? 280 : 360;
   const center = size / 2;
-  const radius = 130;
+  const radius = compact ? 95 : 130;
   const ringSteps = 5;
 
   const normalizedPillars = (pillars || []).map((pillar, index) => {
@@ -734,16 +747,72 @@ const PillarRadarChart = ({ pillars, onPillarClick }) => {
   }).join(' ');
 
   return (
-    <div className="bg-white rounded-lg shadow-lg border border-slate-200 p-4">
-      <div className="flex items-center justify-between mb-3">
-        <div>
-          <h3 className="text-xl font-bold text-gray-800">Explore Pillars</h3>
-          <p className="text-sm text-gray-500">Radar view of pillar KPIs for the selected financial year</p>
+    <div className={`bg-white rounded-lg shadow-lg border border-slate-200 p-4 ${compact ? 'h-full flex items-center justify-center' : ''}`}>
+      {!compact && (
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <h3 className="text-xl font-bold text-gray-800">Explore Pillars</h3>
+            <p className="text-sm text-gray-500">Radar view of pillar KPIs for the selected financial year</p>
+          </div>
         </div>
-      </div>
+      )}
 
       {normalizedPillars.length === 0 ? (
         <div className="py-16 text-center text-gray-500">No pillars available</div>
+      ) : compact ? (
+        <div className="w-full h-full flex items-center justify-center">
+          <svg viewBox={`0 0 ${size} ${size}`} className="w-full h-full max-h-[260px]">
+            {[...Array(ringSteps)].map((_, ringIndex) => {
+              const ringRadius = ((ringIndex + 1) / ringSteps) * radius;
+              return (
+                <circle
+                  key={`ring-${ringIndex}`}
+                  cx={center}
+                  cy={center}
+                  r={ringRadius}
+                  fill="none"
+                  stroke="#e5e7eb"
+                  strokeDasharray="4 4"
+                />
+              );
+            })}
+
+            {[...Array(normalizedPillars.length)].map((_, index) => {
+              const angle = index * angleStep;
+              const end = toPoint(maxValue, angle);
+              return (
+                <line
+                  key={`axis-${index}`}
+                  x1={center}
+                  y1={center}
+                  x2={end.x}
+                  y2={end.y}
+                  stroke="#cbd5e1"
+                  strokeWidth="1.5"
+                />
+              );
+            })}
+
+            <polygon
+              points={polygonPoints}
+              fill="rgba(59, 130, 246, 0.25)"
+              stroke="#2563eb"
+              strokeWidth="2.5"
+            />
+
+            {normalizedPillars.map((pillar, index) => {
+              const angle = index * angleStep;
+              const point = toPoint(pillar.value, angle);
+              return (
+                <g key={pillar.id || pillar.name}>
+                  <circle cx={point.x} cy={point.y} r="4" fill="#2563eb" stroke="white" strokeWidth="1.5" />
+                </g>
+              );
+            })}
+
+            <circle cx={center} cy={center} r="3" fill="#2563eb" />
+          </svg>
+        </div>
       ) : (
         <div className="flex flex-col lg:flex-row gap-6 items-center lg:items-start">
           <div className="w-full lg:w-[420px] flex justify-center">
@@ -1731,19 +1800,19 @@ function ManagementDashboard() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="mb-8">
+      <div className="mb-2">
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
-            <h1 className="text-4xl font-bold text-gray-800 mb-2">
-              Management Dashboard
+            <h1 className="text-xl font-bold text-gray-800 mb-1">
+              KMI/Global Objectives
             </h1>
-            <p className="text-gray-600">
+            {/* <p className="text-gray-600">
               Welcome, {user?.firstName} {user?.lastName}
-            </p>
+            </p> */}
           </div>
           
-          {/* Fiscal Year Selector */}
-          <div className="flex items-center gap-3 bg-white rounded-lg shadow-md px-4 py-3 border border-gray-200">
+          {/* Compact Fiscal Year Selector */}
+          <div className="flex items-center gap-1 bg-white rounded shadow px-2 py-1 border border-gray-200 h-9 min-h-0">
             <button
               onClick={() => {
                 const currentIndex = availableFiscalYears.indexOf(selectedFiscalYear);
@@ -1752,23 +1821,22 @@ function ManagementDashboard() {
                 }
               }}
               disabled={availableFiscalYears.length === 0 || availableFiscalYears.indexOf(selectedFiscalYear) <= 0}
-              className="px-3 py-1 rounded-md bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-40 disabled:cursor-not-allowed"
+              className="px-2 py-0.5 rounded bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors font-semibold text-xs focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-40 disabled:cursor-not-allowed"
               title="Previous Fiscal Year"
+              style={{lineHeight: '1'}}
             >
               ‹
             </button>
-            <div className="text-center">
-              <div className="text-xs text-gray-500 font-medium">Fiscal Year</div>
-              <div className="text-lg font-bold text-gray-800">
-                {selectedFiscalYear}-{(selectedFiscalYear + 1).toString().slice(-2)}
-              </div>
-              <div className="text-xs text-gray-400">Apr {selectedFiscalYear} - Mar {selectedFiscalYear + 1}</div>
-              {availableFiscalYears.length > 0 && (
-                <div className="text-xs text-gray-400 mt-1">
-                  ({availableFiscalYears.indexOf(selectedFiscalYear) + 1} of {availableFiscalYears.length})
-                </div>
-              )}
-            </div>
+            <span className="text-xs text-gray-500 font-medium mr-1">FY</span>
+            <span className="text-sm font-bold text-gray-800 mr-1">
+              {selectedFiscalYear}-{(selectedFiscalYear + 1).toString().slice(-2)}
+            </span>
+            <span className="text-xs text-gray-400 mr-1">Apr {selectedFiscalYear} - Mar {selectedFiscalYear + 1}</span>
+            {availableFiscalYears.length > 0 && (
+              <span className="text-xs text-gray-400 mr-1">
+                ({availableFiscalYears.indexOf(selectedFiscalYear) + 1} / {availableFiscalYears.length})
+              </span>
+            )}
             <button
               onClick={() => {
                 const currentIndex = availableFiscalYears.indexOf(selectedFiscalYear);
@@ -1777,70 +1845,28 @@ function ManagementDashboard() {
                 }
               }}
               disabled={availableFiscalYears.length === 0 || availableFiscalYears.indexOf(selectedFiscalYear) >= availableFiscalYears.length - 1}
-              className="px-3 py-1 rounded-md bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-40 disabled:cursor-not-allowed"
+              className="px-2 py-0.5 rounded bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors font-semibold text-xs focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-40 disabled:cursor-not-allowed"
               title="Next Fiscal Year"
+              style={{lineHeight: '1'}}
             >
               ›
             </button>
           </div>
+          {/* Fiscal Year Selector end */}
         </div>
-      </div>
-
-      {/* Overview Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white rounded-lg shadow p-6 border-l-4 border-blue-500">
-          <div className="flex items-center justify-between mb-3">
-            <div className="text-gray-500 text-sm font-semibold">Total KPIs</div>
-            <div className="text-3xl">🎯</div>
-          </div>
-          <div className="text-3xl font-bold text-gray-800">{loading ? 0 : kpiStats.total}</div>
-        </div>
-        <div className="bg-white rounded-lg shadow p-6 border-l-4 border-purple-500">
-          <div className="flex items-center justify-between mb-3">
-            <div className="text-gray-500 text-sm font-semibold">Total Pillars</div>
-            <div className="text-3xl">🏛️</div>
-          </div>
-          <div className="text-3xl font-bold text-gray-800">{loading ? 0 : pillerStats.total}</div>
-        </div>
-        <div className="bg-white rounded-lg shadow p-6 border-l-4 border-green-500">
-          <div className="flex items-center justify-between mb-3">
-            <div className="text-gray-500 text-sm font-semibold">Total Employees</div>
-            <div className="text-3xl">👥</div>
-          </div>
-          <div className="text-3xl font-bold text-gray-800">{loading ? 0 : employeeStats.total}</div>
-        </div>
-        <div className="bg-white rounded-lg shadow p-6 border-l-4 border-orange-500">
-          <div className="flex items-center justify-between mb-3">
-            <div className="text-gray-500 text-sm font-semibold">Total Departments</div>
-            <div className="text-3xl">🏢</div>
-          </div>
-          <div className="text-3xl font-bold text-gray-800">{loading ? 0 : departmentStats.total}</div>
-        </div>
-      </div>
-
-      {/* Pillars Section */}
-      <div className="mt-8">
-        <PillarRadarChart
-          pillars={[...pillerStats.pillers].sort((a, b) => (a.piller_name || '').localeCompare(b.piller_name || ''))}
-          onPillarClick={(pillar) => {
-            if (pillar?.id) {
-              navigate(`/management/pillar/${pillar.id}`);
-            }
-          }}
-        />
       </div>
 
       {/* Performance Dashboard Section */}
-      <div className="mt-8">
-        <h2 className="text-2xl text-center justify-center font-bold text-gray-800 mb-6">📊 Performance Dashboard</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-10 gap-1">
+      <div className="mt-1">
+        {/* <h2 className="text-2xl text-center justify-center font-bold text-gray-800 mb-6">📊 Performance Dashboard</h2> */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 lg:grid-rows-3 gap-2 lg:h-[calc(110vh-120px)] overflow-hidden">
           {/* Plant Efficiency Speedometer */}
-          <div className="sm:col-span-2">
-          <div className="bg-white rounded-lg shadow border-2 border-blue-500 p-4 h-full overflow-hidden" style={{maxHeight: '380px'}}>
+          <div className="w-full h-full min-h-0 lg:col-span-4 lg:row-span-1">
+          <div className="bg-white rounded-lg shadow border-2 border-blue-500 p-2 h-full min-h-0 overflow-hidden flex flex-col">
             <button 
               type="button"
               onClick={() => handleKPITitleClick('Plant Efficiency')}
-              className="w-full mb-4 px-2 sm:px-3 md:px-4 py-2 text-sm sm:text-base lg:text-lg font-semibold leading-snug text-blue-900 bg-blue-100 rounded-lg hover:bg-blue-200 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 whitespace-normal break-words"
+              className="w-full mb-1 px-2 sm:px-2 md:px-3 py-1 text-xs sm:text-sm lg:text-sm font-semibold leading-snug text-blue-900 bg-blue-100 rounded-md hover:bg-blue-200 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 whitespace-normal break-words"
               title="Go to Plant Efficiency KPI"
             >
               ⚡ Plant Efficiency
@@ -1848,7 +1874,7 @@ function ManagementDashboard() {
             {efficiencyLoading ? (
               <div className="flex items-center justify-center p-8 text-gray-500 text-sm">Loading...</div>
             ) : (
-              <div className="flex items-center justify-center gap-1 sm:gap-2 md:gap-4 relative w-full min-w-0">
+              <div className="flex items-center justify-center gap-1 sm:gap-2 md:gap-4 relative w-full min-w-0 flex-1 min-h-0 overflow-hidden">
                 {/* Previous Month Button */}
                 <button 
                   type="button"
@@ -1867,7 +1893,7 @@ function ManagementDashboard() {
                 
                 {/* Speedometer Gauge - Click to Open Modal */}
                 <div 
-                  className="flex-1 min-w-0 flex justify-center cursor-pointer hover:opacity-80 transition-opacity"
+                  className="flex-1 min-w-0 flex flex-col justify-center items-center cursor-pointer hover:opacity-80 transition-opacity h-full min-h-0"
                   role="button"
                   tabIndex={0}
                   onClick={(e) => {
@@ -1908,11 +1934,11 @@ function ManagementDashboard() {
         </div>
 
         {/* Industry 4.0 Chart */}
-        <div className="sm:col-span-2">
-          <div className="bg-white rounded-lg shadow border-2 border-blue-500 p-4 h-full overflow-hidden" style={{maxHeight: '380px'}}>
+        <div className="w-full h-full min-h-0 lg:col-span-4 lg:row-span-1">
+          <div className="bg-white rounded-lg shadow border-2 border-blue-500 p-2 h-full min-h-0 overflow-hidden flex flex-col">
             <button 
               onClick={() => handleKPITitleClick('Industry 4.0')}
-              className="w-full mb-4 px-2 sm:px-3 md:px-4 py-2 text-sm sm:text-base lg:text-lg font-semibold leading-snug text-blue-900 bg-blue-100 rounded-lg hover:bg-blue-200 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 whitespace-normal break-words"
+              className="w-full mb-2 px-2 sm:px-2 md:px-3 py-1 text-xs sm:text-sm lg:text-sm font-semibold leading-snug text-blue-900 bg-blue-100 rounded-md hover:bg-blue-200 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 whitespace-normal break-words"
             >
               🏭 Industry 4.0
             </button>
@@ -1920,7 +1946,7 @@ function ManagementDashboard() {
               <div className="flex items-center justify-center p-8 text-gray-500 text-sm">Loading...</div>
             ) : industry40Chart ? (
               <div 
-                className="cursor-pointer"
+                className="flex-1 min-h-0 cursor-pointer"
                 role="button"
                 tabIndex={0}
                 onClick={() => openExpandedChart('industry40', industry40Chart)}
@@ -1931,11 +1957,12 @@ function ManagementDashboard() {
                 labels={industry40Chart.labels}
                 actuals={industry40Chart.actuals}
                 targets={industry40Chart.targets}
+                showHeader={false}
               />
               </div>
             ) : (
               <div 
-                className="cursor-pointer"
+                className="flex-1 min-h-0 cursor-pointer"
                 role="button"
                 tabIndex={0}
                 onClick={() => openExpandedChart('industry40', { title: 'Industry 4.0 Performance', labels: MONTH_LABELS, actuals: Array(12).fill(0), targets: Array(12).fill(0) })}
@@ -1946,6 +1973,7 @@ function ManagementDashboard() {
                 labels={MONTH_LABELS}
                 actuals={Array(12).fill(0)}
                 targets={Array(12).fill(0)}
+                showHeader={false}
               />
               </div>
             )}
@@ -1953,11 +1981,11 @@ function ManagementDashboard() {
         </div>
 
         {/* Zero Quality Complaints Chart */}
-        <div className="sm:col-span-2">
-          <div className="bg-white rounded-lg shadow border-2 border-blue-500 p-3 h-full overflow-hidden" style={{maxHeight: '380px'}}>
+        <div className="w-full h-full min-h-0 lg:col-span-4 lg:row-span-1">
+          <div className="bg-white rounded-lg shadow border-2 border-blue-500 p-2 h-full min-h-0 overflow-hidden flex flex-col">
             <button 
               onClick={() => handleKPITitleClick('Zero Quality')}
-              className="w-full mb-4 px-2 sm:px-3 md:px-4 py-2 text-sm sm:text-base lg:text-lg font-semibold leading-snug text-blue-900 bg-blue-100 rounded-lg hover:bg-blue-200 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 whitespace-normal break-words"
+              className="w-full mb-2 px-2 sm:px-2 md:px-3 py-1 text-xs sm:text-sm lg:text-sm font-semibold leading-snug text-blue-900 bg-blue-100 rounded-md hover:bg-blue-200 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 whitespace-normal break-words"
             >
               ✅ Zero Quality Complaints
             </button>
@@ -1965,7 +1993,7 @@ function ManagementDashboard() {
               <div className="flex items-center justify-center p-8 text-gray-500 text-sm">Loading...</div>
             ) : zeroQualityChart ? (
               <div 
-                className="cursor-pointer"
+                className="flex-1 min-h-0 cursor-pointer"
                 role="button"
                 tabIndex={0}
                 onClick={() => openExpandedChart('zeroQuality', zeroQualityChart)}
@@ -1976,11 +2004,12 @@ function ManagementDashboard() {
                 labels={zeroQualityChart.labels}
                 actuals={zeroQualityChart.actuals}
                 targets={zeroQualityChart.targets}
+                showHeader={false}
               />
               </div>
             ) : (
               <div 
-                className="cursor-pointer"
+                className="flex-1 min-h-0 cursor-pointer"
                 role="button"
                 tabIndex={0}
                 onClick={() => openExpandedChart('zeroQuality', { title: 'Zero Quality Complaints', labels: MONTH_LABELS, actuals: Array(12).fill(0), targets: Array(12).fill(0) })}
@@ -1991,6 +2020,7 @@ function ManagementDashboard() {
                 labels={MONTH_LABELS}
                 actuals={Array(12).fill(0)}
                 targets={Array(12).fill(0)}
+                showHeader={false}
               />
               </div>
             )}
@@ -1998,152 +2028,113 @@ function ManagementDashboard() {
         </div>
 
         {/* Revenue and Profitability Split Chart */}
-        <div className="sm:col-span-4">
-          <div className="bg-white rounded-lg shadow border-2 border-blue-500 h-full flex flex-col p-3 overflow-hidden" style={{maxHeight: '380px'}}>
+        <div className="w-full h-full min-h-0 lg:col-span-6 lg:row-span-1">
+          <div className="bg-white rounded-lg shadow border-2 border-blue-500 h-full min-h-0 flex flex-col p-2 overflow-hidden">
             {/* Group Title */}
             <button
               onClick={() => handleKPITitleClick('Cost')}
-              className="w-full mb-4 px-2 sm:px-3 md:px-4 py-2 text-sm sm:text-base lg:text-lg font-semibold leading-snug text-blue-900 bg-blue-100 rounded-lg hover:bg-blue-200 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 whitespace-normal break-words"
+              className="w-full mb-1 px-2 sm:px-2 md:px-3 py-1 text-xs sm:text-sm lg:text-sm font-semibold leading-snug text-blue-900 bg-blue-100 rounded-md hover:bg-blue-200 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 whitespace-normal break-words"
             >
               💰 Cost
             </button>
             <div className="flex flex-col md:flex-row h-full flex-1">
             {/* Revenue Section */}
-            <div className="flex-1 p-2 md:p-4 flex flex-col md:border-r border-gray-200 min-w-0 justify-center h-full">
+            <div className="flex-1 px-2 pb-2 pt-1 md:px-4 md:pb-4 md:pt-1 flex flex-col md:border-r border-gray-200 min-w-0 justify-center h-full">
               <button 
                 onClick={() => handleKPITitleClick('Revenue')}
-                className="text-xs md:text-sm font-bold text-gray-500 mb-2 md:mb-3 text-center tracking-wide hover:text-blue-600 transition-colors cursor-pointer px-2 md:px-4 py-1 md:py-2 rounded-lg hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                className="text-xs md:text-sm font-bold text-gray-500 mb-1 md:mb-1 text-center tracking-wide hover:text-blue-600 transition-colors cursor-pointer px-2 md:px-3 py-0.5 md:py-1 rounded-md hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-400"
               >
                 REVENUE
               </button>
               {salesLoading ? (
                 <div className="flex items-center justify-center p-2 md:p-4 text-gray-500 text-sm">Loading...</div>
               ) : (
-                <div className="flex items-center justify-center gap-2 md:gap-4 flex-1 cursor-pointer"
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => openExpandedChart('salesProfit', { monthlySalesData, selectedSalesIndex, monthlyProfitData, selectedProfitIndex })}
-                  onKeyDown={(e) => e.key === 'Enter' && openExpandedChart('salesProfit', { monthlySalesData, selectedSalesIndex, monthlyProfitData, selectedProfitIndex })}
-                >
-                  <button 
-                    className="bg-gray-100 border border-gray-300 rounded-full w-7 h-7 md:w-8 md:h-8 flex items-center justify-center cursor-pointer text-base md:text-lg text-gray-600 hover:bg-gray-200 hover:text-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex-shrink-0"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (!monthlySalesData.length) return;
-                      setSelectedSalesIndex(selectedSalesIndex === 0 ? monthlySalesData.length - 1 : selectedSalesIndex - 1);
-                    }}
-                    disabled={!monthlySalesData.length}
-                  >
-                    ‹
-                  </button>
-                  <div className="flex flex-col items-center flex-1 min-w-0 justify-center h-full">
-                    <h5 className="text-xs md:text-sm font-semibold text-gray-800 mb-1 md:mb-2">
-                      {MONTH_LABELS[(monthlySalesData[selectedSalesIndex]?.month || 1) - 1]} {monthlySalesData[selectedSalesIndex]?.year || ''}
-                    </h5>
-                    <div className="flex items-center justify-center flex-1 h-full">
-                      <svg viewBox="0 0 200 200" className="w-[110px] md:w-[140px] h-[110px] md:h-[140px] flex-shrink-0">
-                      <defs>
-                        <filter id="revenueTextShadow" x="-50%" y="-50%" width="200%" height="200%">
-                          <feDropShadow dx="0" dy="0" stdDeviation="2" floodOpacity="0.8" floodColor="#000000" />
-                        </filter>
-                      </defs>
-                      {(() => {
-                        const salesData = monthlySalesData[selectedSalesIndex] || { actual: 0, target: 0 };
-                        const radius = 70;
-                        const cx = 100;
-                        const cy = 100;
-                        const actual = Number(salesData.actual || 0);
-                        const target = Number(salesData.target || 0);
-                        const percentageAchieved = target > 0 ? Math.min((actual / target) * 100, 100) : 0;
-                        
-                        const achievedAngle = (percentageAchieved / 100) * 360;
-                        const achievedRadians = (achievedAngle * Math.PI) / 180;
-                        
-                        const x1 = cx + radius * Math.cos(-Math.PI / 2);
-                        const y1 = cy + radius * Math.sin(-Math.PI / 2);
-                        const x2 = cx + radius * Math.cos(-Math.PI / 2 + achievedRadians);
-                        const y2 = cy + radius * Math.sin(-Math.PI / 2 + achievedRadians);
-                        
-                        const largeArc = achievedAngle > 180 ? 1 : 0;
-                        
-                        return (
-                          <>
-                            {percentageAchieved > 0 && (
+                (() => {
+                  const latestSalesIdx = monthlySalesData.reduce((idx, d, i) => d.actual > 0 ? i : idx, -1);
+                  const activeIdx = latestSalesIdx >= 0 ? latestSalesIdx : (monthlySalesData.length > 0 ? monthlySalesData.length - 1 : 0);
+                  const cumulActual = monthlySalesData.slice(0, activeIdx + 1).reduce((s, d) => s + Number(d.actual || 0), 0);
+                  const cumulTarget = monthlySalesData.slice(0, activeIdx + 1).reduce((s, d) => s + Number(d.target || 0), 0);
+                  const startEntry = monthlySalesData[0];
+                  const endEntry = monthlySalesData[activeIdx];
+                  const pct = cumulTarget > 0 ? Math.min((cumulActual / cumulTarget) * 100, 100) : 0;
+                  const achievedAngle = (pct / 100) * 360;
+                  const achievedRadians = (achievedAngle * Math.PI) / 180;
+                  const radius = 70; const cx = 100; const cy = 100;
+                  const x1 = cx + radius * Math.cos(-Math.PI / 2);
+                  const y1 = cy + radius * Math.sin(-Math.PI / 2);
+                  const x2 = cx + radius * Math.cos(-Math.PI / 2 + achievedRadians);
+                  const y2 = cy + radius * Math.sin(-Math.PI / 2 + achievedRadians);
+                  const largeArc = achievedAngle > 180 ? 1 : 0;
+                  const startLabel = startEntry ? `${MONTH_LABELS[(startEntry.month || 1) - 1]} ${startEntry.year}` : '';
+                  const endLabel = endEntry ? `${MONTH_LABELS[(endEntry.month || 1) - 1]} ${endEntry.year}` : '';
+                  const dateLabel = startLabel === endLabel ? startLabel : `${startLabel} – ${endLabel}`;
+                  return (
+                    <div className="flex flex-col items-center flex-1 min-w-0 justify-center h-full cursor-pointer"
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => openExpandedChart('salesProfit', { monthlySalesData, selectedSalesIndex, monthlyProfitData, selectedProfitIndex })}
+                      onKeyDown={(e) => e.key === 'Enter' && openExpandedChart('salesProfit', { monthlySalesData, selectedSalesIndex, monthlyProfitData, selectedProfitIndex })}
+                    >
+                      <h5 className="text-[9px] md:text-[10px] font-semibold text-gray-800 mb-1 whitespace-nowrap">
+                        {dateLabel}
+                      </h5>
+                      <div className="flex flex-row items-center justify-center gap-2 md:gap-4 flex-1 h-full min-h-0 w-full">
+                        <div className="flex items-center justify-center min-h-0">
+                          <svg viewBox="0 0 200 200" className="w-[90px] md:w-[108px] h-[90px] md:h-[108px] flex-shrink-0" style={{maxHeight: '90px'}}>
+                            <defs>
+                              <filter id="revenueTextShadow" x="-50%" y="-50%" width="200%" height="200%">
+                                <feDropShadow dx="0" dy="0" stdDeviation="2" floodOpacity="0.8" floodColor="#000000" />
+                              </filter>
+                            </defs>
+                            {pct > 0 && (
                               <>
-                                {percentageAchieved >= 99.9 ? (
-                                  // Draw full circle when at or near 100%
+                                {pct >= 99.9 ? (
                                   <circle cx={cx} cy={cy} r={radius} fill="#0d47a1" stroke="white" strokeWidth="2" />
                                 ) : (
-                                  // Draw partial arc
-                                  <path
-                                    d={`M ${cx} ${cy} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2} Z`}
-                                    fill="#0d47a1"
-                                    stroke="white"
-                                    strokeWidth="2"
-                                  />
+                                  <path d={`M ${cx} ${cy} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2} Z`} fill="#0d47a1" stroke="white" strokeWidth="2" />
                                 )}
                               </>
                             )}
-                            
-                            {percentageAchieved < 99.9 && (
-                              <path
-                                d={`M ${cx} ${cy} L ${x2} ${y2} A ${radius} ${radius} 0 ${achievedAngle > 180 ? 0 : 1} 1 ${x1} ${y1} Z`}
-                                fill="#f3f4f6"
-                                stroke="#d1d5db"
-                                strokeWidth="2"
-                              />
+                            {pct < 99.9 && (
+                              <path d={`M ${cx} ${cy} L ${x2} ${y2} A ${radius} ${radius} 0 ${achievedAngle > 180 ? 0 : 1} 1 ${x1} ${y1} Z`} fill="#f3f4f6" stroke="#d1d5db" strokeWidth="2" />
                             )}
-                            
                             <text x={cx} y={cy - 8} textAnchor="middle" fontSize="20" fontWeight="700" fill="white" filter="url(#revenueTextShadow)">
-                              {actual.toFixed(0)}
+                              {cumulActual.toFixed(0)}
                             </text>
                             <text x={cx} y={cy + 12} textAnchor="middle" fontSize="10" fill="white" filter="url(#revenueTextShadow)">
-                              of {target.toFixed(0)} target
+                              of {cumulTarget.toFixed(0)} target
                             </text>
-                          </>
-                        );
-                      })()}
-                    </svg>
-                    </div>
-                    
-                    <div className="flex flex-col gap-1 md:gap-2 mt-2 md:mt-3">
-                      <div className="flex items-center gap-2 text-[10px] md:text-xs text-gray-600">
-                        <span className="w-2.5 h-2.5 md:w-3 md:h-3 bg-[#0d47a1] rounded flex-shrink-0"></span>
-                        <span className="whitespace-nowrap">Actual: {Number(monthlySalesData[selectedSalesIndex]?.actual || 0).toFixed(0)}</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-[10px] md:text-xs text-gray-600">
-                        <span className="w-2.5 h-2.5 md:w-3 md:h-3 bg-[#0d47a1] rounded flex-shrink-0"></span>
-                        <span className="whitespace-nowrap">Target: {Number(monthlySalesData[selectedSalesIndex]?.target || 0).toFixed(0)}</span>
+                          </svg>
+                        </div>
+                        <div className="flex flex-col gap-1 md:gap-1.5 justify-center">
+                          <div className="flex items-center gap-1.5 text-[9px] md:text-[10px] text-gray-600">
+                            <span className="w-2 md:w-2.5 h-2 md:h-2.5 bg-[#0d47a1] rounded flex-shrink-0"></span>
+                            <span className="whitespace-nowrap font-medium">Actual: {cumulActual.toFixed(0)}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 text-[9px] md:text-[10px] text-gray-600">
+                            <span className="w-2 md:w-2.5 h-2 md:h-2.5 bg-[#f3f4f6] border border-[#d1d5db] rounded flex-shrink-0"></span>
+                            <span className="whitespace-nowrap font-medium">Target: {cumulTarget.toFixed(0)}</span>
+                          </div>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <button 
-                    className="bg-gray-100 border border-gray-300 rounded-full w-7 h-7 md:w-8 md:h-8 flex items-center justify-center cursor-pointer text-base md:text-lg text-gray-600 hover:bg-gray-200 hover:text-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex-shrink-0"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (!monthlySalesData.length) return;
-                      setSelectedSalesIndex(selectedSalesIndex === monthlySalesData.length - 1 ? monthlySalesData.length - 1 : selectedSalesIndex + 1);
-                    }}
-                    disabled={!monthlySalesData.length || selectedSalesIndex >= monthlySalesData.length - 1}
-                  >
-                    ›
-                  </button>
-                </div>
+                  );
+                })()
               )}
             </div>
             
             {/* Profitability Section */}
-            <div className="flex-1 p-2 md:p-4 flex flex-col border-t md:border-t-0 min-w-0 justify-center h-full">
+            <div className="flex-1 px-2 pb-2 pt-1 md:px-4 md:pb-4 md:pt-1 flex flex-col border-t md:border-t-0 min-w-0 justify-center h-full">
               <button 
                 onClick={() => handleKPITitleClick('Profitability')}
-                className="text-xs md:text-sm font-bold text-gray-500 mb-2 md:mb-3 text-center tracking-wide hover:text-blue-600 transition-colors cursor-pointer px-2 md:px-4 py-1 md:py-2 rounded-lg hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                className="text-xs md:text-sm font-bold text-gray-500 mb-1 md:mb-1 text-center tracking-wide hover:text-blue-600 transition-colors cursor-pointer px-2 md:px-3 py-0.5 md:py-1 rounded-md hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-400"
               >
                 PROFITABILITY (YTD)
               </button>
               {profitabilityLoading ? (
                 <div className="flex items-center justify-center p-2 md:p-4 text-gray-500 text-sm">Loading...</div>
               ) : (
-                <div className="flex items-center justify-center gap-2 md:gap-4 flex-1 cursor-pointer"
+                <div className="flex items-center justify-center gap-1 md:gap-2 flex-1 cursor-pointer"
                   role="button"
                   tabIndex={0}
                   onClick={() => openExpandedChart('salesProfit', { monthlySalesData, selectedSalesIndex, monthlyProfitData, selectedProfitIndex })}
@@ -2160,84 +2151,86 @@ function ManagementDashboard() {
                   >
                     ‹
                   </button>
-                  <div className="flex flex-col items-center flex-1 min-w-0 justify-center h-full">
-                    <h5 className="text-xs md:text-sm font-semibold text-gray-800 mb-1 md:mb-2">
+                  <div className="flex flex-col items-center flex-initial min-w-0 justify-center h-full mx-2 md:mx-4">
+                    <h5 className="text-[9px] md:text-[10px] font-semibold text-gray-800 mb-1 md:mb-1 whitespace-nowrap">
                       {MONTH_LABELS[(monthlyProfitData[selectedProfitIndex]?.month || 1) - 1]} {monthlyProfitData[selectedProfitIndex]?.year || ''}
                     </h5>
-                    <div className="flex items-center justify-center flex-1 h-full">
-                      <svg viewBox="0 0 200 200" className="w-[110px] md:w-[140px] h-[110px] md:h-[140px] flex-shrink-0">
-                      <defs>
-                        <filter id="profitabilityTextShadow" x="-50%" y="-50%" width="200%" height="200%">
-                          <feDropShadow dx="0" dy="0" stdDeviation="2" floodOpacity="0.8" floodColor="#000000" />
-                        </filter>
-                      </defs>
-                      {(() => {
-                        const profitData = monthlyProfitData[selectedProfitIndex] || { profit: 0, target: 100 };
-                        const radius = 70;
-                        const cx = 100;
-                        const cy = 100;
-                        const profit = profitData.profit;
-                        const target = profitData.target;
-                        const percentageAchieved = target > 0 ? Math.min((profit / target) * 100, 100) : 0;
-                        
-                        const achievedAngle = (percentageAchieved / 100) * 360;
-                        const achievedRadians = (achievedAngle * Math.PI) / 180;
-                        
-                        const x1 = cx + radius * Math.cos(-Math.PI / 2);
-                        const y1 = cy + radius * Math.sin(-Math.PI / 2);
-                        const x2 = cx + radius * Math.cos(-Math.PI / 2 + achievedRadians);
-                        const y2 = cy + radius * Math.sin(-Math.PI / 2 + achievedRadians);
-                        
-                        const largeArc = achievedAngle > 180 ? 1 : 0;
-                        
-                        return (
-                          <>
-                            {percentageAchieved > 0 && (
-                              <>
-                                {percentageAchieved >= 99.9 ? (
-                                  // Draw full circle when at or near 100%
-                                  <circle cx={cx} cy={cy} r={radius} fill="#15803d" stroke="white" strokeWidth="2" />
-                                ) : (
-                                  // Draw partial arc
-                                  <path
-                                    d={`M ${cx} ${cy} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2} Z`}
-                                    fill="#15803d"
-                                    stroke="white"
-                                    strokeWidth="2"
-                                  />
-                                )}
-                              </>
-                            )}
-                            
-                            {percentageAchieved < 99.9 && (
-                              <path
-                                d={`M ${cx} ${cy} L ${x2} ${y2} A ${radius} ${radius} 0 ${achievedAngle > 180 ? 0 : 1} 1 ${x1} ${y1} Z`}
-                                fill="#f3f4f6"
-                                stroke="#d1d5db"
-                                strokeWidth="2"
-                              />
-                            )}
-                            
-                            <text x={cx} y={cy - 8} textAnchor="middle" fontSize="20" fontWeight="700" fill="white" filter="url(#profitabilityTextShadow)">
-                              {profit.toFixed(1)}%
-                            </text>
-                            <text x={cx} y={cy + 12} textAnchor="middle" fontSize="10" fill="white" filter="url(#profitabilityTextShadow)">
-                              of {target.toFixed(1)}% target
-                            </text>
-                          </>
-                        );
-                      })()}
-                    </svg>
-                    </div>
-                    
-                    <div className="flex flex-col gap-1 md:gap-2 mt-2 md:mt-3">
-                      <div className="flex items-center gap-2 text-[10px] md:text-xs text-gray-600">
-                        <span className="w-2.5 h-2.5 md:w-3 md:h-3 bg-[#15803d] rounded flex-shrink-0"></span>
-                        <span className="whitespace-nowrap">Actual: {(monthlyProfitData[selectedProfitIndex]?.profit || 0).toFixed(1)}%</span>
+                    <div className="flex flex-row items-center justify-center gap-2 md:gap-4 flex-1 h-full min-h-0 w-full">
+                      <div className="flex items-center justify-center min-h-0">
+                        <svg viewBox="0 0 200 200" className="w-[90px] md:w-[108px] h-[90px] md:h-[108px] flex-shrink-0" style={{maxHeight: '90px'}}>
+                        <defs>
+                          <filter id="profitabilityTextShadow" x="-50%" y="-50%" width="200%" height="200%">
+                            <feDropShadow dx="0" dy="0" stdDeviation="2" floodOpacity="0.8" floodColor="#000000" />
+                          </filter>
+                        </defs>
+                        {(() => {
+                          const profitData = monthlyProfitData[selectedProfitIndex] || { profit: 0, target: 100 };
+                          const radius = 70;
+                          const cx = 100;
+                          const cy = 100;
+                          const profit = profitData.profit;
+                          const target = profitData.target;
+                          const percentageAchieved = target > 0 ? Math.min((profit / target) * 100, 100) : 0;
+                          
+                          const achievedAngle = (percentageAchieved / 100) * 360;
+                          const achievedRadians = (achievedAngle * Math.PI) / 180;
+                          
+                          const x1 = cx + radius * Math.cos(-Math.PI / 2);
+                          const y1 = cy + radius * Math.sin(-Math.PI / 2);
+                          const x2 = cx + radius * Math.cos(-Math.PI / 2 + achievedRadians);
+                          const y2 = cy + radius * Math.sin(-Math.PI / 2 + achievedRadians);
+                          
+                          const largeArc = achievedAngle > 180 ? 1 : 0;
+                          
+                          return (
+                            <>
+                              {percentageAchieved > 0 && (
+                                <>
+                                  {percentageAchieved >= 99.9 ? (
+                                    // Draw full circle when at or near 100%
+                                    <circle cx={cx} cy={cy} r={radius} fill="#15803d" stroke="white" strokeWidth="2" />
+                                  ) : (
+                                    // Draw partial arc
+                                    <path
+                                      d={`M ${cx} ${cy} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2} Z`}
+                                      fill="#15803d"
+                                      stroke="white"
+                                      strokeWidth="2"
+                                    />
+                                  )}
+                                </>
+                              )}
+                              
+                              {percentageAchieved < 99.9 && (
+                                <path
+                                  d={`M ${cx} ${cy} L ${x2} ${y2} A ${radius} ${radius} 0 ${achievedAngle > 180 ? 0 : 1} 1 ${x1} ${y1} Z`}
+                                  fill="#f3f4f6"
+                                  stroke="#d1d5db"
+                                  strokeWidth="2"
+                                />
+                              )}
+                              
+                              <text x={cx} y={cy - 8} textAnchor="middle" fontSize="20" fontWeight="700" fill="white" filter="url(#profitabilityTextShadow)">
+                                {profit.toFixed(1)}%
+                              </text>
+                              <text x={cx} y={cy + 12} textAnchor="middle" fontSize="10" fill="white" filter="url(#profitabilityTextShadow)">
+                                of {target.toFixed(1)}% target
+                              </text>
+                            </>
+                          );
+                        })()}
+                      </svg>
                       </div>
-                      <div className="flex items-center gap-2 text-[10px] md:text-xs text-gray-600">
-                        <span className="w-2.5 h-2.5 md:w-3 md:h-3 bg-[#15803d] rounded flex-shrink-0"></span>
-                        <span className="whitespace-nowrap">Target: {(monthlyProfitData[selectedProfitIndex]?.target || 0).toFixed(1)}%</span>
+                      
+                      <div className="flex flex-col gap-1 md:gap-1.5 justify-center">
+                        <div className="flex items-center gap-1.5 text-[9px] md:text-[10px] text-gray-600">
+                          <span className="w-2 md:w-2.5 h-2 md:h-2.5 bg-[#15803d] rounded flex-shrink-0"></span>
+                          <span className="whitespace-nowrap font-medium">Actual: {(monthlyProfitData[selectedProfitIndex]?.profit || 0).toFixed(1)}%</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 text-[9px] md:text-[10px] text-gray-600">
+                          <span className="w-2 md:w-2.5 h-2 md:h-2.5 bg-[#f3f4f6] border border-[#d1d5db] rounded flex-shrink-0"></span>
+                          <span className="whitespace-nowrap font-medium">Target: {(monthlyProfitData[selectedProfitIndex]?.target || 0).toFixed(1)}%</span>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -2259,157 +2252,218 @@ function ManagementDashboard() {
             </div>
           </div>
         </div>
-      </div>
-      {/* Combined charts: Zero Accidents, Green Factory, On Time Delivery, Theme, Employees (side-by-side) */}
-      <div className="mt-1 grid grid-cols-1 md:grid-cols-5 gap-1">
-        <div className="bg-white rounded-lg shadow border-2 border-blue-500 p-3 h-full">
-          <button 
-            onClick={() => handleKPITitleClick('Zero Accidents')}
-            className="w-full mb-4 px-4 py-2 text-lg font-semibold text-blue-900 bg-blue-100 rounded-lg hover:bg-blue-200 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            🦺 Zero Accidents
-          </button>
-          {zeroAccidentsLoading ? (
-            <div className="flex items-center justify-center p-8 text-gray-500">Loading...</div>
-          ) : zeroAccidentsChart ? (
-            <div 
-              className="cursor-pointer"
-              role="button"
-              tabIndex={0}
-              onClick={() => openExpandedChart('zeroAccidents', zeroAccidentsChart)}
-              onKeyDown={(e)=> e.key === 'Enter' && openExpandedChart('zeroAccidents', zeroAccidentsChart)}
+        {/* Row 2: Cost (col-span-3) + On Time Delivery (col-span-3) */}
+        {/* On Time Delivery */}
+        <div className="w-full h-full min-h-0 lg:col-span-6 lg:row-span-1">
+          <div className="bg-white rounded-lg shadow border-2 border-blue-500 p-2 h-full min-h-0 overflow-hidden flex flex-col">
+            <button 
+              onClick={() => handleKPITitleClick('On Time Delivery')}
+              className="w-full mb-2 px-3 py-1 text-sm font-semibold text-blue-900 bg-blue-100 rounded-md hover:bg-blue-200 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              <ZeroAccidentsBarChart title={zeroAccidentsChart.title} subtitle={zeroAccidentsChart.subtitle} labels={zeroAccidentsChart.labels} actuals={zeroAccidentsChart.actuals} targets={zeroAccidentsChart.targets} />
-            </div>
-          ) : (
-            <div 
-              className="cursor-pointer"
-              role="button"
-              tabIndex={0}
-              onClick={() => openExpandedChart('zeroAccidents', { title: 'Safety', subtitle: 'Zero Accidents', labels: FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1]), actuals: Array(12).fill(0), targets: Array(12).fill(0) })}
-              onKeyDown={(e)=> e.key === 'Enter' && openExpandedChart('zeroAccidents', { title: 'Safety', subtitle: 'Zero Accidents', labels: FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1]), actuals: Array(12).fill(0), targets: Array(12).fill(0) })}
-            >
-              <ZeroAccidentsBarChart title="Safety" subtitle="Zero Accidents" labels={FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1])} actuals={Array(12).fill(0)} targets={Array(12).fill(0)} />
-            </div>
-          )}
+              🚚 On Time Delivery
+            </button>
+            {onTimeDeliveryLoading ? (
+              <div className="flex items-center justify-center p-8 text-gray-500">Loading...</div>
+            ) : onTimeDeliveryChart ? (
+              <div 
+                className="flex-1 min-h-0 cursor-pointer"
+                role="button"
+                tabIndex={0}
+                onClick={() => openExpandedChart('onTimeDelivery', onTimeDeliveryChart)}
+                onKeyDown={(e)=> e.key === 'Enter' && openExpandedChart('onTimeDelivery', onTimeDeliveryChart)}
+              >
+                <OnTimeDeliveryBarChart title={onTimeDeliveryChart.title} subtitle={onTimeDeliveryChart.subtitle} labels={onTimeDeliveryChart.labels} actuals={onTimeDeliveryChart.actuals} targets={onTimeDeliveryChart.targets} showHeader={false} />
+              </div>
+            ) : (
+              <div 
+                className="flex-1 min-h-0 cursor-pointer"
+                role="button"
+                tabIndex={0}
+                onClick={() => openExpandedChart('onTimeDelivery', { title: 'On Time Delivery', subtitle: 'Target vs Achieved', labels: FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1]), actuals: Array(12).fill(0), targets: Array(12).fill(0) })}
+                onKeyDown={(e)=> e.key === 'Enter' && openExpandedChart('onTimeDelivery', { title: 'On Time Delivery', subtitle: 'Target vs Achieved', labels: FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1]), actuals: Array(12).fill(0), targets: Array(12).fill(0) })}
+              >
+                <OnTimeDeliveryBarChart title="On Time Delivery" subtitle="Target vs Achieved" labels={FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1])} actuals={Array(12).fill(0)} targets={Array(12).fill(0)} showHeader={false} />
+              </div>
+            )}
+          </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow border-2 border-blue-500 p-3 h-full">
-          <button 
-            onClick={() => handleKPITitleClick('Green Factory')}
-            className="w-full mb-4 px-4 py-2 text-lg font-semibold text-blue-900 bg-blue-100 rounded-lg hover:bg-blue-200 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            🌿 Green Factory
-          </button>
-          {greenFactoryLoading ? (
-            <div className="flex items-center justify-center p-8 text-gray-500">Loading...</div>
-          ) : greenFactoryChart ? (
-            <div 
-              className="cursor-pointer"
-              role="button"
-              tabIndex={0}
-              onClick={() => openExpandedChart('greenFactory', greenFactoryChart)}
-              onKeyDown={(e)=> e.key === 'Enter' && openExpandedChart('greenFactory', greenFactoryChart)}
+        {/* Row 3: Zero Accidents, Green Factory, Morale (each col-span-2) */}
+        {/* Zero Accidents */}
+        <div className="w-full h-full min-h-0 lg:col-span-3">
+          <div className="bg-white rounded-lg shadow border-2 border-blue-500 p-2 h-full min-h-0 overflow-hidden flex flex-col">
+            <button 
+              onClick={() => handleKPITitleClick('Zero Accidents')}
+              className="w-full mb-2 px-3 py-1 text-sm font-semibold text-blue-900 bg-blue-100 rounded-md hover:bg-blue-200 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              <GreenFactoryBarChart title={greenFactoryChart.title} subtitle={greenFactoryChart.subtitle} labels={greenFactoryChart.labels} values={greenFactoryChart.values} />
-            </div>
-          ) : (
-            <div 
-              className="cursor-pointer"
-              role="button"
-              tabIndex={0}
-              onClick={() => openExpandedChart('greenFactory', { title: 'Environment', subtitle: 'Green Factory', labels: FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1]), values: Array(12).fill(0) })}
-              onKeyDown={(e)=> e.key === 'Enter' && openExpandedChart('greenFactory', { title: 'Environment', subtitle: 'Green Factory', labels: FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1]), values: Array(12).fill(0) })}
-            >
-              <GreenFactoryBarChart title="Environment" subtitle="Green Factory" labels={FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1])} values={Array(12).fill(0)} />
-            </div>
-          )}
+              🦺 Zero Accidents
+            </button>
+            {zeroAccidentsLoading ? (
+              <div className="flex items-center justify-center p-8 text-gray-500">Loading...</div>
+            ) : zeroAccidentsChart ? (
+              <div 
+                className="flex-1 min-h-0 cursor-pointer"
+                role="button"
+                tabIndex={0}
+                onClick={() => openExpandedChart('zeroAccidents', zeroAccidentsChart)}
+                onKeyDown={(e)=> e.key === 'Enter' && openExpandedChart('zeroAccidents', zeroAccidentsChart)}
+              >
+                <ZeroAccidentsBarChart title={zeroAccidentsChart.title} subtitle={zeroAccidentsChart.subtitle} labels={zeroAccidentsChart.labels} actuals={zeroAccidentsChart.actuals} targets={zeroAccidentsChart.targets} showHeader={false} />
+              </div>
+            ) : (
+              <div 
+                className="flex-1 min-h-0 cursor-pointer"
+                role="button"
+                tabIndex={0}
+                onClick={() => openExpandedChart('zeroAccidents', { title: 'Safety', subtitle: 'Zero Accidents', labels: FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1]), actuals: Array(12).fill(0), targets: Array(12).fill(0) })}
+                onKeyDown={(e)=> e.key === 'Enter' && openExpandedChart('zeroAccidents', { title: 'Safety', subtitle: 'Zero Accidents', labels: FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1]), actuals: Array(12).fill(0), targets: Array(12).fill(0) })}
+              >
+                <ZeroAccidentsBarChart title="Safety" subtitle="Zero Accidents" labels={FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1])} actuals={Array(12).fill(0)} targets={Array(12).fill(0)} showHeader={false} />
+              </div>
+            )}
+          </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow border-2 border-blue-500 p-3 h-full">
-          <button 
-            onClick={() => handleKPITitleClick('On Time Delivery')}
-            className="w-full mb-4 px-4 py-2 text-lg font-semibold text-blue-900 bg-blue-100 rounded-lg hover:bg-blue-200 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            🚚 On Time Delivery
-          </button>
-          {onTimeDeliveryLoading ? (
-            <div className="flex items-center justify-center p-8 text-gray-500">Loading...</div>
-          ) : onTimeDeliveryChart ? (
-            <div 
-              className="cursor-pointer"
-              role="button"
-              tabIndex={0}
-              onClick={() => openExpandedChart('onTimeDelivery', onTimeDeliveryChart)}
-              onKeyDown={(e)=> e.key === 'Enter' && openExpandedChart('onTimeDelivery', onTimeDeliveryChart)}
+        {/* Green Factory */}
+        <div className="w-full h-full min-h-0 lg:col-span-3">
+          <div className="bg-white rounded-lg shadow border-2 border-blue-500 p-2 h-full min-h-0 overflow-hidden flex flex-col">
+            <button 
+              onClick={() => handleKPITitleClick('Green Factory')}
+              className="w-full mb-2 px-3 py-1 text-sm font-semibold text-blue-900 bg-blue-100 rounded-md hover:bg-blue-200 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              <OnTimeDeliveryBarChart title={onTimeDeliveryChart.title} subtitle={onTimeDeliveryChart.subtitle} labels={onTimeDeliveryChart.labels} actuals={onTimeDeliveryChart.actuals} targets={onTimeDeliveryChart.targets} />
-            </div>
-          ) : (
-            <div 
-              className="cursor-pointer"
-              role="button"
-              tabIndex={0}
-              onClick={() => openExpandedChart('onTimeDelivery', { title: 'On Time Delivery', subtitle: 'Target vs Achieved', labels: FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1]), actuals: Array(12).fill(0), targets: Array(12).fill(0) })}
-              onKeyDown={(e)=> e.key === 'Enter' && openExpandedChart('onTimeDelivery', { title: 'On Time Delivery', subtitle: 'Target vs Achieved', labels: FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1]), actuals: Array(12).fill(0), targets: Array(12).fill(0) })}
-            >
-              <OnTimeDeliveryBarChart title="On Time Delivery" subtitle="Target vs Achieved" labels={FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1])} actuals={Array(12).fill(0)} targets={Array(12).fill(0)} />
-            </div>
-          )}
+              🌿 Green Factory
+            </button>
+            {greenFactoryLoading ? (
+              <div className="flex items-center justify-center p-8 text-gray-500">Loading...</div>
+            ) : greenFactoryChart ? (
+              <div 
+                className="flex-1 min-h-0 cursor-pointer"
+                role="button"
+                tabIndex={0}
+                onClick={() => openExpandedChart('greenFactory', greenFactoryChart)}
+                onKeyDown={(e)=> e.key === 'Enter' && openExpandedChart('greenFactory', greenFactoryChart)}
+              >
+                <GreenFactoryBarChart title={greenFactoryChart.title} subtitle={greenFactoryChart.subtitle} labels={greenFactoryChart.labels} values={greenFactoryChart.values} showHeader={false} />
+              </div>
+            ) : (
+              <div 
+                className="flex-1 min-h-0 cursor-pointer"
+                role="button"
+                tabIndex={0}
+                onClick={() => openExpandedChart('greenFactory', { title: 'Environment', subtitle: 'Green Factory', labels: FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1]), values: Array(12).fill(0) })}
+                onKeyDown={(e)=> e.key === 'Enter' && openExpandedChart('greenFactory', { title: 'Environment', subtitle: 'Green Factory', labels: FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1]), values: Array(12).fill(0) })}
+              >
+                <GreenFactoryBarChart title="Environment" subtitle="Green Factory" labels={FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1])} values={Array(12).fill(0)} showHeader={false} />
+              </div>
+            )}
+          </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow border-2 border-blue-500 p-2 md:p-6 h-full md:col-span-2 flex flex-col">
-          {/* Group Title */}
-          <button
-            onClick={() => handleKPITitleClick('Morale')}
-            className="w-full mb-4 px-4 py-2 text-lg font-semibold text-blue-900 bg-blue-100 rounded-lg hover:bg-blue-200 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            😊 Morale
-          </button>
-          <div className="flex flex-col md:flex-row h-full flex-1">
-            <div className="flex-1 p-4 md:border-r border-gray-200 min-w-0">
-              {themeChartLoading ? (
-                <div className="flex items-center justify-center p-8 text-gray-500">Loading...</div>
-              ) : (
-                <div 
-                  className="h-full cursor-pointer"
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => openExpandedChart('themeEmployees', { themeChart, employeesChart })}
-                  onKeyDown={(e)=> e.key === 'Enter' && openExpandedChart('themeEmployees', { themeChart, employeesChart })}
-                >
-                  {themeChart ? (
-                    <Box4ThemeBarChart title={themeChart.title} subtitle={themeChart.subtitle} labels={themeChart.labels} values={themeChart.values} />
-                  ) : (
-                    <Box4ThemeBarChart title="Theme Of The Year" subtitle="Unlock The Power of You" labels={FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1])} values={Array(12).fill(0)} />
-                  )}
-                </div>
-              )}
-            </div>
-
-            <div className="flex-1 p-4 min-w-0">
-              {employeesChartLoading ? (
-                <div className="flex items-center justify-center p-8 text-gray-500">Loading...</div>
-              ) : (
-                <div 
-                  className="h-full cursor-pointer"
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => openExpandedChart('themeEmployees', { themeChart, employeesChart })}
-                  onKeyDown={(e)=> e.key === 'Enter' && openExpandedChart('themeEmployees', { themeChart, employeesChart })}
-                >
-                  {employeesChart ? (
-                    <Box4EmployeesLineChart title={employeesChart.title} subtitle={employeesChart.subtitle} labels={employeesChart.labels} values={employeesChart.values} />
-                  ) : (
-                    <Box4EmployeesLineChart title="No. of Employees Who Left" subtitle="Monthly Attrition" labels={FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1])} values={Array(12).fill(0)} />
-                  )}
-                </div>
-              )}
+        {/* Morale */}
+        <div className="w-full h-full min-h-0 lg:col-span-6">
+          <div className="bg-white rounded-lg shadow border-2 border-blue-500 p-2 h-full min-h-0 flex flex-col overflow-hidden">
+            <button
+              onClick={() => handleKPITitleClick('Morale')}
+              className="w-full mb-1 px-3 py-1 text-sm font-semibold text-blue-900 bg-blue-100 rounded-md hover:bg-blue-200 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              😊 Morale
+            </button>
+            <div className="flex flex-col md:flex-row h-full flex-1">
+              <div className="flex-1 px-4 pb-4 pt-1 md:border-r border-gray-200 min-w-0">
+                {themeChartLoading ? (
+                  <div className="flex items-center justify-center p-8 text-gray-500">Loading...</div>
+                ) : (
+                  <div 
+                    className="h-full cursor-pointer"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => openExpandedChart('themeEmployees', { themeChart, employeesChart })}
+                    onKeyDown={(e)=> e.key === 'Enter' && openExpandedChart('themeEmployees', { themeChart, employeesChart })}
+                  >
+                    {themeChart ? (
+                      <Box4ThemeBarChart title={themeChart.title} subtitle={themeChart.subtitle} labels={themeChart.labels} values={themeChart.values} showHeader={false} showSubtitle={true} />
+                    ) : (
+                      <Box4ThemeBarChart title="Theme Of The Year" subtitle="Unlock The Power of You" labels={FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1])} values={Array(12).fill(0)} showHeader={false} showSubtitle={true} />
+                    )}
+                  </div>
+                )}
+              </div>
+              <div className="flex-1 px-4 pb-4 pt-1 min-w-0">
+                {employeesChartLoading ? (
+                  <div className="flex items-center justify-center p-8 text-gray-500">Loading...</div>
+                ) : (
+                  <div 
+                    className="h-full cursor-pointer"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => openExpandedChart('themeEmployees', { themeChart, employeesChart })}
+                    onKeyDown={(e)=> e.key === 'Enter' && openExpandedChart('themeEmployees', { themeChart, employeesChart })}
+                  >
+                    {employeesChart ? (
+                      <Box4EmployeesLineChart title={employeesChart.title} subtitle={employeesChart.subtitle} labels={employeesChart.labels} values={employeesChart.values} showHeader={false} showSubtitle={true} />
+                    ) : (
+                      <Box4EmployeesLineChart title="No. of Employees Who Left" subtitle="Monthly Attrition" labels={FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1])} values={Array(12).fill(0)} showHeader={false} showSubtitle={true} />
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
+
         </div>
       </div>
+      {/* Performance Dashboard Section End */}
+
+      {/* Pillars Section */}
+      <div className="mt-8">
+        <PillarRadarChart
+          pillars={[...pillerStats.pillers].sort((a, b) => (a.piller_name || '').localeCompare(b.piller_name || ''))}
+          onPillarClick={(pillar) => {
+            if (pillar?.id) {
+              navigate(`/management/pillar/${pillar.id}`);
+            }
+          }}
+        />
+      </div>
+      {/* Pillars Section End*/}
+
+
+      {/* Overview Cards */}
+      <h2 className="text-2xl text-center justify-center font-bold text-gray-800 mb-6">Overview</h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="bg-white rounded-lg shadow p-6 border-l-4 border-blue-500">
+          <div className="flex items-center justify-between mb-3">
+            <div className="text-gray-500 text-sm font-semibold">Total KPIs</div>
+            <div className="text-3xl">🎯</div>
+          </div>
+          <div className="text-3xl font-bold text-gray-800">{loading ? 0 : kpiStats.total}</div>
+        </div>
+        <div className="bg-white rounded-lg shadow p-6 border-l-4 border-purple-500">
+          <div className="flex items-center justify-between mb-3">
+            <div className="text-gray-500 text-sm font-semibold">Total Pillars</div>
+            <div className="text-3xl">🏛️</div>
+          </div>
+          <div className="text-3xl font-bold text-gray-800">{loading ? 0 : pillerStats.total}</div>
+        </div>
+        <div className="bg-white rounded-lg shadow p-6 border-l-4 border-green-500">
+          <div className="flex items-center justify-between mb-3">
+            <div className="text-gray-500 text-sm font-semibold">Total Employees</div>
+            <div className="text-3xl">👥</div>
+          </div>
+          <div className="text-3xl font-bold text-gray-800">{loading ? 0 : employeeStats.total}</div>
+        </div>
+        <div className="bg-white rounded-lg shadow p-6 border-l-4 border-orange-500">
+          <div className="flex items-center justify-between mb-3">
+            <div className="text-gray-500 text-sm font-semibold">Total Departments</div>
+            <div className="text-3xl">🏢</div>
+          </div>
+          <div className="text-3xl font-bold text-gray-800">{loading ? 0 : departmentStats.total}</div>
+        </div>
+      </div>
+      {/* Overview Cards End*/}
+
+     
 
       {expandedChart && expandedChartData && (
         <div className="expanded-chart-modal-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={closeExpandedChart}>

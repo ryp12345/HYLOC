@@ -947,16 +947,22 @@ function KmiDetail() {
                   {users.length === 0 ? (
                     <option disabled>No users available</option>
                   ) : (
-                    users.map((user) => {
-                      const value = user.empid ?? user.id;
-                      const label = `${user.firstname || ''} ${user.lastname || ''}`.trim();
-                      const suffix = user.empid ? ` (${user.empid})` : '';
-                      return (
-                        <option key={user.id} value={value}>
-                          {label || 'User'}{suffix}
-                        </option>
-                      );
-                    })
+                    [...users]
+                      .sort((a, b) => {
+                        const nameA = `${a.firstname || ''} ${a.lastname || ''}`.trim().toLowerCase();
+                        const nameB = `${b.firstname || ''} ${b.lastname || ''}`.trim().toLowerCase();
+                        return nameA.localeCompare(nameB);
+                      })
+                      .map((user) => {
+                        const value = user.empid ?? user.id;
+                        const label = `${user.firstname || ''} ${user.lastname || ''}`.trim();
+                        const suffix = user.empid ? ` (${user.empid})` : '';
+                        return (
+                          <option key={user.id} value={value}>
+                            {label || 'User'}{suffix}
+                          </option>
+                        );
+                      })
                   )}
                 </select>
               </div>

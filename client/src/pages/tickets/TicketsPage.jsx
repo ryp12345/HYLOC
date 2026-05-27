@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { deleteTicket } from '../../api/ticketApi';
 import { API_URL } from '../../api/axios';
@@ -450,6 +451,10 @@ export default function TicketsPage() {
 
   const displayedStatuses = useMemo(() => {
     const list = Array.isArray(statuses) ? [...statuses] : [];
+    // Keep core workflow statuses available even if API list is incomplete.
+    ['Resolved', 'Closed'].forEach(required => {
+      if (!list.includes(required)) list.push(required);
+    });
     if (form.status && !list.includes(form.status)) {
       // show current ticket status first so select can display it even if it's missing from server list
       list.unshift(form.status);
@@ -457,10 +462,170 @@ export default function TicketsPage() {
     return list;
   }, [statuses, form.status]);
 
+  const RADIAN = Math.PI / 180;
+  const renderStatusPieLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
+    if (!percent) return null;
+    const label = `${(percent * 100).toFixed(0)}%`;
+    const angle = -midAngle * RADIAN;
+    const isTinySlice = percent < 0.08;
+
+    if (!isTinySlice) {
+      const radius = innerRadius + (outerRadius - innerRadius) * 0.62;
+      const x = cx + radius * Math.cos(angle);
+      const y = cy + radius * Math.sin(angle);
+
+      return (
+        <text
+          x={x}
+          y={y}
+          fill="#111827"
+          textAnchor="middle"
+          dominantBaseline="central"
+          fontSize={12}
+          fontWeight={700}
+        >
+          {label}
+        </text>
+      );
+    }
+
+    const startX = cx + outerRadius * Math.cos(angle);
+    const startY = cy + outerRadius * Math.sin(angle);
+    const elbowX = cx + (outerRadius + 12) * Math.cos(angle);
+    const elbowY = cy + (outerRadius + 12) * Math.sin(angle);
+    const rightSide = Math.cos(angle) >= 0;
+    const endX = elbowX + (rightSide ? 14 : -14);
+    const textX = endX + (rightSide ? 3 : -3);
+
+    return (
+      <g>
+        <polyline
+          points={`${startX},${startY} ${elbowX},${elbowY} ${endX},${elbowY}`}
+          fill="none"
+          stroke="#6b7280"
+          strokeWidth={1.25}
+        />
+        <text
+          x={textX}
+          y={elbowY}
+          fill="#111827"
+          textAnchor={rightSide ? 'start' : 'end'}
+          dominantBaseline="central"
+          fontSize={11}
+          fontWeight={700}
+        >
+          {label}
+        </text>
+      </g>
+    );
+  };
+
   return (
     <div className="min-h-screen px-4 py-12 bg-gradient-to-br from-gray-50 to-gray-100 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
         <Notification show={notification.show} message={notification.message} type={notification.type} onClose={() => setNotification({ show: false, message: '', type: '' })} />
+
+        {user?.role === 'Management' && (() => {
+          const PRIORITY_CONFIG = [
+            { name: 'Low',      color: '#10b981', bg: '#ecfdf5', border: '#a7f3d0' },
+            { name: 'High',     color: '#ef4444', bg: '#fef2f2', border: '#fecaca' },
+            { name: 'Medium',   color: '#d97706', bg: '#fef3c7', border: '#fde68a' },
+            { name: 'Critical', color: '#ef4444', bg: '#fef2f2', border: '#fecaca' },
+          ];
+          const STATUS_CONFIG = [
+            { name: 'Open',        color: '#3b82f6', bg: '#eff6ff', border: '#bfdbfe' },
+            { name: 'Assigned',    color: '#f59e0b', bg: '#fffbeb', border: '#fde68a' },
+            { name: 'In Progress', color: '#8b5cf6', bg: '#f5f3ff', border: '#ddd6fe' },
+            { name: 'Rejected',    color: '#ef4444', bg: '#fef2f2', border: '#fecaca' },
+            { name: 'Resolved',    color: '#10b981', bg: '#ecfdf5', border: '#a7f3d0' },
+            { name: 'Closed',      color: '#6b7280', bg: '#f9fafb', border: '#e5e7eb' },
+          ];
+          const priorityCounts = PRIORITY_CONFIG.map(p => ({
+            ...p,
+            value: rows.filter(t => t.priority === p.name).length,
+          }));
+          const priorityChartData = priorityCounts.filter(d => d.value > 0);
+
+          const allCounts = STATUS_CONFIG.map(s => ({
+            ...s,
+            value: rows.filter(t => t.status === s.name).length,
+          }));
+          const chartData = allCounts.filter(d => d.value > 0);
+          return (
+            <div className="mb-8 grid grid-cols-1 xl:grid-cols-2 gap-6">
+              <div className="bg-white rounded-2xl shadow p-6">
+                <h2 className="text-lg font-semibold text-gray-700 mb-4 text-center">Ticket Priority Distribution</h2>
+                <div className="flex flex-col md:flex-row gap-6 items-center md:items-stretch">
+                  {/* Pie chart */}
+                  <div className="flex-1 min-w-0">
+                    {priorityChartData.length === 0 ? (
+                      <p className="text-center text-gray-400 mt-10">No ticket data available.</p>
+                    ) : (
+                      <ResponsiveContainer width="100%" height={300}>
+                        <BarChart data={priorityCounts} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                          <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                          <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
+                          <Tooltip formatter={(value, name) => [value, name]} />
+                          <Bar dataKey="value" radius={[6, 6, 0, 0]}>
+                            {priorityCounts.map((entry) => (
+                              <Cell key={entry.name} fill={entry.color} />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-2xl shadow p-6">
+                <h2 className="text-lg font-semibold text-gray-700 mb-4 text-center">Ticket Status Distribution</h2>
+                <div className="flex flex-col md:flex-row gap-6 items-center md:items-stretch">
+                  {/* Pie chart */}
+                  <div className="flex-1 min-w-0">
+                    {chartData.length === 0 ? (
+                      <p className="text-center text-gray-400 mt-10">No ticket data available.</p>
+                    ) : (
+                      <ResponsiveContainer width="100%" height={300}>
+                        <PieChart margin={{ top: 16, right: 52, bottom: 16, left: 52 }}>
+                          <Pie
+                            data={chartData}
+                            cx="50%"
+                            cy="50%"
+                            outerRadius={100}
+                            dataKey="value"
+                            paddingAngle={2}
+                            stroke="#ffffff"
+                            strokeWidth={2}
+                            label={renderStatusPieLabel}
+                            labelLine={false}
+                          >
+                            {chartData.map((entry) => (
+                              <Cell key={entry.name} fill={entry.color} />
+                            ))}
+                          </Pie>
+                          <Tooltip formatter={(value, name) => [value, name]} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    )}
+                  </div>
+                  {/* Status breakdown panel */}
+                  <div className="flex flex-col gap-2 justify-center w-full md:w-56 shrink-0">
+                    <div className="mb-2 px-4 py-3 rounded-lg border border-red-200 bg-red-50">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-semibold text-red-700">Overdue</span>
+                        <span className="text-lg font-bold text-red-700">{counts.overdueCount}</span>
+                      </div>
+                      <p className="mt-1 text-xs text-red-600">Due date passed and not closed</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
         <div className="mb-12 text-center">
           <h1 className="mb-2 text-4xl font-extrabold text-gray-900">Tickets</h1>
           <p className="text-lg text-gray-600">Create, update and manage tickets</p>
@@ -782,7 +947,13 @@ export default function TicketsPage() {
                             let disabled = false;
                             let title = '';
                             if (isEditing) {
-                              if (isCreator && !isAssignee) {
+                              if (s === 'Closed') {
+                                // Closed is creator-controlled regardless of assignee role.
+                                if (!isCreator) {
+                                  disabled = true;
+                                  title = 'Only the ticket creator can set status to Closed';
+                                }
+                              } else if (isCreator && !isAssignee) {
                                 // Creator who is not the assignee: only Closed is allowed
                                 if (s !== 'Closed') {
                                   disabled = true;

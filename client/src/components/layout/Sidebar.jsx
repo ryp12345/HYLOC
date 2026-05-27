@@ -38,7 +38,7 @@ const Sidebar = () => {
   ];
 
   const managementLinks = [
-    { name: 'Dashboard', path: getDashboardPath(), icon: '📊' },
+    { name: 'KMI/Global Objectives', path: getDashboardPath(), icon: '📊' },
     { name: 'KMI', path: '/management/mgtkmi', icon: '📚' },
     { name: 'Pillar', path: '/management/mgtpiller', icon: '🏛️' },
     { name: 'Calendar', path: '/management/leaves', icon: '📅' },
