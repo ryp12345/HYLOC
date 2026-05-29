@@ -42,11 +42,10 @@ exports.createUser = async (userData) => {
       await client.query(userRoleQuery, [user.id, roleId, 'active']);
     }
 
-    // Create leave entitlement for current year based on joining month
+    // Joining year gets 0 entitlement as per current business rule.
     const now = new Date();
     const year = now.getFullYear();
-    const month = now.getMonth() + 1;
-    const leaveEntitled = 12 - month + 1;
+    const leaveEntitled = 0;
 
     const entitlementQuery = `
       INSERT INTO leaves_entitlement (

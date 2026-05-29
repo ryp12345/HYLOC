@@ -18,7 +18,7 @@ This document lists the leave-related behaviors that are implemented in the syst
    - Notifications are created for apply/approve/reject actions. 
 
 Notes:
-  - Notifications are going to all memebers of mgmt team.
+  - Notifications are going to all members of mgmt team.
 
 
 ***********************************************************************************************

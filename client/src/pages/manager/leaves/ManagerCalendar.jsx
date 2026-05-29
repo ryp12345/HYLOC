@@ -1284,58 +1284,6 @@ const ManagerCalendar = ({ joinDate }) => {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Alternate Person (Optional)
-                  </label>
-                  <select
-                    name="alternate_person"
-                    value={leaveForm.alternate_person}
-                    onChange={handleFormChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">Select alternate person</option>
-                    {colleagues && colleagues.length > 0 ? (
-                      colleagues.map((colleague) => (
-                        <option key={colleague.id} value={`${colleague.firstname} ${colleague.lastname}`}>
-                          {colleague.firstname} {colleague.lastname} {colleague.empid ? `(EMP: ${colleague.empid})` : ''}
-                        </option>
-                      ))
-                    ) : (
-                      <option value="" disabled>No colleagues found in your department</option>
-                    )}
-                  </select>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Person from your department who will cover your responsibilities
-                  </p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Additional Alternate (Optional)
-                  </label>
-                  <select
-                    name="additional_alternate"
-                    value={leaveForm.additional_alternate}
-                    onChange={handleFormChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">Select additional alternate</option>
-                    {colleagues && colleagues.length > 0 ? (
-                      colleagues.map((colleague) => (
-                        <option key={colleague.id} value={`${colleague.firstname} ${colleague.lastname}`}>
-                          {colleague.firstname} {colleague.lastname} {colleague.empid ? `(EMP: ${colleague.empid})` : ''}
-                        </option>
-                      ))
-                    ) : (
-                      <option value="" disabled>No colleagues found in your department</option>
-                    )}
-                  </select>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Backup person if needed
-                  </p>
-                </div>
-              </div>
               <div className="grid grid-cols-2 gap-4 items-center">
                 <div className="flex items-center">
                   <input
