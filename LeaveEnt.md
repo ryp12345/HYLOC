@@ -233,9 +233,9 @@ Step-by-step current implementation:
 **Example — Joined March 7, 2024 (leap year):**
 - Days elapsed (Jan 1 to Mar 6) = 31 + 29 + 6 = **66**
 - Days remaining = 366 − 66 = **300**
-- Sundays from Mar 7 to Dec 31, 2024 = **53**
-- Working days = 300 − 53 = **247**
-- Leaves = 247 ÷ 20 = 12.35 → rounded up = **13**
+- Sundays from Mar 7 to Dec 31, 2024 = **43**
+- Working days = 300 − 43 = **257**
+- Leaves = 257 ÷ 20 = 12.85 → rounded up = **13**
 - 13 ≤ 15, so **13 days are credited on Jan 1, 2025**
 
 ---
@@ -249,5 +249,38 @@ Leaves Encashed:
 
 - Need to subtract leaves from the number the leaves available
 - Example : If leaves available = 45 days
-            Leaves to be encashed = 30 days
-            Leaves balance = 45 - 30 = 15 days
+            Leaves to be encashed = 15 days 
+            Leaves balance = 45 - 15 = 30 days
+Note : Leave balance should not be less than 30 days
+------------------------------------------------------------------------------------
+
+Backend
+Model — Add a method encashLeaves(user_id, year, encash_days) to leaveEntitlement.model.js that:
+
+Fetches the current balance (leave_entitled + leaves_accumulated - leaves_availed)
+Validates encash_days <= available balance
+Increases leaves_availed by encash_days (deducting from the balance)
+Controller — Add an encashLeaves handler in leaveEntitlement.controller.js that calls the model method and returns the updated balance.
+
+Route — Register a new POST /api/leave-entitlements/encash route, protected by the admin middleware.
+
+Frontend (Admin only)
+New page — Create client/src/pages/admin/leaves/LeaveEncashmentPage.jsx with:
+
+Year selector
+Employee dropdown (searchable)
+Read-only field: Available Balance (auto-fetched when employee is selected)
+Input field: Leaves to Encash
+Real-time preview: Balance after encashment = Available - Encash Days
+Submit button (calls the new API)
+Success/error feedback
+API helper — Add encashLeaves(payload, token) to leaveEntitlementApi.js.
+
+Route + Nav — Wire the new page into the admin routes (AppRoutes.jsx) and add a nav link in the admin sidebar/layout.
+
+
+
+---------------------------------------------------------------------------
+
+
+

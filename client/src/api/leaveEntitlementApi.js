@@ -8,11 +8,8 @@ export const getEntitlements = (year, token) =>
 export const getStaffWithStatus = (year, token) =>
   axios.get(`${BASE_URL}/staff?year=${year}`);
 
-export const assignLeave = (data, token) =>
-  axios.post(`${BASE_URL}/assign`, data);
-
-export const bulkAssignLeave = (assignments, token) =>
-  axios.post(`${BASE_URL}/bulk-assign`, { assignments });
+export const importLeaveEntitlements = (assignments, token) =>
+  axios.post(`${BASE_URL}/import`, { assignments });
 
 export const updateEntitlement = (id, data, token) =>
   axios.put(`${BASE_URL}/${id}`, data);

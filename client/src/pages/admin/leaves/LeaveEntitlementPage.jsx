@@ -1,9 +1,8 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import {
   getEntitlements,
   getStaffWithStatus,
-  assignLeave,
-  bulkAssignLeave,
+  importLeaveEntitlements,
   updateEntitlement,
   deleteEntitlement
 } from "../../../api/leaveEntitlementApi";
@@ -15,12 +14,17 @@ const LeaveEntitlementPage = ({ token: propToken }) => {
   const [entitlements, setEntitlements] = useState([]);
   const [staff, setStaff] = useState([]);
   const [search, setSearch] = useState('');
-  const [modal, setModal] = useState(null); // 'assign' | 'bulk' | 'edit' | null
+  const [modal, setModal] = useState(null); // 'edit' | null
   const [selected, setSelected] = useState(null);
-  const [form, setForm] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   const [page, setPage] = useState(1);
+  const [uploadingCsv, setUploadingCsv] = useState(false);
+  const [uploadSummary, setUploadSummary] = useState(null);
+  const fileInputRef = useRef(null);
+  const uploadSummaryTimeoutRef = useRef(null);
+  const successTimeoutRef = useRef(null);
   const token = propToken || localStorage.getItem('accessToken');
 
   useEffect(() => {
@@ -71,234 +75,236 @@ const LeaveEntitlementPage = ({ token: propToken }) => {
 
   useEffect(() => { setPage(1); }, [search, entitlements]);
 
+  useEffect(() => {
+    setUploadSummary(null);
+    setSuccessMessage('');
+
+    if (uploadSummaryTimeoutRef.current) {
+      clearTimeout(uploadSummaryTimeoutRef.current);
+      uploadSummaryTimeoutRef.current = null;
+    }
+
+    if (successTimeoutRef.current) {
+      clearTimeout(successTimeoutRef.current);
+      successTimeoutRef.current = null;
+    }
+  }, [year]);
+
+  useEffect(() => {
+    return () => {
+      if (uploadSummaryTimeoutRef.current) {
+        clearTimeout(uploadSummaryTimeoutRef.current);
+      }
+      if (successTimeoutRef.current) {
+        clearTimeout(successTimeoutRef.current);
+      }
+    };
+  }, []);
+
   const closeModal = () => {
     setModal(null);
     setSelected(null);
-    setForm({});
     setError('');
   };
 
-  // Assign Leave Modal
-  const AssignLeaveModal = () => {
-    const [formData, setFormData] = useState({ user_id: '', year, leave_entitled: 12, leaves_accumulated: 0 });
-    const [submitting, setSubmitting] = useState(false);
-    const handleChange = e => setFormData({ ...formData, [e.target.name]: e.target.value });
-    const handleSubmit = async e => {
-      e.preventDefault();
-      setSubmitting(true);
-      setError('');
-      try {
-        await assignLeave(formData, token);
-        await loadData();
-        closeModal();
-      } catch (err) {
-        setError(err.response?.data?.error || 'Failed to assign leave');
+  const parseCsvLine = (line) => {
+    const cells = [];
+    let current = '';
+    let inQuotes = false;
+
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      const next = line[i + 1];
+
+      if (ch === '"') {
+        if (inQuotes && next === '"') {
+          current += '"';
+          i++;
+        } else {
+          inQuotes = !inQuotes;
+        }
+      } else if (ch === ',' && !inQuotes) {
+        cells.push(current.trim());
+        current = '';
+      } else {
+        current += ch;
       }
-      setSubmitting(false);
-    };
-    return (
-      <div className="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true">
-        <div className="flex items-end justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-          <div className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" onClick={closeModal} />
-          <div className="inline-block overflow-hidden text-left align-bottom transition-all transform bg-white rounded-lg shadow-xl sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full">
-            <div className="px-6 py-4 bg-blue-600">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-medium leading-6 text-white">Assign Leave</h3>
-                <button className="text-white hover:text-gray-200" onClick={closeModal}>
-                  <svg className="w-6 h-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                </button>
-              </div>
-            </div>
-            <div className="px-6 py-5 bg-white">
-              {error && <div className="mb-4 p-3 rounded border border-red-200 text-red-700 bg-red-50 text-sm">{error}</div>}
-              <form className="space-y-5" onSubmit={handleSubmit}>
-                <div>
-                  <label className="block mb-2 text-sm font-medium text-gray-700">Staff Member *</label>
-                  <select name="user_id" value={formData.user_id} onChange={handleChange} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" required>
-                    <option value="">Select</option>
-                    {staff.map(s => (
-                      <option key={s.id} value={s.id}>{s.firstname} {s.lastname} ({s.empid})</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block mb-2 text-sm font-medium text-gray-700">Year *</label>
-                  <select name="year" value={formData.year} onChange={handleChange} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" required>
-                    {[0,1,2].map(offset => (
-                      <option key={offset} value={new Date().getFullYear()+offset}>{new Date().getFullYear()+offset}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block mb-2 text-sm font-medium text-gray-700">Leave Entitled *</label>
-                  <input name="leave_entitled" type="number" value={formData.leave_entitled} onChange={handleChange} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" required min={0} />
-                </div>
-                <div>
-                  <label className="block mb-2 text-sm font-medium text-gray-700">Leaves Accumulated *</label>
-                  <input name="leaves_accumulated" type="number" value={formData.leaves_accumulated} onChange={handleChange} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" required min={0} />
-                </div>
-                <div className="flex justify-end space-x-4 pt-4">
-                  <button type="button" onClick={closeModal} className="inline-flex justify-center px-6 py-3 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">Cancel</button>
-                  <button type="submit" disabled={submitting} className="inline-flex justify-center px-6 py-3 text-sm font-medium text-white border border-transparent rounded-lg shadow-sm bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">{submitting ? 'Assigning...' : 'Assign Leave'}</button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
+    }
+
+    cells.push(current.trim());
+    return cells;
   };
 
-  // Bulk Assign Modal
-  const BulkAssignModal = () => {
-    const [formData, setFormData] = useState({ year, leave_entitled: 12, leaves_accumulated: 0, selectedUsers: [] });
-    const [submitting, setSubmitting] = useState(false);
-    const [dropdownOpen, setDropdownOpen] = useState(false);
-    // Helper for checkbox state
-    const allChecked = staff.length > 0 && formData.selectedUsers.length === staff.length;
-    const noneChecked = formData.selectedUsers.length === 0;
-    const partialChecked = !allChecked && !noneChecked && formData.selectedUsers.length > 0;
-    const handleChange = e => setFormData({ ...formData, [e.target.name]: e.target.value });
-    const handleUserSelect = e => {
-      const id = String(e.target.value);
-      setFormData(f => {
-        let updated;
-        if (e.target.checked) {
-          updated = [...f.selectedUsers, id].filter((v, i, arr) => arr.indexOf(v) === i);
-        } else {
-          updated = f.selectedUsers.filter(u => u !== id);
-        }
-        return { ...f, selectedUsers: updated };
-      });
-    };
-    const handleSubmit = async e => {
-      e.preventDefault();
-      setSubmitting(true);
-      setError('');
-      try {
-        const assignments = formData.selectedUsers.map(user_id => ({ user_id, year: formData.year, leave_entitled: formData.leave_entitled, leaves_accumulated: formData.leaves_accumulated }));
-        await bulkAssignLeave(assignments, token);
-        await loadData();
-        closeModal();
-      } catch (err) {
-        setError(err.response?.data?.error || 'Failed to bulk assign');
+  const normalizeHeader = (header) => (header || '').toString().replace(/\s+/g, '').toLowerCase();
+
+  const handleDownloadTemplate = () => {
+    const headers = ['S.No', 'EmployeeName', 'EmployeeID', 'NoOFDays'];
+    const rows = staff.map((s, idx) => [
+      idx + 1,
+      `${s.firstname || ''} ${s.lastname || ''}`.trim(),
+      s.empid || '',
+      ''
+    ]);
+
+    const escapeCsvCell = (value) => {
+      if (value === null || value === undefined) return '';
+      const str = String(value);
+      if (str.includes('"') || str.includes(',') || str.includes('\n')) {
+        return `"${str.replace(/"/g, '""')}"`;
       }
-      setSubmitting(false);
+      return str;
     };
-    return (
-      <div className="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true">
-        <div className="flex items-end justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-          <div className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" onClick={closeModal} />
-          <div className="inline-block overflow-hidden text-left align-bottom transition-all transform bg-white rounded-lg shadow-xl sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full">
-            <div className="px-6 py-4 bg-blue-600">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-medium leading-6 text-white">Bulk Assign Leave</h3>
-                <button className="text-white hover:text-gray-200" onClick={closeModal}>
-                  <svg className="w-6 h-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                </button>
-              </div>
-            </div>
-            <div className="px-6 py-5 bg-white">
-              {error && <div className="mb-4 p-3 rounded border border-red-200 text-red-700 bg-red-50 text-sm">{error}</div>}
-              <form className="space-y-5" onSubmit={handleSubmit}>
-                <div>
-                  <label className="block mb-2 text-sm font-medium text-gray-700">Year *</label>
-                  <select name="year" value={formData.year} onChange={handleChange} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" required>
-                    {[0,1,2].map(offset => (
-                      <option key={offset} value={new Date().getFullYear()+offset}>{new Date().getFullYear()+offset}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block mb-2 text-sm font-medium text-gray-700">Leave Entitled *</label>
-                  <input name="leave_entitled" type="number" value={formData.leave_entitled} onChange={handleChange} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" required min={0} />
-                </div>
-                <div>
-                  <label className="block mb-2 text-sm font-medium text-gray-700">Leaves Accumulated *</label>
-                  <input name="leaves_accumulated" type="number" value={formData.leaves_accumulated} onChange={handleChange} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" required min={0} />
-                </div>
-                <div>
-                  <label className="block mb-2 text-sm font-medium text-gray-700">Users *</label>
-                  <div className="flex items-center mb-2 gap-2">
-                    <div className="relative flex items-center">
-                      <input
-                        type="checkbox"
-                        checked={allChecked}
-                        ref={el => {
-                          if (el) el.indeterminate = partialChecked;
-                        }}
-                        onChange={e => {
-                          if (e.target.checked) {
-                            setFormData(f => ({ ...f, selectedUsers: staff.map(s => String(s.id)) }));
-                          } else {
-                            setFormData(f => ({ ...f, selectedUsers: [] }));
-                          }
-                        }}
-                        className="mr-1"
-                        aria-label="Select all users"
-                      />
-                      <button
-                        type="button"
-                        className="ml-1 p-0 bg-transparent border-none cursor-pointer"
-                        style={{ width: '16px', height: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                        onClick={e => {
-                          e.preventDefault();
-                          setDropdownOpen(v => !v);
-                        }}
-                        aria-label="Open selection menu"
-                      >
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <path d="M4 6L8 10L12 6" stroke="#333" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                      </button>
-                      {dropdownOpen && (
-                        <div className="absolute z-10 mt-2 bg-white border rounded shadow-lg" style={{ minWidth: '60px', right: 0 }}>
-                          <button
-                            type="button"
-                            className="block w-full px-2 py-1 text-left hover:bg-gray-100"
-                            onClick={() => {
-                              setFormData(f => ({ ...f, selectedUsers: [] }));
-                              setDropdownOpen(false);
-                            }}
-                          >None</button>
-                          <button
-                            type="button"
-                            className="block w-full px-2 py-1 text-left hover:bg-gray-100"
-                            onClick={() => {
-                              setFormData(f => ({ ...f, selectedUsers: staff.map(s => String(s.id)) }));
-                              setDropdownOpen(false);
-                            }}
-                          >All</button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <div className="max-h-32 overflow-y-auto border rounded p-2">
-                    {staff.map(s => (
-                      <label key={s.id} className="block">
-                        <input type="checkbox" value={s.id} checked={formData.selectedUsers.includes(String(s.id))} onChange={handleUserSelect} /> {s.firstname} {s.lastname} ({s.empid})
-                      </label>
-                    ))}
-                  </div>
-                </div>
-                <div className="flex justify-end space-x-4 pt-4">
-                  <button type="button" onClick={closeModal} className="inline-flex justify-center px-6 py-3 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">Cancel</button>
-                  <button type="submit" disabled={submitting} className="inline-flex justify-center px-6 py-3 text-sm font-medium text-white border border-transparent rounded-lg shadow-sm bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">{submitting ? 'Assigning...' : 'Bulk Assign'}</button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map((row) => row.map(escapeCsvCell).join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `leave_entitlement_template_${year}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleUploadButtonClick = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
+  const handleUploadCsv = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setError('');
+    setSuccessMessage('');
+    setUploadSummary(null);
+    setUploadingCsv(true);
+
+    try {
+      const text = await file.text();
+      const lines = text
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0);
+
+      if (lines.length < 2) {
+        throw new Error('CSV file must contain a header and at least one data row');
+      }
+
+      const headerCells = parseCsvLine(lines[0]);
+      const headerIndex = new Map(headerCells.map((h, i) => [normalizeHeader(h), i]));
+
+      const idxEmpId = headerIndex.get('employeeid');
+      const idxDays = headerIndex.get('noofdays');
+
+      if (idxEmpId === undefined || idxDays === undefined) {
+        throw new Error('CSV headers must include EmployeeID and NoOFDays');
+      }
+
+      const staffByEmpId = new Map(
+        staff
+          .filter((s) => s.empid !== null && s.empid !== undefined)
+          .map((s) => [String(s.empid).trim().toLowerCase(), s])
+      );
+
+      const unmatchedEmpIds = new Set();
+      const invalidRows = [];
+      const mappedByUser = new Map();
+      let skippedRows = 0;
+
+      for (let i = 1; i < lines.length; i++) {
+        const rowNumber = i + 1;
+        const cells = parseCsvLine(lines[i]);
+        const empIdRaw = (cells[idxEmpId] || '').trim();
+        const daysRaw = (cells[idxDays] || '').trim();
+
+        if (!empIdRaw && !daysRaw) {
+          skippedRows++;
+          continue;
+        }
+
+        if (!empIdRaw || !daysRaw) {
+          invalidRows.push(rowNumber);
+          continue;
+        }
+
+        const leaveDays = Number(daysRaw);
+        if (!Number.isFinite(leaveDays) || leaveDays < 0) {
+          invalidRows.push(rowNumber);
+          continue;
+        }
+
+        const staffMatch = staffByEmpId.get(empIdRaw.toLowerCase());
+        if (!staffMatch) {
+          unmatchedEmpIds.add(empIdRaw);
+          continue;
+        }
+
+        mappedByUser.set(String(staffMatch.id), {
+          user_id: staffMatch.id,
+          year,
+          leave_entitled: leaveDays
+        });
+      }
+
+      const assignments = Array.from(mappedByUser.values());
+
+      if (assignments.length > 0) {
+        await importLeaveEntitlements(assignments, token);
+      }
+
+      // Refresh table data after upload handling completes.
+      await loadData();
+
+      setUploadSummary({
+        fileName: file.name,
+        totalDataRows: lines.length - 1,
+        updatedUsers: assignments.length,
+        unmatchedEmployeeIds: Array.from(unmatchedEmpIds),
+        invalidRows,
+        skippedRows
+      });
+
+      if (uploadSummaryTimeoutRef.current) {
+        clearTimeout(uploadSummaryTimeoutRef.current);
+      }
+      uploadSummaryTimeoutRef.current = setTimeout(() => {
+        setUploadSummary(null);
+      }, 4000);
+
+      if (assignments.length > 0) {
+        setSuccessMessage(`Upload successful. ${assignments.length} entitlement(s) updated.`);
+        if (successTimeoutRef.current) {
+          clearTimeout(successTimeoutRef.current);
+        }
+        successTimeoutRef.current = setTimeout(() => {
+          setSuccessMessage('');
+        }, 4000);
+      }
+
+      if (assignments.length === 0) {
+        setError('No valid rows were found to update entitlements.');
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to upload CSV');
+    } finally {
+      setUploadingCsv(false);
+      event.target.value = '';
+    }
   };
 
   // Edit Entitlement Modal
   const EditEntitlementModal = () => {
     const [formData, setFormData] = useState({
-      leave_entitled: selected?.leave_entitled || 12,
-      leaves_accumulated: selected?.leaves_accumulated || 0,
-      leaves_availed: selected?.leaves_availed || 0
+      leave_entitled: selected?.leave_entitled ?? 0,
+      leaves_accumulated: selected?.leaves_accumulated ?? 0,
+      leaves_availed: selected?.leaves_availed ?? 0
     });
     const [submitting, setSubmitting] = useState(false);
     const handleChange = e => setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -360,7 +366,7 @@ const LeaveEntitlementPage = ({ token: propToken }) => {
       <div className="max-w-7xl mx-auto">
         <div className="mb-12 text-center">
           <h1 className="mb-2 text-4xl font-extrabold text-gray-900">Leave Entitlements</h1>
-          <p className="text-lg text-gray-600">Assign, update and manage leave entitlements</p>
+          <p className="text-lg text-gray-600">Update and manage leave entitlements</p>
         </div>
 
         <div className="flex flex-col items-start justify-between gap-4 mb-6 sm:flex-row sm:items-center">
@@ -374,16 +380,49 @@ const LeaveEntitlementPage = ({ token: propToken }) => {
                 <option key={offset} value={new Date().getFullYear()+offset}>{new Date().getFullYear()+offset}</option>
               ))}
             </select>
-            <button onClick={() => setModal('bulk')} className="flex items-center justify-center px-6 py-3 font-medium text-white transition-all duration-300 transform rounded-lg shadow-lg bg-blue-600 hover:bg-blue-700 hover:-translate-y-1 hover:scale-105">
-              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" /></svg>
-              Bulk Assign
+            <button
+              onClick={handleDownloadTemplate}
+              className="flex items-center justify-center px-6 py-3 font-medium text-white transition-all duration-300 transform rounded-lg shadow-lg bg-indigo-600 hover:bg-indigo-700 hover:-translate-y-1 hover:scale-105"
+              type="button"
+            >
+              Download Excel Template
             </button>
-            <button onClick={() => setModal('assign')} className="flex items-center justify-center px-6 py-3 font-medium text-white transition-all duration-300 transform rounded-lg shadow-lg bg-green-600 hover:bg-green-700 hover:-translate-y-1 hover:scale-105">
-              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" /></svg>
-              Assign Leave
+            <button
+              onClick={handleUploadButtonClick}
+              disabled={uploadingCsv}
+              className="flex items-center justify-center px-6 py-3 font-medium text-white transition-all duration-300 transform rounded-lg shadow-lg bg-green-600 hover:bg-green-700 disabled:bg-green-300"
+              type="button"
+            >
+              {uploadingCsv ? 'Uploading...' : 'Upload Excel'}
             </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".csv,text/csv"
+              onChange={handleUploadCsv}
+              className="hidden"
+            />
           </div>
         </div>
+
+        {successMessage && (
+          <div className="mb-6 rounded-lg border border-green-200 bg-green-50 p-4 text-sm text-green-900">
+            {successMessage}
+          </div>
+        )}
+
+        {uploadSummary && (
+          <div className="mb-6 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
+            <div className="font-semibold mb-1">Upload Summary ({uploadSummary.fileName})</div>
+            <div>Total rows processed: {uploadSummary.totalDataRows}</div>
+            <div>Users updated: {uploadSummary.updatedUsers}</div>
+            <div>Skipped blank rows: {uploadSummary.skippedRows}</div>
+            <div>Invalid rows: {uploadSummary.invalidRows.length > 0 ? uploadSummary.invalidRows.join(', ') : 'None'}</div>
+            <div>
+              Unmatched Employee IDs: {uploadSummary.unmatchedEmployeeIds.length > 0 ? uploadSummary.unmatchedEmployeeIds.join(', ') : 'None'}
+            </div>
+          </div>
+        )}
 
         <div className="mb-10 overflow-hidden bg-white shadow-xl rounded-xl">
           <div className="overflow-x-auto">
@@ -476,9 +515,7 @@ const LeaveEntitlementPage = ({ token: propToken }) => {
           )}
         </div>
 
-        {/* Modals for assign, bulk assign, edit */}
-        {modal === 'assign' && <AssignLeaveModal />}
-        {modal === 'bulk' && <BulkAssignModal />}
+        {/* Modals for edit */}
         {modal === 'edit' && <EditEntitlementModal />}
         {error && <div className="text-red-500 mt-2">{error}</div>}
       </div>

@@ -622,6 +622,9 @@ const ManagerCalendar = ({ joinDate }) => {
 
   const monthDays = getMonthDays(currentDate);
   const weekDays = getWeekDays(currentDate);
+  const entitlementTotal = parseFloat(leaveBalance?.leave_entitled ?? 0) + parseFloat(leaveBalance?.leaves_accumulated ?? 0);
+  const availedTotal = parseFloat(leaveBalance?.leaves_availed ?? 0);
+  const unpaidLeaveDays = Math.max(availedTotal - entitlementTotal, 0);
 
   // (Removed unused filter/search state and department options per request)
 
@@ -647,7 +650,7 @@ const ManagerCalendar = ({ joinDate }) => {
       {leaveBalance && (
         <div>
           <h3 className="text-lg font-semibold text-gray-800 mb-4">Leave Details - {currentDate.getFullYear()}</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg shadow-lg p-6 text-white">
               <p className="text-sm opacity-90 mb-2">Entitled</p>
               <p className="text-3xl font-bold">{leaveBalance.leave_entitled}</p>
@@ -661,8 +664,12 @@ const ManagerCalendar = ({ joinDate }) => {
               <p className="text-3xl font-bold">{leaveBalance.leaves_availed}</p>
             </div>
             <div className="bg-gradient-to-r from-red-500 to-red-600 rounded-lg shadow-lg p-6 text-white">
-              <p className="text-sm opacity-90 mb-2">Available</p>
-              <p className="text-3xl font-bold">{leaveBalance.leave_balance}</p>
+              <p className="text-sm opacity-90 mb-2">Balance</p>
+              <p className="text-3xl font-bold">{Math.max(parseFloat(leaveBalance.leave_balance ?? 0), 0)}</p>
+            </div>
+            <div className="bg-gradient-to-r from-red-700 to-red-800 rounded-lg shadow-lg p-6 text-white">
+              <p className="text-sm opacity-90 mb-2">UnPaid</p>
+              <p className="text-3xl font-bold">{Number(unpaidLeaveDays.toFixed(1))}</p>
             </div>
           </div>
         </div>

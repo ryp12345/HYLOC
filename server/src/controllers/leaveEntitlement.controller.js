@@ -33,28 +33,36 @@ exports.listStaffWithStatus = async (req, res) => {
   }
 };
 
-// Assign leave to a single user
-exports.assignLeave = async (req, res) => {
-  try {
-    const { user_id, year, leave_entitled, leaves_accumulated } = req.body;
-    if (!user_id || !year) return res.status(400).json({ error: 'user_id and year required' });
-    const result = await leaveEntitlementModel.updateEntitlement(user_id, year, {
-      leave_entitled,
-      leaves_accumulated
-    });
-    res.json(result);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
-
-// Bulk assign leave
-exports.bulkAssignLeave = async (req, res) => {
+// Import leave entitlements from uploaded rows
+exports.importEntitlements = async (req, res) => {
   try {
     const { assignments } = req.body; // [{user_id, year, leave_entitled, leaves_accumulated}]
     if (!Array.isArray(assignments)) return res.status(400).json({ error: 'assignments array required' });
-    const results = await leaveEntitlementModel.bulkUpdateEntitlements(assignments);
-    res.json(results);
+
+    const results = [];
+
+    for (const assignment of assignments) {
+      const userId = Number(assignment.user_id);
+      const year = Number(assignment.year);
+      const leaveEntitled = Number(assignment.leave_entitled ?? 0);
+      const leavesAccumulated = Number(assignment.leaves_accumulated ?? 0);
+
+      if (!Number.isFinite(userId) || !Number.isFinite(year) || !Number.isFinite(leaveEntitled) || leaveEntitled < 0 || !Number.isFinite(leavesAccumulated) || leavesAccumulated < 0) {
+        continue;
+      }
+
+      await leaveEntitlementModel.createOrGetEntitlement(userId, year, leaveEntitled);
+      const updated = await leaveEntitlementModel.updateEntitlement(userId, year, {
+        leave_entitled: leaveEntitled,
+        leaves_accumulated: leavesAccumulated
+      });
+
+      if (updated) {
+        results.push(updated);
+      }
+    }
+
+    res.json({ success: true, updated: results.length, records: results });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

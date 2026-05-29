@@ -666,6 +666,9 @@ const ManagementCalendar = () => {
 	const monthDays = getMonthDays(currentDate);
 	const weekDays = getWeekDays(currentDate);
 	const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+	const entitlementTotal = parseFloat(leaveBalance?.leave_entitled ?? 0) + parseFloat(leaveBalance?.leaves_accumulated ?? 0);
+	const availedTotal = parseFloat(leaveBalance?.leaves_availed ?? 0);
+	const unpaidLeaveDays = Math.max(availedTotal - entitlementTotal, 0);
 
 	const monthLeaves = useMemo(() => {
 		return leaves.filter(overlapsMonth);
@@ -684,7 +687,7 @@ const ManagementCalendar = () => {
 			{leaveBalance && (
 				<div>
 					<h3 className="text-lg font-semibold text-gray-800 mb-4">My Leave Details - {currentYear}</h3>
-					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
 						<div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg shadow-lg p-6 text-white">
 							<p className="text-sm opacity-90 mb-2">Entitled</p>
 							<p className="text-3xl font-bold">{leaveBalance.leave_entitled}</p>
@@ -698,8 +701,12 @@ const ManagementCalendar = () => {
 							<p className="text-3xl font-bold">{leaveBalance.leaves_availed}</p>
 						</div>
 						<div className="bg-gradient-to-r from-red-500 to-red-600 rounded-lg shadow-lg p-6 text-white">
-							<p className="text-sm opacity-90 mb-2">Available</p>
-							<p className="text-3xl font-bold">{leaveBalance.leave_balance}</p>
+							<p className="text-sm opacity-90 mb-2">Balance</p>
+							<p className="text-3xl font-bold">{Math.max(parseFloat(leaveBalance.leave_balance ?? 0), 0)}</p>
+						</div>
+						<div className="bg-gradient-to-r from-red-700 to-red-800 rounded-lg shadow-lg p-6 text-white">
+							<p className="text-sm opacity-90 mb-2">UnPaid</p>
+							<p className="text-3xl font-bold">{Number(unpaidLeaveDays.toFixed(1))}</p>
 						</div>
 					</div>
 				</div>

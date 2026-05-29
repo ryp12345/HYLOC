@@ -4,10 +4,10 @@ const db = require('../config/db');
  * Create or get leave entitlement for a user and year
  * @param {number} userId - User ID
  * @param {number} year - Calendar year
- * @param {number} leaveEntitled - Annual leave entitlement (default 12)
+ * @param {number} leaveEntitled - Annual leave entitlement (default 0)
  * @returns {Promise<Object>} Entitlement record
  */
-exports.createOrGetEntitlement = async (userId, year, leaveEntitled = 12.0) => {
+exports.createOrGetEntitlement = async (userId, year, leaveEntitled = 0.0) => {
   const client = await db.connect();
   try {
     await client.query('BEGIN');
@@ -96,7 +96,7 @@ exports.updateLeavesAvailed = async (userId, year, adjustment, client = null) =>
       INSERT INTO leaves_entitlement (
         user_id, year, leave_entitled, leaves_accumulated, leaves_availed
       )
-      VALUES ($1, $2, 12.0, 0.0, 0.0)
+      VALUES ($1, $2, 0.0, 0.0, 0.0)
       ON CONFLICT (user_id, year) DO NOTHING
     `;
     await client.query(upsertQuery, [userId, year]);

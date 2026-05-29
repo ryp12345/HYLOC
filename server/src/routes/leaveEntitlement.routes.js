@@ -15,11 +15,8 @@ router.get('/', leaveEntitlementController.listEntitlements);
 // List staff with assignment status
 router.get('/staff', leaveEntitlementController.listStaffWithStatus);
 
-// Assign leave to a single user
-router.post('/assign', leaveEntitlementController.assignLeave);
-
-// Bulk assign leave
-router.post('/bulk-assign', leaveEntitlementController.bulkAssignLeave);
+// Import leave entitlements from uploaded template rows
+router.post('/import', leaveEntitlementController.importEntitlements);
 
 // Update entitlement
 router.put('/:id', leaveEntitlementController.updateEntitlement);
