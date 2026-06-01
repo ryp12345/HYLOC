@@ -15,6 +15,12 @@ router.get('/', leaveEntitlementController.listEntitlements);
 // List staff with assignment status
 router.get('/staff', leaveEntitlementController.listStaffWithStatus);
 
+// List staff with current-year monthly working-day status for a selected month
+router.get('/monthly/staff', leaveEntitlementController.listStaffWithMonthlyWorkingDaysStatus);
+
+// Import current-year monthly working days for a selected month
+router.post('/monthly/import', leaveEntitlementController.importMonthlyWorkingDays);
+
 // Import leave entitlements from uploaded template rows
 router.post('/import', leaveEntitlementController.importEntitlements);
 

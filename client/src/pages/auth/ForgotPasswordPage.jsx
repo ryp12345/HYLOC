@@ -132,9 +132,8 @@ const ForgotPasswordPage = () => {
       <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl p-8">
         <div className="text-center mb-6">
           <div className="flex items-center justify-center mb-4">
-            <img src="/hyloc-logo.png" alt="Hyloc logo" className="h-24 w-32" />
+            <img src="/hyloc_name.jpg" alt="Hyloc Hydrotechnic Pvt Ltd" className="h-auto w-full max-w-[325px] max-h-28 object-contain" />
           </div>
-          <h1 className="text-3xl font-bold text-black mb-2">Hyloc Hydrotechnic Pvt Ltd</h1>
         </div>
         <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">Forgot Password</h2>
         {error && (

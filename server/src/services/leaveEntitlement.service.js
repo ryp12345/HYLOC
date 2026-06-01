@@ -23,38 +23,30 @@ exports.grantAnnualEntitlementsForYear = async (year) => {
       FROM leaves_entitlement
       WHERE year = $1
     ),
+    monthly_totals AS (
+      SELECT
+        user_id,
+        COALESCE(jan_duration, 0) +
+        COALESCE(feb_duration, 0) +
+        COALESCE(mar_duration, 0) +
+        COALESCE(apr_duration, 0) +
+        COALESCE(may_duration, 0) +
+        COALESCE(jun_duration, 0) +
+        COALESCE(jul_duration, 0) +
+        COALESCE(aug_duration, 0) +
+        COALESCE(sep_duration, 0) +
+        COALESCE(oct_duration, 0) +
+        COALESCE(nov_duration, 0) +
+        COALESCE(dec_duration, 0) AS total_no_of_days
+      FROM employee_monthly_working_days
+      WHERE year = $1
+    ),
     users_list AS (
       SELECT
         id AS user_id,
         created_at::date AS joining_date,
         EXTRACT(YEAR FROM created_at)::int AS joining_year
       FROM users
-    ),
-    first_following_year AS (
-      SELECT
-        u.user_id,
-        LEAST(
-          15,
-          CEIL(
-            GREATEST(
-              (
-                ((DATE_TRUNC('year', u.joining_date) + INTERVAL '1 year - 1 day')::date - u.joining_date + 1)
-                - COALESCE(s.sunday_count, 0)
-              ),
-              0
-            ) / 20.0
-          )
-        )::numeric(4,1) AS first_year_entitled
-      FROM users_list u
-      LEFT JOIN LATERAL (
-        SELECT COUNT(*) AS sunday_count
-        FROM generate_series(
-          u.joining_date,
-          (DATE_TRUNC('year', u.joining_date) + INTERVAL '1 year - 1 day')::date,
-          INTERVAL '1 day'
-        ) AS d
-        WHERE EXTRACT(DOW FROM d) = 0
-      ) s ON TRUE
     )
     INSERT INTO leaves_entitlement (
       user_id, year, leave_entitled, leaves_accumulated, leaves_availed
@@ -64,14 +56,13 @@ exports.grantAnnualEntitlementsForYear = async (year) => {
       $2,
       CASE
         WHEN $2 <= u.joining_year THEN 0.0
-        WHEN $2 = u.joining_year + 1 THEN COALESCE(f.first_year_entitled, 0.0)
-        ELSE 15.0
+        ELSE LEAST(CEIL(COALESCE(mt.total_no_of_days, 0) / 20.0), 15)::numeric(4,1)
       END,
       COALESCE(p.carryover, 0.0),
       0.0
     FROM users_list u
     LEFT JOIN previous p ON p.user_id = u.user_id
-    LEFT JOIN first_following_year f ON f.user_id = u.user_id
+    LEFT JOIN monthly_totals mt ON mt.user_id = u.user_id
     ON CONFLICT (user_id, year) DO NOTHING
     RETURNING id
   `;

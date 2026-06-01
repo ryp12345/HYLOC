@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Michroma&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -57,4 +59,10 @@ code {
 
 .animate-spin {
   animation: spin 1s linear infinite;
+}
+
+.brand-title-font {
+  font-family: 'Michroma', 'Orbitron', 'Rajdhani', 'Segoe UI', sans-serif;
+  letter-spacing: 0.04em;
+  text-transform: lowercase;
 }

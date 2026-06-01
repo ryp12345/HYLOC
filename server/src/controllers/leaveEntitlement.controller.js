@@ -1,5 +1,30 @@
 const leaveEntitlementModel = require('../models/leaveEntitlement.model');
+const employeeMonthlyWorkingDaysModel = require('../models/employeeMonthlyWorkingDays.model');
 const userModel = require('../models/user.model');
+
+/**
+ * Compute leave_entitled from NoOFDays (working days) and joining date rules:
+ *  - Joining year         → 0  (regardless of NoOFDays)
+ *  - Any year after       → min(ceil(noOfDays / 20), 15)
+ *
+ * @param {number} noOfDays   - Working days entered in the NoOFDays column
+ * @param {Date}   joiningDate - Employee joining date (created_at)
+ * @param {number} targetYear  - The year entitlements are being set for
+ */
+function computeEntitledDays(noOfDays, joiningDate, targetYear) {
+  const joiningYear = joiningDate.getFullYear();
+  if (targetYear <= joiningYear) return 0.0;
+  // For all years after joining: apply formula on the admin-supplied working days
+  return Math.min(Math.ceil(noOfDays / 20), 15);
+}
+
+function getValidatedMonth(monthValue) {
+  const month = Number(monthValue);
+  if (!Number.isInteger(month) || month < 1 || month > 12) {
+    return null;
+  }
+  return month;
+}
 
 // List entitlements for a year
 exports.listEntitlements = async (req, res) => {
@@ -33,22 +58,123 @@ exports.listStaffWithStatus = async (req, res) => {
   }
 };
 
+// List staff with monthly working-day status for the current year and selected month
+exports.listStaffWithMonthlyWorkingDaysStatus = async (req, res) => {
+  try {
+    const month = getValidatedMonth(req.query.month);
+    if (!month) return res.status(400).json({ error: 'Valid month is required' });
+
+    const year = new Date().getFullYear();
+    const users = await userModel.getAllUsers();
+    const monthlyWorkingDays = await employeeMonthlyWorkingDaysModel.getMonthlyWorkingDays(year, month);
+    const monthlyMap = new Map(monthlyWorkingDays.map((record) => [record.user_id, record]));
+
+    const staff = users.map((user) => ({
+      ...user,
+      monthly_working_days: monthlyMap.get(user.id) || null
+    }));
+
+    res.json({ year, month, staff });
+  } catch (err) {
+    console.error('Error in listStaffWithMonthlyWorkingDaysStatus:', err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Import monthly working days for the current year and selected month
+exports.importMonthlyWorkingDays = async (req, res) => {
+  try {
+    const month = getValidatedMonth(req.body.month);
+    const { assignments } = req.body;
+
+    if (!month) return res.status(400).json({ error: 'Valid month is required' });
+    if (!Array.isArray(assignments)) return res.status(400).json({ error: 'assignments array required' });
+
+    const year = new Date().getFullYear();
+    const allUsers = await userModel.getAllUsers();
+    const userMap = new Map(allUsers.map((user) => [user.id, user]));
+    const userMapByEmpid = new Map(
+      allUsers
+        .filter(u => u.empid !== null && u.empid !== undefined)
+        .map(u => [String(u.empid).trim().toLowerCase(), u])
+    );
+    const dedupedEntries = new Map();
+
+    for (const assignment of assignments) {
+      // Resolve user by numeric user_id OR by empid fallback (string or numeric)
+      let user = null;
+      const possibleUserId = Number(assignment.user_id);
+      if (Number.isFinite(possibleUserId) && userMap.get(possibleUserId)) {
+        user = userMap.get(possibleUserId);
+      } else {
+        // try empid fields (empid, employee_id, emp_id) or string user_id
+        const empRef = assignment.empid ?? assignment.employee_id ?? assignment.emp_id ?? assignment.user_id;
+        if (empRef !== null && empRef !== undefined) {
+          const key = String(empRef).trim().toLowerCase();
+          user = userMapByEmpid.get(key) || null;
+        }
+      }
+
+      const noOfDays = Number(assignment.no_of_days ?? assignment.noOfDays ?? assignment.noOfDays);
+      if (!user || !Number.isFinite(noOfDays) || noOfDays < 0) {
+        continue;
+      }
+
+      const resolvedUserId = user.id;
+      dedupedEntries.set(resolvedUserId, {
+        user_id: resolvedUserId,
+        empid: user ? user.empid : null,
+        year,
+        month,
+        no_of_days: noOfDays
+      });
+    }
+
+    const entries = Array.from(dedupedEntries.values());
+    const records = entries.length > 0
+      ? await employeeMonthlyWorkingDaysModel.bulkUpsertMonthlyWorkingDays(entries)
+      : [];
+
+    res.json({ success: true, year, month, updated: records.length, records });
+  } catch (err) {
+    console.error('Error in importMonthlyWorkingDays:', err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
 // Import leave entitlements from uploaded rows
 exports.importEntitlements = async (req, res) => {
   try {
-    const { assignments } = req.body; // [{user_id, year, leave_entitled, leaves_accumulated}]
+    const { assignments } = req.body; // [{user_id, year, leave_entitled (= NoOFDays = working days)}]
     if (!Array.isArray(assignments)) return res.status(400).json({ error: 'assignments array required' });
+
+    // Fetch all users once to resolve joining dates
+    const allUsers = await userModel.getAllUsers();
+    const userMap = new Map(allUsers.map(u => [u.id, u]));
 
     const results = [];
 
     for (const assignment of assignments) {
       const userId = Number(assignment.user_id);
       const year = Number(assignment.year);
-      const leaveEntitled = Number(assignment.leave_entitled ?? 0);
-      const leavesAccumulated = Number(assignment.leaves_accumulated ?? 0);
+      // leave_entitled from the client payload carries the NoOFDays (working days) value
+      const noOfDays = Number(assignment.leave_entitled ?? 0);
 
-      if (!Number.isFinite(userId) || !Number.isFinite(year) || !Number.isFinite(leaveEntitled) || leaveEntitled < 0 || !Number.isFinite(leavesAccumulated) || leavesAccumulated < 0) {
-        continue;
+      if (!Number.isFinite(userId) || !Number.isFinite(year) || !Number.isFinite(noOfDays) || noOfDays < 0) continue;
+
+      const user = userMap.get(userId);
+      if (!user || !user.created_at) continue;
+
+      // Apply business rules: formula uses noOfDays as working days, bounded by joining year logic
+      const joiningDate = new Date(user.created_at);
+      const leaveEntitled = computeEntitledDays(noOfDays, joiningDate, year);
+
+      // Compute carryover from previous year balance (mirrors scheduler behaviour)
+      const prevBalance = await leaveEntitlementModel.getEntitlementByUserAndYear(userId, year - 1);
+      let leavesAccumulated = 0;
+      if (prevBalance) {
+        const bal = parseFloat(prevBalance.leave_entitled) + parseFloat(prevBalance.leaves_accumulated) - parseFloat(prevBalance.leaves_availed);
+        leavesAccumulated = Math.max(bal, 0);
       }
 
       await leaveEntitlementModel.createOrGetEntitlement(userId, year, leaveEntitled);

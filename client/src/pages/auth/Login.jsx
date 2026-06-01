@@ -135,14 +135,11 @@ function Login() {
         <div className="text-center mb-8">
           <div className="flex items-center justify-center mb-4">
             <img
-              src="/hyloc-logo.png"
-              alt="Hyloc logo"
-              className="h-24 w-32"
+              src="/hyloc_name.jpg"
+              alt="Hyloc Hydrotechnic Pvt Ltd"
+              className="h-auto w-full max-w-[325px] max-h-28 object-contain"
             />
           </div>
-          <h1 className="text-4xl font-bold text-black mb-2">
-            Hyloc Hydrotechnic Pvt Ltd
-          </h1>
         </div>
 
         <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">

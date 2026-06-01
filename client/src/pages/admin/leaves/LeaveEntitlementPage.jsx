@@ -2,21 +2,40 @@ import React, { useEffect, useState, useMemo, useRef } from 'react';
 import {
   getEntitlements,
   getStaffWithStatus,
-  importLeaveEntitlements,
+  getMonthlyWorkingDaysStaff,
+  importMonthlyWorkingDays,
   updateEntitlement,
   deleteEntitlement
 } from "../../../api/leaveEntitlementApi";
 
 const PAGE_SIZE = 10;
+const MONTH_NAMES = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December'
+];
 
 const LeaveEntitlementPage = ({ token: propToken }) => {
+  const currentYear = new Date().getFullYear();
   const [year, setYear] = useState(new Date().getFullYear());
+  const [month, setMonth] = useState(new Date().getMonth() + 1);
   const [entitlements, setEntitlements] = useState([]);
   const [staff, setStaff] = useState([]);
+  const [monthlyStaff, setMonthlyStaff] = useState([]);
   const [search, setSearch] = useState('');
   const [modal, setModal] = useState(null); // 'edit' | null
   const [selected, setSelected] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [monthlyLoading, setMonthlyLoading] = useState(false);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [page, setPage] = useState(1);
@@ -28,10 +47,14 @@ const LeaveEntitlementPage = ({ token: propToken }) => {
   const token = propToken || localStorage.getItem('accessToken');
 
   useEffect(() => {
-    loadData();
+    loadEntitlementData();
   }, [year, token]);
 
-  const loadData = async () => {
+  useEffect(() => {
+    loadMonthlyData();
+  }, [month, token]);
+
+  const loadEntitlementData = async () => {
     if (!token) {
       setError('No authentication token found. Please login.');
       return;
@@ -52,6 +75,23 @@ const LeaveEntitlementPage = ({ token: propToken }) => {
       setError(err.response?.data?.error || err.message || 'Failed to load data');
     }
     setLoading(false);
+  };
+
+  const loadMonthlyData = async () => {
+    if (!token) {
+      setError('No authentication token found. Please login.');
+      return;
+    }
+
+    setMonthlyLoading(true);
+    try {
+      const response = await getMonthlyWorkingDaysStaff(month, token);
+      setMonthlyStaff(response.data?.staff || []);
+    } catch (err) {
+      console.error('Failed to load monthly working days:', err);
+      setError(err.response?.data?.error || err.message || 'Failed to load monthly working days');
+    }
+    setMonthlyLoading(false);
   };
 
   const filtered = useMemo(() => {
@@ -88,7 +128,7 @@ const LeaveEntitlementPage = ({ token: propToken }) => {
       clearTimeout(successTimeoutRef.current);
       successTimeoutRef.current = null;
     }
-  }, [year]);
+  }, [year, month]);
 
   useEffect(() => {
     return () => {
@@ -139,12 +179,15 @@ const LeaveEntitlementPage = ({ token: propToken }) => {
 
   const handleDownloadTemplate = () => {
     const headers = ['S.No', 'EmployeeName', 'EmployeeID', 'NoOFDays'];
-    const rows = staff.map((s, idx) => [
-      idx + 1,
-      `${s.firstname || ''} ${s.lastname || ''}`.trim(),
-      s.empid || '',
-      ''
-    ]);
+    const rows = monthlyStaff.map((s, idx) => {
+      const workingDays = s.monthly_working_days?.no_of_days ?? '';
+      return [
+        idx + 1,
+        `${s.firstname || ''} ${s.lastname || ''}`.trim(),
+        s.empid || '',
+        workingDays
+      ];
+    });
 
     const escapeCsvCell = (value) => {
       if (value === null || value === undefined) return '';
@@ -164,7 +207,7 @@ const LeaveEntitlementPage = ({ token: propToken }) => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `leave_entitlement_template_${year}.csv`;
+  a.download = `monthly_working_days_${MONTH_NAMES[month - 1].toLowerCase()}_${currentYear}.csv`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -208,7 +251,7 @@ const LeaveEntitlementPage = ({ token: propToken }) => {
       }
 
       const staffByEmpId = new Map(
-        staff
+        monthlyStaff
           .filter((s) => s.empid !== null && s.empid !== undefined)
           .map((s) => [String(s.empid).trim().toLowerCase(), s])
       );
@@ -248,19 +291,17 @@ const LeaveEntitlementPage = ({ token: propToken }) => {
 
         mappedByUser.set(String(staffMatch.id), {
           user_id: staffMatch.id,
-          year,
-          leave_entitled: leaveDays
+          no_of_days: leaveDays
         });
       }
 
       const assignments = Array.from(mappedByUser.values());
 
       if (assignments.length > 0) {
-        await importLeaveEntitlements(assignments, token);
+        await importMonthlyWorkingDays(month, assignments, token);
       }
 
-      // Refresh table data after upload handling completes.
-      await loadData();
+      await Promise.all([loadMonthlyData(), loadEntitlementData()]);
 
       setUploadSummary({
         fileName: file.name,
@@ -279,7 +320,7 @@ const LeaveEntitlementPage = ({ token: propToken }) => {
       }, 4000);
 
       if (assignments.length > 0) {
-        setSuccessMessage(`Upload successful. ${assignments.length} entitlement(s) updated.`);
+        setSuccessMessage(`Upload successful. ${assignments.length} monthly working day record(s) updated for ${MONTH_NAMES[month - 1]} ${currentYear}.`);
         if (successTimeoutRef.current) {
           clearTimeout(successTimeoutRef.current);
         }
@@ -289,7 +330,7 @@ const LeaveEntitlementPage = ({ token: propToken }) => {
       }
 
       if (assignments.length === 0) {
-        setError('No valid rows were found to update entitlements.');
+        setError('No valid rows were found to update monthly working days.');
       }
     } catch (err) {
       setError(err.message || 'Failed to upload CSV');
@@ -314,7 +355,7 @@ const LeaveEntitlementPage = ({ token: propToken }) => {
       setError('');
       try {
         await updateEntitlement(selected.id, formData, token);
-        await loadData();
+        await loadEntitlementData();
         closeModal();
       } catch (err) {
         setError(err.response?.data?.error || 'Failed to update entitlement');
@@ -361,12 +402,79 @@ const LeaveEntitlementPage = ({ token: propToken }) => {
     );
   };
 
+  const monthlyAssignedCount = useMemo(
+    () => monthlyStaff.filter((item) => item.monthly_working_days).length,
+    [monthlyStaff]
+  );
+
   return (
     <div className="min-h-screen px-4 py-12 bg-gradient-to-br from-gray-50 to-gray-100 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
         <div className="mb-12 text-center">
           <h1 className="mb-2 text-4xl font-extrabold text-gray-900">Leave Entitlements</h1>
-          <p className="text-lg text-gray-600">Update and manage leave entitlements</p>
+          <p className="text-lg text-gray-600">Capture monthly NoOfDays and manage annual leave entitlements</p>
+        </div>
+
+        <div className="mb-8 rounded-xl border border-indigo-100 bg-white p-6 shadow-lg">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">Monthly Working Days Input</h2>
+              <p className="mt-1 text-sm text-gray-600">
+                Select a month for the current year ({currentYear}), download the template, fill NoOfDays, and upload it back.
+              </p>
+            </div>
+
+            <div className="flex w-full flex-col gap-3 sm:flex-row lg:w-auto">
+              <select
+                value={month}
+                onChange={(e) => setMonth(Number(e.target.value))}
+                className="border px-4 py-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                {MONTH_NAMES.map((monthName, index) => (
+                  <option key={monthName} value={index + 1}>{monthName}</option>
+                ))}
+              </select>
+              <button
+                onClick={handleDownloadTemplate}
+                className="flex items-center justify-center px-6 py-3 font-medium text-white transition-all duration-300 transform rounded-lg shadow-lg bg-indigo-600 hover:bg-indigo-700 hover:-translate-y-1 hover:scale-105"
+                type="button"
+                disabled={monthlyLoading}
+              >
+                Download Excel Template
+              </button>
+              <button
+                onClick={handleUploadButtonClick}
+                disabled={uploadingCsv || monthlyLoading}
+                className="flex items-center justify-center px-6 py-3 font-medium text-white transition-all duration-300 transform rounded-lg shadow-lg bg-green-600 hover:bg-green-700 disabled:bg-green-300"
+                type="button"
+              >
+                {uploadingCsv ? 'Uploading...' : 'Upload Excel'}
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-6 grid gap-4 md:grid-cols-3">
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+              <div className="text-sm font-medium text-gray-500">Month</div>
+              <div className="mt-1 text-xl font-semibold text-gray-900">{MONTH_NAMES[month - 1]}</div>
+            </div>
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+              <div className="text-sm font-medium text-gray-500">Current Year</div>
+              <div className="mt-1 text-xl font-semibold text-gray-900">{currentYear}</div>
+            </div>
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+              <div className="text-sm font-medium text-gray-500">Monthly Coverage</div>
+              <div className="mt-1 text-xl font-semibold text-gray-900">{monthlyAssignedCount} / {monthlyStaff.length}</div>
+            </div>
+          </div>
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv,text/csv"
+            onChange={handleUploadCsv}
+            className="hidden"
+          />
         </div>
 
         <div className="flex flex-col items-start justify-between gap-4 mb-6 sm:flex-row sm:items-center">
@@ -374,34 +482,13 @@ const LeaveEntitlementPage = ({ token: propToken }) => {
             <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search by name or emp ID..." className="w-full py-2 pl-10 pr-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400 absolute left-3 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
           </div>
-          <div className="flex gap-2 w-full sm:w-auto">
+          <div className="flex gap-2 w-full sm:w-auto items-center">
+            <span className="text-sm font-medium text-gray-600">Entitlement Year</span>
             <select value={year} onChange={e => setYear(Number(e.target.value))} className="border px-4 py-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
               {[0,1,2].map(offset => (
                 <option key={offset} value={new Date().getFullYear()+offset}>{new Date().getFullYear()+offset}</option>
               ))}
             </select>
-            <button
-              onClick={handleDownloadTemplate}
-              className="flex items-center justify-center px-6 py-3 font-medium text-white transition-all duration-300 transform rounded-lg shadow-lg bg-indigo-600 hover:bg-indigo-700 hover:-translate-y-1 hover:scale-105"
-              type="button"
-            >
-              Download Excel Template
-            </button>
-            <button
-              onClick={handleUploadButtonClick}
-              disabled={uploadingCsv}
-              className="flex items-center justify-center px-6 py-3 font-medium text-white transition-all duration-300 transform rounded-lg shadow-lg bg-green-600 hover:bg-green-700 disabled:bg-green-300"
-              type="button"
-            >
-              {uploadingCsv ? 'Uploading...' : 'Upload Excel'}
-            </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".csv,text/csv"
-              onChange={handleUploadCsv}
-              className="hidden"
-            />
           </div>
         </div>
 
@@ -415,7 +502,7 @@ const LeaveEntitlementPage = ({ token: propToken }) => {
           <div className="mb-6 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
             <div className="font-semibold mb-1">Upload Summary ({uploadSummary.fileName})</div>
             <div>Total rows processed: {uploadSummary.totalDataRows}</div>
-            <div>Users updated: {uploadSummary.updatedUsers}</div>
+            <div>Users updated for {MONTH_NAMES[month - 1]} {currentYear}: {uploadSummary.updatedUsers}</div>
             <div>Skipped blank rows: {uploadSummary.skippedRows}</div>
             <div>Invalid rows: {uploadSummary.invalidRows.length > 0 ? uploadSummary.invalidRows.join(', ') : 'None'}</div>
             <div>
@@ -470,7 +557,7 @@ const LeaveEntitlementPage = ({ token: propToken }) => {
                               if (window.confirm('Are you sure you want to delete this entitlement?')) {
                                 try {
                                   await deleteEntitlement(e.id, token);
-                                  await loadData();
+                                  await loadEntitlementData();
                                 } catch (err) {
                                   setError(err.response?.data?.error || 'Failed to delete entitlement');
                                 }

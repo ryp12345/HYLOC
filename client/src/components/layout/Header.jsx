@@ -77,17 +77,22 @@ const Navbar = () => {
     <nav className="bg-white text-gray-900 shadow-lg">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center h-20">
-          {/* Empty flex space on left */}
-          <div className="flex-1"></div>
-
-          {/* Logo - Centered */}
-          <div className="flex-shrink-0 flex items-center gap-3">
+          {/* Logo - Left aligned */}
+          <div className="flex-1 flex items-center justify-start">
             <img
               src="/hyloc-logo.png"
               alt="Hyloc logo"
-              className="h-10 w-12 sm:h-11 sm:w-14"
+              className="h-10 sm:h-11 w-auto max-w-[96px] sm:max-w-[108px] object-contain"
             />
-            <h1 className="text-2xl sm:text-3xl font-extrabold  tracking-[0.08em] text-[#1a1ab3] font-['Orbitron']" >Hydrotechnic Pvt Ltd</h1>
+          </div>
+
+          {/* Logo - Centered */}
+          <div className="flex-1 flex items-center justify-center">
+            <img
+              src="/hyloc_name.jpg"
+              alt="Hyloc Hydrotechnic Pvt Ltd"
+              className="h-14 sm:h-16 w-auto max-w-[350px] sm:max-w-[450px] object-contain"
+            />
           </div>
           
 

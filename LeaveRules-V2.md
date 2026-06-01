@@ -1,3 +1,5 @@
+
+
 # Leave Rules (implemented behavior only)
 
 This document lists the leave-related behaviors that are implemented in the system for the three roles present in code: `Management`, `Manager`, and `Employee`. Items that were assumptions or not found in the codebase have been removed.
@@ -86,4 +88,101 @@ Notes:
 - Audit-related persistence
    - Leave records persist `created_at`/`approved_by` and other fields useful for auditing; notification records include timestamps and actor information.
 
-******************************************************************************
+***********************************************************************
+
+1.Inspect the monthly row for the user/year
+SELECT *
+FROM employee_monthly_working_days
+WHERE user_id = 9817 AND year = 2026;
+
+2.If no row, list any rows for that user (other years)
+SELECT *
+FROM employee_monthly_working_days
+WHERE user_id = 9817
+ORDER BY year DESC;
+
+3.If still nothing, find by empid (replace EMP123 with the employee's EmpID)
+SELECT u.id AS user_id, u.empid, em.*
+FROM users u
+LEFT JOIN employee_monthly_working_days em ON em.user_id = u.id
+WHERE u.empid = 'EMP123';
+
+
+4.Check leaves_entitlement entries
+SELECT *
+FROM leaves_entitlement
+WHERE user_id = 9817
+ORDER BY year DESC;
+
+5.Compute total_days and expected entitlement from months (single query)
+
+WITH totals AS (
+  SELECT user_id,
+    (COALESCE(jan_duration,0)+COALESCE(feb_duration,0)+COALESCE(mar_duration,0)+
+     COALESCE(apr_duration,0)+COALESCE(may_duration,0)+COALESCE(jun_duration,0)+
+     COALESCE(jul_duration,0)+COALESCE(aug_duration,0)+COALESCE(sep_duration,0)+
+     COALESCE(oct_duration,0)+COALESCE(nov_duration,0)+COALESCE(dec_duration,0)
+    ) AS total_days
+  FROM employee_monthly_working_days
+  WHERE user_id = 9817 AND year = 2026
+)
+SELECT user_id, total_days,
+       CEIL(total_days/20.0) AS expected_entitlement
+FROM totals;
+
+6.Common causes and quick fixes
+Row exists but all month columns = 0 → CSV import probably used wrong column mapping or wrong year. Re-import the CSV for year 2026 or manually UPDATE the row:
+UPDATE employee_monthly_working_days
+SET jan_duration=18.5, feb_duration=20, mar_duration=20, apr_duration=20,
+    may_duration=20, jun_duration=20, jul_duration=20, aug_duration=20,
+    sep_duration=20, oct_duration=20, nov_duration=20, dec_duration=20
+WHERE user_id = 9817 AND year = 2026;
+
+-No row for year 2026 but a row for another year (e.g., 2027) → import used wrong year; move data or re-import.
+-Row present for different user_id → mapping used empid incorrectly; find correct user_id via users table.
+-After correcting monthly values, run the generator for 2027:
+
+
+-----------------------------------------------------------------------
+1.Confirm table columns (shows which reference column exists: user_id or empid):
+SELECT column_name
+FROM information_schema.columns
+WHERE table_schema='public' AND table_name='employee_monthly_working_days'
+ORDER BY ordinal_position;
+
+2.Find any rows for this user across years (matches any reference column):
+SELECT *
+FROM employee_monthly_working_days
+WHERE (user_id = 9817 OR empid::text = (SELECT empid::text FROM users WHERE id = 9817))
+ORDER BY year DESC, updated_at DESC
+LIMIT 50;
+
+3.Show any rows in 2026 that have non-zero months (find where your upload wrote data):
+SELECT *
+FROM employee_monthly_working_days
+WHERE year = 2026
+  AND (COALESCE(jan_duration,0)+COALESCE(feb_duration,0)+COALESCE(mar_duration,0)+
+       COALESCE(apr_duration,0)+COALESCE(may_duration,0)+COALESCE(jun_duration,0)+
+       COALESCE(jul_duration,0)+COALESCE(aug_duration,0)+COALESCE(sep_duration,0)+
+       COALESCE(oct_duration,0)+COALESCE(nov_duration,0)+COALESCE(dec_duration,0)) > 0
+ORDER BY updated_at DESC
+LIMIT 50;
+
+
+4.Show the user record and joining year (to rule out join-year rule causing 0):
+SELECT id, empid, created_at, EXTRACT(YEAR FROM created_at)::int AS joining_year
+FROM users
+WHERE id = 9817;
+
+5.Check the leaves_entitlement row written for 2027:
+SELECT *
+FROM leaves_entitlement
+WHERE user_id = 9817 AND year = 2027;
+
+SELECT id, empid, created_at, EXTRACT(YEAR FROM created_at)::int AS joining_year
+FROM users
+WHERE id = 9817;
+
+SELECT id, empid, email, created_at
+FROM users
+WHERE id = 9817 OR empid::text = '9817';

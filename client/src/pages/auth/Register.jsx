@@ -53,15 +53,11 @@ function Register() {
         <div className="text-center mb-8">
           <div className="flex items-center justify-center mb-4">
             <img
-              src="/hyloc-logo.png"
-              alt="Hyloc logo"
-              className="h-16 w-16"
+              src="/hyloc_name.jpg"
+              alt="Hyloc Hydrotechnic Pvt Ltd"
+              className="h-auto w-full max-w-[325px] max-h-28 object-contain"
             />
           </div>
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-purple-700 bg-clip-text text-transparent mb-2">
-            HYLOC-MGT
-          </h1>
-          <p className="text-gray-500 text-sm font-medium">Hyloc Management System</p>
         </div>
 
         <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">
