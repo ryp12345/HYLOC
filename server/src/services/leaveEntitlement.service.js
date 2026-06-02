@@ -56,7 +56,7 @@ exports.grantAnnualEntitlementsForYear = async (year) => {
       $2,
       CASE
         WHEN $2 <= u.joining_year THEN 0.0
-        ELSE LEAST(CEIL(COALESCE(mt.total_no_of_days, 0) / 20.0), 15)::numeric(4,1)
+        ELSE LEAST(FLOOR((COALESCE(mt.total_no_of_days, 0) / 20.0) + 0.5), 15)::numeric(4,1)
       END,
       COALESCE(p.carryover, 0.0),
       0.0

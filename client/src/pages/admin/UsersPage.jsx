@@ -24,6 +24,8 @@ const initialForm = {
 export default function UsersPage() {
   const [rows, setRows] = useState([]);
   const [search, setSearch] = useState('');
+  const [departmentFilter, setDepartmentFilter] = useState('');
+  const [designationFilter, setDesignationFilter] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(initialForm);
@@ -150,26 +152,117 @@ export default function UsersPage() {
     setTimeout(() => setNotification({ show: false, message: '', type: '' }), 4000);
   };
 
+  const exportToExcel = () => {
+    if (!filtered.length) {
+      showNotification('No users available to export', 'error');
+      return;
+    }
+
+    const headers = ['S.NO', 'Emp ID', 'Name', 'Email', 'Department', 'Designation', 'Status'];
+    const rowsToExport = filtered.map((u, index) => [
+      index + 1,
+      `"${String(u.empid || '--N/A--').replace(/"/g, '""')}"`,
+      `"${String(`${u.firstname || ''} ${u.middlename || ''} ${u.lastname || ''}`.trim()).replace(/"/g, '""')}"`,
+      `"${String(u.email || '').replace(/"/g, '""')}"`,
+      `"${String(u.department_name || '--N/A--').replace(/"/g, '""')}"`,
+      `"${String(u.designation_name || '--N/A--').replace(/"/g, '""')}"`,
+      `"${String(u.status || 'active').replace(/"/g, '""')}"`,
+    ]);
+
+    const csvContent = [headers.join(','), ...rowsToExport.map((row) => row.join(','))].join('\n');
+    const blob = new Blob([`\uFEFF${csvContent}`], { type: 'text/csv;charset=utf-8;' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `users_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+
+    showNotification('Users exported successfully!', 'success');
+  };
+
   // Pagination state
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 10;
 
+  const [sortConfig, setSortConfig] = useState([]);
+
+  const getSortValue = (row, key) => {
+    switch (key) {
+      case 'name':
+        return `${row.firstname || ''} ${row.middlename || ''} ${row.lastname || ''}`.trim();
+      case 'empid':
+        return row.empid || '';
+      case 'department':
+        return row.department_name || '';
+      case 'designation':
+        return row.designation_name || '';
+      case 'email':
+        return row.email || '';
+      case 'status':
+        return row.status || '';
+      default:
+        return '';
+    }
+  };
+
+  const handleSort = (key, additive = false) => {
+    setSortConfig((current) => {
+      const existingIndex = current.findIndex(item => item.key === key);
+
+      if (existingIndex >= 0) {
+        const next = [...current];
+        const existing = next[existingIndex];
+        next[existingIndex] = {
+          ...existing,
+          direction: existing.direction === 'asc' ? 'desc' : 'asc',
+        };
+        return additive
+          ? next
+          : [next[existingIndex], ...next.filter((_, index) => index !== existingIndex)];
+      }
+
+      return additive ? [...current, { key, direction: 'asc' }] : [{ key, direction: 'asc' }];
+    });
+  };
+
   // Filtered, sorted, and paginated data
   const filtered = useMemo(() => {
-    // Sort latest first by createdAt or id desc
+    // Sort by the configured column priority list.
     const sorted = [...rows].sort((a, b) => {
+      for (const sortItem of sortConfig) {
+        const aValue = String(getSortValue(a, sortItem.key)).toLowerCase();
+        const bValue = String(getSortValue(b, sortItem.key)).toLowerCase();
+        const comparison = aValue.localeCompare(bValue, undefined, { numeric: true, sensitivity: 'base' });
+        if (comparison !== 0) {
+          return sortItem.direction === 'asc' ? comparison : -comparison;
+        }
+      }
+
       const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
       const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
       if (bTime !== aTime) return bTime - aTime;
       return (b.id || 0) - (a.id || 0);
     });
+
+    const departmentValue = String(departmentFilter || '').trim().toLowerCase();
+    const designationValue = String(designationFilter || '').trim().toLowerCase();
+
+    const filteredBySelects = sorted.filter((row) => {
+      const matchesDepartment = !departmentValue || String(row.department_id || '').toLowerCase() === departmentValue;
+      const matchesDesignation = !designationValue || String(row.designation_id || '').toLowerCase() === designationValue;
+      return matchesDepartment && matchesDesignation;
+    });
+
     const q = String(search || '').trim().toLowerCase();
-    if (!q) return sorted;
+    if (!q) return filteredBySelects;
 
     // Tokenize query so multi-word searches (e.g., "John Doe") match when all tokens exist
     const tokens = q.split(/\s+/).filter(Boolean);
 
-    return sorted.filter(r => {
+    return filteredBySelects.filter(r => {
       const fields = [
         (r.empid || '').toLowerCase(),
         `${r.firstname || ''} ${r.middlename || ''} ${r.lastname || ''}`.toLowerCase(),
@@ -187,14 +280,14 @@ export default function UsersPage() {
       // All tokens must be present in at least one of the fields
       return tokens.every(t => fields.some(f => f.includes(t)));
     });
-  }, [rows, search]);
+  }, [rows, search, sortConfig, departmentFilter, designationFilter]);
 
   const paginated = useMemo(() => {
     const start = (page - 1) * PAGE_SIZE;
     return filtered.slice(start, start + PAGE_SIZE);
   }, [filtered, page]);
 
-  useEffect(() => { setPage(1); }, [search, rows]);
+  useEffect(() => { setPage(1); }, [search, rows, sortConfig, departmentFilter, designationFilter]);
 
   return (
     <div className="min-h-screen px-4 py-12 bg-gradient-to-br from-gray-50 to-gray-100 sm:px-6 lg:px-8">
@@ -205,28 +298,169 @@ export default function UsersPage() {
           <p className="text-lg text-gray-600">Create, update and manage users</p>
         </div>
 
-        <div className="flex flex-col items-start justify-between gap-4 mb-6 sm:flex-row sm:items-center">
-          <div className="relative w-full sm:w-72">
-            <input value={search} onChange={(e)=>setSearch(e.target.value)} placeholder="Search users..." className="w-full py-2 pl-10 pr-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400 absolute left-3 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-          </div>
-          <button onClick={openCreate} className="flex items-center justify-center w-full px-6 py-3 font-medium text-white transition-all duration-300 transform rounded-lg shadow-lg bg-blue-600 hover:bg-blue-700 hover:-translate-y-1 hover:scale-105 sm:w-auto">
-            <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" /></svg>
-            Add User
-          </button>
-        </div>
+        {/* <div className="flex flex-col gap-4 mb-6 lg:flex-row lg:items-center lg:justify-between">
+          <div className="grid w-full grid-cols-1 gap-4 lg:grid-cols-3">
+            <div className="relative w-full">
+              <input value={search} onChange={(e)=>setSearch(e.target.value)} placeholder="Search users..." className="w-full py-2 pl-10 pr-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400 absolute left-3 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+            </div>
 
+            <div className="w-full">
+              <select
+                value={departmentFilter}
+                onChange={(e) => setDepartmentFilter(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+              >
+                <option value="">All Departments</option>
+                {departments.map((dept) => (
+                  <option key={dept.id} value={dept.id}>
+                    {dept.department_name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="w-full">
+              <select
+                value={designationFilter}
+                onChange={(e) => setDesignationFilter(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+              >
+                <option value="">All Designations</option>
+                {designations.map((desig) => (
+                  <option key={desig.id} value={desig.id}>
+                    {desig.designation_name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="flex flex-col w-full gap-3 sm:flex-row lg:w-auto">
+            <button onClick={exportToExcel} className="flex items-center justify-center w-full px-6 py-3 font-medium text-white transition-all duration-300 transform rounded-lg shadow-lg bg-emerald-600 hover:bg-emerald-700 hover:-translate-y-1 hover:scale-105 sm:w-auto">
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path d="M13 7H7v6h6V7z" /><path fillRule="evenodd" d="M4 3a1 1 0 00-1 1v12a1 1 0 001 1h12a1 1 0 001-1V8.414a1 1 0 00-.293-.707l-3.414-3.414A1 1 0 0012.586 4H4zm8 1.414L15.586 8H13a1 1 0 01-1-1V4.414zM7 9a1 1 0 000 2h6a1 1 0 100-2H7z" clipRule="evenodd" /></svg>
+              Export
+            </button>
+            <button onClick={openCreate} className="flex items-center justify-center w-full px-6 py-3 font-medium text-white transition-all duration-300 transform rounded-lg shadow-lg bg-blue-600 hover:bg-blue-700 hover:-translate-y-1 hover:scale-105 sm:w-auto">
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" /></svg>
+              Add User
+            </button>
+          </div>
+        </div> */}
+
+        <div className="flex flex-col gap-4 mb-6 lg:flex-row lg:items-end lg:justify-between">
+
+          {/* Filters Section */}
+          <div className="grid flex-1 grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+
+            {/* Search */}
+            <div className="relative">
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search users..."
+                className="w-full py-2 pl-10 pr-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="absolute w-5 h-5 text-gray-400 left-3 top-2.5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                />
+              </svg>
+            </div>
+
+            {/* Department */}
+            <select
+              value={departmentFilter}
+              onChange={(e) => setDepartmentFilter(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">All Departments</option>
+
+              {departments.map((dept) => (
+                <option key={dept.id} value={dept.id}>
+                  {dept.department_name}
+                </option>
+              ))}
+            </select>
+
+            {/* Designation */}
+            <select
+              value={designationFilter}
+              onChange={(e) => setDesignationFilter(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">All Designations</option>
+
+              {designations.map((desig) => (
+                <option key={desig.id} value={desig.id}>
+                  {desig.designation_name}
+                </option>
+              ))}
+            </select>
+
+          </div>
+
+          {/* Buttons */}
+          <div className="flex flex-col gap-3 sm:flex-row shrink-0">
+
+            <button
+              onClick={exportToExcel}
+              className="flex items-center justify-center px-6 py-2 font-medium text-white transition rounded-lg shadow bg-emerald-600 hover:bg-emerald-700"
+            >
+              Export
+            </button>
+
+            <button
+              onClick={openCreate}
+              className="flex items-center justify-center px-6 py-2 font-medium text-white transition rounded-lg shadow bg-blue-600 hover:bg-blue-700"
+            >
+              Add User
+            </button>
+
+          </div>
+
+        </div>
         <div className="mb-10 overflow-hidden bg-white shadow-xl rounded-xl">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-blue-600">
                 <tr>
                   <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">S.NO</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">Emp ID</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">Name</th>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">
+                    <button type="button" onClick={(e) => handleSort('empid', e.shiftKey)} className="inline-flex items-center gap-2" title="Sort by employee ID">
+                      Emp ID
+                      <span className="text-[10px]">{sortConfig[0]?.key === 'empid' ? (sortConfig[0].direction === 'asc' ? '▲' : '▼') : '↕'}</span>
+                    </button>
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">
+                    <button type="button" onClick={(e) => handleSort('name', e.shiftKey)} className="inline-flex items-center gap-2" title="Sort by staff name">
+                      Name
+                      <span className="text-[10px]">{sortConfig[0]?.key === 'name' ? (sortConfig[0].direction === 'asc' ? '▲' : '▼') : '↕'}</span>
+                    </button>
+                  </th>
                   <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">Email</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">Department</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">Designation</th>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">
+                    <button type="button" onClick={(e) => handleSort('department', e.shiftKey)} className="inline-flex items-center gap-2" title="Sort by department">
+                      Department
+                      <span className="text-[10px]">{sortConfig[0]?.key === 'department' ? (sortConfig[0].direction === 'asc' ? '▲' : '▼') : '↕'}</span>
+                    </button>
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">
+                    <button type="button" onClick={(e) => handleSort('designation', e.shiftKey)} className="inline-flex items-center gap-2" title="Sort by designation">
+                      Designation
+                      <span className="text-[10px]">{sortConfig[0]?.key === 'designation' ? (sortConfig[0].direction === 'asc' ? '▲' : '▼') : '↕'}</span>
+                    </button>
+                  </th>
                   <th className="px-6 py-4 text-center text-xs font-medium text-white uppercase tracking-wider">Status</th>
                   <th className="px-6 py-4 text-center text-xs font-medium text-white uppercase tracking-wider">Actions</th>
                 </tr>
@@ -320,23 +554,23 @@ export default function UsersPage() {
                   <form className="space-y-5" onSubmit={submit}>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                       <div>
-                        <label className="block mb-2 text-sm font-medium text-gray-700">Employee ID</label>
+                        <label className="block mb-2 text-sm font-medium text-gray-700">Employee ID<span className='text-red-500'>*</span></label>
                         <input value={form.empid} onChange={e=>setForm({ ...form, empid: e.target.value })} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="EMP-001" />
                       </div>
                       <div>
-                        <label className="block mb-2 text-sm font-medium text-gray-700">First Name</label>
+                        <label className="block mb-2 text-sm font-medium text-gray-700">First Name<span className='text-red-500'>*</span></label>
                         <input value={form.firstName} onChange={e=>setForm({ ...form, firstName: e.target.value })} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="John" required />
                       </div>
                       <div>
-                        <label className="block mb-2 text-sm font-medium text-gray-700">Middle Name</label>
+                        <label className="block mb-2 text-sm font-medium text-gray-700">Middle Name<span className='text-red-500'>*</span></label>
                         <input value={form.middleName} onChange={e=>setForm({ ...form, middleName: e.target.value })} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="James" />
                       </div>
                       <div>
-                        <label className="block mb-2 text-sm font-medium text-gray-700">Last Name</label>
+                        <label className="block mb-2 text-sm font-medium text-gray-700">Last Name<span className='text-red-500'>*</span></label>
                         <input value={form.lastName} onChange={e=>setForm({ ...form, lastName: e.target.value })} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Doe" required />
                       </div>
                       <div className="md:col-span-2">
-                        <label className="block mb-2 text-sm font-medium text-gray-700">Email</label>
+                        <label className="block mb-2 text-sm font-medium text-gray-700">Email<span className='text-red-500'>*</span></label>
                         <input type="email" value={form.email} onChange={e=>setForm({ ...form, email: e.target.value })} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="john@example.com" required />
                       </div>
                       <div>
@@ -362,7 +596,7 @@ export default function UsersPage() {
                         <textarea value={form.address} onChange={e=>setForm({ ...form, address: e.target.value })} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="123 Main Street, City" rows="2" />
                       </div>
                       <div>
-                        <label className="block mb-2 text-sm font-medium text-gray-700">Department</label>
+                        <label className="block mb-2 text-sm font-medium text-gray-700">Department<span className='text-red-500'>*</span></label>
                         <select value={form.departmentId} onChange={e=>setForm({ ...form, departmentId: e.target.value })} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                           <option value="">Select Department</option>
                           {departments.map(dept => (
@@ -371,7 +605,7 @@ export default function UsersPage() {
                         </select>
                       </div>
                       <div>
-                        <label className="block mb-2 text-sm font-medium text-gray-700">Designation</label>
+                        <label className="block mb-2 text-sm font-medium text-gray-700">Designation<span className='text-red-500'>*</span></label>
                         <select value={form.designationId} onChange={e=>setForm({ ...form, designationId: e.target.value })} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                           <option value="">Select Designation</option>
                           {designations.map(desig => (
@@ -382,7 +616,7 @@ export default function UsersPage() {
                       {!editingId && (
                         <>
                           <div>
-                            <label className="block mb-2 text-sm font-medium text-gray-700">Password</label>
+                            <label className="block mb-2 text-sm font-medium text-gray-700">Password<span className='text-red-500'>*</span></label>
                             <div className="relative">
                               <input type={showPassword ? 'text' : 'password'} value={form.password} onChange={e=>setForm({ ...form, password: e.target.value })} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="••••••••" />
                               <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-3 text-gray-500 hover:text-gray-700">
@@ -395,7 +629,7 @@ export default function UsersPage() {
                             </div>
                           </div>
                           <div>
-                            <label className="block mb-2 text-sm font-medium text-gray-700">Confirm Password</label>
+                            <label className="block mb-2 text-sm font-medium text-gray-700">Confirm Password<span className='text-red-500'>*</span></label>
                             <div className="relative">
                               <input type={showConfirmPassword ? 'text' : 'password'} value={form.confirmPassword} onChange={e=>setForm({ ...form, confirmPassword: e.target.value })} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="••••••••" />
                               <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-3 text-gray-500 hover:text-gray-700">

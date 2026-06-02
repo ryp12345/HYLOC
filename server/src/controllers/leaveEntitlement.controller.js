@@ -14,8 +14,8 @@ const userModel = require('../models/user.model');
 function computeEntitledDays(noOfDays, joiningDate, targetYear) {
   const joiningYear = joiningDate.getFullYear();
   if (targetYear <= joiningYear) return 0.0;
-  // For all years after joining: apply formula on the admin-supplied working days
-  return Math.min(Math.ceil(noOfDays / 20), 15);
+  // For all years after joining: apply round-half-up (fraction >= 0.5 rounds up)
+  return Math.min(Math.floor(noOfDays / 20 + 0.5), 15);
 }
 
 function getValidatedMonth(monthValue) {
@@ -151,18 +151,33 @@ exports.importEntitlements = async (req, res) => {
     // Fetch all users once to resolve joining dates
     const allUsers = await userModel.getAllUsers();
     const userMap = new Map(allUsers.map(u => [u.id, u]));
+    const userMapByEmpid = new Map(
+      allUsers
+        .filter(u => u.empid !== null && u.empid !== undefined)
+        .map(u => [String(u.empid).trim().toLowerCase(), u])
+    );
 
     const results = [];
 
     for (const assignment of assignments) {
-      const userId = Number(assignment.user_id);
+      let userId = Number(assignment.user_id);
       const year = Number(assignment.year);
       // leave_entitled from the client payload carries the NoOFDays (working days) value
       const noOfDays = Number(assignment.leave_entitled ?? 0);
 
-      if (!Number.isFinite(userId) || !Number.isFinite(year) || !Number.isFinite(noOfDays) || noOfDays < 0) continue;
+      if (!Number.isFinite(year) || !Number.isFinite(noOfDays) || noOfDays < 0) continue;
 
-      const user = userMap.get(userId);
+      // Resolve user by id OR by empid fallback (accepts empid in user_id field)
+      let user = null;
+      if (Number.isFinite(userId) && userMap.get(userId)) {
+        user = userMap.get(userId);
+      } else if (assignment.user_id !== undefined && assignment.user_id !== null) {
+        // try resolving as empid string
+        const key = String(assignment.user_id).trim().toLowerCase();
+        user = userMapByEmpid.get(key) || null;
+        if (user) userId = user.id;
+      }
+
       if (!user || !user.created_at) continue;
 
       // Apply business rules: formula uses noOfDays as working days, bounded by joining year logic

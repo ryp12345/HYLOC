@@ -243,7 +243,8 @@ const LeaveEntitlementPage = ({ token: propToken }) => {
       const headerCells = parseCsvLine(lines[0]);
       const headerIndex = new Map(headerCells.map((h, i) => [normalizeHeader(h), i]));
 
-      const idxEmpId = headerIndex.get('employeeid');
+      const idxUserId = headerIndex.get('userid'); // accepts 'User ID', 'user id', 'userid', 'user_id' (normalized)
+      const idxEmpId = headerIndex.get('employeeid') ?? headerIndex.get('empid');
       const idxDays = headerIndex.get('noofdays');
 
       if (idxEmpId === undefined || idxDays === undefined) {
@@ -256,7 +257,9 @@ const LeaveEntitlementPage = ({ token: propToken }) => {
           .map((s) => [String(s.empid).trim().toLowerCase(), s])
       );
 
-      const unmatchedEmpIds = new Set();
+      const staffById = new Map(monthlyStaff.map((s) => [String(s.id), s]));
+
+      const unmatchedIds = new Set();
       const invalidRows = [];
       const mappedByUser = new Map();
       let skippedRows = 0;
@@ -264,15 +267,16 @@ const LeaveEntitlementPage = ({ token: propToken }) => {
       for (let i = 1; i < lines.length; i++) {
         const rowNumber = i + 1;
         const cells = parseCsvLine(lines[i]);
-        const empIdRaw = (cells[idxEmpId] || '').trim();
+        const empIdRaw = idxEmpId !== undefined ? (cells[idxEmpId] || '').trim() : '';
+        const userIdRaw = idxUserId !== undefined ? (cells[idxUserId] || '').trim() : '';
         const daysRaw = (cells[idxDays] || '').trim();
 
-        if (!empIdRaw && !daysRaw) {
+        if (!empIdRaw && !userIdRaw && !daysRaw) {
           skippedRows++;
           continue;
         }
 
-        if (!empIdRaw || !daysRaw) {
+        if ((!empIdRaw && !userIdRaw) || !daysRaw) {
           invalidRows.push(rowNumber);
           continue;
         }
@@ -283,10 +287,21 @@ const LeaveEntitlementPage = ({ token: propToken }) => {
           continue;
         }
 
-        const staffMatch = staffByEmpId.get(empIdRaw.toLowerCase());
-        if (!staffMatch) {
-          unmatchedEmpIds.add(empIdRaw);
-          continue;
+        let staffMatch = null;
+        if (userIdRaw) {
+          const uid = Number(userIdRaw);
+          if (Number.isFinite(uid) && staffById.get(String(uid))) {
+            staffMatch = staffById.get(String(uid));
+          } else {
+            unmatchedIds.add(userIdRaw);
+            continue;
+          }
+        } else {
+          staffMatch = staffByEmpId.get(empIdRaw.toLowerCase());
+          if (!staffMatch) {
+            unmatchedIds.add(empIdRaw);
+            continue;
+          }
         }
 
         mappedByUser.set(String(staffMatch.id), {
@@ -307,7 +322,7 @@ const LeaveEntitlementPage = ({ token: propToken }) => {
         fileName: file.name,
         totalDataRows: lines.length - 1,
         updatedUsers: assignments.length,
-        unmatchedEmployeeIds: Array.from(unmatchedEmpIds),
+        unmatchedEmployeeIds: Array.from(unmatchedIds),
         invalidRows,
         skippedRows
       });

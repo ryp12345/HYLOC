@@ -224,9 +224,6 @@ const SpeedometerGauge = ({ efficiency, month, year, isExpanded = false }) => {
   // Calculate angle: -180 to 0 degrees (left to right semicircle)
   // 0-60 red, 61-80 yellow, >80 green
   const angle = -180 + (Math.min(Math.max(efficiency, 0), 100) / 100) * 180;
-  const radians = (angle * Math.PI) / 180;
-  const x = 150 + radius * Math.cos(radians);
-  const y = 150 + radius * Math.sin(radians);
 
   let color = '#ef4444'; // red
   let status = 'Critical';
@@ -239,8 +236,8 @@ const SpeedometerGauge = ({ efficiency, month, year, isExpanded = false }) => {
   }
 
   return (
-    <div className={`flex flex-col items-center justify-center h-full min-h-0 ${isExpanded ? 'scale-125 md:scale-150 py-10' : ''}`}>
-      <h3 className={`font-semibold text-gray-800 mb-1 whitespace-nowrap ${isExpanded ? 'text-lg mb-3' : 'text-[10px] sm:text-xs'}`}>{month} {year}</h3>
+    <div className={`flex flex-col items-center justify-center h-full min-h-0 relative z-10 ${isExpanded ? 'py-6 w-full max-w-[480px]' : ''}`}>
+      <h3 className={`font-semibold text-gray-800 mb-1 whitespace-nowrap ${isExpanded ? 'text-2xl mb-4' : 'text-[10px] sm:text-xs'}`}>{month} {year}</h3>
       <svg 
         viewBox="0 0 300 200" 
         className="w-full h-auto flex-1 min-h-0" 
@@ -285,17 +282,39 @@ const SpeedometerGauge = ({ efficiency, month, year, isExpanded = false }) => {
           strokeLinecap="round"
         />
 
-        {/* Needle */}
-        <line x1="150" y1="150" x2={x} y2={y} stroke={color} strokeWidth="4" strokeLinecap="round" />
-        
-        {/* Arrow tip on needle */}
-        <polygon
-          points={`${x},${y} ${x - 6},${y + 8} ${x + 6},${y + 8}`}
-          fill={color}
-        />
+        {/* Needle & Arrow Tip Group with smooth transition */}
+        <g 
+          transform={`rotate(${angle}, 150, 150)`} 
+          style={{ 
+            transition: 'transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)' 
+          }}
+        >
+          <line 
+            x1="150" 
+            y1="150" 
+            x2="230" 
+            y2="150" 
+            stroke={color} 
+            strokeWidth="4" 
+            strokeLinecap="round" 
+            style={{ transition: 'stroke 0.4s ease' }}
+          />
+          {/* Arrow tip correctly aligned and pointing right (at 230, 150) */}
+          <polygon
+            points="230,150 218,144 218,156"
+            fill={color}
+            style={{ transition: 'fill 0.4s ease' }}
+          />
+        </g>
         
         {/* Center dot */}
-        <circle cx="150" cy="150" r="8" fill={color} />
+        <circle 
+          cx="150" 
+          cy="150" 
+          r="8" 
+          fill={color} 
+          style={{ transition: 'fill 0.4s ease' }}
+        />
 
         {/* Labels */}
         <text x="75" y="175" fontSize="12" fontWeight="600" fill="#4b5563" textAnchor="middle">0</text>
@@ -1658,6 +1677,111 @@ function ManagementDashboard() {
     setExpandedChartData(null);
   };
 
+  const CHART_KEYS = [
+    'plantEfficiency',
+    'industry40',
+    'zeroQuality',
+    'salesProfit',
+    'onTimeDelivery',
+    'zeroAccidents',
+    'greenFactory',
+    'themeEmployees'
+  ];
+
+  const getChartData = (key) => {
+    switch (key) {
+      case 'plantEfficiency':
+        return { monthlyEfficiency, selectedFiscalIndex };
+      case 'industry40':
+        return industry40Chart || {
+          title: 'Industry 4.0 Performance',
+          labels: MONTH_LABELS,
+          actuals: Array(12).fill(0),
+          targets: Array(12).fill(0)
+        };
+      case 'zeroQuality':
+        return zeroQualityChart || {
+          title: 'Zero Quality Complaints',
+          labels: MONTH_LABELS,
+          actuals: Array(12).fill(0),
+          targets: Array(12).fill(0)
+        };
+      case 'salesProfit':
+        return { monthlySalesData, selectedSalesIndex, monthlyProfitData, selectedProfitIndex };
+      case 'onTimeDelivery':
+        return onTimeDeliveryChart || {
+          title: 'On Time Delivery',
+          subtitle: 'Target vs Achieved',
+          labels: FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1]),
+          actuals: Array(12).fill(0),
+          targets: Array(12).fill(0)
+        };
+      case 'zeroAccidents':
+        return zeroAccidentsChart || {
+          title: 'Safety',
+          subtitle: 'Zero Accidents',
+          labels: FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1]),
+          actuals: Array(12).fill(0),
+          targets: Array(12).fill(0)
+        };
+      case 'greenFactory':
+        return greenFactoryChart || {
+          title: 'Environment',
+          subtitle: 'Green Factory',
+          labels: FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1]),
+          values: Array(12).fill(0)
+        };
+      case 'themeEmployees':
+        return {
+          themeChart: themeChart || {
+            title: 'Theme Of The Year',
+            subtitle: 'Unlock The Power of You',
+            labels: FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1]),
+            values: Array(12).fill(0)
+          },
+          employeesChart: employeesChart || {
+            title: 'No. of Employees Who Left',
+            subtitle: 'Monthly Attrition',
+            labels: FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1]),
+            values: Array(12).fill(0)
+          }
+        };
+      default:
+        return null;
+    }
+  };
+
+  const navigateChart = (direction) => {
+    const currentIndex = CHART_KEYS.indexOf(expandedChart);
+    if (currentIndex === -1) return;
+    
+    let nextIndex;
+    if (direction === 'next') {
+      nextIndex = (currentIndex + 1) % CHART_KEYS.length;
+    } else {
+      nextIndex = (currentIndex - 1 + CHART_KEYS.length) % CHART_KEYS.length;
+    }
+    
+    const nextKey = CHART_KEYS[nextIndex];
+    setExpandedChart(nextKey);
+    setExpandedChartData(getChartData(nextKey));
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (!expandedChart) return;
+      if (e.key === 'ArrowLeft') {
+        navigateChart('prev');
+      } else if (e.key === 'ArrowRight') {
+        navigateChart('next');
+      } else if (e.key === 'Escape') {
+        closeExpandedChart();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [expandedChart, monthlyEfficiency, selectedFiscalIndex, industry40Chart, zeroQualityChart, monthlySalesData, selectedSalesIndex, monthlyProfitData, selectedProfitIndex, onTimeDeliveryChart, zeroAccidentsChart, greenFactoryChart, themeChart, employeesChart]);
+
   const handleKPITitleClick = async (chartTitle) => {
     let kpiId = kpiIdMap[chartTitle];
     if (!kpiId) {
@@ -2073,7 +2197,7 @@ function ManagementDashboard() {
                     if (!monthlyEfficiency.length) return;
                     setSelectedFiscalIndex(selectedFiscalIndex === 0 ? monthlyEfficiency.length - 1 : selectedFiscalIndex - 1);
                   }}
-                  disabled={!monthlyEfficiency.length}
+                  disabled={monthlyEfficiency.length <= 1}
                   title="Previous Month"
                 >
                   ‹
@@ -2109,9 +2233,9 @@ function ManagementDashboard() {
                     e.preventDefault();
                     e.stopPropagation();
                     if (!monthlyEfficiency.length) return;
-                    setSelectedFiscalIndex(selectedFiscalIndex === monthlyEfficiency.length - 1 ? monthlyEfficiency.length - 1 : selectedFiscalIndex + 1);
+                    setSelectedFiscalIndex(selectedFiscalIndex === monthlyEfficiency.length - 1 ? 0 : selectedFiscalIndex + 1);
                   }}
-                  disabled={!monthlyEfficiency.length || selectedFiscalIndex >= monthlyEfficiency.length - 1}
+                  disabled={monthlyEfficiency.length <= 1}
                   title="Next Month"
                 >
                   ›
@@ -2424,13 +2548,13 @@ function ManagementDashboard() {
                   </div>
 
                   <button 
-                    className="bg-gray-100 border border-gray-300 rounded-full w-7 h-7 md:w-8 md:h-8 flex items-center justify-center cursor-pointer text-base md:text-lg text-gray-600 hover:bg-gray-200 hover:text-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex-shrink-0"
+                    className="bg-gray-100 border border-gray-300 rounded-full w-7 h-7 md:w-8 md:h-8 flex items-center justify-center cursor-pointer text-base md:text-lg text-gray-600 hover:bg-gray-200 hover:text-gray-800 transition-all flex-shrink-0"
                     onClick={(e) => {
                       e.stopPropagation();
                       if (!monthlyProfitData.length) return;
-                      setSelectedProfitIndex(selectedProfitIndex === monthlyProfitData.length - 1 ? monthlyProfitData.length - 1 : selectedProfitIndex + 1);
+                      setSelectedProfitIndex(selectedProfitIndex === monthlyProfitData.length - 1 ? 0 : selectedProfitIndex + 1);
                     }}
-                    disabled={!monthlyProfitData.length || selectedProfitIndex >= monthlyProfitData.length - 1}
+                    disabled={!monthlyProfitData.length}
                   >
                     ›
                   </button>
@@ -2656,8 +2780,29 @@ function ManagementDashboard() {
       {expandedChart && expandedChartData && (
         <div className="expanded-chart-modal-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={closeExpandedChart}>
           <div className="expanded-chart-modal-content bg-white rounded-xl shadow-2xl w-[95%] max-w-7xl h-[85vh] flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-6 py-4 border-b bg-gray-50">
-              <h2 className="text-xl font-bold text-gray-800">
+            <div className="flex items-center justify-between px-6 py-4 border-b bg-gray-50 flex-wrap gap-3">
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => navigateChart('prev')}
+                  className="px-3 py-1 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg text-sm font-semibold transition-colors flex items-center gap-1 border border-blue-200"
+                  title="Previous Graph (or use Left Arrow)"
+                >
+                  ◀ Prev
+                </button>
+                <span className="text-sm font-bold text-gray-500 bg-gray-100 border border-gray-200 px-2.5 py-1 rounded-md">
+                  {CHART_KEYS.indexOf(expandedChart) + 1} / {CHART_KEYS.length}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => navigateChart('next')}
+                  className="px-3 py-1 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg text-sm font-semibold transition-colors flex items-center gap-1 border border-blue-200"
+                  title="Next Graph (or use Right Arrow)"
+                >
+                  Next ▶
+                </button>
+              </div>
+              <h2 className="text-xl font-bold text-gray-800 text-center flex-1 order-3 sm:order-none min-w-full sm:min-w-0">
                 {expandedChart === 'plantEfficiency'
                   ? 'Plant Efficiency (Apr - Mar)'
                   : expandedChart === 'industry40'
@@ -2666,25 +2811,65 @@ function ManagementDashboard() {
                   ? expandedChartData.title || 'Zero Quality Complaints'
                   : expandedChart === 'zeroAccidents'
                   ? expandedChartData.title || 'Zero Accidents'
+                  : expandedChart === 'onTimeDelivery'
+                  ? expandedChartData.title || 'On Time Delivery'
+                  : expandedChart === 'themeChart'
+                  ? expandedChartData.title || 'Theme Of The Year'
+                  : expandedChart === 'employeesChart'
+                  ? expandedChartData.title || 'Employees Left'
                   : expandedChart === 'greenFactory'
                   ? expandedChartData.title || 'Green Factory'
+                  : expandedChart === 'themeEmployees'
+                  ? 'Morale (Theme Of The Year & Employees Left)'
                   : expandedChart === 'salesProfit'
                   ? 'Revenue & Profitability'
                   : 'Chart'}
               </h2>
-              <button className="text-2xl p-1 mr-2 text-gray-400 hover:text-gray-600 transition-colors" onClick={closeExpandedChart}>✕</button>
+              <button className="text-2xl p-1 mr-2 text-gray-400 hover:text-gray-600 transition-colors focus:outline-none" onClick={closeExpandedChart}>✕</button>
             </div>
             <div className="p-8 flex-1 overflow-y-auto flex flex-col justify-center">
               {expandedChart === 'plantEfficiency' && (
-                <div className="flex items-center justify-center gap-8 w-full">
-                  <button onClick={(e) => { e.stopPropagation(); if (!monthlyEfficiency.length) return; setSelectedFiscalIndex(selectedFiscalIndex === 0 ? monthlyEfficiency.length - 1 : selectedFiscalIndex - 1); }} className="px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-lg text-lg transition-colors">‹</button>
+                <div className="flex items-center justify-center gap-12 w-full">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const currentList = expandedChartData?.monthlyEfficiency || monthlyEfficiency;
+                      const currentIndex = expandedChartData?.selectedFiscalIndex !== undefined ? expandedChartData.selectedFiscalIndex : selectedFiscalIndex;
+                      if (!currentList.length) return;
+                      const nextIndex = currentIndex === 0 ? currentList.length - 1 : currentIndex - 1;
+                      setSelectedFiscalIndex(nextIndex);
+                      setExpandedChartData({ ...expandedChartData, monthlyEfficiency: currentList, selectedFiscalIndex: nextIndex });
+                    }}
+                    disabled={(expandedChartData?.monthlyEfficiency || monthlyEfficiency).length <= 1}
+                    className="relative z-30 px-6 py-4 bg-gray-100 hover:bg-gray-200 text-gray-700 font-extrabold rounded-lg text-2xl transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-md hover:scale-105 active:scale-95"
+                    title="Previous Month"
+                  >
+                    ‹
+                  </button>
                   <SpeedometerGauge
-                    efficiency={monthlyEfficiency[selectedFiscalIndex]?.efficiency || 0}
-                    month={MONTH_LABELS[(monthlyEfficiency[selectedFiscalIndex]?.month || 1) - 1]}
-                    year={monthlyEfficiency[selectedFiscalIndex]?.year || ''}
+                    efficiency={(expandedChartData?.monthlyEfficiency || monthlyEfficiency)[expandedChartData?.selectedFiscalIndex !== undefined ? expandedChartData.selectedFiscalIndex : selectedFiscalIndex]?.efficiency || 0}
+                    month={MONTH_LABELS[((expandedChartData?.monthlyEfficiency || monthlyEfficiency)[expandedChartData?.selectedFiscalIndex !== undefined ? expandedChartData.selectedFiscalIndex : selectedFiscalIndex]?.month || 1) - 1]}
+                    year={(expandedChartData?.monthlyEfficiency || monthlyEfficiency)[expandedChartData?.selectedFiscalIndex !== undefined ? expandedChartData.selectedFiscalIndex : selectedFiscalIndex]?.year || ''}
                     isExpanded={true}
                   />
-                  <button onClick={(e) => { e.stopPropagation(); if (!monthlyEfficiency.length) return; setSelectedFiscalIndex(selectedFiscalIndex === monthlyEfficiency.length - 1 ? monthlyEfficiency.length - 1 : selectedFiscalIndex + 1); }} className="px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-lg text-lg transition-colors">›</button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const currentList = expandedChartData?.monthlyEfficiency || monthlyEfficiency;
+                      const currentIndex = expandedChartData?.selectedFiscalIndex !== undefined ? expandedChartData.selectedFiscalIndex : selectedFiscalIndex;
+                      if (!currentList.length) return;
+                      const nextIndex = currentIndex === currentList.length - 1 ? 0 : currentIndex + 1;
+                      setSelectedFiscalIndex(nextIndex);
+                      setExpandedChartData({ ...expandedChartData, monthlyEfficiency: currentList, selectedFiscalIndex: nextIndex });
+                    }}
+                    disabled={(expandedChartData?.monthlyEfficiency || monthlyEfficiency).length <= 1}
+                    className="relative z-30 px-6 py-4 bg-gray-100 hover:bg-gray-200 text-gray-700 font-extrabold rounded-lg text-2xl transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-md hover:scale-105 active:scale-95"
+                    title="Next Month"
+                  >
+                    ›
+                  </button>
                 </div>
               )}
 
@@ -2871,9 +3056,9 @@ function ManagementDashboard() {
                         </div>
                       </div>
                       <button
-                        className="bg-gray-100 border border-gray-300 rounded-full w-8 h-8 flex items-center justify-center text-lg text-gray-600 hover:bg-gray-200 hover:text-gray-800 disabled:opacity-40 disabled:cursor-not-allowed"
-                        onClick={(e) => { e.stopPropagation(); if (!monthlySalesData.length) return; setSelectedSalesIndex(selectedSalesIndex === monthlySalesData.length - 1 ? monthlySalesData.length - 1 : selectedSalesIndex + 1); }}
-                        disabled={!monthlySalesData.length || selectedSalesIndex >= monthlySalesData.length - 1}
+                        className="bg-gray-100 border border-gray-300 rounded-full w-8 h-8 flex items-center justify-center text-lg text-gray-600 hover:bg-gray-200 hover:text-gray-800"
+                        onClick={(e) => { e.stopPropagation(); if (!monthlySalesData.length) return; setSelectedSalesIndex(selectedSalesIndex === monthlySalesData.length - 1 ? 0 : selectedSalesIndex + 1); }}
+                        disabled={!monthlySalesData.length}
                       >
                         ›
                       </button>
@@ -2963,9 +3148,9 @@ function ManagementDashboard() {
                         </div>
                       </div>
                       <button
-                        className="bg-gray-100 border border-gray-300 rounded-full w-8 h-8 flex items-center justify-center text-lg text-gray-600 hover:bg-gray-200 hover:text-gray-800 disabled:opacity-40 disabled:cursor-not-allowed"
-                        onClick={(e) => { e.stopPropagation(); if (!monthlyProfitData.length) return; setSelectedProfitIndex(selectedProfitIndex === monthlyProfitData.length - 1 ? monthlyProfitData.length - 1 : selectedProfitIndex + 1); }}
-                        disabled={!monthlyProfitData.length || selectedProfitIndex >= monthlyProfitData.length - 1}
+                        className="bg-gray-100 border border-gray-300 rounded-full w-8 h-8 flex items-center justify-center text-lg text-gray-600 hover:bg-gray-200 hover:text-gray-800"
+                        onClick={(e) => { e.stopPropagation(); if (!monthlyProfitData.length) return; setSelectedProfitIndex(selectedProfitIndex === monthlyProfitData.length - 1 ? 0 : selectedProfitIndex + 1); }}
+                        disabled={!monthlyProfitData.length}
                       >
                         ›
                       </button>

@@ -88,7 +88,6 @@ export default function DepartmentsPage() {
       showNotification('Department deleted successfully!', 'success');
     } catch (e) {
       const msg = e.response?.data?.message || 'Failed to delete department';
-      alert(msg);
       showNotification(msg, 'error');
     }
   };
@@ -96,6 +95,33 @@ export default function DepartmentsPage() {
   const showNotification = (message, type = 'success') => {
     setNotification({ show: true, message, type });
     setTimeout(() => setNotification({ show: false, message: '', type: '' }), 4000);
+  };
+
+  // Export to Excel (CSV)
+  const exportToExcel = () => {
+    if (!filtered.length) {
+      showNotification('No departments available to export', 'error');
+      return;
+    }
+
+    const headers = ['S.NO', 'Department Name'];
+    const rowsToExport = filtered.map((row, index) => [
+      index + 1,
+      `"${String(row.department_name || '').replace(/"/g, '""')}"`,
+    ]);
+
+    const csvContent = [headers.join(','), ...rowsToExport.map((row) => row.join(','))].join('\n');
+    const blob = new Blob([`\uFEFF${csvContent}`], { type: 'text/csv;charset=utf-8;' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `departments_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+
+    showNotification('Departments exported successfully!', 'success');
   };
 
   // Pagination state
@@ -138,10 +164,16 @@ export default function DepartmentsPage() {
             <input value={search} onChange={(e)=>setSearch(e.target.value)} placeholder="Search departments..." className="w-full py-2 pl-10 pr-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400 absolute left-3 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
           </div>
-          <button onClick={openCreate} className="flex items-center justify-center w-full px-6 py-3 font-medium text-white transition-all duration-300 transform rounded-lg shadow-lg bg-blue-600 hover:bg-blue-700 hover:-translate-y-1 hover:scale-105 sm:w-auto">
-            <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" /></svg>
-            Add Department
-          </button>
+          <div className="flex flex-col w-full gap-3 sm:w-auto sm:flex-row">
+            <button onClick={exportToExcel} className="flex items-center justify-center w-full px-6 py-3 font-medium text-white transition-all duration-300 transform rounded-lg shadow-lg bg-emerald-600 hover:bg-emerald-700 hover:-translate-y-1 hover:scale-105 sm:w-auto">
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path d="M13 7H7v6h6V7z" /><path fillRule="evenodd" d="M4 3a1 1 0 00-1 1v12a1 1 0 001 1h12a1 1 0 001-1V8.414a1 1 0 00-.293-.707l-3.414-3.414A1 1 0 0012.586 4H4zm8 1.414L15.586 8H13a1 1 0 01-1-1V4.414zM7 9a1 1 0 000 2h6a1 1 0 100-2H7z" clipRule="evenodd" /></svg>
+              Export
+            </button>
+            <button onClick={openCreate} className="flex items-center justify-center w-full px-6 py-3 font-medium text-white transition-all duration-300 transform rounded-lg shadow-lg bg-blue-600 hover:bg-blue-700 hover:-translate-y-1 hover:scale-105 sm:w-auto">
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" /></svg>
+              Add Department
+            </button>
+          </div>
         </div>
 
         <div className="mb-10 overflow-hidden bg-white shadow-xl rounded-xl">
