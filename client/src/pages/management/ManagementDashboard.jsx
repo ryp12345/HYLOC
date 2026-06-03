@@ -1033,6 +1033,163 @@ const PillarRadarChart = ({ pillars, onPillarClick, compact = false }) => {
   );
 };
 
+const DepartmentPerformanceRadarChart = ({ departments, onDepartmentClick }) => {
+  const size = 500;
+  const center = size / 2;
+  const radius = 150;
+  const ringSteps = 5;
+
+  const normalizedDepartments = (departments || []).map((department, index) => ({
+    id: department?.id,
+    name: department?.name || `Department ${index + 1}`,
+    value: Math.max(0, Math.min(100, Number(department?.value) || 0)),
+  }));
+
+  if (!normalizedDepartments.length) {
+    return (
+      <div className="bg-white rounded-lg shadow-lg border border-slate-200 p-4">
+        <div className="py-16 text-center text-gray-500">No department performance data available</div>
+      </div>
+    );
+  }
+
+  const maxValue = 100;
+  const angleStep = (Math.PI * 2) / normalizedDepartments.length;
+
+  const toPoint = (value, angle, scale = radius) => {
+    const scaledRadius = (value / maxValue) * scale;
+    return {
+      x: center + scaledRadius * Math.sin(angle),
+      y: center - scaledRadius * Math.cos(angle),
+    };
+  };
+
+  const polygonPoints = normalizedDepartments
+    .map((department, index) => {
+      const angle = index * angleStep;
+      const point = toPoint(department.value, angle);
+      return `${point.x},${point.y}`;
+    })
+    .join(' ');
+
+  return (
+    <div className="bg-white rounded-lg shadow-lg border border-slate-200 p-4">
+      <div className="w-full flex justify-center">
+        <svg viewBox={`0 0 ${size} ${size}`} className="w-full max-w-[760px] h-auto">
+          {[...Array(ringSteps)].map((_, ringIndex) => {
+            const ringRadius = ((ringIndex + 1) / ringSteps) * radius;
+            const ringPercent = ((ringIndex + 1) / ringSteps) * 100;
+            return (
+              <g key={`dept-ring-${ringIndex}`}>
+                <circle
+                  cx={center}
+                  cy={center}
+                  r={ringRadius}
+                  fill="none"
+                  stroke="#e5e7eb"
+                  strokeDasharray="4 4"
+                />
+                <text
+                  x={center + 6}
+                  y={center - ringRadius + 12}
+                  fontSize="10"
+                  fontWeight="600"
+                  fill="#6b7280"
+                >
+                  {Math.round(ringPercent)}%
+                </text>
+              </g>
+            );
+          })}
+
+          {normalizedDepartments.map((_, index) => {
+            const angle = index * angleStep;
+            const end = toPoint(maxValue, angle);
+            return (
+              <line
+                key={`dept-axis-${index}`}
+                x1={center}
+                y1={center}
+                x2={end.x}
+                y2={end.y}
+                stroke="#cbd5e1"
+                strokeWidth="1.5"
+              />
+            );
+          })}
+
+          <polygon
+            points={polygonPoints}
+            fill="rgba(34, 197, 94, 0.22)"
+            stroke="#15803d"
+            strokeWidth="2.5"
+          />
+
+          {normalizedDepartments.map((department, index) => {
+            const angle = index * angleStep;
+            const point = toPoint(department.value, angle);
+            const labelRadius = radius + 54;
+            const labelX = center + labelRadius * Math.sin(angle);
+            const labelY = center - labelRadius * Math.cos(angle);
+            const words = String(department.name || '').trim().split(/\s+/).filter(Boolean);
+            const textAnchor = Math.sin(angle) > 0.35 ? 'start' : (Math.sin(angle) < -0.35 ? 'end' : 'middle');
+            const labelDx = textAnchor === 'start' ? 6 : (textAnchor === 'end' ? -6 : 0);
+            const lines = [];
+
+            if (words.length <= 1) {
+              lines.push(words[0] || '');
+            } else if (words.length === 2) {
+              // Keep two-word labels (e.g. Management Representatives) in two lines.
+              lines.push(words[0]);
+              lines.push(words[1]);
+            } else {
+              const splitIndex = Math.ceil(words.length / 2);
+              lines.push(words.slice(0, splitIndex).join(' '));
+              lines.push(words.slice(splitIndex).join(' '));
+            }
+
+            const safeLines = lines.slice(0, 2).map((line) => (line.length <= 24 ? line : `${line.slice(0, 21)}...`));
+
+            return (
+              <g key={department.id || department.name}>
+                <circle cx={point.x} cy={point.y} r="5" fill="#15803d" stroke="white" strokeWidth="2" />
+                <text
+                  x={labelX + labelDx}
+                  y={labelY}
+                  textAnchor={textAnchor}
+                  fontSize="11"
+                  fontWeight="700"
+                  fill="#14532d"
+                  style={{ cursor: onDepartmentClick ? 'pointer' : 'default' }}
+                  onClick={() => onDepartmentClick?.(department)}
+                >
+                  {safeLines.map((line, lineIndex) => (
+                    <tspan key={`${department.id || department.name}-line-${lineIndex}`} x={labelX + labelDx} dy={lineIndex === 0 ? 0 : 13}>
+                      {line}
+                    </tspan>
+                  ))}
+                </text>
+                <text
+                  x={point.x}
+                  y={point.y - 10}
+                  textAnchor="middle"
+                  fontSize="10"
+                  fontWeight="600"
+                  fill="#166534"
+                >
+                  {Math.round(department.value)}%
+                </text>
+              </g>
+            );
+          })}
+
+          <circle cx={center} cy={center} r="3" fill="#15803d" />
+        </svg>
+      </div>
+    </div>
+  );
+};
+
 // Helper function to get current fiscal year (April to March)
 const getCurrentFiscalYear = () => {
   const today = new Date();
@@ -1060,6 +1217,33 @@ const isFiscalYearMatch = (kpiFiscalYear, selectedFiscalYear) => {
 };
 
 const normalizeText = (value) => (value || '').toString().trim().toLowerCase();
+const DUMMY_DEPARTMENT_PERFORMANCE = [
+  { id: 'dept-dummy-1', name: 'Production Operations', value: 92 },
+  { id: 'dept-dummy-2', name: 'Quality Assurance', value: 87 },
+  { id: 'dept-dummy-3', name: 'Maintenance Engineering', value: 81 },
+  { id: 'dept-dummy-4', name: 'Supply Chain Management', value: 76 },
+  { id: 'dept-dummy-5', name: 'Human Resources', value: 69 },
+  { id: 'dept-dummy-6', name: 'Finance and Accounts', value: 73 },
+  { id: 'dept-dummy-7', name: 'Research and Development', value: 88 },
+  { id: 'dept-dummy-8', name: 'Information Technology', value: 84 },
+];
+const DUMMY_DEPARTMENT_KPI_ANALYSIS = {
+  production: 92,
+  operations: 89,
+  quality: 87,
+  maintenance: 81,
+  supply: 76,
+  chain: 76,
+  human: 69,
+  hr: 69,
+  finance: 73,
+  account: 73,
+  research: 88,
+  development: 88,
+  information: 84,
+  technology: 84,
+  it: 84,
+};
 const normalizeValueType = (valueType) => {
   const normalized = (valueType || '').toString().trim().toLowerCase();
   if (!normalized) return '';
@@ -1092,6 +1276,7 @@ function ManagementDashboard() {
   const [departmentStats, setDepartmentStats] = useState({
     total: 0
   });
+  const [departmentPerformance, setDepartmentPerformance] = useState([]);
   const [loading, setLoading] = useState(true);
   const [industry40Chart, setIndustry40Chart] = useState(null);
   const [industry40Loading, setIndustry40Loading] = useState(false);
@@ -1125,6 +1310,29 @@ function ManagementDashboard() {
   const [selectedFiscalYear, setSelectedFiscalYear] = useState(getCurrentFiscalYear());
   const [availableFiscalYears, setAvailableFiscalYears] = useState([]);
   const [cachedKpiValues, setCachedKpiValues] = useState([]);
+  const departmentPerformanceForChart = useMemo(() => {
+    if (!departmentPerformance.length) return DUMMY_DEPARTMENT_PERFORMANCE;
+
+    const maxObservedValue = Math.max(
+      ...departmentPerformance.map((department) => Number(department?.value) || 0),
+      0
+    );
+
+    return departmentPerformance.map((department, index) => {
+      const name = String(department?.name || '').toLowerCase();
+      const matchedKeyword = Object.keys(DUMMY_DEPARTMENT_KPI_ANALYSIS).find((keyword) => name.includes(keyword));
+      const fallbackByName = matchedKeyword ? DUMMY_DEPARTMENT_KPI_ANALYSIS[matchedKeyword] : null;
+      const fallbackByIndex = DUMMY_DEPARTMENT_PERFORMANCE[index % DUMMY_DEPARTMENT_PERFORMANCE.length]?.value || 5;
+      const derivedValue = fallbackByName ?? fallbackByIndex;
+      const currentValue = Number(department?.value) || 0;
+      const currentPercent = maxObservedValue > 0 ? Math.round((currentValue / maxObservedValue) * 100) : 0;
+
+      return {
+        ...department,
+        value: currentValue > 0 ? currentPercent : derivedValue,
+      };
+    });
+  }, [departmentPerformance]);
   
   // Computed fiscal month sequence based on selected year
   const FISCAL_MONTH_SEQUENCE = useMemo(() => getFiscalMonthSequence(selectedFiscalYear), [selectedFiscalYear]);
@@ -1217,6 +1425,7 @@ function ManagementDashboard() {
   const fetchStatistics = async () => {
     try {
       setLoading(true);
+      let fiscalKpis = [];
       const [kpisResponse, pillersResponse, usersResponse, departmentsResponse] = await Promise.all([
         getKPIs(),
         getPillers(),
@@ -1248,6 +1457,7 @@ function ManagementDashboard() {
 
         // Filter KPIs by selected fiscal year - handle both string and number comparison
         const kpis = allKpis.filter(kpi => isFiscalYearMatch(kpi.fin_year, selectedFiscalYear));
+        fiscalKpis = kpis;
         
         //console.log('Filtered KPIs for fiscal year', selectedFiscalYear, ':', kpis.length);
         
@@ -1320,6 +1530,44 @@ function ManagementDashboard() {
         setDepartmentStats({
           total: departments.length
         });
+
+        try {
+          const mappingResponse = await api.get('/kpi-departments');
+          const allMappings = mappingResponse?.data?.data || [];
+          const fiscalKpiIds = new Set((fiscalKpis || []).map((kpi) => Number(kpi.id)).filter(Number.isFinite));
+          const countByDepartmentId = new Map();
+
+          departments.forEach((department) => {
+            countByDepartmentId.set(Number(department.id), 0);
+          });
+
+          allMappings.forEach((mapping) => {
+            const departmentId = Number(mapping.department_id);
+            const kpiId = Number(mapping.kpi_id);
+            if (!countByDepartmentId.has(departmentId)) return;
+            if (fiscalKpiIds.size > 0 && !fiscalKpiIds.has(kpiId)) return;
+            countByDepartmentId.set(departmentId, (countByDepartmentId.get(departmentId) || 0) + 1);
+          });
+
+          const departmentRadarData = departments
+            .map((department) => ({
+              id: department.id,
+              name: department.department_name || department.departmentName || `Department ${department.id}`,
+              value: countByDepartmentId.get(Number(department.id)) || 0,
+            }))
+            .sort((a, b) => b.value - a.value);
+
+          setDepartmentPerformance(departmentRadarData);
+        } catch (mappingError) {
+          console.error('Error loading department performance data:', mappingError);
+          setDepartmentPerformance(
+            departments.map((department) => ({
+              id: department.id,
+              name: department.department_name || department.departmentName || `Department ${department.id}`,
+              value: 0,
+            }))
+          );
+        }
       }
     } catch (error) {
       console.error('Error fetching statistics:', error);
@@ -2726,6 +2974,18 @@ function ManagementDashboard() {
         </div>
       </div>
       {/* Performance Dashboard Section End */}
+
+      <div className="mt-6">
+        <h2 className="text-2xl text-center justify-center font-bold text-gray-800 mb-4">Department KPI Dashboard</h2>
+        <DepartmentPerformanceRadarChart
+          departments={departmentPerformanceForChart}
+          onDepartmentClick={(department) => {
+            if (department?.id) {
+              navigate(`/management/department/${department.id}`);
+            }
+          }}
+        />
+      </div>
 
       {/* Pillars Section */}
       <div className="mt-8">

@@ -13,6 +13,7 @@ import MgtPiller from '../pages/management/MgtPiller';
 import PillarDetailPage from '../pages/management/PillarDetailPage';
 import MgtKmiPage from '../pages/management/MgtKmiPage';
 import MgtKmiDetail from '../pages/management/MgtKmiDetail';
+import DepartmentDetailPage from '../pages/management/DepartmentDetailPage';
 import ManagementMyLeavePage from '../pages/management/leaves/MyLeavePage';
 import ManagerMyLeavePage from '../pages/manager/leaves/MyLeavePage';
 import ManagementLeavesPage from '../pages/management/leaves/LeavesPage';
@@ -25,6 +26,7 @@ import ManagerDashboard from '../pages/manager/ManagerDashboard';
 
 import UsersPage from '../pages/admin/UsersPage';
 import LeaveEntitlementPage from '../pages/admin/leaves/LeaveEntitlementPage';
+import MonthlyAttendancePage from '../pages/admin/leaves/MonthlyAttendancePage';
 import UserRolePage from '../pages/admin/UserRolePage';
 import DepartmentsPage from '../pages/admin/DepartmentsPage';
 import DesignationsPage from '../pages/admin/DesignationsPage';
@@ -337,6 +339,16 @@ const AppRoutes = () => {
                 </ProtectedRoute>
               }
             />
+            <Route
+              path="/admin/leaves/monthly-attendance"
+              element={
+                <ProtectedRoute>
+                  <DashboardLayout>
+                    <MonthlyAttendancePage />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              }
+            />
           <Route
             path="/management/kmis/:id"
             element={
@@ -415,6 +427,18 @@ const AppRoutes = () => {
                 <ProtectedRoute>
                   <DashboardLayout>
                     <PillarDetailPage />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Management Department Detail Page */}
+            <Route
+              path="/management/department/:departmentId"
+              element={
+                <ProtectedRoute>
+                  <DashboardLayout>
+                    <DepartmentDetailPage />
                   </DashboardLayout>
                 </ProtectedRoute>
               }

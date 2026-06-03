@@ -2,8 +2,6 @@ import React, { useEffect, useState, useMemo, useRef } from 'react';
 import {
   getEntitlements,
   getStaffWithStatus,
-  getMonthlyWorkingDaysStaff,
-  importMonthlyWorkingDays,
   updateEntitlement,
   deleteEntitlement
 } from "../../../api/leaveEntitlementApi";
@@ -30,29 +28,20 @@ const LeaveEntitlementPage = ({ token: propToken }) => {
   const [month, setMonth] = useState(new Date().getMonth() + 1);
   const [entitlements, setEntitlements] = useState([]);
   const [staff, setStaff] = useState([]);
-  const [monthlyStaff, setMonthlyStaff] = useState([]);
+  
   const [search, setSearch] = useState('');
   const [modal, setModal] = useState(null); // 'edit' | null
   const [selected, setSelected] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [monthlyLoading, setMonthlyLoading] = useState(false);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [page, setPage] = useState(1);
-  const [uploadingCsv, setUploadingCsv] = useState(false);
-  const [uploadSummary, setUploadSummary] = useState(null);
-  const fileInputRef = useRef(null);
-  const uploadSummaryTimeoutRef = useRef(null);
-  const successTimeoutRef = useRef(null);
+  
   const token = propToken || localStorage.getItem('accessToken');
 
   useEffect(() => {
     loadEntitlementData();
   }, [year, token]);
-
-  useEffect(() => {
-    loadMonthlyData();
-  }, [month, token]);
 
   const loadEntitlementData = async () => {
     if (!token) {
@@ -77,23 +66,6 @@ const LeaveEntitlementPage = ({ token: propToken }) => {
     setLoading(false);
   };
 
-  const loadMonthlyData = async () => {
-    if (!token) {
-      setError('No authentication token found. Please login.');
-      return;
-    }
-
-    setMonthlyLoading(true);
-    try {
-      const response = await getMonthlyWorkingDaysStaff(month, token);
-      setMonthlyStaff(response.data?.staff || []);
-    } catch (err) {
-      console.error('Failed to load monthly working days:', err);
-      setError(err.response?.data?.error || err.message || 'Failed to load monthly working days');
-    }
-    setMonthlyLoading(false);
-  };
-
   const filtered = useMemo(() => {
     const sorted = [...entitlements].sort((a, b) => {
       const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
@@ -115,31 +87,7 @@ const LeaveEntitlementPage = ({ token: propToken }) => {
 
   useEffect(() => { setPage(1); }, [search, entitlements]);
 
-  useEffect(() => {
-    setUploadSummary(null);
-    setSuccessMessage('');
-
-    if (uploadSummaryTimeoutRef.current) {
-      clearTimeout(uploadSummaryTimeoutRef.current);
-      uploadSummaryTimeoutRef.current = null;
-    }
-
-    if (successTimeoutRef.current) {
-      clearTimeout(successTimeoutRef.current);
-      successTimeoutRef.current = null;
-    }
-  }, [year, month]);
-
-  useEffect(() => {
-    return () => {
-      if (uploadSummaryTimeoutRef.current) {
-        clearTimeout(uploadSummaryTimeoutRef.current);
-      }
-      if (successTimeoutRef.current) {
-        clearTimeout(successTimeoutRef.current);
-      }
-    };
-  }, []);
+  useEffect(() => { setSuccessMessage(''); }, [year]);
 
   const closeModal = () => {
     setModal(null);
@@ -147,213 +95,7 @@ const LeaveEntitlementPage = ({ token: propToken }) => {
     setError('');
   };
 
-  const parseCsvLine = (line) => {
-    const cells = [];
-    let current = '';
-    let inQuotes = false;
 
-    for (let i = 0; i < line.length; i++) {
-      const ch = line[i];
-      const next = line[i + 1];
-
-      if (ch === '"') {
-        if (inQuotes && next === '"') {
-          current += '"';
-          i++;
-        } else {
-          inQuotes = !inQuotes;
-        }
-      } else if (ch === ',' && !inQuotes) {
-        cells.push(current.trim());
-        current = '';
-      } else {
-        current += ch;
-      }
-    }
-
-    cells.push(current.trim());
-    return cells;
-  };
-
-  const normalizeHeader = (header) => (header || '').toString().replace(/\s+/g, '').toLowerCase();
-
-  const handleDownloadTemplate = () => {
-    const headers = ['S.No', 'EmployeeName', 'EmployeeID', 'NoOFDays'];
-    const rows = monthlyStaff.map((s, idx) => {
-      const workingDays = s.monthly_working_days?.no_of_days ?? '';
-      return [
-        idx + 1,
-        `${s.firstname || ''} ${s.lastname || ''}`.trim(),
-        s.empid || '',
-        workingDays
-      ];
-    });
-
-    const escapeCsvCell = (value) => {
-      if (value === null || value === undefined) return '';
-      const str = String(value);
-      if (str.includes('"') || str.includes(',') || str.includes('\n')) {
-        return `"${str.replace(/"/g, '""')}"`;
-      }
-      return str;
-    };
-
-    const csvContent = [
-      headers.join(','),
-      ...rows.map((row) => row.map(escapeCsvCell).join(','))
-    ].join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-  a.download = `monthly_working_days_${MONTH_NAMES[month - 1].toLowerCase()}_${currentYear}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
-
-  const handleUploadButtonClick = () => {
-    if (fileInputRef.current) {
-      fileInputRef.current.click();
-    }
-  };
-
-  const handleUploadCsv = async (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    setError('');
-    setSuccessMessage('');
-    setUploadSummary(null);
-    setUploadingCsv(true);
-
-    try {
-      const text = await file.text();
-      const lines = text
-        .split(/\r?\n/)
-        .map((line) => line.trim())
-        .filter((line) => line.length > 0);
-
-      if (lines.length < 2) {
-        throw new Error('CSV file must contain a header and at least one data row');
-      }
-
-      const headerCells = parseCsvLine(lines[0]);
-      const headerIndex = new Map(headerCells.map((h, i) => [normalizeHeader(h), i]));
-
-      const idxUserId = headerIndex.get('userid'); // accepts 'User ID', 'user id', 'userid', 'user_id' (normalized)
-      const idxEmpId = headerIndex.get('employeeid') ?? headerIndex.get('empid');
-      const idxDays = headerIndex.get('noofdays');
-
-      if (idxEmpId === undefined || idxDays === undefined) {
-        throw new Error('CSV headers must include EmployeeID and NoOFDays');
-      }
-
-      const staffByEmpId = new Map(
-        monthlyStaff
-          .filter((s) => s.empid !== null && s.empid !== undefined)
-          .map((s) => [String(s.empid).trim().toLowerCase(), s])
-      );
-
-      const staffById = new Map(monthlyStaff.map((s) => [String(s.id), s]));
-
-      const unmatchedIds = new Set();
-      const invalidRows = [];
-      const mappedByUser = new Map();
-      let skippedRows = 0;
-
-      for (let i = 1; i < lines.length; i++) {
-        const rowNumber = i + 1;
-        const cells = parseCsvLine(lines[i]);
-        const empIdRaw = idxEmpId !== undefined ? (cells[idxEmpId] || '').trim() : '';
-        const userIdRaw = idxUserId !== undefined ? (cells[idxUserId] || '').trim() : '';
-        const daysRaw = (cells[idxDays] || '').trim();
-
-        if (!empIdRaw && !userIdRaw && !daysRaw) {
-          skippedRows++;
-          continue;
-        }
-
-        if ((!empIdRaw && !userIdRaw) || !daysRaw) {
-          invalidRows.push(rowNumber);
-          continue;
-        }
-
-        const leaveDays = Number(daysRaw);
-        if (!Number.isFinite(leaveDays) || leaveDays < 0) {
-          invalidRows.push(rowNumber);
-          continue;
-        }
-
-        let staffMatch = null;
-        if (userIdRaw) {
-          const uid = Number(userIdRaw);
-          if (Number.isFinite(uid) && staffById.get(String(uid))) {
-            staffMatch = staffById.get(String(uid));
-          } else {
-            unmatchedIds.add(userIdRaw);
-            continue;
-          }
-        } else {
-          staffMatch = staffByEmpId.get(empIdRaw.toLowerCase());
-          if (!staffMatch) {
-            unmatchedIds.add(empIdRaw);
-            continue;
-          }
-        }
-
-        mappedByUser.set(String(staffMatch.id), {
-          user_id: staffMatch.id,
-          no_of_days: leaveDays
-        });
-      }
-
-      const assignments = Array.from(mappedByUser.values());
-
-      if (assignments.length > 0) {
-        await importMonthlyWorkingDays(month, assignments, token);
-      }
-
-      await Promise.all([loadMonthlyData(), loadEntitlementData()]);
-
-      setUploadSummary({
-        fileName: file.name,
-        totalDataRows: lines.length - 1,
-        updatedUsers: assignments.length,
-        unmatchedEmployeeIds: Array.from(unmatchedIds),
-        invalidRows,
-        skippedRows
-      });
-
-      if (uploadSummaryTimeoutRef.current) {
-        clearTimeout(uploadSummaryTimeoutRef.current);
-      }
-      uploadSummaryTimeoutRef.current = setTimeout(() => {
-        setUploadSummary(null);
-      }, 4000);
-
-      if (assignments.length > 0) {
-        setSuccessMessage(`Upload successful. ${assignments.length} monthly working day record(s) updated for ${MONTH_NAMES[month - 1]} ${currentYear}.`);
-        if (successTimeoutRef.current) {
-          clearTimeout(successTimeoutRef.current);
-        }
-        successTimeoutRef.current = setTimeout(() => {
-          setSuccessMessage('');
-        }, 4000);
-      }
-
-      if (assignments.length === 0) {
-        setError('No valid rows were found to update monthly working days.');
-      }
-    } catch (err) {
-      setError(err.message || 'Failed to upload CSV');
-    } finally {
-      setUploadingCsv(false);
-      event.target.value = '';
-    }
-  };
 
   // Edit Entitlement Modal
   const EditEntitlementModal = () => {
@@ -417,10 +159,7 @@ const LeaveEntitlementPage = ({ token: propToken }) => {
     );
   };
 
-  const monthlyAssignedCount = useMemo(
-    () => monthlyStaff.filter((item) => item.monthly_working_days).length,
-    [monthlyStaff]
-  );
+  
 
   return (
     <div className="min-h-screen px-4 py-12 bg-gradient-to-br from-gray-50 to-gray-100 sm:px-6 lg:px-8">
@@ -428,67 +167,7 @@ const LeaveEntitlementPage = ({ token: propToken }) => {
         <div className="mb-12 text-center">
           <h1 className="mb-2 text-4xl font-extrabold text-gray-900">Leave Entitlements</h1>
         </div>
-        <div className="mb-8 rounded-xl border border-indigo-100 bg-white p-6 shadow-lg">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900">Monthly Working Days Input</h2>
-              <p className="mt-1 text-sm text-gray-600">
-                Select a month for the current year ({currentYear}), download the template, fill NoOfDays, and upload it back.
-              </p>
-            </div>
-
-            <div className="flex w-full flex-col gap-3 sm:flex-row lg:w-auto">
-              <select
-                value={month}
-                onChange={(e) => setMonth(Number(e.target.value))}
-                className="border px-4 py-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                {MONTH_NAMES.map((monthName, index) => (
-                  <option key={monthName} value={index + 1}>{monthName}</option>
-                ))}
-              </select>
-              <button
-                onClick={handleDownloadTemplate}
-                className="flex items-center justify-center px-6 py-3 font-medium text-white transition-all duration-300 transform rounded-lg shadow-lg bg-indigo-600 hover:bg-indigo-700 hover:-translate-y-1 hover:scale-105"
-                type="button"
-                disabled={monthlyLoading}
-              >
-                Download Excel Template
-              </button>
-              <button
-                onClick={handleUploadButtonClick}
-                disabled={uploadingCsv || monthlyLoading}
-                className="flex items-center justify-center px-6 py-3 font-medium text-white transition-all duration-300 transform rounded-lg shadow-lg bg-green-600 hover:bg-green-700 disabled:bg-green-300"
-                type="button"
-              >
-                {uploadingCsv ? 'Uploading...' : 'Upload Excel'}
-              </button>
-            </div>
-          </div>
-
-          <div className="mt-6 grid gap-4 md:grid-cols-3">
-            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-              <div className="text-sm font-medium text-gray-500">Month</div>
-              <div className="mt-1 text-xl font-semibold text-gray-900">{MONTH_NAMES[month - 1]}</div>
-            </div>
-            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-              <div className="text-sm font-medium text-gray-500">Current Year</div>
-              <div className="mt-1 text-xl font-semibold text-gray-900">{currentYear}</div>
-            </div>
-            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-              <div className="text-sm font-medium text-gray-500">Monthly Coverage</div>
-              <div className="mt-1 text-xl font-semibold text-gray-900">{monthlyAssignedCount} / {monthlyStaff.length}</div>
-            </div>
-          </div>
-
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".csv,text/csv"
-            onChange={handleUploadCsv}
-            className="hidden"
-          />
-        </div>
+        
 
         <div className="flex flex-col items-start justify-between gap-4 mb-6 sm:flex-row sm:items-center">
           <div className="relative w-full sm:w-72">
@@ -511,18 +190,7 @@ const LeaveEntitlementPage = ({ token: propToken }) => {
           </div>
         )}
 
-        {uploadSummary && (
-          <div className="mb-6 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
-            <div className="font-semibold mb-1">Upload Summary ({uploadSummary.fileName})</div>
-            <div>Total rows processed: {uploadSummary.totalDataRows}</div>
-            <div>Users updated for {MONTH_NAMES[month - 1]} {currentYear}: {uploadSummary.updatedUsers}</div>
-            <div>Skipped blank rows: {uploadSummary.skippedRows}</div>
-            <div>Invalid rows: {uploadSummary.invalidRows.length > 0 ? uploadSummary.invalidRows.join(', ') : 'None'}</div>
-            <div>
-              Unmatched Employee IDs: {uploadSummary.unmatchedEmployeeIds.length > 0 ? uploadSummary.unmatchedEmployeeIds.join(', ') : 'None'}
-            </div>
-          </div>
-        )}
+        
 
         <div className="mb-10 overflow-hidden bg-white shadow-xl rounded-xl">
           <div className="overflow-x-auto">
