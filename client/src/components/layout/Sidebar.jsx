@@ -33,6 +33,7 @@ const Sidebar = () => {
     { name: 'Unit Master', path: '/admin/unit-master', icon: '📏' },
     { name: 'Pillars', path: '/admin/pillers', icon: '🏛️' },
     { name: 'User-Roles', path: '/admin/user-roles', icon: '🧩' },
+    // { name: 'Monthly Attendance', path: '/admin/leaves/monthly-attendance', icon: '🗓️' },
     { name: 'Leave Entitlement', path: '/admin/leaves/leave-entitlement', icon: '🗓️' },
     { name: 'Tickets', path: '/tickets', icon: '🎫' },
   ];

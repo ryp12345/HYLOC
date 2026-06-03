@@ -14,6 +14,7 @@ const initialForm = {
   category: 'Other',
   priority: 'Medium',
   status: 'Open',
+  rejected_by_reason: '',
   user_id: '',
   assigned_to: '',
   due_date: '',
@@ -173,14 +174,27 @@ export default function TicketsPage() {
       setCategories((serverCategories && serverCategories.length) ? serverCategories : defaultCategories);
       setPriorities((serverPriorities && serverPriorities.length) ? serverPriorities : defaultPriorities);
       const serverStatuses = statusesRes?.data?.data;
-      const defaultStatuses = ['Open', 'Assigned', 'Pending', 'In Progress', 'Resolved', 'Rejected', 'Closed', 'Overdue'];
+      const defaultStatuses = [
+        'Open',
+        // 'Assigned',
+        'Pending',
+        // 'In Progress',
+        // 'Resolved',
+        'Rejected',
+        'Closed',
+        'Overdue',
+      ];
       setStatuses((serverStatuses && serverStatuses.length) ? serverStatuses : defaultStatuses);
     } catch {
       setRows([]);
       setUsers([]);
       setCategories(['Other', 'Bug', 'Feature', 'Support']);
       setPriorities(['Low', 'Medium', 'High']);
-      setStatuses(['Open', 'Pending', 'Resolved']);
+      setStatuses([
+        'Open',
+        'Pending',
+        // 'Resolved',
+      ]);
     }
   };
 
@@ -250,13 +264,14 @@ export default function TicketsPage() {
     if (initialStatus === 'Open' && !row.assigned_to) {
       assignedTo = '';
     } else if (row.assigned_to && (initialStatus === '' || String(initialStatus) === 'Open')) {
-      initialStatus = 'Assigned';
+      // initialStatus = 'Assigned';
     }
     setForm({
       title: row.title || '',
       description: row.description || '',
       category: row.category || 'Other',
       priority: row.priority || 'Medium',
+      rejected_by_reason: row.rejected_by_reason || '',
       status: initialStatus,
       user_id: row.user_id || '',
       assigned_to: assignedTo,
@@ -290,7 +305,7 @@ export default function TicketsPage() {
         // If ticket is Open and creator assigns it, set status to Assigned
         const payload = { ...form, status: form.status };
         if (payload.status === 'Open' && payload.assigned_to && String(form.user_id) === String(user?.id)) {
-          payload.status = 'Assigned';
+          // payload.status = 'Assigned';
         }
         if (payload.assigned_to !== '' && payload.assigned_to !== null) payload.assigned_to = Number(payload.assigned_to);
         if (form.attachment && form.attachment instanceof File) {
@@ -304,6 +319,7 @@ export default function TicketsPage() {
           if (payload.assigned_to !== '' && payload.assigned_to !== null) fd.append('assigned_to', String(payload.assigned_to));
           fd.append('due_date', payload.due_date);
           fd.append('attachment', form.attachment);
+          if (payload.rejected_by_reason) fd.append('rejected_by_reason', payload.rejected_by_reason);
           await updateTicket(editingId, fd);
         } else {
           await updateTicket(editingId, payload);
@@ -318,6 +334,7 @@ export default function TicketsPage() {
           fd.append('category', form.category);
           fd.append('priority', form.priority);
             fd.append('status', form.status);
+            if (form.rejected_by_reason) fd.append('rejected_by_reason', form.rejected_by_reason);
           fd.append('user_id', form.user_id);
           if (form.assigned_to !== '' && form.assigned_to !== null) fd.append('assigned_to', String(Number(form.assigned_to)));
           fd.append('due_date', form.due_date);
@@ -452,12 +469,20 @@ export default function TicketsPage() {
   const displayedStatuses = useMemo(() => {
     const list = Array.isArray(statuses) ? [...statuses] : [];
     // Keep core workflow statuses available even if API list is incomplete.
-    ['Resolved', 'Closed'].forEach(required => {
+    [
+      // 'Resolved',
+      'Closed',
+    ].forEach(required => {
       if (!list.includes(required)) list.push(required);
     });
     if (form.status && !list.includes(form.status)) {
       // show current ticket status first so select can display it even if it's missing from server list
       list.unshift(form.status);
+    }
+    // If current user is not Management, hide 'Rejected' from the selectable statuses
+    const roleNorm = (user?.role || '').toLowerCase();
+    if (roleNorm !== 'management') {
+      return list.filter(s => String(s).toLowerCase() !== 'rejected');
     }
     return list;
   }, [statuses, form.status]);
@@ -534,10 +559,10 @@ export default function TicketsPage() {
           ];
           const STATUS_CONFIG = [
             { name: 'Open',        color: '#3b82f6', bg: '#eff6ff', border: '#bfdbfe' },
-            { name: 'Assigned',    color: '#f59e0b', bg: '#fffbeb', border: '#fde68a' },
-            { name: 'In Progress', color: '#8b5cf6', bg: '#f5f3ff', border: '#ddd6fe' },
+            // { name: 'Assigned',    color: '#f59e0b', bg: '#fffbeb', border: '#fde68a' },
+            // { name: 'In Progress', color: '#8b5cf6', bg: '#f5f3ff', border: '#ddd6fe' },
             { name: 'Rejected',    color: '#ef4444', bg: '#fef2f2', border: '#fecaca' },
-            { name: 'Resolved',    color: '#10b981', bg: '#ecfdf5', border: '#a7f3d0' },
+            // { name: 'Resolved',    color: '#10b981', bg: '#ecfdf5', border: '#a7f3d0' },
             { name: 'Closed',      color: '#6b7280', bg: '#f9fafb', border: '#e5e7eb' },
           ];
           const priorityCounts = PRIORITY_CONFIG.map(p => ({
@@ -872,6 +897,17 @@ export default function TicketsPage() {
                         required
                       />
                     </div>
+                    {user && user.role && user.role.toLowerCase() === 'management' && form.status === 'Rejected' && (
+                      <div>
+                        <label className="block mb-2 text-sm font-medium text-gray-700">Rejected By Reason</label>
+                        <textarea
+                          value={form.rejected_by_reason}
+                          onChange={e => setForm({ ...form, rejected_by_reason: e.target.value })}
+                          className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          placeholder="Reason for rejection"
+                        />
+                      </div>
+                    )}
                     <div className="flex gap-4">
                       <div className="flex-1">
                         <label className="block mb-2 text-sm font-medium text-gray-700">Category</label>
@@ -909,9 +945,9 @@ export default function TicketsPage() {
                             const newAssigned = e.target.value;
                             // If status is Open and assigning, set status to Assigned
                             if (form.status === 'Open' && newAssigned) {
-                              setForm({ ...form, assigned_to: newAssigned, status: 'Assigned' });
-                            } else if (!newAssigned && form.status === 'Assigned') {
-                              // If unassigning, revert status to Open
+                              setForm({ ...form, assigned_to: newAssigned, status: 'Open' });
+                            } else if (!newAssigned && form.status === 'Open') {
+                              // If unassigning, keep status Open
                               setForm({ ...form, assigned_to: '', status: 'Open' });
                             } else {
                               setForm({ ...form, assigned_to: newAssigned });
@@ -925,9 +961,15 @@ export default function TicketsPage() {
                           ) : (
                             <>
                               <option value="">Select user</option>
-                              {users.map(u => (
-                                <option key={u.id} value={u.id}>{`${u.firstname || u.name || u.full_name || u.email}${u.lastname ? ' ' + u.lastname : ''}`}</option>
-                              ))}
+                                {(() => {
+                                  const roleNorm = (user?.role || '').toLowerCase();
+                                  const hideManagement = roleNorm === 'employee' || roleNorm === 'manager';
+                                  return users
+                                    .filter(u => !(hideManagement && String((u.role || '').toLowerCase()) === 'management'))
+                                    .map(u => (
+                                      <option key={u.id} value={u.id}>{`${u.firstname || u.name || u.full_name || u.email}${u.lastname ? ' ' + u.lastname : ''}`}</option>
+                                    ));
+                                })()}
                             </>
                           )}
                         </select>
@@ -961,7 +1003,13 @@ export default function TicketsPage() {
                                 }
                               } else if (isAssignee) {
                                 // Assignee: allow common workflow statuses
-                                const assigneeAllowed = ['Open', 'Assigned', 'In Progress', 'Rejected', 'Resolved'];
+                                const assigneeAllowed = [
+                                  'Open',
+                                  // 'Assigned',
+                                  // 'In Progress',
+                                  'Rejected',
+                                  // 'Resolved',
+                                ];
                                 if (!assigneeAllowed.includes(s)) {
                                   disabled = true;
                                   title = 'Only the assigned user can set this status';
@@ -977,7 +1025,7 @@ export default function TicketsPage() {
                             );
                           })}
                         </select>
-                        <div className="text-xs text-gray-500 mt-1">Only the assigned user can set status to Open, Assigned, In Progress, Rejected or Resolved. Only the ticket creator can set status to Closed.</div>
+                        <div className="text-xs text-gray-500 mt-1">Only the assigned user can set status to Open or Rejected. Only the ticket creator can set status to Closed.</div>
                       </div>
                     </div>
                     <div className="flex gap-4">

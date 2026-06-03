@@ -427,9 +427,7 @@ const LeaveEntitlementPage = ({ token: propToken }) => {
       <div className="max-w-7xl mx-auto">
         <div className="mb-12 text-center">
           <h1 className="mb-2 text-4xl font-extrabold text-gray-900">Leave Entitlements</h1>
-          <p className="text-lg text-gray-600">Capture monthly NoOfDays and manage annual leave entitlements</p>
         </div>
-
         <div className="mb-8 rounded-xl border border-indigo-100 bg-white p-6 shadow-lg">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
             <div>

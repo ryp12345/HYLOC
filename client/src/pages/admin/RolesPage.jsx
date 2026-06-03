@@ -148,6 +148,11 @@ export default function RolesPage() {
 
   useEffect(() => { setPage(1); }, [search, rows]);
 
+
+  
+
+
+
   return (
     <div className="min-h-screen px-4 py-12 bg-gradient-to-br from-gray-50 to-gray-100 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
@@ -243,7 +248,6 @@ export default function RolesPage() {
             </div>
           )}
         </div>
-
         {isModalOpen && (
           <div className="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true">
             <div className="flex items-end justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">

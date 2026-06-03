@@ -1,26 +1,34 @@
--- Create tickets table
 CREATE TABLE IF NOT EXISTS public.tickets
 (
-    id integer NOT NULL DEFAULT nextval('tickets_id_seq'::regclass),
-    title character varying(255) COLLATE pg_catalog."default" NOT NULL,
-    description text COLLATE pg_catalog."default" NOT NULL,
-    category enum_tickets_category DEFAULT 'Other'::enum_tickets_category,
-    priority enum_tickets_priority DEFAULT 'Medium'::enum_tickets_priority,
-    status enum_tickets_status DEFAULT 'Open'::enum_tickets_status,
+    id integer GENERATED ALWAYS AS IDENTITY,
+    title varchar(255) NOT NULL,
+    status enum_tickets_status,
+    description text NOT NULL,
+    category enum_tickets_category DEFAULT 'Other',
+    priority enum_tickets_priority DEFAULT 'Medium',
     user_id integer NOT NULL,
     assigned_to integer,
-    created_at timestamp without time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at timestamp without time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    closed_at timestamp without time zone,
-    attachment character varying(255) COLLATE pg_catalog."default",
-    due_date date NOT NULL,
+    attachment varchar(255),
+    due_date date,
+    rejected_by integer,
+    rejected_by_reason varchar(255),
+    created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
     CONSTRAINT tickets_pkey PRIMARY KEY (id),
-    CONSTRAINT fk_assigned_to FOREIGN KEY (assigned_to)
-        REFERENCES public.users (id) MATCH SIMPLE
-        ON UPDATE NO ACTION
+
+    CONSTRAINT fk_assigned_to
+        FOREIGN KEY (assigned_to)
+        REFERENCES users(id)
         ON DELETE SET NULL,
-    CONSTRAINT fk_created_by FOREIGN KEY (user_id)
-        REFERENCES public.users (id) MATCH SIMPLE
-        ON UPDATE NO ACTION
-        ON DELETE CASCADE
+
+    CONSTRAINT fk_created_by
+        FOREIGN KEY (user_id)
+        REFERENCES users(id)
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_rejected_by
+        FOREIGN KEY (rejected_by)
+        REFERENCES users(id)
+        ON DELETE SET NULL
 );

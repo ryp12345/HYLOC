@@ -17,6 +17,8 @@ const getInitialYear = () => {
 function KmisPage() {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
+  const normalizedRole = (user?.role?.name || user?.role || '').toString().trim().toLowerCase();
+  const isAdmin = normalizedRole === 'admin';
   
   // State declarations MUST come before any conditional returns
   const [kpis, setKpis] = useState([]);
@@ -52,10 +54,10 @@ function KmisPage() {
   
   // Check if user is admin
   useEffect(() => {
-    if (!authLoading && (!user || user.role !== 'admin')) {
+    if (!authLoading && (!user || !isAdmin)) {
       navigate('/unauthorized', { replace: true });
     }
-  }, [user, authLoading, navigate]);
+  }, [user, authLoading, isAdmin, navigate]);
   
   // Show loading while checking auth
   if (authLoading) {
@@ -70,7 +72,7 @@ function KmisPage() {
   }
   
   // Redirect if not admin
-  if (!user || user.role !== 'admin') {
+  if (!user || !isAdmin) {
     return null;
   }
 

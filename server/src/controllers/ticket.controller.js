@@ -16,6 +16,7 @@ const ticketModel = require('../models/ticket.model');
 const notificationModel = require('../models/notification.model');
 const fs = require('fs');
 const path = require('path');
+const pool = require('../config/db');
 
 const publicRoot = path.resolve(__dirname, '../../public');
 const ticketUploadsBasePath = '/api/uploads/tickets';
@@ -105,9 +106,19 @@ exports.createTicket = async (req, res) => {
       attachment: attachmentUrl || null,
     };
 
-    // If the creator assigns the ticket on create, force status to 'Assigned'
-    if (ticketData.assigned_to && ticketData.user_id && String(ticketData.user_id) === String(req.user.userId)) {
-      ticketData.status = 'Assigned';
+    // enforce: Employees or Managers cannot assign tickets to Management users
+    try {
+      const requesterRole = req.user && req.user.role ? String(req.user.role).toLowerCase() : '';
+      if (ticketData.assigned_to && (requesterRole === 'employee' || requesterRole === 'manager')) {
+        const tgtRes = await pool.query('SELECT r.role_name FROM users u JOIN user_roles ur ON ur.user_id = u.id JOIN roles r ON ur.role_id = r.id WHERE u.id = $1 AND ur.status = $2', [ticketData.assigned_to, 'active']);
+        const tgtRole = tgtRes && tgtRes.rows && tgtRes.rows[0] ? String(tgtRes.rows[0].role_name).toLowerCase() : '';
+        if (tgtRole === 'management') {
+          return res.status(403).json({ success: false, message: 'You are not allowed to assign tickets to Management users' });
+        }
+      }
+    } catch (e) {
+      console.error('Role-check error on createTicket:', e);
+      // fallthrough - don't block creation on role-check DB error, but log
     }
 
     const created = await ticketModel.createTicket(ticketData);
@@ -174,13 +185,10 @@ exports.updateTicket = async (req, res) => {
     const requesterId = req.user?.userId;
     const requesterRole = req.user?.role;
 
-    // Allowed status transitions map
+    // Allowed status transitions map — simplified: only Open -> Rejected or Closed allowed
     const allowedTransitions = {
-      Open: ['Assigned', 'Rejected'],
-      Rejected: ['Open'],
-      Assigned: ['In Progress', 'Rejected'],
-      'In Progress': ['Resolved', 'Rejected'],
-      Resolved: ['Closed'],
+      Open: ['Rejected', 'Closed'],
+      Rejected: [],
       Closed: [],
     };
 
@@ -245,12 +253,7 @@ exports.updateTicket = async (req, res) => {
       }
     }
 
-    // If trying to set status to one of the assignee-only states, only allow the assigned user
-    if (payload.status && ['In Progress', 'Rejected', 'Resolved'].includes(String(payload.status))) {
-      if (String(existing.assigned_to) !== String(requesterId)) {
-        return res.status(403).json({ success: false, message: 'Only the assigned user can set status to In Progress / Rejected / Resolved' });
-      }
-    }
+    // Rejection is handled below and is restricted to Management users.
 
     // If trying to set status to Closed, only allow the creator
     if (payload.status && String(payload.status) === 'Closed') {
@@ -259,19 +262,22 @@ exports.updateTicket = async (req, res) => {
       }
     }
 
-    // If the creator actually changes the assignee, keep the workflow in Assigned.
-    // Do not override status for unrelated creator edits such as closing a resolved ticket.
     const payloadAssignedRaw = payload.assigned_to !== undefined && payload.assigned_to !== null ? String(payload.assigned_to) : null;
     const existingAssignedRaw = existing.assigned_to !== undefined && existing.assigned_to !== null ? String(existing.assigned_to) : null;
-    if (
-      payloadAssignedRaw &&
-      String(existing.user_id) === String(requesterId) &&
-      payloadAssignedRaw !== existingAssignedRaw
-    ) {
-      payload.status = 'Assigned';
+    // New rule: if requester is Employee or Manager, they cannot set assigned_to to a Management user
+    try {
+      const reqRoleNorm = requesterRole ? String(requesterRole).toLowerCase() : '';
+      if (payloadAssignedRaw && (reqRoleNorm === 'employee' || reqRoleNorm === 'manager')) {
+        const tgtRes = await pool.query('SELECT r.role_name FROM users u JOIN user_roles ur ON ur.user_id = u.id JOIN roles r ON ur.role_id = r.id WHERE u.id = $1 AND ur.status = $2', [payloadAssignedRaw, 'active']);
+        const tgtRole = tgtRes && tgtRes.rows && tgtRes.rows[0] ? String(tgtRes.rows[0].role_name).toLowerCase() : '';
+        if (tgtRole === 'management') {
+          return res.status(403).json({ success: false, message: 'You are not allowed to assign tickets to Management users' });
+        }
+      }
+    } catch (e) {
+      console.error('Role-check error on updateTicket:', e);
+      // don't block on DB error
     }
-
-
     // On any status change, notify creator and all Managers (no assignee notification)
     let sentStatusNotification = false;
     if (payload.status && payload.status !== existing.status) {
@@ -286,31 +292,27 @@ exports.updateTicket = async (req, res) => {
         `);
         const managerIds = mgrRes.rows.map(r => r.id).filter(id => id !== existing.user_id);
         
-        // Special handling for 'Rejected' status: send custom format to creator
+        // Special handling for 'Rejected' status: only Management may reject.
         if (payload.status === 'Rejected') {
-          // Send custom format to creator
-          const creatorMessage = `Type: Ticket rejected\nTitle: ${existing.title}\nDescription: ${existing.description || ''}`;
-          await notificationModel.createNotification({ created_by: requesterId, assigned_to: existing.user_id, message: creatorMessage, type: 'ticket_status' });
-
-          // Send standard format to managers
-          /* for (const managerId of managerIds) {
-            const managerMessage = `Ticket #${existing.id} ('${existing.title}') status changed to ${payload.status} by user #${requesterId}`;
-            await notificationModel.createNotification({ created_by: requesterId, assigned_to: managerId, message: managerMessage, type: 'ticket_status' });
-          } */
-
-          // Treat 'Rejected' as a transient state for all cases:
-          // - Revert status back to 'Open'
-          // - Unassign the ticket so the creator can reassign
-          try {
-            payload.status = 'Open';
-            payload.assigned_to = null;
-          } catch (e) {
-            console.error('Error handling transient Rejected state:', e);
+          const reqRoleNorm = requesterRole ? String(requesterRole).toLowerCase() : '';
+          if (reqRoleNorm !== 'management') {
+            return res.status(403).json({ success: false, message: 'Only Management users can reject tickets' });
           }
-        } else if (payload.status === 'Resolved') {
-          // When assignee resolves the ticket, notify the creator with a resolved notification
-          const creatorMessage = `Type: Ticket resolved\nTitle: ${existing.title}\nDescription: ${existing.description || ''}`;
-          await notificationModel.createNotification({ created_by: requesterId, assigned_to: existing.user_id, message: creatorMessage, type: 'ticket_status' });
+
+          // Treat Management rejection as an effective close: set status to 'Closed'
+          try {
+            payload.status = 'Closed';
+            // record who rejected it for audit
+            payload.rejected_by = requesterId;
+            if (payload.rejected_by_reason === undefined && existing && existing.description) {
+              // keep reason if provided in payload; otherwise leave null
+            }
+            // Notify the creator that the ticket was rejected (effectively closed)
+            const creatorMessage = `Type: Ticket rejected\nTitle: ${existing.title}\nDescription: ${existing.description || ''}`;
+            await notificationModel.createNotification({ created_by: requesterId, assigned_to: existing.user_id, message: creatorMessage, type: 'ticket_status' });
+          } catch (e) {
+            console.error('Error handling Rejected→Closed transition:', e);
+          }
         } else {
           // For other status changes, send standard format to all recipients (kept commented intentionally)
           /* const recipients = new Set([existing.user_id, ...managerIds]);
