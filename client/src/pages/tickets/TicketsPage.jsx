@@ -333,8 +333,8 @@ export default function TicketsPage() {
           fd.append('description', form.description);
           fd.append('category', form.category);
           fd.append('priority', form.priority);
-            fd.append('status', form.status);
-            if (form.rejected_by_reason) fd.append('rejected_by_reason', form.rejected_by_reason);
+          // New tickets must start in Open; Rejected is an update-only workflow status.
+          fd.append('status', 'Open');
           fd.append('user_id', form.user_id);
           if (form.assigned_to !== '' && form.assigned_to !== null) fd.append('assigned_to', String(Number(form.assigned_to)));
           fd.append('due_date', form.due_date);
@@ -342,6 +342,8 @@ export default function TicketsPage() {
           await createTicket(fd);
         } else {
           const payload = { ...form };
+          payload.status = 'Open';
+          delete payload.rejected_by_reason;
           if (payload.assigned_to !== '' && payload.assigned_to !== null) payload.assigned_to = Number(payload.assigned_to);
           await createTicket(payload);
         }
@@ -986,10 +988,15 @@ export default function TicketsPage() {
                             const isEditing = Boolean(editingId);
                             const isAssignee = String(form.assigned_to) === String(user?.id);
                             const isCreator = String(form.user_id) === String(user?.id);
+                            const isManagementUser = String(user?.role || '').toLowerCase() === 'management';
                             let disabled = false;
                             let title = '';
                             if (isEditing) {
-                              if (s === 'Closed') {
+                              // Management can always reject tickets from edit mode.
+                              if (isManagementUser && s === 'Rejected') {
+                                disabled = false;
+                                title = '';
+                              } else if (s === 'Closed') {
                                 // Closed is creator-controlled regardless of assignee role.
                                 if (!isCreator) {
                                   disabled = true;
@@ -1025,7 +1032,7 @@ export default function TicketsPage() {
                             );
                           })}
                         </select>
-                        <div className="text-xs text-gray-500 mt-1">Only the assigned user can set status to Open or Rejected. Only the ticket creator can set status to Closed.</div>
+                        <div className="text-xs text-gray-500 mt-1">Management can set status to Rejected. Only the assigned user can set status to Open. Only the ticket creator can set status to Closed.</div>
                       </div>
                     </div>
                     <div className="flex gap-4">

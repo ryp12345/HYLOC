@@ -75,6 +75,8 @@ exports.updateTicket = async (id, data) => {
   if (data.due_date !== undefined) { fields.push(`due_date = $${idx++}`); values.push(data.due_date); }
   if (data.attachment !== undefined) { fields.push(`attachment = $${idx++}`); values.push(data.attachment); }
   if (data.status !== undefined) { fields.push(`status = $${idx++}`); values.push(data.status); }
+  if (data.rejected_by !== undefined) { fields.push(`rejected_by = $${idx++}`); values.push(data.rejected_by); }
+  if (data.rejected_by_reason !== undefined) { fields.push(`rejected_by_reason = $${idx++}`); values.push(data.rejected_by_reason); }
 
   if (fields.length === 0) return await exports.getTicketById(id);
 

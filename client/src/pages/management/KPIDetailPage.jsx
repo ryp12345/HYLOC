@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { getKPIById, getChildKPIs, getKPIValuesByKPI, getMonthlyDataByKPIValue } from '../../api/kpiApi';
+import { getKPIs, getKPIById, getChildKPIs, getKPIValuesByKPI, getMonthlyDataByKPIValue } from '../../api/kpiApi';
 import { getUserById } from '../../api/userApi';
 import { useAuth } from '../../context/AuthContext';
 
@@ -234,6 +234,30 @@ const getLatestSeriesValue = (seriesValues) => {
   return null;
 };
 
+const isCorporateManagementLossTitle = (title) => {
+  const normalized = (title || '').toString().trim().toLowerCase();
+  return normalized.includes('corporate property management loss');
+};
+
+const normalizeTextValue = (value) => (value || '').toString().trim().toLowerCase();
+
+const parseFiscalYearStart = (value) => {
+  if (value == null) return null;
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+  if (typeof value === 'string') {
+    const match = value.match(/\d{4}/);
+    if (match) {
+      const parsed = Number(match[0]);
+      return Number.isFinite(parsed) ? parsed : null;
+    }
+    const fallback = Number(value);
+    return Number.isFinite(fallback) ? fallback : null;
+  }
+  return null;
+};
+
+const LOSS_STACK_COLORS = ['#8bc34a', '#f9a825', '#ef6c00', '#6d4c41', '#26a69a', '#5c6bc0', '#ab47bc', '#42a5f5'];
+
   
 
 const KPIDetailPage = () => {
@@ -254,11 +278,11 @@ const KPIDetailPage = () => {
   const [parentKPI, setParentKPI] = useState(null);
   const [parentKPIValues, setParentKPIValues] = useState([]);
   const [parentMonthlyData, setParentMonthlyData] = useState({});
-  const [hierarchyData, setHierarchyData] = useState([]);
+  const [oeeChartData, setOeeChartData] = useState(null);
+  const [managementLossNode, setManagementLossNode] = useState(null);
   const [loading, setLoading] = useState(true);
   const [fiscalYear, setFiscalYear] = useState(location.state?.fiscalYear || getCurrentFiscalYear());
   const [expandedNodes, setExpandedNodes] = useState(new Set([parseInt(kpiId)]));
-  const [managementInsights, setManagementInsights] = useState(null);
   const [showScrollToTop, setShowScrollToTop] = useState(false);
   const [modalChart, setModalChart] = useState(null);
   const [userCache, setUserCache] = useState({});
@@ -325,6 +349,29 @@ const KPIDetailPage = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const flattenLossRows = (lossNode) => {
+    const output = [];
+    const walk = (currentNode) => {
+      if (!currentNode) return;
+
+      (Array.isArray(currentNode.values) ? currentNode.values : []).forEach((value) => {
+        const rows = currentNode.monthlyData?.[value.id] || [];
+        if (!rows.length) return;
+        rows.forEach((row) => {
+          output.push({
+            ...row,
+            value_type: row?.value_type || value?.data || currentNode?.kpi?.title || 'Actual',
+          });
+        });
+      });
+
+      (currentNode.children || []).forEach(walk);
+    };
+
+    walk(lossNode);
+    return output;
+  };
+
   const openChartModal = (chart) => {
     setModalChart(chart);
     // Prefetch operator usernames for modal rows (fire-and-forget)
@@ -372,27 +419,10 @@ const KPIDetailPage = () => {
       setParentKPI(parentKPIData);
       console.log('📊 Parent KPI loaded:', parentKPIData.title, 'ID:', parentKPIData.id);
 
-      // Load full hierarchy
-      const hierarchy = await loadKPITreeRecursive(kpiId, 1);
-      console.log('📊 Hierarchy loaded:', hierarchy.length, 'child KPIs found');
-
       await loadParentKpiValues(kpiId, fiscalYear);
-      
-      // Auto-expand first level of child KPIs
-      if (hierarchy.length > 0) {
-        const newExpandedNodes = new Set([parseInt(kpiId)]);
-        hierarchy.forEach(node => {
-          newExpandedNodes.add(node.kpi.id);
-          console.log(`🔓 Auto-expanding child KPI: ${node.kpi.title} (ID: ${node.kpi.id})`);
-        });
-        setExpandedNodes(newExpandedNodes);
-      }
-      
-      setHierarchyData(hierarchy);
+      await loadComparisonCards(fiscalYear);
 
-      // Generate comprehensive management insights
-      const insights = generateManagementInsights(hierarchy);
-      setManagementInsights(insights);
+      setExpandedNodes(new Set([parseInt(kpiId)]));
 
     } catch (error) {
       console.error('Error loading KPI hierarchy:', error);
@@ -451,88 +481,121 @@ const KPIDetailPage = () => {
     }
   };
 
-  // Recursive function to load entire KPI tree
-  const loadKPITreeRecursive = async (kpiId, level) => {
+  const loadMonthlyDataForValue = async (valueId, fyYear) => {
+    const allMonthlyData = [];
+
     try {
-      // Load children
-      console.log(`🔍 Loading children for KPI ID ${kpiId} at level ${level}`);
-      const childRes = await getChildKPIs(kpiId);
-      const children = childRes.data.data;
-      console.log(`✅ Found ${children.length} child KPIs:`, children.map(c => ({ id: c.id, title: c.title })));
-
-      if (children.length === 0) {
-        console.log(`⚠️ No child KPIs found for KPI ID ${kpiId}`);
-        return [];
+      const dataRes1 = await getMonthlyDataByKPIValue(valueId, fyYear);
+      if (dataRes1.data.data && Array.isArray(dataRes1.data.data)) {
+        const filteredYearOne = filterRowsForFiscalWindow(dataRes1.data.data, fyYear, fyYear);
+        allMonthlyData.push(...filteredYearOne);
       }
-
-      // Load data for each child
-      const hierarchyItems = [];
-      for (const child of children) {
-        console.log(`  📄 Processing child KPI: ${child.title} (ID: ${child.id})`);
-        
-        // Load KPI values
-        const valuesRes = await getKPIValuesByKPI(child.id);
-        const values = valuesRes.data.data;
-        console.log(`    📊 Found ${values.length} KPI values:`, values.map(v => v.data));
-
-        // Load monthly data for each KPI value
-        // Fiscal year spans two calendar years: Apr-Dec of fiscalYear, Jan-Mar of fiscalYear+1
-        const monthlyDataByValue = {};
-
-        for (const value of values) {
-          try {
-            const allMonthlyData = [];
-            
-            // Get data for first calendar year (April-December)
-            try {
-              const dataRes1 = await getMonthlyDataByKPIValue(value.id, fiscalYear);
-              console.log(`    📅 Fetched data for ${value.data} (ID: ${value.id}) year ${fiscalYear}:`, dataRes1.data?.data?.length || 0, 'records');
-              if (dataRes1.data?.data && Array.isArray(dataRes1.data.data)) {
-                const filteredYearOne = filterRowsForFiscalWindow(dataRes1.data.data, fiscalYear, fiscalYear);
-                console.log(`    🧹 Fiscal-filtered year ${fiscalYear} rows for ${value.data}:`, filteredYearOne.length);
-                allMonthlyData.push(...filteredYearOne);
-              }
-            } catch (err) {
-              console.warn(`    ⚠️ No data for ${value.data} year ${fiscalYear}:`, err.message);
-            }
-            
-            // Get data for second calendar year (January-March)
-            try {
-              const dataRes2 = await getMonthlyDataByKPIValue(value.id, fiscalYear + 1);
-              console.log(`    📅 Fetched data for ${value.data} (ID: ${value.id}) year ${fiscalYear + 1}:`, dataRes2.data?.data?.length || 0, 'records');
-              if (dataRes2.data?.data && Array.isArray(dataRes2.data.data)) {
-                const filteredYearTwo = filterRowsForFiscalWindow(dataRes2.data.data, fiscalYear + 1, fiscalYear);
-                console.log(`    🧹 Fiscal-filtered year ${fiscalYear + 1} rows for ${value.data}:`, filteredYearTwo.length);
-                allMonthlyData.push(...filteredYearTwo);
-              }
-            } catch (err) {
-              console.warn(`    ⚠️ No data for ${value.data} year ${fiscalYear + 1}:`, err.message);
-            }
-            
-            console.log(`    ✅ Total data collected for ${value.data}:`, allMonthlyData.length, 'records', allMonthlyData);
-            monthlyDataByValue[value.id] = allMonthlyData;
-          } catch (error) {
-            console.error(`Error loading data for KPI value ${value.id}:`, error);
-            monthlyDataByValue[value.id] = [];
-          }
-        }
-
-        // Recursively load children
-        const grandChildren = await loadKPITreeRecursive(child.id, level + 1);
-
-        hierarchyItems.push({
-          kpi: child,
-          level,
-          values,
-          monthlyData: monthlyDataByValue,
-          children: grandChildren,
-        });
-      }
-
-      return hierarchyItems;
     } catch (error) {
-      console.error(`Error loading KPI tree for ${kpiId}:`, error);
-      return [];
+      // ignore missing year data
+    }
+
+    try {
+      const dataRes2 = await getMonthlyDataByKPIValue(valueId, fyYear + 1);
+      if (dataRes2.data.data && Array.isArray(dataRes2.data.data)) {
+        const filteredYearTwo = filterRowsForFiscalWindow(dataRes2.data.data, fyYear + 1, fyYear);
+        allMonthlyData.push(...filteredYearTwo);
+      }
+    } catch (error) {
+      // ignore missing year data
+    }
+
+    return allMonthlyData;
+  };
+
+  const buildLossTreeNode = async (kpi, fyYear, level = 1) => {
+    const valuesRes = await getKPIValuesByKPI(kpi.id);
+    const values = valuesRes.data.data || [];
+
+    const monthlyDataByValue = {};
+    for (const value of values) {
+      monthlyDataByValue[value.id] = await loadMonthlyDataForValue(value.id, fyYear);
+    }
+
+    const childRes = await getChildKPIs(kpi.id);
+    const childKpis = childRes.data.data || [];
+    const children = [];
+    for (const childKpi of childKpis) {
+      children.push(await buildLossTreeNode(childKpi, fyYear, level + 1));
+    }
+
+    return {
+      kpi,
+      level,
+      values,
+      monthlyData: monthlyDataByValue,
+      children,
+    };
+  };
+
+  const loadComparisonCards = async (fyYear) => {
+    let allKpis = [];
+    try {
+      const kpisRes = await getKPIs();
+      allKpis = kpisRes.data?.data || [];
+    } catch (error) {
+      console.error('Error fetching KPI list:', error);
+      setOeeChartData(null);
+      setManagementLossNode(null);
+      return;
+    }
+
+    const fiscalScopedKpis = allKpis.filter((kpi) => parseFiscalYearStart(kpi?.fin_year) === fyYear);
+
+    const findKpi = (matchers) => {
+      const checks = Array.isArray(matchers) ? matchers : [matchers];
+      const byTitle = (kpi) => {
+        const title = normalizeTextValue(kpi?.title);
+        return checks.some((check) => check(title));
+      };
+
+      return fiscalScopedKpis.find(byTitle) || allKpis.find(byTitle) || null;
+    };
+
+    // Load OEE independently so its failure doesn't affect the loss chart
+    try {
+      const oeeKpi = findKpi([
+        (title) => title === 'overall equipment effectiveness (oee)',
+        (title) => title.includes('overall equipment effectiveness'),
+        (title) => title.includes('oee')
+      ]);
+
+      if (oeeKpi) {
+        const oeeValuesRes = await getKPIValuesByKPI(oeeKpi.id);
+        const oeeValues = oeeValuesRes.data.data || [];
+        const firstOeeValue = oeeValues[0] || null;
+        const oeeMonthlyData = firstOeeValue ? await loadMonthlyDataForValue(firstOeeValue.id, fyYear) : [];
+        setOeeChartData({ title: oeeKpi.title, data: oeeMonthlyData });
+      } else {
+        setOeeChartData(null);
+      }
+    } catch (error) {
+      console.error('Error loading OEE chart data:', error);
+      setOeeChartData(null);
+    }
+
+    // Load management loss independently so its failure doesn't affect OEE
+    try {
+      const lossKpi = findKpi([
+        (title) => title === 'corporate property management loss',
+        (title) => title.includes('corporate property management loss'),
+        (title) => title.includes('management loss')
+      ]);
+
+      if (lossKpi) {
+        const lossTree = await buildLossTreeNode(lossKpi, fyYear);
+        setManagementLossNode(lossTree);
+      } else {
+        console.warn(`[ManagementLoss] No KPI found matching "management loss" titles in FY${fyYear}. Available KPIs:`, allKpis.map(k => k.title));
+        setManagementLossNode(null);
+      }
+    } catch (error) {
+      console.error('Error loading management loss chart data:', error);
+      setManagementLossNode(null);
     }
   };
 
@@ -561,340 +624,6 @@ const KPIDetailPage = () => {
     } else {
       // For normal metrics (higher is better): achievement = (actual / target) * 100
       return (actual / target) * 100;
-    }
-  };
-
-  // Generate comprehensive management insights
-  const generateManagementInsights = (hierarchy) => {
-    const insights = {
-      overallPerformance: 0,
-      criticalAreas: [],
-      excelling: [],
-      needsAttention: [],
-      recommendations: [],
-      trends: {},
-      risks: [],
-      achievements: [],
-      byLevel: {}, // Performance breakdown by hierarchy level
-      byCategory: {}, // Performance breakdown by KPI category
-      summary: {
-        totalKPIs: 0,
-        kpisWithData: 0,
-        kpisAboveTarget: 0,
-        kpisBelowTarget: 0,
-        deepestLevel: 0
-      }
-    };
-
-    let totalKPIs = 0;
-    let performanceSum = 0;
-    const levelPerformance = {}; // Track performance by level
-    const categoryPerformance = {}; // Track performance by category
-
-    const analyzeKPINode = (node) => {
-      const { kpi, values, monthlyData, children, level } = node;
-      
-      // Only count KPIs that have values (actual metrics), not parent grouping nodes
-      if (values && values.length > 0) {
-        insights.summary.totalKPIs++;
-      }
-      insights.summary.deepestLevel = Math.max(insights.summary.deepestLevel, level);
-      
-      // Initialize level tracking
-      if (!levelPerformance[level]) {
-        levelPerformance[level] = {
-          count: 0,
-          performanceSum: 0,
-          kpis: []
-        };
-      }
-      
-      const achievementRates = [];
-      const kpiInsights = [];
-      let hasAnyData = false;
-
-      // Analyze each value separately
-      for (const value of values) {
-        const data = monthlyData[value.id] || [];
-        
-        const actuals = data
-          .filter(d => extractRowType(d) === 'actual')
-          .sort(sortByExtractedMonth);
-        const targets = data
-          .filter(d => extractRowType(d) === 'target')
-          .sort(sortByExtractedMonth);
-
-        if (actuals.length > 0 && targets.length > 0) {
-          hasAnyData = true;
-          
-          // Calculate achievement rate for this specific metric
-          const latestActual = extractActualTarget(actuals[actuals.length - 1]).actual ?? parseNumeric(actuals[actuals.length - 1].value) ?? 0;
-          const latestTarget = extractActualTarget(targets[targets.length - 1]).target ?? parseNumeric(targets[targets.length - 1].value) ?? 0;
-          
-          if (latestTarget > 0 || latestActual > 0) {
-            const achievementRate = calculateAchievementRate(latestActual, latestTarget, value.data);
-            achievementRates.push(achievementRate);
-
-            // Trend analysis
-            if (actuals.length >= 3) {
-              const last3 = actuals.slice(-3).map(a => parseNumeric(a.value) || 0);
-              const trend = calculateTrend(last3);
-              
-              const isInverse = isInverseMetric(value.data);
-              
-              // For inverse metrics, declining trend (going up) is bad
-              // For normal metrics, declining trend (going down) is bad
-              const isTrendBad = isInverse ? 
-                (trend.direction === 'improving') : 
-                (trend.direction === 'declining');
-              
-              if (isTrendBad && achievementRate < 90) {
-                insights.risks.push({
-                  kpi: kpi.title,
-                  metric: value.data,
-                  level: level,
-                  issue: `${isInverse ? 'Increasing' : 'Declining'} trend with ${achievementRate.toFixed(1)}% achievement`,
-                  severity: achievementRate < 80 ? 'HIGH' : 'MEDIUM'
-                });
-              }
-
-              const isTrendGood = isInverse ? 
-                (trend.direction === 'declining') : 
-                (trend.direction === 'improving');
-              
-              if (isTrendGood && achievementRate >= 90) {
-                insights.achievements.push({
-                  kpi: kpi.title,
-                  metric: value.data,
-                  level: level,
-                  details: `${isInverse ? 'Decreasing' : 'Improving'} trend with ${achievementRate.toFixed(1)}% achievement`
-                });
-              }
-            }
-
-            // Month-over-month analysis
-            if (actuals.length >= 2) {
-              const prevVal = parseNumeric(actuals[actuals.length - 2].value) || 0;
-              if (prevVal !== 0) {
-                const mom = ((actuals[actuals.length - 1].value - prevVal) / prevVal * 100);
-                
-                if (Math.abs(mom) > 20) {
-                  kpiInsights.push({
-                    metric: value.data,
-                    change: mom,
-                    type: mom > 0 ? 'surge' : 'drop'
-                  });
-                }
-              }
-            }
-          }
-        }
-      }
-
-      // Calculate average KPI performance from individual achievement rates
-      if (achievementRates.length > 0) {
-        insights.summary.kpisWithData++;
-        const kpiPerformance = achievementRates.reduce((sum, rate) => sum + rate, 0) / achievementRates.length;
-        totalKPIs++;
-        performanceSum += kpiPerformance;
-        
-        // Track by level
-        levelPerformance[level].count++;
-        levelPerformance[level].performanceSum += kpiPerformance;
-        levelPerformance[level].kpis.push({
-          title: kpi.title,
-          performance: kpiPerformance
-        });
-
-        // Track by category
-        const categoryName = kpi.category_name || 'Uncategorized';
-        if (!categoryPerformance[categoryName]) {
-          categoryPerformance[categoryName] = {
-            count: 0,
-            performanceSum: 0,
-            kpis: [],
-            categoryId: kpi.category_id
-          };
-        }
-        categoryPerformance[categoryName].count++;
-        categoryPerformance[categoryName].performanceSum += kpiPerformance;
-        categoryPerformance[categoryName].kpis.push({
-          id: kpi.id,
-          title: kpi.title,
-          performance: kpiPerformance,
-          level: level
-        });
-
-        // Count above/below target
-        if (kpiPerformance >= 100) {
-          insights.summary.kpisAboveTarget++;
-        } else {
-          insights.summary.kpisBelowTarget++;
-        }
-
-        // Categorize KPI
-        if (kpiPerformance >= 110) {
-          insights.excelling.push({
-            kpi: kpi.title,
-            performance: kpiPerformance.toFixed(1),
-            level: level,
-            levelName: getLevelName(level)
-          });
-        } else if (kpiPerformance < 85) {
-          insights.needsAttention.push({
-            kpi: kpi.title,
-            performance: kpiPerformance.toFixed(1),
-            gap: (100 - kpiPerformance).toFixed(1),
-            level: level,
-            levelName: getLevelName(level)
-          });
-        }
-
-        // Store insights
-        if (kpiInsights.length > 0) {
-          insights.trends[kpi.title] = kpiInsights;
-        }
-      }
-
-      // Recursively analyze children
-      if (children && children.length > 0) {
-        children.forEach(analyzeKPINode);
-      }
-    };
-    
-    // Helper to get level name
-    const getLevelName = (level) => {
-      const levelNames = {
-        1: 'Department Level',
-        2: 'Sub-Department Level',
-        3: 'Team/Unit Level',
-        4: 'Individual/Activity Level'
-      };
-      return levelNames[level] || `Level ${level}`;
-    };
-
-    // Analyze all nodes
-    hierarchy.forEach(analyzeKPINode);
-
-    // Calculate overall performance
-    insights.overallPerformance = totalKPIs > 0 ? (performanceSum / totalKPIs) : 0;
-    
-    // Calculate performance by level
-    Object.keys(levelPerformance).forEach(level => {
-      const levelData = levelPerformance[level];
-      if (levelData.count > 0) {
-        insights.byLevel[level] = {
-          levelName: getLevelName(parseInt(level)),
-          avgPerformance: (levelData.performanceSum / levelData.count).toFixed(1),
-          kpiCount: levelData.count,
-          topKPIs: levelData.kpis
-            .sort((a, b) => b.performance - a.performance)
-            .slice(0, 3),
-          bottomKPIs: levelData.kpis
-            .sort((a, b) => a.performance - b.performance)
-            .slice(0, 3)
-        };
-      }
-    });
-
-    // Calculate performance by category
-    Object.keys(categoryPerformance).forEach(categoryName => {
-      const catData = categoryPerformance[categoryName];
-      if (catData.count > 0) {
-        const avgPerf = (catData.performanceSum / catData.count);
-        const topKPIs = [...catData.kpis]
-          .filter((kpi) => kpi.performance >= 100)
-          .sort((a, b) => b.performance - a.performance)
-          .slice(0, 5);
-
-        const getKPIKey = (kpi) => `${kpi.id ?? 'no-id'}::${kpi.title ?? ''}::${kpi.level ?? ''}`;
-        const topKPIIds = new Set(topKPIs.map((kpi) => getKPIKey(kpi)));
-        const bottomKPIs = [...catData.kpis]
-          .filter((kpi) => kpi.performance < 90 && !topKPIIds.has(getKPIKey(kpi)))
-          .sort((a, b) => a.performance - b.performance)
-          .slice(0, 5);
-
-        insights.byCategory[categoryName] = {
-          categoryName: categoryName,
-          avgPerformance: avgPerf.toFixed(1),
-          kpiCount: catData.count,
-          topKPIs,
-          bottomKPIs,
-          excelling: catData.kpis.filter(k => k.performance >= 110).length,
-          needsAttention: catData.kpis.filter(k => k.performance < 85).length,
-          performanceStatus: avgPerf >= 100 ? 'Exceeding' : avgPerf >= 90 ? 'On Track' : avgPerf >= 80 ? 'Needs Attention' : 'Critical'
-        };
-      }
-    });
-
-    // Generate recommendations
-    generateRecommendations(insights);
-
-    return insights;
-  };
-
-  const calculateTrend = (values) => {
-    if (values.length < 2) return { direction: 'stable', slope: 0 };
-    
-    let increases = 0;
-    let decreases = 0;
-    
-    for (let i = 1; i < values.length; i++) {
-      if (values[i] > values[i - 1]) increases++;
-      else if (values[i] < values[i - 1]) decreases++;
-    }
-    
-    if (increases > decreases) return { direction: 'improving', slope: 1 };
-    if (decreases > increases) return { direction: 'declining', slope: -1 };
-    return { direction: 'stable', slope: 0 };
-  };
-
-  const generateRecommendations = (insights) => {
-    // Critical issues
-    const highRisks = insights.risks.filter(r => r.severity === 'HIGH');
-    if (highRisks.length > 0) {
-      insights.recommendations.push({
-        priority: 'CRITICAL',
-        action: 'Immediate Action Required',
-        details: `${highRisks.length} critical KPI(s) showing declining performance below 80% target. Immediate root cause analysis and corrective action needed.`,
-        kpis: highRisks.map(r => r.kpi).join(', ')
-      });
-    }
-
-    // Areas needing attention
-    if (insights.needsAttention.length > 0) {
-      const avgGap = insights.needsAttention.reduce((sum, item) => sum + parseFloat(item.gap), 0) / insights.needsAttention.length;
-      insights.recommendations.push({
-        priority: 'HIGH',
-        action: 'Performance Improvement Plan',
-        details: `${insights.needsAttention.length} KPI(s) below target with average gap of ${avgGap.toFixed(1)}%. Review processes and allocate resources to bridge the performance gap.`,
-        kpis: insights.needsAttention.map(n => n.kpi).join(', ')
-      });
-    }
-
-    // Best practices
-    if (insights.excelling.length > 0) {
-      insights.recommendations.push({
-        priority: 'MEDIUM',
-        action: 'Replicate Success',
-        details: `${insights.excelling.length} KPI(s) exceeding targets. Document best practices and implement across other areas.`,
-        kpis: insights.excelling.map(e => e.kpi).join(', ')
-      });
-    }
-
-    // Overall performance
-    if (insights.overallPerformance < 90) {
-      insights.recommendations.push({
-        priority: 'HIGH',
-        action: 'Strategic Review',
-        details: `Overall performance at ${insights.overallPerformance.toFixed(1)}%. Conduct comprehensive review of goals, resources, and execution strategies.`
-      });
-    } else if (insights.overallPerformance >= 100) {
-      insights.recommendations.push({
-        priority: 'LOW',
-        action: 'Continuous Improvement',
-        details: `Strong overall performance at ${insights.overallPerformance.toFixed(1)}%. Focus on continuous improvement and stretch goals.`
-      });
     }
   };
 
@@ -981,12 +710,9 @@ const KPIDetailPage = () => {
     const achievementRate = (effectiveLastTarget > 0 || effectiveLastActual > 0)
       ? calculateAchievementRate(effectiveLastActual, effectiveLastTarget, title).toFixed(1)
       : 'N/A';
-    
-    // Determine if this is an inverse metric for display purposes
     const isInverse = isInverseMetric(title);
-
     return (
-      <div className="bg-white p-4 rounded-lg shadow">
+      <div className="bg-white p-4 rounded-lg shadow h-full">
         <div className="flex justify-between items-start mb-3">
           <div>
             <h3 className="font-semibold text-gray-800">{title}</h3>
@@ -1008,148 +734,144 @@ const KPIDetailPage = () => {
           </div>
         )}
 
-        <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="w-full border border-gray-300 bg-white" style={{ minHeight, display: 'block' }}>
-          {/* Grid lines with values */}
-          {[...Array(5)].map((_, i) => {
-            const value = minVal + (i / 4) * (maxVal - minVal);
-            const y = svgHeight - padding - (i / 4) * (svgHeight - 2 * padding);
-            return (
-              <g key={`grid-${i}`}>
-                <line
-                  x1={padding}
-                  y1={y}
-                  x2={svgWidth - padding}
-                  y2={y}
-                  stroke="#e5e7eb"
-                  strokeWidth="1"
-                  strokeDasharray="3,3"
+        {/* Side-by-side: Donut (left) + Line chart (right) */}
+        <div className="flex gap-4 items-center">
+          {/* Donut Chart – Achievement */}
+          {achievementRate !== 'N/A' && (
+            <div className="flex-shrink-0 flex flex-col items-center justify-center" style={{ width: '160px' }}>
+              <svg viewBox="0 0 140 140" width="140" height="140">
+                <circle cx={70} cy={70} r={50} fill="none" stroke="#41aafe" strokeWidth={18} />
+                <circle
+                  cx={70} cy={70} r={50}
+                  fill="none"
+                  stroke="#22c55e"
+                  strokeWidth={18}
+                  strokeLinecap="round"
+                  strokeDasharray={`${(Math.min(parseFloat(achievementRate), 100) / 100 * 314.159).toFixed(2)} 314.159`}
+                  transform="rotate(-90 70 70)"
                 />
-              </g>
-            );
-          })}
-
-          {/* Axes */}
-          <line x1={padding} y1={padding} x2={padding} y2={svgHeight - padding} stroke="#1f2937" strokeWidth="2" />
-          <line
-            x1={padding}
-            y1={svgHeight - padding}
-            x2={svgWidth - padding}
-            y2={svgHeight - padding}
-            stroke="#1f2937"
-            strokeWidth="2"
-          />
-
-          {/* Target line */}
-          {targetValues.some(v => v !== null) && (
-            <polyline
-              points={targetValues.map((val, idx) => {
-                const y = getY(val);
-                return y !== null ? `${getX(idx)},${y}` : '';
-              }).filter(p => p).join(' ')}
-              fill="none"
-              stroke="#ffb74d"
-              strokeWidth="2"
-              strokeDasharray="5,5"
-            />
-          )}
-
-          {/* Actual line */}
-          {actualValues.some(v => v !== null) && (
-            <polyline
-              points={actualValues.map((val, idx) => {
-                const y = getY(val);
-                return y !== null ? `${getX(idx)},${y}` : '';
-              }).filter(p => p).join(' ')}
-              fill="none"
-              stroke="#41aafe"
-              strokeWidth="3"
-            />
-          )}
-
-          {/* Target data points with labels */}
-          {targetValues.map((val, idx) => {
-            if (val === null) return null;
-            const x = getX(idx);
-            const y = getY(val);
-            return (
-              <g key={`target-${idx}`}>
-                <circle cx={x} cy={y} r="3" fill="#ffb74d" stroke="white" strokeWidth="1" />
-                <text
-                  x={x}
-                  y={y - 12}
-                  textAnchor="middle"
-                  fontSize="10"
-                  fill="#c97706"
-                  fontWeight="bold"
-                >
-                  {val.toFixed(1)}
+                <text x={70} y={63} textAnchor="middle" fontSize="20" fontWeight="bold" fill="#1f2937">
+                  {achievementRate}%
                 </text>
-              </g>
-            );
-          })}
-
-          {/* Actual data points with labels */}
-          {actualValues.map((val, idx) => {
-            if (val === null) return null;
-            const x = getX(idx);
-            const y = getY(val);
-            return (
-              <g key={`actual-${idx}`}>
-                <circle cx={x} cy={y} r="5" fill="#41aafe" stroke="white" strokeWidth="2" />
-                <text
-                  x={x}
-                  y={y + 18}
-                  textAnchor="middle"
-                  fontSize="10"
-                  fill="#0369a1"
-                  fontWeight="bold"
-                >
-                  {val.toFixed(1)}
+                <text x={70} y={80} textAnchor="middle" fontSize="10" fill="#6b7280">
+                  Achievement
                 </text>
-              </g>
-            );
-          })}
+              </svg>
+              <div className={`mt-1 text-xs font-semibold px-2 py-0.5 rounded ${
+                parseFloat(achievementRate) >= 100 ? 'text-green-700 bg-green-50' :
+                parseFloat(achievementRate) >= 90 ? 'text-yellow-700 bg-yellow-50' :
+                'text-red-700 bg-red-50'
+              }`}>
+                {parseFloat(achievementRate) >= 100 ? 'On Target' :
+                 parseFloat(achievementRate) >= 90 ? 'Near Target' : 'Below Target'}
+              </div>
+            </div>
+          )}
+          <div className="flex-1 min-w-0">
+            <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="w-full border border-gray-300 bg-white" style={{ minHeight, display: 'block' }}>
+              {[...Array(5)].map((_, i) => {
+                const value = minVal + (i / 4) * (maxVal - minVal);
+                const y = svgHeight - padding - (i / 4) * (svgHeight - 2 * padding);
+                return (
+                  <g key={`grid-${i}`}>
+                    <line x1={padding} y1={y} x2={svgWidth - padding} y2={y} stroke="#e5e7eb" strokeWidth="1" strokeDasharray="3,3" />
+                  </g>
+                );
+              })}
 
-          {/* X-axis labels */}
-          {labels.map((label, idx) => (
-            <text key={`x-${idx}`} x={getX(idx)} y={svgHeight - padding + 25} textAnchor="middle" fontSize="11" fill="#4b5563">
-              {label}
-            </text>
-          ))}
+              <line x1={padding} y1={padding} x2={padding} y2={svgHeight - padding} stroke="#1f2937" strokeWidth="2" />
+              <line x1={padding} y1={svgHeight - padding} x2={svgWidth - padding} y2={svgHeight - padding} stroke="#1f2937" strokeWidth="2" />
 
-          {/* Y-axis labels */}
-          {[...Array(5)].map((_, i) => {
-            const value = minVal + (i / 4) * (maxVal - minVal);
-            const y = svgHeight - padding - (i / 4) * (svgHeight - 2 * padding);
-            return (
-              <text key={`y-${i}`} x={padding - 10} y={y + 5} textAnchor="end" fontSize="11" fill="#4b5563">
-                {value.toFixed(0)}
+              {targetValues.some(v => v !== null) && (
+                <polyline
+                  points={targetValues.map((val, idx) => {
+                    const y = getY(val);
+                    return y !== null ? `${getX(idx)},${y}` : '';
+                  }).filter(p => p).join(' ')}
+                  fill="none"
+                  stroke="#ffb74d"
+                  strokeWidth="2"
+                  strokeDasharray="5,5"
+                />
+              )}
+
+              {actualValues.some(v => v !== null) && (
+                <polyline
+                  points={actualValues.map((val, idx) => {
+                    const y = getY(val);
+                    return y !== null ? `${getX(idx)},${y}` : '';
+                  }).filter(p => p).join(' ')}
+                  fill="none"
+                  stroke="#41aafe"
+                  strokeWidth="3"
+                />
+              )}
+
+              {targetValues.map((val, idx) => {
+                if (val === null) return null;
+                const x = getX(idx);
+                const y = getY(val);
+                return (
+                  <g key={`target-${idx}`}>
+                    <circle cx={x} cy={y} r="3" fill="#ffb74d" stroke="white" strokeWidth="1" />
+                    <text x={x} y={y - 12} textAnchor="middle" fontSize="10" fill="#c97706" fontWeight="bold">
+                      {val.toFixed(1)}
+                    </text>
+                  </g>
+                );
+              })}
+
+              {actualValues.map((val, idx) => {
+                if (val === null) return null;
+                const x = getX(idx);
+                const y = getY(val);
+                return (
+                  <g key={`actual-${idx}`}>
+                    <circle cx={x} cy={y} r="5" fill="#41aafe" stroke="white" strokeWidth="2" />
+                    <text x={x} y={y + 18} textAnchor="middle" fontSize="10" fill="#0369a1" fontWeight="bold">
+                      {val.toFixed(1)}
+                    </text>
+                  </g>
+                );
+              })}
+
+              {labels.map((label, idx) => (
+                <text key={`x-${idx}`} x={getX(idx)} y={svgHeight - padding + 25} textAnchor="middle" fontSize="11" fill="#4b5563">
+                  {label}
+                </text>
+              ))}
+
+              {[...Array(5)].map((_, i) => {
+                const value = minVal + (i / 4) * (maxVal - minVal);
+                const y = svgHeight - padding - (i / 4) * (svgHeight - 2 * padding);
+                return (
+                  <text key={`y-${i}`} x={padding - 10} y={y + 5} textAnchor="end" fontSize="11" fill="#4b5563">
+                    {value.toFixed(0)}
+                  </text>
+                );
+              })}
+
+              <text x={svgWidth / 2} y={svgHeight - 5} textAnchor="middle" fontSize="11" fill="#6b7280" fontWeight="500">
+                Month
               </text>
-            );
-          })}
+              <text x={15} y={svgHeight / 2} textAnchor="middle" fontSize="11" fill="#6b7280" fontWeight="500" transform={`rotate(-90 15 ${svgHeight / 2})`}>
+                Value
+              </text>
+            </svg>
 
-          {/* Axis titles */}
-          <text x={svgWidth / 2} y={svgHeight - 5} textAnchor="middle" fontSize="11" fill="#6b7280" fontWeight="500">
-            Month
-          </text>
-          <text x={15} y={svgHeight / 2} textAnchor="middle" fontSize="11" fill="#6b7280" fontWeight="500" transform={`rotate(-90 15 ${svgHeight / 2})`}>
-            Value
-          </text>
-        </svg>
-
-        {/* Legend */}
-        <div className="flex gap-6 mt-3 justify-center flex-wrap">
-          <div className="flex items-center gap-2">
-            <span className="w-6 h-1 bg-[#41aafe] rounded"></span>
-            <span className="text-xs text-gray-600">Actual</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="w-6 h-1 bg-[#ffb74d]" style={{ borderTop: '2px dashed #ffb74d' }}></span>
-            <span className="text-xs text-gray-600">Target</span>
+            <div className="flex gap-6 mt-3 justify-center flex-wrap">
+              <div className="flex items-center gap-2">
+                <span className="w-6 h-1 bg-[#41aafe] rounded"></span>
+                <span className="text-xs text-gray-600">Actual</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-6 h-1 bg-[#ffb74d]" style={{ borderTop: '2px dashed #ffb74d' }}></span>
+                <span className="text-xs text-gray-600">Target</span>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Quick stats */}
         {effectiveLastActual !== undefined && effectiveLastTarget !== undefined && (
           <div className="mt-3 pt-3 border-t border-gray-200 grid grid-cols-4 gap-2 text-xs">
             <div>
@@ -1186,6 +908,429 @@ const KPIDetailPage = () => {
     );
   };
 
+  const OeeChart = ({ data, title, size = 'compact', operator }) => {
+    if (!data || data.length === 0) {
+      return (
+        <div className="bg-white p-4 rounded-lg shadow">
+          <h3 className="font-semibold text-gray-800 mb-2">{title}</h3>
+          <div className="text-gray-500 text-sm">No data available</div>
+        </div>
+      );
+    }
+
+    const actuals = data.filter((d) => extractRowType(d) === 'actual').sort(sortByExtractedMonth);
+    const targets = data.filter((d) => extractRowType(d) === 'target').sort(sortByExtractedMonth);
+    const { actualValues, targetValues, labels } = buildFiscalSeries(data, fiscalYear);
+
+    const allValues = [...actualValues.filter(v => v !== null), ...targetValues.filter(v => v !== null)];
+    const maxValRaw = allValues.length > 0 ? Math.max(...allValues) : 0;
+    const minValRaw = allValues.length > 0 ? Math.min(...allValues) : 0;
+    const minVal = Math.min(0, minValRaw);
+    const maxVal = maxValRaw === minVal ? minVal + 1 : maxValRaw;
+
+    const chartSizes = {
+      compact: { svgWidth: 600, svgHeight: 300, padding: 50, minHeight: '320px' },
+      default: { svgWidth: 700, svgHeight: 380, padding: 60, minHeight: '400px' },
+      modal: { svgWidth: 900, svgHeight: 460, padding: 70, minHeight: '520px' }
+    };
+    const { svgWidth, svgHeight, padding, minHeight } = chartSizes[size] || chartSizes.default;
+
+    const getX = (idx) => padding + (idx / (labels.length - 1 || 1)) * (svgWidth - 2 * padding);
+    const getY = (val) => {
+      if (val === null) return null;
+      return svgHeight - padding - ((val - minVal) / (maxVal - minVal || 1)) * (svgHeight - 2 * padding);
+    };
+
+    const lastActual = getLatestSeriesValue(actualValues);
+    const lastTarget = getLatestSeriesValue(targetValues);
+    const findLatestNumeric = (rows, keys) => {
+      if (!rows || rows.length === 0) return null;
+      for (let i = rows.length - 1; i >= 0; i--) {
+        const row = rows[i];
+        for (const key of keys) {
+          const val = parseNumeric(row?.[key]);
+          if (val !== null) return val;
+        }
+      }
+      return null;
+    };
+
+    const fallbackActual = findLatestNumeric(data, ['actual_value', 'actual', 'value']);
+    const fallbackTarget = findLatestNumeric(data, ['target_value', 'target', 'value']);
+    const effectiveLastActual = (lastActual === undefined || lastActual === null) ? fallbackActual : lastActual;
+    const effectiveLastTarget = (lastTarget === undefined || lastTarget === null) ? fallbackTarget : lastTarget;
+    const hasTarget = targetValues.some((value) => value !== null) || effectiveLastTarget !== null;
+    const achievementValue = hasTarget
+      ? calculateAchievementRate(effectiveLastActual, effectiveLastTarget, title)
+      : (effectiveLastActual != null ? Math.min(100, effectiveLastActual) : 0);
+    const achievementRate = Number.isFinite(achievementValue) ? achievementValue.toFixed(1) : 'N/A';
+    const isInverse = isInverseMetric(title);
+
+    return (
+      <div className="bg-white p-4 rounded-lg shadow h-full">
+        <div className="flex justify-between items-start mb-3">
+          <div>
+            <h3 className="font-semibold text-gray-800">{title}</h3>
+            {operator && <div className="text-xs text-gray-500 mt-1">Data by: {operator}</div>}
+          </div>
+          {achievementRate !== 'N/A' && (
+            <div className={`px-3 py-1 rounded text-sm font-semibold ${
+              parseFloat(achievementRate) >= 100 ? 'bg-green-100 text-green-800' :
+              parseFloat(achievementRate) >= 90 ? 'bg-yellow-100 text-yellow-800' :
+              'bg-red-100 text-red-800'
+            }`}>
+              {achievementRate}%
+            </div>
+          )}
+        </div>
+
+        {isInverse && (
+          <div className="mb-2 text-xs text-gray-500 italic">
+            ⚠️ Lower is better for this metric
+          </div>
+        )}
+
+        <div className="flex gap-4 items-center">
+          {achievementRate !== 'N/A' && (
+            <div className="flex-shrink-0 flex flex-col items-center justify-center" style={{ width: '160px' }}>
+              <svg viewBox="0 0 140 140" width="140" height="140">
+                <circle cx={70} cy={70} r={50} fill="none" stroke="#41aafe" strokeWidth={18} />
+                <circle
+                  cx={70} cy={70} r={50}
+                  fill="none"
+                  stroke="#22c55e"
+                  strokeWidth={18}
+                  strokeLinecap="round"
+                  strokeDasharray={`${(Math.min(parseFloat(achievementRate), 100) / 100 * 314.159).toFixed(2)} 314.159`}
+                  transform="rotate(-90 70 70)"
+                />
+                <text x={70} y={63} textAnchor="middle" fontSize="20" fontWeight="bold" fill="#1f2937">
+                  {achievementRate}%
+                </text>
+                <text x={70} y={80} textAnchor="middle" fontSize="10" fill="#6b7280">
+                  Achievement
+                </text>
+              </svg>
+              <div className={`mt-1 text-xs font-semibold px-2 py-0.5 rounded ${
+                parseFloat(achievementRate) >= 100 ? 'text-green-700 bg-green-50' :
+                parseFloat(achievementRate) >= 90 ? 'text-yellow-700 bg-yellow-50' :
+                'text-red-700 bg-red-50'
+              }`}>
+                {parseFloat(achievementRate) >= 100 ? 'On Target' :
+                 parseFloat(achievementRate) >= 90 ? 'Near Target' : 'Below Target'}
+              </div>
+            </div>
+          )}
+
+          <div className="flex-1 min-w-0">
+            <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="w-full border border-gray-300 bg-white" style={{ minHeight, display: 'block' }}>
+              {[...Array(5)].map((_, i) => {
+                const value = minVal + (i / 4) * (maxVal - minVal);
+                const y = svgHeight - padding - (i / 4) * (svgHeight - 2 * padding);
+                return (
+                  <g key={`oee-grid-${i}`}>
+                    <line x1={padding} y1={y} x2={svgWidth - padding} y2={y} stroke="#e5e7eb" strokeWidth="1" strokeDasharray="3,3" />
+                  </g>
+                );
+              })}
+
+              <line x1={padding} y1={padding} x2={padding} y2={svgHeight - padding} stroke="#1f2937" strokeWidth="2" />
+              <line x1={padding} y1={svgHeight - padding} x2={svgWidth - padding} y2={svgHeight - padding} stroke="#1f2937" strokeWidth="2" />
+
+              {targetValues.some(v => v !== null) && (
+                <polyline
+                  points={targetValues.map((val, idx) => {
+                    const y = getY(val);
+                    return y !== null ? `${getX(idx)},${y}` : '';
+                  }).filter(Boolean).join(' ')}
+                  fill="none"
+                  stroke="#ffb74d"
+                  strokeWidth="2"
+                  strokeDasharray="5,5"
+                />
+              )}
+
+              {actualValues.some(v => v !== null) && (
+                <polyline
+                  points={actualValues.map((val, idx) => {
+                    const y = getY(val);
+                    return y !== null ? `${getX(idx)},${y}` : '';
+                  }).filter(Boolean).join(' ')}
+                  fill="none"
+                  stroke="#41aafe"
+                  strokeWidth="3"
+                />
+              )}
+
+              {targetValues.map((val, idx) => {
+                if (val === null) return null;
+                const x = getX(idx);
+                const y = getY(val);
+                return (
+                  <g key={`oee-target-${idx}`}>
+                    <circle cx={x} cy={y} r="3" fill="#ffb74d" stroke="white" strokeWidth="1" />
+                    <text x={x} y={y - 12} textAnchor="middle" fontSize="10" fill="#c97706" fontWeight="bold">
+                      {val.toFixed(1)}
+                    </text>
+                  </g>
+                );
+              })}
+
+              {actualValues.map((val, idx) => {
+                if (val === null) return null;
+                const x = getX(idx);
+                const y = getY(val);
+                return (
+                  <g key={`oee-actual-${idx}`}>
+                    <circle cx={x} cy={y} r="5" fill="#41aafe" stroke="white" strokeWidth="2" />
+                    <text x={x} y={y + 18} textAnchor="middle" fontSize="10" fill="#0369a1" fontWeight="bold">
+                      {val.toFixed(1)}
+                    </text>
+                  </g>
+                );
+              })}
+
+              {labels.map((label, idx) => (
+                <text key={`oee-x-${idx}`} x={getX(idx)} y={svgHeight - padding + 25} textAnchor="middle" fontSize="11" fill="#4b5563">
+                  {label}
+                </text>
+              ))}
+
+              {[...Array(5)].map((_, i) => {
+                const value = minVal + (i / 4) * (maxVal - minVal);
+                const y = svgHeight - padding - (i / 4) * (svgHeight - 2 * padding);
+                return (
+                  <text key={`oee-y-${i}`} x={padding - 10} y={y + 5} textAnchor="end" fontSize="11" fill="#4b5563">
+                    {value.toFixed(0)}
+                  </text>
+                );
+              })}
+
+              <text x={svgWidth / 2} y={svgHeight - 5} textAnchor="middle" fontSize="11" fill="#6b7280" fontWeight="500">
+                Month
+              </text>
+              <text x={15} y={svgHeight / 2} textAnchor="middle" fontSize="11" fill="#6b7280" fontWeight="500" transform={`rotate(-90 15 ${svgHeight / 2})`}>
+                Value
+              </text>
+            </svg>
+
+            <div className="flex gap-6 mt-3 justify-center flex-wrap">
+              <div className="flex items-center gap-2">
+                <span className="w-6 h-1 bg-[#41aafe] rounded"></span>
+                <span className="text-xs text-gray-600">Actual</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-6 h-1 bg-[#ffb74d]" style={{ borderTop: '2px dashed #ffb74d' }}></span>
+                <span className="text-xs text-gray-600">Target</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const StackedLossChart = ({ node, size = 'default' }) => {
+    if (!node) return null;
+
+    const genericValueLabels = ['actual', 'achieved', 'target', 'value', 'hours', 'hour', 'hrs', 'hr'];
+    const isGenericValueLabel = (value) => genericValueLabels.includes(normalizeTextValue(value));
+
+    const pickSegmentLabel = (currentNode, value) => {
+      const valueLabel = (value?.data || value?.title || '').toString().trim();
+      const nodeLabel = (currentNode?.kpi?.title || '').toString().trim();
+      if (valueLabel && !isGenericValueLabel(valueLabel)) {
+        return valueLabel;
+      }
+      return nodeLabel || valueLabel || 'Segment';
+    };
+
+    const getActualRows = (rows) => {
+      if (!Array.isArray(rows) || rows.length === 0) return [];
+      return rows.filter((row) => {
+        const { actual, type } = extractActualTarget(row);
+        if (actual !== null) return true;
+        if (type === 'target') return false;
+        return parseNumeric(row?.value) !== null;
+      });
+    };
+
+    const collectLossSegments = (currentNode, segmentMap = new Map()) => {
+      if (!currentNode) return segmentMap;
+
+      (Array.isArray(currentNode.values) ? currentNode.values : []).forEach((value) => {
+        if (!value) return;
+        const rows = getActualRows(currentNode.monthlyData?.[value.id] || []);
+        if (rows.length === 0) return;
+
+        const label = pickSegmentLabel(currentNode, value);
+        const existing = segmentMap.get(label) || [];
+        segmentMap.set(label, [...existing, ...rows]);
+      });
+
+      (currentNode.children || []).forEach((childNode) => {
+        collectLossSegments(childNode, segmentMap);
+      });
+
+      return segmentMap;
+    };
+
+    const resolvedSegments = Array.from(collectLossSegments(node, new Map()).entries()).map(([label, rows]) => ({
+      label,
+      rows,
+    }));
+    if (resolvedSegments.length === 0) {
+      return (
+        <div className="bg-white p-4 rounded-lg shadow border border-gray-200">
+          <h3 className="font-semibold text-gray-800 mb-2">{node?.kpi?.title || 'Corporate Property Management Loss'}</h3>
+          <div className="text-gray-500 text-sm">No data available</div>
+        </div>
+      );
+    }
+
+    const labels = FISCAL_MONTHS.map((month) => MONTH_LABELS[month - 1]);
+
+    const series = resolvedSegments.map((segment, index) => {
+      const rows = segment.rows || [];
+      const { actualValues } = buildFiscalSeries(rows, fiscalYear);
+      const sourceValues = actualValues;
+      return {
+        name: segment.label || `Segment ${index + 1}`,
+        values: sourceValues.map((entry) => (entry == null ? 0 : Math.max(0, entry))),
+        color: LOSS_STACK_COLORS[index % LOSS_STACK_COLORS.length],
+      };
+    });
+
+    const rootRows = [];
+    (Array.isArray(node.values) ? node.values : []).forEach((value) => {
+      const rows = node.monthlyData?.[value.id] || [];
+      rootRows.push(...rows);
+    });
+
+    let { targetValues } = buildFiscalSeries(rootRows, fiscalYear);
+    if (!targetValues.some((entry) => entry != null)) {
+      targetValues = Array(labels.length).fill(0);
+      resolvedSegments.forEach((segment) => {
+        const rows = segment.rows || [];
+        const { targetValues: segmentTargets } = buildFiscalSeries(rows, fiscalYear);
+        segmentTargets.forEach((entry, index) => {
+          if (entry != null) targetValues[index] += Math.max(0, entry);
+        });
+      });
+    }
+
+    const normalizedTargetValues = targetValues.map((entry) => (entry == null ? 0 : Math.max(0, entry)));
+
+    const totals = labels.map((_, monthIndex) => series.reduce((sum, segment) => sum + (segment.values[monthIndex] || 0), 0));
+    const yMax = Math.max(1, ...totals, ...normalizedTargetValues);
+    const chartSizes = {
+      compact: { svgWidth: 600, svgHeight: 300, padding: 50, minHeight: '320px' },
+      default: { svgWidth: 920, svgHeight: 420, padding: 56, minHeight: '420px' },
+      modal: { svgWidth: 980, svgHeight: 500, padding: 60, minHeight: '500px' }
+    };
+    const { svgWidth, svgHeight, padding, minHeight } = chartSizes[size] || chartSizes.default;
+    const plotWidth = svgWidth - (2 * padding);
+    const slotWidth = plotWidth / (labels.length || 1);
+    const barWidth = slotWidth * 0.6;
+    const getX = (idx) => padding + (idx * slotWidth) + ((slotWidth - barWidth) / 2);
+    const getY = (value) => svgHeight - padding - ((value / yMax) * (svgHeight - (2 * padding)));
+
+    return (
+      <div className="bg-white p-4 rounded-lg shadow border border-gray-200 h-full">
+        <div className="mb-3">
+          <h3 className="font-semibold text-gray-800">{node?.kpi?.title || 'Corporate Property Management Loss'} (Hrs.)</h3>
+        </div>
+        <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="w-full border border-gray-300 bg-white" style={{ minHeight, display: 'block' }}>
+          {[...Array(6)].map((_, i) => {
+            const value = (i / 5) * yMax;
+            const y = getY(value);
+            return (
+              <g key={`loss-grid-${i}`}>
+                <line x1={padding} y1={y} x2={svgWidth - padding} y2={y} stroke="#e5e7eb" strokeWidth="1" />
+                <text x={padding - 10} y={y + 4} textAnchor="end" fontSize="11" fill="#4b5563">{Math.round(value)}</text>
+              </g>
+            );
+          })}
+          <line x1={padding} y1={padding} x2={padding} y2={svgHeight - padding} stroke="#111827" strokeWidth="1.5" />
+          <line x1={padding} y1={svgHeight - padding} x2={svgWidth - padding} y2={svgHeight - padding} stroke="#111827" strokeWidth="1.5" />
+
+          {labels.map((label, monthIndex) => {
+            let cumulative = 0;
+            return (
+              <g key={`loss-month-${label}-${monthIndex}`}>
+                {series.map((segment) => {
+                  const segmentValue = segment.values[monthIndex] || 0;
+                  if (segmentValue <= 0) return null;
+                  const yTop = getY(cumulative + segmentValue);
+                  const yBottom = getY(cumulative);
+                  const segmentHeight = Math.max(0, yBottom - yTop);
+                  const showInlineLabel = segmentHeight >= 14;
+                  const rect = (
+                    <g key={`${segment.name}-${monthIndex}`}>
+                      <rect x={getX(monthIndex)} y={yTop} width={barWidth} height={segmentHeight} fill={segment.color} />
+                      {showInlineLabel && (
+                        <text
+                          x={getX(monthIndex) + (barWidth / 2)}
+                          y={yTop + Math.min(segmentHeight / 2 + 4, segmentHeight - 2)}
+                          textAnchor="middle"
+                          fontSize="9"
+                          fontWeight="600"
+                          fill="#1f2937"
+                          paintOrder="stroke"
+                          stroke="rgba(255,255,255,0.85)"
+                          strokeWidth="2"
+                        >
+                          {segment.name}
+                        </text>
+                      )}
+                    </g>
+                  );
+                  cumulative += segmentValue;
+                  return rect;
+                })}
+                <text x={getX(monthIndex) + (barWidth / 2)} y={svgHeight - padding + 20} textAnchor="middle" fontSize="11" fill="#4b5563">
+                  {label}
+                </text>
+              </g>
+            );
+          })}
+
+          <polyline
+            points={normalizedTargetValues.map((value, index) => `${getX(index) + (barWidth / 2)},${getY(value)}`).join(' ')}
+            fill="none"
+            stroke="#374151"
+            strokeWidth="2"
+            strokeDasharray="6,4"
+          />
+
+          <text x={svgWidth / 2} y={svgHeight - 8} textAnchor="middle" fontSize="11" fill="#6b7280" fontWeight="500">Month</text>
+          <text x={18} y={svgHeight / 2} textAnchor="middle" fontSize="11" fill="#6b7280" fontWeight="500" transform={`rotate(-90 18 ${svgHeight / 2})`}>
+            Loss (Hrs.)
+          </text>
+        </svg>
+        <div className="mt-3 border-t border-gray-200 pt-3">
+          <div className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">Box names</div>
+          <div className="flex flex-wrap gap-2 text-xs">
+            {series.map((segment, index) => (
+              <div
+                key={`legend-${segment.name}`}
+                className="flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 max-w-full"
+                title={segment.name}
+              >
+                <span className="inline-block w-3 h-3 rounded-sm flex-shrink-0" style={{ backgroundColor: segment.color }}></span>
+                <span className="text-gray-700 font-medium truncate">{index + 1}. {segment.name}</span>
+              </div>
+            ))}
+            <div className="flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5">
+              <span className="inline-block w-4 h-0.5 bg-gray-700" style={{ borderTop: '2px dashed #374151' }}></span>
+              <span className="text-gray-700 font-medium">Target</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   // Simple bar chart for KPI values that have only actuals (no target)
   const SimpleBarChart = ({ data, title, size = 'default', operator, valueId, parentKpiId }) => {
     console.log(`[SimpleBarChart] parentKpiId: ${parentKpiId} valueId: ${valueId} Title: ${title}`);
@@ -1218,7 +1363,7 @@ const KPIDetailPage = () => {
     const getY = (val) => svgHeight - padding - ((val - minVal) / (maxVal - minVal || 1)) * (svgHeight - 2 * padding);
 
     return (
-      <div className="bg-white p-4 rounded-lg shadow">
+      <div className="bg-white p-4 rounded-lg shadow h-full">
         <div className="flex justify-between items-start mb-3">
           <div>
             <h3 className="font-semibold text-gray-800">{title}</h3>
@@ -1456,572 +1601,74 @@ const KPIDetailPage = () => {
           </div>
         </div>
 
-        {/* Executive Summary Dashboard */}
-        {managementInsights && (
-          <div className="mb-8 space-y-6">
-            {/* Overall Performance Card */}
-            <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg shadow-lg p-6 text-white">
-              <h2 className="text-2xl font-bold mb-4">Executive Summary - {parentKPI?.title}</h2>
-              <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-                <div className="bg-white/10 rounded-lg p-4 backdrop-blur">
-                  <div className="text-sm font-medium opacity-90">Overall Performance</div>
-                  <div className="text-3xl font-bold mt-2">
-                    {managementInsights.overallPerformance.toFixed(1)}%
-                  </div>
-                  <div className="text-xs mt-1 opacity-75">
-                    {managementInsights.overallPerformance >= 100 ? 'Exceeding Target' :
-                     managementInsights.overallPerformance >= 90 ? 'On Track' :
-                     managementInsights.overallPerformance >= 80 ? 'Needs Attention' :
-                     'Critical'}
-                  </div>
-                </div>
+        {/* Dashboard Cards */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-8">
+          <div className="w-full">
+            {(() => {
+              const opeValue = parentKPIValues[0] || null;
+              const chartData = opeValue ? parentMonthlyData[opeValue.id] : [];
+              const operatorName = getOperatorDisplay(chartData);
+              const hasTargetForValue = chartData && chartData.some((d) => rowHasTarget(d));
+              const chartTitle = opeValue?.data || 'OVERALL PLANT EFFICIENCY (OPE)';
+              const chart = hasTargetForValue ? (
+                <LineChart data={chartData} title={chartTitle} size="compact" operator={operatorName} />
+              ) : (
+                <SimpleBarChart data={chartData} title={chartTitle} size="compact" operator={operatorName} />
+              );
 
-                <div className="bg-white/10 rounded-lg p-4 backdrop-blur">
-                  <div className="text-sm font-medium opacity-90">Total KPIs</div>
-                  <div className="text-3xl font-bold mt-2">
-                    {managementInsights.summary.kpisWithData}
-                  </div>
-                  <div className="text-xs mt-1 opacity-75">
-                    of {managementInsights.summary.totalKPIs} have data
-                  </div>
-                </div>
-
-                <div className="bg-white/10 rounded-lg p-4 backdrop-blur">
-                  <div className="text-sm font-medium opacity-90">Excelling KPIs</div>
-                  <div className="text-3xl font-bold mt-2 text-green-300">
-                    {managementInsights.excelling.length}
-                  </div>
-                  <div className="text-xs mt-1 opacity-75">
-                    Above 110% target
-                  </div>
-                </div>
-
-                <div className="bg-white/10 rounded-lg p-4 backdrop-blur">
-                  <div className="text-sm font-medium opacity-90">Needs Attention</div>
-                  <div className="text-3xl font-bold mt-2 text-yellow-300">
-                    {managementInsights.needsAttention.length}
-                  </div>
-                  <div className="text-xs mt-1 opacity-75">
-                    Below 85% target
-                  </div>
-                </div>
-
-                <div className="bg-white/10 rounded-lg p-4 backdrop-blur">
-                  <div className="text-sm font-medium opacity-90">Risk Indicators</div>
-                  <div className="text-3xl font-bold mt-2 text-red-300">
-                    {managementInsights.risks.length}
-                  </div>
-                  <div className="text-xs mt-1 opacity-75">
-                    {managementInsights.risks.filter(r => r.severity === 'HIGH').length} high priority
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Hierarchy Level Breakdown */}
-            {Object.keys(managementInsights.byLevel).length > 0 && (
-              <div className="bg-white rounded-lg shadow-lg p-6">
-                <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-                  <span className="text-2xl">📊</span> Performance by Hierarchy Level
-                </h3>
-                <p className="text-sm text-gray-600 mb-4">
-                  Analysis across {managementInsights.summary.deepestLevel} hierarchy levels - from Department to Individual/Activity level
-                </p>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  {Object.keys(managementInsights.byLevel)
-                    .sort((a, b) => parseInt(a) - parseInt(b))
-                    .map((level) => {
-                      const levelData = managementInsights.byLevel[level];
-                      const perfValue = parseFloat(levelData.avgPerformance);
-                      return (
-                        <div 
-                          key={level}
-                          className={`p-4 rounded-lg border-l-4 ${
-                            perfValue >= 100 ? 'bg-green-50 border-green-500' :
-                            perfValue >= 90 ? 'bg-yellow-50 border-yellow-500' :
-                            perfValue >= 80 ? 'bg-orange-50 border-orange-500' :
-                            'bg-red-50 border-red-500'
-                          }`}
-                        >
-                          <div className="text-xs font-semibold text-gray-600 uppercase mb-1">
-                            {levelData.levelName}
-                          </div>
-                          <div className="text-2xl font-bold text-gray-800 mb-1">
-                            {levelData.avgPerformance}%
-                          </div>
-                          <div className="text-xs text-gray-600 mb-3">
-                            {levelData.kpiCount} KPI{levelData.kpiCount > 1 ? 's' : ''}
-                          </div>
-                          {levelData.topKPIs.length > 0 && (
-                            <div className="text-xs">
-                              <div className="font-semibold text-gray-700 mb-1">Top Performer:</div>
-                              <div className="text-gray-600 truncate" title={levelData.topKPIs[0].title}>
-                                {levelData.topKPIs[0].title}
-                              </div>
-                              <div className="text-green-600 font-semibold">
-                                {levelData.topKPIs[0].performance.toFixed(1)}%
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                </div>
-              </div>
-            )}
-
-            {/* Category-wise Performance Breakdown */}
-            {Object.keys(managementInsights.byCategory).length > 0 && (
-              <div className="bg-white rounded-lg shadow-lg p-6">
-                <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-                  <span className="text-2xl">🏷️</span> Performance by Category
-                </h3>
-                <p className="text-sm text-gray-600 mb-4">
-                  Analysis across different KPI categories - Plant KPI, Department KPI, Employee KPI, and KAI
-                </p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {Object.keys(managementInsights.byCategory)
-                    .map((categoryName) => {
-                      const catData = managementInsights.byCategory[categoryName];
-                      const perfValue = parseFloat(catData.avgPerformance);
-                      return (
-                        <div 
-                          key={categoryName}
-                          className={`p-5 rounded-lg border-2 ${
-                            perfValue >= 100 ? 'bg-green-50 border-green-300' :
-                            perfValue >= 90 ? 'bg-blue-50 border-blue-300' :
-                            perfValue >= 80 ? 'bg-orange-50 border-orange-300' :
-                            'bg-red-50 border-red-300'
-                          }`}
-                        >
-                          <div className="mb-4">
-                            <div className="flex items-center justify-between mb-2">
-                              <h4 className="text-lg font-bold text-gray-800">
-                                {categoryName}
-                              </h4>
-                              <span className={`px-3 py-1 rounded-full text-xs font-bold text-white ${
-                                perfValue >= 100 ? 'bg-green-600' :
-                                perfValue >= 90 ? 'bg-blue-600' :
-                                perfValue >= 80 ? 'bg-orange-600' :
-                                'bg-red-600'
-                              }`}>
-                                {catData.performanceStatus}
-                              </span>
-                            </div>
-                            <div className="text-3xl font-bold text-gray-800">
-                              {catData.avgPerformance}%
-                            </div>
-                            <div className="text-sm text-gray-600 mt-1">
-                              Average Performance
-                            </div>
-                          </div>
-
-                          {/* Category Stats */}
-                          <div className="grid grid-cols-3 gap-2 mb-4 p-3 bg-white rounded border border-gray-200">
-                            <div className="text-center">
-                              <div className="text-xl font-bold text-gray-800">{catData.kpiCount}</div>
-                              <div className="text-xs text-gray-600">Total KPIs</div>
-                            </div>
-                            <div className="text-center">
-                              <div className="text-xl font-bold text-green-600">{catData.excelling}</div>
-                              <div className="text-xs text-gray-600">Excelling</div>
-                            </div>
-                            <div className="text-center">
-                              <div className="text-xl font-bold text-orange-600">{catData.needsAttention}</div>
-                              <div className="text-xs text-gray-600">Needs Help</div>
-                            </div>
-                          </div>
-
-                          {/* Top and Bottom Performers */}
-                          <div className="space-y-3">
-                            {catData.topKPIs.length > 0 && (
-                              <div>
-                                <h5 className="text-xs font-semibold text-gray-700 uppercase mb-2">Top Performers</h5>
-                                <div className="space-y-1">
-                                  {catData.topKPIs.slice(0, 2).map((kpi, idx) => (
-                                    <div key={idx} className="flex justify-between items-center text-xs py-1 px-2 bg-white rounded border border-green-200">
-                                      <span className="font-medium text-gray-700 truncate" title={kpi.title}>
-                                        {kpi.title}
-                                      </span>
-                                      <span className="text-green-700 font-bold ml-2">
-                                        {kpi.performance.toFixed(1)}%
-                                      </span>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-
-                            {catData.bottomKPIs.length > 0 && (
-                              <div>
-                                <h5 className="text-xs font-semibold text-gray-700 uppercase mb-2">Needs Attention</h5>
-                                <div className="space-y-1">
-                                  {catData.bottomKPIs.slice(0, 2).map((kpi, idx) => (
-                                    <div key={idx} className="flex justify-between items-center text-xs py-1 px-2 bg-white rounded border border-orange-200">
-                                      <span className="font-medium text-gray-700 truncate" title={kpi.title}>
-                                        {kpi.title}
-                                      </span>
-                                      <span className="text-orange-700 font-bold ml-2">
-                                        {kpi.performance.toFixed(1)}%
-                                      </span>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                </div>
-              </div>
-            )}
-
-            {/* Action Items - Recommendations */}
-            {managementInsights.recommendations.length > 0 && (
-              <div className="bg-white rounded-lg shadow-lg p-6">
-                <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-                  <span className="text-2xl">🎯</span> Management Action Items
-                </h3>
-                <div className="space-y-3">
-                  {managementInsights.recommendations.map((rec, idx) => (
-                    <div 
-                      key={idx}
-                      className={`p-4 rounded-lg border-l-4 ${
-                        rec.priority === 'CRITICAL' ? 'bg-red-50 border-red-500' :
-                        rec.priority === 'HIGH' ? 'bg-orange-50 border-orange-500' :
-                        rec.priority === 'MEDIUM' ? 'bg-yellow-50 border-yellow-500' :
-                        'bg-blue-50 border-blue-500'
-                      }`}
-                    >
-                      <div className="flex items-start gap-3">
-                        <span className={`px-2 py-1 rounded text-xs font-bold ${
-                          rec.priority === 'CRITICAL' ? 'bg-red-600 text-white' :
-                          rec.priority === 'HIGH' ? 'bg-orange-600 text-white' :
-                          rec.priority === 'MEDIUM' ? 'bg-yellow-600 text-white' :
-                          'bg-blue-600 text-white'
-                        }`}>
-                          {rec.priority}
-                        </span>
-                        <div className="flex-1">
-                          <h4 className="font-semibold text-gray-800 mb-1">{rec.action}</h4>
-                          <p className="text-sm text-gray-700 mb-2">{rec.details}</p>
-                          {rec.kpis && (
-                            <div className="text-xs text-gray-600">
-                              <span className="font-semibold">Affected KPIs:</span> {rec.kpis}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Performance Analysis Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Excelling KPIs */}
-              {managementInsights.excelling.length > 0 && (
-                <div className="bg-white rounded-lg shadow-lg p-6">
-                  <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                    <span className="text-xl">✨</span> Top Performers
-                  </h3>
-                  <div className="space-y-2">
-                    {managementInsights.excelling.slice(0, 5).map((item, idx) => (
-                      <div key={idx} className="flex justify-between items-center py-2 border-b border-gray-100">
-                        <span className="text-sm font-medium text-gray-700">{item.kpi}</span>
-                        <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-semibold">
-                          {item.performance}%
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Areas Needing Attention */}
-              {managementInsights.needsAttention.length > 0 && (
-                <div className="bg-white rounded-lg shadow-lg p-6">
-                  <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                    <span className="text-xl">⚠️</span> Requires Attention
-                  </h3>
-                  <div className="space-y-2">
-                    {managementInsights.needsAttention.slice(0, 5).map((item, idx) => (
-                      <div key={idx} className="flex justify-between items-center py-2 border-b border-gray-100">
-                        <div>
-                          <span className="text-sm font-medium text-gray-700 block">{item.kpi}</span>
-                          <span className="text-xs text-red-600">Gap: {item.gap}%</span>
-                        </div>
-                        <span className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-sm font-semibold">
-                          {item.performance}%
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-{/* Risk Indicators - Grouped by Level */}
-            {managementInsights.risks.length > 0 && (
-              <div className="bg-white rounded-lg shadow-lg p-6">
-                <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                  <span className="text-xl">🚨</span> Risk Indicators by Level
-                </h3>
-                <div className="space-y-4">
-                  {[1, 2, 3, 4, 5].map(level => {
-                    const levelRisks = managementInsights.risks.filter(r => r.level === level);
-                    if (levelRisks.length === 0) return null;
-                    
-                    const highRisks = levelRisks.filter(r => r.severity === 'HIGH');
-                    return (
-                      <div key={level} className="border rounded-lg p-4">
-                        <div className="flex items-center justify-between mb-3">
-                          <h4 className="font-semibold text-gray-800">
-                            {level === 1 ? '📍 Department Level' :
-                             level === 2 ? '📍 Sub-Department Level' :
-                             level === 3 ? '📍 Team/Unit Level' :
-                             level === 4 ? '📍 Individual/Activity Level' :
-                             `📍 Level ${level}`}
-                          </h4>
-                          <span className="px-2 py-1 bg-red-100 text-red-700 rounded text-xs font-bold">
-                            {highRisks.length} HIGH / {levelRisks.length} Total
-                          </span>
-                        </div>
-                        <div className="space-y-2">
-                          {levelRisks.slice(0, 3).map((risk, idx) => (
-                            <div key={idx} className="flex items-start gap-2 text-sm">
-                              <span className={`${risk.severity === 'HIGH' ? 'text-red-600' : 'text-orange-600'} font-bold mt-0.5`}>
-                                ⚠️
-                              </span>
-                              <div>
-                                <div className="font-medium text-gray-800">{risk.kpi}</div>
-                                <div className="text-gray-600">{risk.metric}</div>
-                                <div className={`text-xs mt-1 ${risk.severity === 'HIGH' ? 'text-red-700' : 'text-orange-700'}`}>
-                                  {risk.issue}
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                          {levelRisks.length > 3 && (
-                            <div className="text-xs text-gray-500 mt-2">
-                              +{levelRisks.length - 3} more risks in this level
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                  </div>
-                </div>
-              )}
-
-              {/* Achievements */}
-              {managementInsights.achievements.length > 0 && (
-                <div className="bg-white rounded-lg shadow-lg p-6">
-                  <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                    <span className="text-xl">🏆</span> Key Achievements
-                  </h3>
-                  <div className="space-y-2">
-                    {managementInsights.achievements.slice(0, 5).map((achievement, idx) => (
-                      <div key={idx} className="flex items-start gap-2 py-2 border-b border-gray-100">
-                        <span className="text-green-500 font-bold">✓</span>
-                        <div className="flex-1">
-                          <div className="text-sm font-medium text-gray-700">{achievement.kpi}</div>
-                          <div className="text-xs text-gray-600 mt-1">{achievement.metric}</div>
-                          <div className="text-xs text-green-700 mt-1">{achievement.details}</div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
+              return (
+                <button
+                  type="button"
+                  className="w-full text-left rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 hover:shadow-lg transition"
+                  onClick={() => openChartModal({ chartType: 'default', title: chartTitle, data: chartData })}
+                  aria-label={`Open ${chartTitle} chart`}
+                >
+                  {chart}
+                </button>
+              );
+            })()}
           </div>
-        )}
 
-        {/* Hierarchical KPI Analysis */}
-        <div className="mb-6">
-          <h2 className="text-2xl font-bold text-gray-800 mb-4">Detailed Hierarchical Analysis</h2>
-          <p className="text-gray-600 mb-2">
-            Expand/collapse KPIs to view the complete hierarchy. Color-coded performance indicators show achievement levels.
-          </p>
-          <div className="flex gap-4 text-sm mb-4">
-            <div className="flex items-center gap-2">
-              <span className="w-4 h-4 bg-green-500 rounded"></span>
-              <span>≥100% (Target Met)</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="w-4 h-4 bg-yellow-500 rounded"></span>
-              <span>90-99% (Near Target)</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="w-4 h-4 bg-orange-500 rounded"></span>
-              <span>80-89% (Needs Attention)</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="w-4 h-4 bg-red-500 rounded"></span>
-              <span>&lt;80% (Critical)</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Main Content */}
-        {hierarchyData.length > 0 && parentKPIValues.length > 0 && (
-          <div className="bg-white rounded-lg shadow p-8 mb-6">
-            <div className="mb-6 text-center">
-              <h3 className="text-xl font-bold text-gray-800 mb-2">Direct KPI Metrics</h3>
-              <p className="text-gray-600 text-sm">
-                Direct metrics for <strong>{parentKPI?.title}</strong>
-              </p>
-            </div>
-            <div className={`grid gap-4 ${
-              parentKPIValues.length === 1 ? 'grid-cols-1' :
-              parentKPIValues.length === 2 ? 'grid-cols-1 lg:grid-cols-2' :
-              'grid-cols-1 lg:grid-cols-2 xl:grid-cols-3'
-            }`}>
-              {parentKPIValues.map((value) => {
-                const chartData = parentMonthlyData[value.id];
-                const isSingleChart = parentKPIValues.length === 1;
-                const hasTargetForValue = chartData && chartData.some((d) => rowHasTarget(d));
-                const operatorName = getOperatorDisplay(chartData);
-                const chart = hasTargetForValue ? (
-                  <LineChart
-                    data={chartData}
-                    title={value.data}
-                    size={isSingleChart ? 'compact' : 'default'}
-                    operator={operatorName}
-                  />
-                ) : (
-                  <SimpleBarChart
-                    data={chartData}
-                    title={value.data}
-                    size={isSingleChart ? 'compact' : 'default'}
-                    operator={operatorName}
-                  />
-                );
-
-                if (isSingleChart) {
-                  return (
-                    <div key={value.id} className="w-full max-w-3xl mx-auto">
-                      {chart}
-                    </div>
-                  );
-                }
-
-                return (
-                  <button
-                    key={value.id}
-                    type="button"
-                    className="w-full text-left rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 hover:shadow-lg transition"
-                    onClick={() => openChartModal({ title: value.data, data: chartData })}
-                    aria-label={`Open ${value.data} chart`}
-                  >
-                    {chart}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {hierarchyData.length === 0 ? (
-          <div className="bg-white rounded-lg shadow p-8">
-            {parentKPIValues.length > 0 ? (
-              <div>
-                <div className="mb-6 text-center">
-                  <h3 className="text-xl font-bold text-gray-800 mb-2">Direct KPI Metrics</h3>
-                  <p className="text-gray-600 text-sm">
-                    This KPI has no child KPIs. Showing direct metrics for <strong>{parentKPI?.title}</strong>
-                  </p>
-                </div>
-                <div className={`grid gap-4 ${
-                  parentKPIValues.length === 1 ? 'grid-cols-1' :
-                  parentKPIValues.length === 2 ? 'grid-cols-1 lg:grid-cols-2' :
-                  'grid-cols-1 lg:grid-cols-2 xl:grid-cols-3'
-                }`}>
-                  {parentKPIValues.map((value) => {
-                    const chartData = parentMonthlyData[value.id];
-                    const isSingleChart = parentKPIValues.length === 1;
-                    const hasTargetForValue = chartData && chartData.some((d) => rowHasTarget(d));
-                    const chart = hasTargetForValue ? (
-                      <LineChart
-                        data={chartData}
-                        title={value.data}
-                        size={isSingleChart ? 'compact' : 'default'}
-                      />
-                    ) : (
-                      <SimpleBarChart
-                        data={chartData}
-                        title={value.data}
-                        size={isSingleChart ? 'compact' : 'default'}
-                      />
-                    );
-
-                    if (isSingleChart) {
-                      return (
-                        <div key={value.id} className="w-full max-w-3xl mx-auto">
-                          {chart}
-                        </div>
-                      );
-                    }
-
-                    return (
-                      <button
-                        key={value.id}
-                        type="button"
-                        className="w-full text-left rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 hover:shadow-lg transition"
-                        onClick={() => openChartModal({ title: value.data, data: chartData })}
-                        aria-label={`Open ${value.data} chart`}
-                      >
-                        {chart}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+          <div className="w-full">
+            {oeeChartData ? (
+              <button
+                type="button"
+                className="w-full text-left rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 hover:shadow-lg transition"
+                onClick={() => openChartModal({ chartType: 'oee', title: oeeChartData.title, data: oeeChartData.data })}
+                aria-label={`Open ${oeeChartData.title} chart`}
+              >
+                <OeeChart data={oeeChartData.data} title={oeeChartData.title} size="compact" />
+              </button>
             ) : (
-              <div className="text-center">
-                <div className="mb-4">
-                  <svg className="w-16 h-16 mx-auto text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                </div>
-                <h3 className="text-xl font-semibold text-gray-700 mb-2">No Child KPIs or Data Found</h3>
-                <p className="text-gray-600 mb-4">
-                  The KPI "<strong>{parentKPI?.title}</strong>" has no child KPIs defined.
-                </p>
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-left max-w-2xl mx-auto">
-                  <p className="text-sm text-gray-700 mb-2"><strong>Possible reasons:</strong></p>
-                  <ul className="text-sm text-gray-600 list-disc list-inside space-y-1">
-                    <li>The sub-KPIs (e.g., Availability, Performance, Quality) may not be linked with <code className="text-xs bg-gray-200 px-1 rounded">parent_kpi_id</code></li>
-                    <li>The child KPIs might be in a different fiscal year</li>
-                    <li>This KPI might be configured as a leaf-level metric</li>
-                  </ul>
-                  <p className="text-sm text-gray-700 mt-3">
-                    <strong>Check browser console</strong> for detailed debugging information.
-                  </p>
-                </div>
+              <div className="bg-white p-4 rounded-lg shadow border border-gray-200">
+                <h3 className="font-semibold text-gray-800 mb-2">OVERALL EQUIPMENT EFFECTIVENESS (OEE)</h3>
+                <div className="text-gray-500 text-sm">No data available</div>
               </div>
             )}
           </div>
-        ) : (
-          <div className="space-y-4">
-            {hierarchyData.map((node) => renderKPINode(node))}
-          </div>
-        )}
 
-        {/* Footer Note */}
-        <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-gray-700">
-          <p className="font-semibold mb-2">📌 Note for Management:</p>
-          <ul className="list-disc list-inside space-y-1 text-xs">
-            <li>This analysis covers FY {fiscalYear}-{(fiscalYear + 1).toString().slice(-2)} (April {fiscalYear} to March {fiscalYear + 1})</li>
-            <li>To view a different fiscal year, return to the dashboard and select the desired year</li>
-            <li>Performance is calculated based on latest available month data (Actual vs Target)</li>
-            <li>Trends are analyzed using last 3 months of data to identify improvement or decline patterns</li>
-            <li>Critical KPIs (&lt;80% achievement) require immediate management intervention</li>
-            <li>Use the expand/collapse controls to drill down into specific KPI hierarchies</li>
-          </ul>
+          <div className="w-full">
+            {managementLossNode ? (
+              <button
+                type="button"
+                className="w-full text-left rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 hover:shadow-lg transition"
+                onClick={() => openChartModal({
+                  chartType: 'loss',
+                  title: managementLossNode?.kpi?.title || 'CORPORATE PROPERTY MANAGEMENT LOSS',
+                  node: managementLossNode,
+                  data: flattenLossRows(managementLossNode),
+                })}
+                aria-label="Open Corporate Property Management Loss chart"
+              >
+                <StackedLossChart node={managementLossNode} size="compact" />
+              </button>
+            ) : (
+              <div className="bg-white p-4 rounded-lg shadow border border-gray-200">
+                <h3 className="font-semibold text-gray-800 mb-2">CORPORATE PROPERTY MANAGEMENT LOSS</h3>
+                <div className="text-gray-500 text-sm">No data available</div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
       {modalChart && (
@@ -2049,109 +1696,21 @@ const KPIDetailPage = () => {
               </div>
             </div>
 
-            {/* Modal content: chart + data table */}
-            <div className="grid gap-4 lg:grid-cols-2">
-              <div>
-                {(() => {
-                  const hasTarget = (modalChart.data || []).some((d) => rowHasTarget(d));
-                  return hasTarget ? (
-                    <LineChart data={modalChart.data} title={modalChart.title} size="modal" />
-                  ) : (
-                    <SimpleBarChart data={modalChart.data} title={modalChart.title} size="modal" />
-                  );
-                })()}
-              </div>
+            <div>
+              {(() => {
+                if (modalChart.chartType === 'loss' && modalChart.node) {
+                  return <StackedLossChart node={modalChart.node} size="modal" />;
+                }
 
-              <div className="overflow-auto max-h-[60vh] p-2 border rounded">
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="font-semibold">Data</h4>
-                  <div className="text-xs text-gray-500">Rows: {(modalChart.data || []).length}</div>
-                </div>
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-left text-xs text-gray-600">
-                      <th className="pr-4">Month</th>
-                      <th className="pr-4">Value Type</th>
-                      <th className="pr-4">Data Operator</th>
-                      <th className="pr-4">Actual</th>
-                      <th className="pr-4">Target</th>
-                      <th className="pr-4">Raw Value</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(() => {
-                      const normalizeOperator = (row) => {
-                        if (!row) return null;
-                        const candidate = row.operator ?? row.data_operator ?? row.entered_by ?? row.operator_name ?? (row.user && (row.user.name || row.user.fullname)) ?? row.created_by ?? row.entered_by_name ?? null;
-                        if (candidate == null) return null;
-                        const numeric = Number(candidate);
-                        if (Number.isFinite(numeric)) {
-                          if (userCache[numeric]) return userCache[numeric];
-                          ensureUserCached(numeric);
-                          return String(numeric);
-                        }
-                        return String(candidate);
-                      };
+                if (modalChart.chartType === 'oee') {
+                  return <OeeChart data={modalChart.data} title={modalChart.title} size="modal" />;
+                }
 
-                      const rows = (modalChart.data || []).map(row => {
-                        // normalize month
-                        let monthNum = null;
-                        if (row.month != null) {
-                          if (typeof row.month === 'number') monthNum = row.month;
-                          else {
-                            const txt = String(row.month).trim();
-                            const n = Number(txt);
-                            if (Number.isFinite(n) && n >= 1 && n <= 12) monthNum = n;
-                            else {
-                              const key = txt.slice(0,3).toLowerCase();
-                              const idx = MONTH_LABELS.map(l => l.toLowerCase()).indexOf(key);
-                              if (idx >= 0) monthNum = idx + 1;
-                              else {
-                                const pd = new Date(txt);
-                                if (!Number.isNaN(pd.getTime())) monthNum = pd.getMonth() + 1;
-                              }
-                            }
-                          }
-                        }
-
-                        return {
-                          monthNum,
-                          monthLabel: monthNum ? MONTH_LABELS[monthNum - 1] : String(row.month ?? ''),
-                          value_type: row.value_type ?? '',
-                          operator: normalizeOperator(row),
-                          actual: row.actual_value ?? row.actual ?? null,
-                          target: row.target_value ?? row.target ?? null,
-                          raw: row.value ?? null
-                        };
-                      });
-
-                      // sort by fiscal sequence order
-                      const orderMap = {};
-                      getFiscalMonthSequence(fiscalYear).forEach((m, i) => { orderMap[m.month] = i; });
-                      rows.sort((a, b) => {
-                        const ia = a.monthNum && orderMap[a.monthNum] != null ? orderMap[a.monthNum] : Infinity;
-                        const ib = b.monthNum && orderMap[b.monthNum] != null ? orderMap[b.monthNum] : Infinity;
-                        return ia - ib;
-                      });
-
-                      return rows.map((r, idx) => {
-                        const parsedActual = r.actual != null ? parseNumeric(r.actual) : null;
-                        const parsedTarget = r.target != null ? parseNumeric(r.target) : null;
-                        return (
-                        <tr key={idx} className="border-t">
-                          <td className="py-2 pr-4">{r.monthLabel}</td>
-                          <td className="py-2 pr-4">{r.value_type}</td>
-                          <td className="py-2 pr-4">{r.operator ?? '-'}</td>
-                          <td className="py-2 pr-4">{parsedActual != null ? parsedActual.toFixed(2) : '-'}</td>
-                          <td className="py-2 pr-4">{parsedTarget != null ? parsedTarget.toFixed(2) : '-'}</td>
-                          <td className="py-2 pr-4 text-gray-600">{r.raw != null ? String(r.raw) : '-'}</td>
-                        </tr>
-                        );
-                      });
-                    })()}
-                  </tbody>
-                </table>
-              </div>
+                const hasTarget = (modalChart.data || []).some((d) => rowHasTarget(d));
+                return hasTarget
+                  ? <LineChart data={modalChart.data} title={modalChart.title} size="modal" />
+                  : <SimpleBarChart data={modalChart.data} title={modalChart.title} size="modal" />;
+              })()}
             </div>
           </div>
         </div>

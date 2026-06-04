@@ -304,8 +304,11 @@ exports.updateTicket = async (req, res) => {
             payload.status = 'Closed';
             // record who rejected it for audit
             payload.rejected_by = requesterId;
-            if (payload.rejected_by_reason === undefined && existing && existing.description) {
-              // keep reason if provided in payload; otherwise leave null
+            if (payload.rejected_by_reason === undefined || payload.rejected_by_reason === null) {
+              payload.rejected_by_reason = 'None Specified';
+            } else {
+              const normalizedReason = String(payload.rejected_by_reason).trim();
+              payload.rejected_by_reason = normalizedReason || 'None Specified';
             }
             // Notify the creator that the ticket was rejected (effectively closed)
             const creatorMessage = `Type: Ticket rejected\nTitle: ${existing.title}\nDescription: ${existing.description || ''}`;

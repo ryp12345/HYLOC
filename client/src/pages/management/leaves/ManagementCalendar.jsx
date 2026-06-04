@@ -10,6 +10,7 @@ import {
 	getDepartmentColleagues
 } from '../../../api/leaveApi';
 import { getMyTickets, getAllTickets } from '../../../api/ticketApi';
+import { getUsers } from '../../../api/userApi';
 import { useAuth } from '../../../context/AuthContext';
 
 const ManagementCalendar = () => {
@@ -63,6 +64,7 @@ const ManagementCalendar = () => {
 	const itemsPerPage = 10;
 	// Ticket state
 	const [tickets, setTickets] = useState([]);
+	const [usersById, setUsersById] = useState({});
 	const [showTicketModal, setShowTicketModal] = useState(false);
 	const [selectedTickets, setSelectedTickets] = useState([]);
 
@@ -144,11 +146,65 @@ const ManagementCalendar = () => {
 	const loadTickets = async () => {
 		try {
 			// Management view should show all tickets
-			const res = await getAllTickets();
-			setTickets(res.data.data || []);
+			const [ticketsRes, usersRes] = await Promise.all([
+				getAllTickets(),
+				getUsers(),
+			]);
+			setTickets(ticketsRes.data.data || []);
+			const users = usersRes?.data?.data || [];
+			const map = {};
+			users.forEach((u) => {
+				if (!u || u.id === undefined || u.id === null) return;
+				const name = `${u.firstname || ''} ${u.lastname || ''}`.trim() || u.name || u.full_name || u.email || `User #${u.id}`;
+				map[String(u.id)] = name;
+			});
+			setUsersById(map);
 		} catch (err) {
 			// Optionally set error
 		}
+	};
+
+	const roleNorm = String(user?.role || '').toLowerCase();
+	const isManagementUser = roleNorm === 'management';
+
+	const getRejectedByDisplayName = (ticket) => {
+		if (!ticket || ticket.rejected_by === null || ticket.rejected_by === undefined || ticket.rejected_by === '') return '-';
+		return usersById[String(ticket.rejected_by)] || `User #${ticket.rejected_by}`;
+	};
+
+	const getDateOnlyDisplayFromTimestamp = (value) => {
+		if (!value) return '-';
+		const d = new Date(value);
+		if (Number.isNaN(d.getTime())) return '-';
+		return d.toLocaleDateString('en-US', {
+			year: 'numeric',
+			month: 'short',
+			day: 'numeric',
+		});
+	};
+
+	const getRejectedDateDisplay = (ticket) => {
+		if (!ticket) return '-';
+		const hasRejectionData = Boolean(ticket.rejected_by || ticket.rejected_by_reason || String(ticket.status || '').toLowerCase() === 'rejected');
+		if (!hasRejectionData) return '-';
+		const closedDate = getClosedDateDisplay(ticket);
+		if (closedDate !== '-') return closedDate;
+		return getDateOnlyDisplayFromTimestamp(ticket.updated_at);
+	};
+
+	const getClosedDateDisplay = (ticket) => {
+		if (!ticket || String(ticket.status || '').toLowerCase() !== 'closed') return '-';
+		return getDateOnlyDisplayFromTimestamp(ticket.updated_at);
+	};
+
+	const getRejectedReasonDisplay = (ticket) => {
+		if (!ticket) return '-';
+		const reason = ticket.rejected_by_reason !== undefined && ticket.rejected_by_reason !== null
+			? String(ticket.rejected_by_reason).trim()
+			: '';
+		if (reason) return reason;
+		if (ticket.rejected_by) return 'None Specified';
+		return '-';
 	};
 
 	const getMonthDays = (date) => {
@@ -988,6 +1044,10 @@ const ManagementCalendar = () => {
 														<th className="text-left px-4 py-2 border">Category</th>
 														<th className="text-left px-4 py-2 border">Priority</th>
 														<th className="text-left px-4 py-2 border">Due Date</th>
+														{isManagementUser && <th className="text-left px-4 py-2 border">Rejected By</th>}
+														{isManagementUser && <th className="text-left px-4 py-2 border">Rejected Reason</th>}
+														{isManagementUser && <th className="text-left px-4 py-2 border">Rejected Date</th>}
+														{isManagementUser && <th className="text-left px-4 py-2 border">Closed Date</th>}
 													</tr>
 												</thead>
 												<tbody>
@@ -998,6 +1058,10 @@ const ManagementCalendar = () => {
 															<td className="px-4 py-2 border">{t.category || t.ticket_category || '-'}</td>
 															<td className="px-4 py-2 border">{t.priority || '-'}</td>
 															<td className="px-4 py-2 border">{t.due_date ? formatDateDisplay(t.due_date) : '-'}</td>
+															{isManagementUser && <td className="px-4 py-2 border">{getRejectedByDisplayName(t)}</td>}
+															{isManagementUser && <td className="px-4 py-2 border">{getRejectedReasonDisplay(t)}</td>}
+															{isManagementUser && <td className="px-4 py-2 border">{getRejectedDateDisplay(t)}</td>}
+															{isManagementUser && <td className="px-4 py-2 border">{getClosedDateDisplay(t)}</td>}
 														</tr>
 													))}
 												</tbody>
