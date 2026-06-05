@@ -1269,5 +1269,3 @@ const KPIDetailPage = () => {
 };
 
 export default KPIDetailPage;
-
-
