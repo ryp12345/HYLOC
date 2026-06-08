@@ -235,6 +235,25 @@ const CHART_COLORS = {
   target: '#fb923c',
 };
 
+/* ══════════════ YEAR UTILITIES ══════════════ */
+
+const getCurrentFiscalYear = () => {
+  const now = new Date();
+  const currentMonth = now.getMonth() + 1;
+  return currentMonth >= 4 ? now.getFullYear() : now.getFullYear() - 1;
+};
+
+const generateAvailableFiscalYears = () => {
+  const currentFY = getCurrentFiscalYear();
+  const years = [];
+  for (let y = currentFY - 5; y <= currentFY + 2; y += 1) {
+    years.push(y);
+  }
+  return years;
+};
+
+const AVAILABLE_FISCAL_YEARS = generateAvailableFiscalYears();
+
 /* ══════════════ MAIN COMPONENT ══════════════ */
 
 const KPIDetailPage = () => {
@@ -243,20 +262,19 @@ const KPIDetailPage = () => {
   const location = useLocation();
   const { user } = useAuth();
 
-  const getCurrentFiscalYear = () => {
-    const now = new Date();
-    const currentMonth = now.getMonth() + 1;
-    return currentMonth >= 4 ? now.getFullYear() : now.getFullYear() - 1;
-  };
-
   const [parentKPI, setParentKPI] = useState(null);
   const [parentKPIValues, setParentKPIValues] = useState([]);
   const [parentMonthlyData, setParentMonthlyData] = useState({});
   const [hierarchyData, setHierarchyData] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [fiscalYear] = useState(location.state?.fiscalYear || getCurrentFiscalYear());
+  const [selectedFiscalYear, setSelectedFiscalYear] = useState(
+    location.state?.fiscalYear || getCurrentFiscalYear()
+  );
   const [userCache, setUserCache] = useState({});
   const [selectedMonthIdx, setSelectedMonthIdx] = useState(0);
+
+  // Alias so the rest of the code still works with fiscalYear
+  const fiscalYear = selectedFiscalYear;
 
   /* ══════════════ MODAL STATE ══════════════ */
   const [expandedChart, setExpandedChart] = useState(null);
@@ -282,7 +300,7 @@ const KPIDetailPage = () => {
 
   /* ──── Data Loading ──── */
 
-  useEffect(() => { loadKPIHierarchy(); }, [kpiId, fiscalYear]);
+  useEffect(() => { loadKPIHierarchy(); }, [kpiId, selectedFiscalYear]);
 
   const loadKPIHierarchy = async () => {
     try {
@@ -644,12 +662,13 @@ const KPIDetailPage = () => {
         <div className="px-3 py-1.5 text-xs font-semibold text-slate-700 border-b border-gray-300 text-center">
           {selectedMonthLabel}
         </div>
+        {/* Increased chart heights for better readability as months increase */}
         <div className="p-3 grid grid-cols-1 xl:grid-cols-2 gap-2 items-center flex-1 min-h-0">
           {/* Donut */}
-          <div className="h-[140px] relative">
+          <div className="h-[200px] relative">
             <ResponsiveContainer width="100%" height="100%">
               <RePieChart>
-                <Pie data={donutData} innerRadius={40} outerRadius={60} dataKey="value" stroke="none" startAngle={90} endAngle={-270}>
+                <Pie data={donutData} innerRadius={50} outerRadius={78} dataKey="value" stroke="none" startAngle={90} endAngle={-270}>
                   {donutData.map((entry) => (
                     <Cell key={entry.name} fill={entry.fill} />
                   ))}
@@ -662,17 +681,17 @@ const KPIDetailPage = () => {
           </div>
 
           {/* Trend line */}
-          <div className="h-[140px]">
+          <div className="h-[200px]">
             <ResponsiveContainer width="100%" height="100%">
               <ReLineChart data={trendData} margin={{ top: 8, right: 8, left: 0, bottom: 8 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis dataKey="month" tick={{ fontSize: 9 }} />
-                <YAxis tick={{ fontSize: 9 }} width={28} />
+                <XAxis dataKey="month" tick={{ fontSize: 10 }} />
+                <YAxis tick={{ fontSize: 10 }} width={32} />
                 <Tooltip
                   contentStyle={{ fontSize: '11px', padding: '6px' }}
                   formatter={(val) => val != null ? val.toFixed(1) : '-'}
                 />
-                <Legend wrapperStyle={{ fontSize: '9px' }} />
+                <Legend wrapperStyle={{ fontSize: '10px' }} />
                 <Line type="monotone" dataKey="actual" name="Actual" stroke={accentColor} strokeWidth={2.5} dot={false} connectNulls />
                 <Line type="monotone" dataKey="target" name="Target" stroke={targetColor} strokeWidth={2} strokeDasharray="6 4" dot={false} connectNulls />
               </ReLineChart>
@@ -1009,6 +1028,7 @@ const KPIDetailPage = () => {
       </div>
     );
   };
+
   /* ══════════════ LOADING STATE ══════════════ */
   if (loading) {
     return (
@@ -1020,6 +1040,7 @@ const KPIDetailPage = () => {
       </div>
     );
   }
+
   const hasLayout = layout?.hasAnyData;
   const hasSpecificLayout = !!(layout?.ope || layout?.oee || layout?.ae || layout?.pe || layout?.qe || layout?.managementLossSeries?.some(s => s.metric));
   const totalMonths = layout?.monthLabels?.length || 12;
@@ -1034,10 +1055,53 @@ const KPIDetailPage = () => {
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
             Back
           </button>
-          <div className="bg-sky-700 text-white px-4 py-1.5 rounded-md font-bold text-sm">
-            FY {fiscalYear}-{(fiscalYear + 1).toString().slice(-2)}
+
+          {/* ═══ Compact Fiscal Year Selector ═══ */}
+          <div className="flex items-center gap-1 bg-white rounded shadow px-2 py-1 border border-gray-200 h-9 min-h-0">
+            <button
+              onClick={() => {
+                const currentIndex = AVAILABLE_FISCAL_YEARS.indexOf(selectedFiscalYear);
+                if (currentIndex > 0) {
+                  setSelectedFiscalYear(AVAILABLE_FISCAL_YEARS[currentIndex - 1]);
+                  setSelectedMonthIdx(0);
+                }
+              }}
+              disabled={AVAILABLE_FISCAL_YEARS.indexOf(selectedFiscalYear) <= 0}
+              className="px-2 py-0.5 rounded bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors font-semibold text-xs focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-40 disabled:cursor-not-allowed"
+              title="Previous Fiscal Year"
+              style={{ lineHeight: '1' }}
+            >
+              ‹
+            </button>
+            <span className="text-xs text-gray-500 font-medium mr-1">FY</span>
+            <span className="text-sm font-bold text-gray-800 mr-1">
+              {selectedFiscalYear}-{(selectedFiscalYear + 1).toString().slice(-2)}
+            </span>
+            <span className="text-xs text-gray-400 mr-1">Apr {selectedFiscalYear} - Mar {selectedFiscalYear + 1}</span>
+            {AVAILABLE_FISCAL_YEARS.length > 0 && (
+              <span className="text-xs text-gray-400 mr-1">
+                ({AVAILABLE_FISCAL_YEARS.indexOf(selectedFiscalYear) + 1} / {AVAILABLE_FISCAL_YEARS.length})
+              </span>
+            )}
+            <button
+              onClick={() => {
+                const currentIndex = AVAILABLE_FISCAL_YEARS.indexOf(selectedFiscalYear);
+                if (currentIndex >= 0 && currentIndex < AVAILABLE_FISCAL_YEARS.length - 1) {
+                  setSelectedFiscalYear(AVAILABLE_FISCAL_YEARS[currentIndex + 1]);
+                  setSelectedMonthIdx(0);
+                }
+              }}
+              disabled={AVAILABLE_FISCAL_YEARS.indexOf(selectedFiscalYear) >= AVAILABLE_FISCAL_YEARS.length - 1}
+              className="px-2 py-0.5 rounded bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors font-semibold text-xs focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-40 disabled:cursor-not-allowed"
+              title="Next Fiscal Year"
+              style={{ lineHeight: '1' }}
+            >
+              ›
+            </button>
           </div>
+          {/* ═══ Fiscal Year Selector end ═══ */}
         </div>
+
         {/* ── KPI Title Banner ── */}
         <div className="rounded-xl border-2 border-slate-300 bg-white p-3 shadow">
           <div className="bg-sky-700 text-white text-center font-bold py-2.5 rounded-md mb-3 tracking-wide text-lg">
@@ -1047,7 +1111,7 @@ const KPIDetailPage = () => {
             <>
               {/* ════════ 3-COLUMN DASHBOARD LAYOUT ════════ */}
               {hasSpecificLayout && (
-                <div className="grid grid-cols-1 xl:grid-cols-[1.1fr_0.5fr_2.1fr] gap-3 items-stretch">
+                <div className="grid grid-cols-1 xl:grid-cols-[2fr_0.45fr_1.2fr] gap-3 items-stretch">
 
                   {/* ── LEFT COLUMN: OPE + OEE stacked vertically ── */}
                   <div className="flex flex-col gap-3">
@@ -1072,6 +1136,7 @@ const KPIDetailPage = () => {
                       />
                     </div>
                   </div>
+
                   {/* ── MIDDLE COLUMN: MONTH + AE / PE / QE ── */}
                   <div className="border border-gray-400 bg-white rounded-lg overflow-hidden flex flex-col">
                     {/* MONTH Header */}
@@ -1117,13 +1182,13 @@ const KPIDetailPage = () => {
                     {/* AE / PE / QE Pie Boxes */}
                     <div className="flex-1 flex flex-col min-h-0">
                       <div className="flex-1 border-b border-gray-300 min-h-0">
-                        <EfficiencyPieBox metric={layout.ae} title="AE - PIE CHART" color={CHART_COLORS.ae} monthIdx={selectedMonthIdx} onExpand={() => openExpandedChart('ae')} />
+                        <EfficiencyPieBox metric={layout.ae} title="AE" color={CHART_COLORS.ae} monthIdx={selectedMonthIdx} onExpand={() => openExpandedChart('ae')} />
                       </div>
                       <div className="flex-1 border-b border-gray-300 min-h-0">
-                        <EfficiencyPieBox metric={layout.pe} title="PE - PIE CHART" color={CHART_COLORS.pe} monthIdx={selectedMonthIdx} onExpand={() => openExpandedChart('pe')} />
+                        <EfficiencyPieBox metric={layout.pe} title="PE" color={CHART_COLORS.pe} monthIdx={selectedMonthIdx} onExpand={() => openExpandedChart('pe')} />
                       </div>
                       <div className="flex-1 min-h-0">
-                        <EfficiencyPieBox metric={layout.qe} title="QE - PIE CHART" color={CHART_COLORS.qe} monthIdx={selectedMonthIdx} onExpand={() => openExpandedChart('qe')} />
+                        <EfficiencyPieBox metric={layout.qe} title="QE" color={CHART_COLORS.qe} monthIdx={selectedMonthIdx} onExpand={() => openExpandedChart('qe')} />
                       </div>
                     </div>
                   </div>
@@ -1139,20 +1204,20 @@ const KPIDetailPage = () => {
                     tabIndex={0}
                     onKeyDown={(e) => { if (e.key === 'Enter' && !e.target.closest('button')) openExpandedChart('managementLoss'); }}
                   >
-                    <div className="bg-slate-900 text-white text-center py-2 text-base font-bold tracking-wide">
+                    <div className="bg-slate-900 text-white text-center py-2 text-sm font-bold tracking-wide">
                       MANAGEMENT LOSS (HRS.)
                     </div>
-                    <div className="flex-1 p-3 min-h-0">
+                    <div className="flex-1 p-2 min-h-0">
                       <ResponsiveContainer width="100%" height="100%">
-                        <ComposedChart data={layout.stackedRows} margin={{ top: 12, right: 10, left: 0, bottom: 30 }}>
+                        <ComposedChart data={layout.stackedRows} margin={{ top: 8, right: 5, left: -10, bottom: 25 }}>
                           <CartesianGrid strokeDasharray="3 3" stroke="#d1d5db" />
-                          <XAxis dataKey="month" tick={{ fontSize: 10 }} />
-                          <YAxis tick={{ fontSize: 10 }} />
+                          <XAxis dataKey="month" tick={{ fontSize: 9 }} />
+                          <YAxis tick={{ fontSize: 9 }} width={30} />
                           <Tooltip
-                            contentStyle={{ fontSize: '11px', padding: '8px' }}
+                            contentStyle={{ fontSize: '10px', padding: '6px' }}
                             formatter={(val, name) => val != null ? [val.toFixed(2), name] : ['-', name]}
                           />
-                          <Legend wrapperStyle={{ fontSize: '10px' }} />
+                          <Legend wrapperStyle={{ fontSize: '8px' }} />
                           {layout.managementLossSeries.map((series) => (
                             <Bar
                               key={series.key}
@@ -1167,7 +1232,7 @@ const KPIDetailPage = () => {
                             dataKey="target"
                             name="MANAGEMENT LOSS TIME - TARGET"
                             stroke="#374151"
-                            strokeWidth={2}
+                            strokeWidth={1.5}
                             dot={false}
                             connectNulls
                           />
@@ -1177,20 +1242,6 @@ const KPIDetailPage = () => {
                   </div>
                 </div>
               )}
-
-              {/* ════════ OTHER METRICS GRID ════════ */}
-              {/* {layout.otherMetrics.length > 0 && (
-                <div className={hasSpecificLayout ? 'mt-3' : ''}>
-                  <div className="bg-slate-700 text-white text-center font-bold py-2 rounded-md mb-3 tracking-wide text-sm">
-                    ALL KPI METRICS
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                    {layout.otherMetrics.map((m) => (
-                      <MetricCard key={m.id} metric={m} onExpand={() => openExpandedChart(`other-${m.id}`)} />
-                    ))}
-                  </div>
-                </div>
-              )} */}
             </>
           ) : (
             /* ── No specific metrics found — show ALL metrics as cards ── */
@@ -1221,7 +1272,7 @@ const KPIDetailPage = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
                 <p className="font-semibold text-gray-700 mb-1">No Data Available</p>
-                <p className="text-sm">No KPI data found for FY {fiscalYear}-{(fiscalYear + 1).toString().slice(-2)}.</p>
+                <p className="text-sm">No KPI data found for FY {selectedFiscalYear}-{(selectedFiscalYear + 1).toString().slice(-2)}.</p>
               </div>
             )
           )}
