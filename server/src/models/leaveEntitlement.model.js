@@ -230,6 +230,8 @@ exports.getAllBalances = async (year, filters = {}) => {
       (le.leave_entitled + le.leaves_accumulated - le.leaves_availed) as leave_balance
     FROM leaves_entitlement le
     LEFT JOIN users u ON le.user_id = u.id
+    LEFT JOIN user_roles ur_ex ON ur_ex.user_id = u.id AND ur_ex.status = 'active'
+    LEFT JOIN roles r_ex ON r_ex.id = ur_ex.role_id
     LEFT JOIN departments d ON u.department_id = d.id
     WHERE le.year = $1
   `;
@@ -242,6 +244,9 @@ exports.getAllBalances = async (year, filters = {}) => {
     query += ` AND u.department_id = $${paramCount}`;
     values.push(filters.department_id);
   }
+
+  // Exclude Super admin role from entitlements listing
+  query += ` AND (r_ex.role_name IS NULL OR LOWER(r_ex.role_name) <> 'super admin')`;
   
   query += ` ORDER BY u.empid ASC`;
   

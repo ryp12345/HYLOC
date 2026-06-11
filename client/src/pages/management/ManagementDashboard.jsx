@@ -79,7 +79,7 @@ const Industry40LineChart = ({
       {showHeader && <h2 className="text-base font-semibold text-gray-800 mb-2 text-center">{title}</h2>}
       <div className="flex flex-row flex-1 min-h-0 items-center gap-1">
       {/* CHANGED: Added h-full and w-full class to force expansion in compact mode */}
-      <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="flex-1 min-w-0 h-auto w-full h-full" preserveAspectRatio="none">
+      <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="flex-1 min-w-0 w-full h-full" preserveAspectRatio="none">
         <defs>
           <linearGradient id="industry40Gradient" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="#41aafe" stopOpacity="0.4" />
@@ -366,7 +366,7 @@ const padding = isExpanded ? 85 : 48;
       {showHeader && subtitle && <p className="text-sm text-gray-600 mb-2 text-center">{subtitle}</p>}
       <div className="flex flex-row flex-1 min-h-0 items-center gap-1">
       {/* CHANGED: Added h-full and w-full class to force expansion in compact mode */}
-      <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="flex-1 min-w-0 h-auto w-full h-full" preserveAspectRatio="none">
+      <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="flex-1 min-w-0 w-full h-full" preserveAspectRatio="none">
         <defs>
           <linearGradient id="greenFactoryBarGradient" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="#10b981" />
@@ -431,23 +431,42 @@ const padding = isExpanded ? 85 : 48;
 };
 
 // Bar Chart component for Zero Accidents (shows actual vs target per month)
-const ZeroAccidentsBarChart = ({ title, subtitle, labels, actuals, targets, showHeader = true, showAxisLabels = true, xAxisTitle = 'Month', yAxisTitle = 'Value', isExpanded = false }) => {
-  const svgHeight = isExpanded ? 300 : 260;
-  const padding = isExpanded ? 60 : 20;
+const ZeroAccidentsBarChart = ({ title, subtitle, labels, actuals, targets, showHeader = true, showAxisLabels = true, xAxisTitle = 'Month', yAxisTitle = 'Value', isExpanded = false, className = '' }) => {
+  const svgHeight = isExpanded ? 360 : 210;
+  const padding = isExpanded ? 38 : 24;
 
-  const svgWidth = 900;
+  const svgWidth = 640;
+
+  const baseData = labels.map((label, idx) => {
+    const actualValue = Number(actuals[idx] ?? 0);
+    const targetValue = Number(targets[idx] ?? 0);
+    return { label, actual: actualValue, target: targetValue };
+  });
+
+  const filteredData = baseData.filter(({ actual, target }) => actual !== 0 || target !== 0);
+  const displayData = filteredData.length > 0 ? filteredData : baseData;
+
+  const displayLabels = displayData.map((item) => {
+    const normalizedLabel = String(item.label).trim();
+    const monthIndex = Number(normalizedLabel);
+    return Number.isInteger(monthIndex) && monthIndex >= 1 && monthIndex <= 12
+      ? MONTH_LABELS[monthIndex - 1]
+      : normalizedLabel;
+  });
+  const displayActuals = displayData.map((item) => item.actual);
+  const displayTargets = displayData.map((item) => item.target);
 
   const plotWidth = svgWidth - padding * 2;
   const plotHeight = svgHeight - padding * 2;
 
-  const maxVal = Math.max(...actuals, ...targets, 1);
+  const maxVal = Math.max(...displayActuals, ...displayTargets, 1);
   const minVal = 0;
   const range = maxVal - minVal;
-  const groupWidth = plotWidth / labels.length;
-  const barWidth = isExpanded ? Math.min(36, groupWidth * 0.35) : Math.min(26, groupWidth * 0.45);
-  const axisLabelFontSize = isExpanded ? 14 : 16;
-  const axisTitleFontSize = isExpanded ? 14 : 16;
-  const legendFontSize = isExpanded ? 10 : 9;
+  const groupWidth = plotWidth / Math.max(displayLabels.length, 1);
+  const barWidth = isExpanded ? Math.min(42, groupWidth * 0.45) : Math.min(34, groupWidth * 0.55);
+  const axisLabelFontSize = isExpanded ? 14 : 12;
+  const axisTitleFontSize = isExpanded ? 14 : 12;
+  const legendFontSize = isExpanded ? 12 : 10;
   const getX = (idx, which) => {
     const base = padding + idx * groupWidth + groupWidth / 2;
     // which: 0 = actual (left), 1 = target (right)
@@ -455,19 +474,24 @@ const ZeroAccidentsBarChart = ({ title, subtitle, labels, actuals, targets, show
   };
   const getY = (val) => svgHeight - padding - ((val - minVal) / (range || 1)) * plotHeight;
   const getBarHeight = (val) => ((val - minVal) / (range || 1)) * plotHeight;
-  const maxVisibleXLabels = isExpanded ? labels.length : 7;
-  const xLabelStep = labels.length > maxVisibleXLabels ? Math.ceil(labels.length / maxVisibleXLabels) : 1;
-  const xAxisLabelY = svgHeight - padding + (isExpanded ? 26 : 16);
-  const xLabelRotation = !isExpanded ? -35 : 0;
+  const getValueLabelY = (val) => {
+    const y = getY(val);
+    const offset = 20;
+    return Math.max(y - offset, padding + 14);
+  };
+  const maxVisibleXLabels = isExpanded ? displayLabels.length : 8;
+  const xLabelStep = displayLabels.length > maxVisibleXLabels ? Math.ceil(displayLabels.length / maxVisibleXLabels) : 1;
+  const xAxisLabelY = svgHeight - padding + (isExpanded ? 18 : 14);
+  const xLabelRotation = 0;
 
   const displayAxisLabels = isExpanded || showAxisLabels;
 
   return (
-    <div className="w-full h-full flex flex-col min-h-0">
+    <div className={`w-full h-full flex flex-col flex-1 min-h-0 ${className}`}>
       {showHeader && <h2 className="text-base font-semibold text-gray-800 mb-2 text-center">{title}</h2>}
       {showHeader && subtitle && <p className="text-sm text-gray-600 mb-2 text-center">{subtitle}</p>}
-      <div className="flex flex-row flex-1 min-h-0 items-stretch gap-0.5">
-      <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="flex-1 min-w-0 w-full h-full" preserveAspectRatio="xMinYMin meet" style={{ minHeight: `${svgHeight}px` }}>
+      <div className="flex flex-row flex-1 min-h-0 items-stretch justify-end gap-0.5 overflow-hidden">
+      <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="flex-1 min-w-0 h-full" preserveAspectRatio="none">
         <defs>
           <linearGradient id="zeroAccidentsActualGradient" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="#60a5fa" />
@@ -506,17 +530,17 @@ const ZeroAccidentsBarChart = ({ title, subtitle, labels, actuals, targets, show
         <line x1={padding} y1={padding} x2={padding} y2={svgHeight - padding} stroke="#1f2937" strokeWidth="2" />
         <line x1={padding} y1={svgHeight - padding} x2={svgWidth - padding} y2={svgHeight - padding} stroke="#1f2937" strokeWidth="2" />
 
-        {labels.map((label, idx) => (
+        {displayLabels.map((label, idx) => (
           <g key={`group-${idx}`}>
-            <rect x={getX(idx, 0)} y={getY(actuals[idx] || 0)} width={barWidth} height={getBarHeight(actuals[idx] || 0)} fill="url(#zeroAccidentsActualGradient)" rx="4" />
-            <rect x={getX(idx, 1)} y={getY(targets[idx] || 0)} width={barWidth} height={getBarHeight(targets[idx] || 0)} fill="url(#zeroAccidentsTargetGradient)" rx="4" />
+            <rect x={getX(idx, 0)} y={getY(displayActuals[idx] || 0)} width={barWidth} height={getBarHeight(displayActuals[idx] || 0)} fill="url(#zeroAccidentsActualGradient)" rx="4" />
+            <rect x={getX(idx, 1)} y={getY(displayTargets[idx] || 0)} width={barWidth} height={getBarHeight(displayTargets[idx] || 0)} fill="url(#zeroAccidentsTargetGradient)" rx="4" />
 
-            <text x={getX(idx, 0) + barWidth / 2} y={getY(actuals[idx] || 0) - 5} textAnchor="middle" fontSize="14" fontWeight="600" fill="#2563eb">{(actuals[idx] || 0).toFixed(0)}</text>
-            <text x={getX(idx, 1) + barWidth / 2} y={getY(targets[idx] || 0) - 5} textAnchor="middle" fontSize="14" fontWeight="600" fill="#d97706">{(targets[idx] || 0).toFixed(0)}</text>
+            <text x={getX(idx, 0) + barWidth / 2} y={getValueLabelY(displayActuals[idx] || 0)} textAnchor="middle" fontSize="12" fontWeight="600" fill="#2563eb">{(displayActuals[idx] || 0).toFixed(0)}</text>
+            <text x={getX(idx, 1) + barWidth / 2} y={getValueLabelY(displayTargets[idx] || 0)} textAnchor="middle" fontSize="12" fontWeight="600" fill="#d97706">{(displayTargets[idx] || 0).toFixed(0)}</text>
           </g>
         ))}
 
-        {displayAxisLabels && labels.map((label, idx) => {
+        {displayAxisLabels && displayLabels.map((label, idx) => {
           if (idx % xLabelStep !== 0) return null;
           const x = padding + idx * groupWidth + groupWidth / 2;
           const rotate = xLabelRotation;
@@ -526,8 +550,8 @@ const ZeroAccidentsBarChart = ({ title, subtitle, labels, actuals, targets, show
               x={x}
               y={xAxisLabelY}
               transform={rotate ? `rotate(${rotate} ${x} ${xAxisLabelY})` : undefined}
-              dominantBaseline={rotate ? 'hanging' : 'middle'}
-              textAnchor={rotate ? 'end' : 'middle'}
+              dominantBaseline="hanging"
+              textAnchor="middle"
               fontSize={axisLabelFontSize}
               fontWeight="600"
               fill="#4b5563"
@@ -554,7 +578,7 @@ const ZeroAccidentsBarChart = ({ title, subtitle, labels, actuals, targets, show
             const y = svgHeight - padding - ratio * plotHeight;
             const label = Number.isFinite(tick) ? Math.round(tick).toString() : String(tick);
             return (
-              <text key={`y-label-${i}`} x={padding - 10} y={y} dominantBaseline="middle" textAnchor="end" fontSize={axisLabelFontSize} fontWeight="600" fill="#4b5563">{label}</text>
+              <text key={`y-label-${i}`} x={padding - 8} y={y} dominantBaseline="middle" textAnchor="end" fontSize={axisLabelFontSize} fontWeight="600" fill="#4b5563">{label}</text>
             );
           });
         })()}
@@ -567,7 +591,7 @@ const ZeroAccidentsBarChart = ({ title, subtitle, labels, actuals, targets, show
         )}
       </svg>
 
-      <div className="flex flex-col justify-center gap-1 pl-2 w-12 flex-shrink-0">
+      <div className="flex flex-col justify-center gap-1 pl-2 w-24 flex-shrink-0">
         <div className="flex items-center gap-1"><span className="w-2 h-2 bg-[#2563eb] rounded flex-shrink-0"></span><span style={{ fontSize: `${legendFontSize}px` }} className="text-gray-600">Actual</span></div>
         <div className="flex items-center gap-1"><span className="w-2 h-2 bg-[#d97706] rounded flex-shrink-0"></span><span style={{ fontSize: `${legendFontSize}px` }} className="text-gray-600">Target</span></div>
       </div>
@@ -610,7 +634,7 @@ const padding = isExpanded ? 85 : 48;
       {showHeader && subtitle && <p className="text-sm text-gray-600 mb-2 text-center">{subtitle}</p>}
       <div className="flex flex-row flex-1 min-h-0 items-center gap-1">
       {/* CHANGED: Added h-full and w-full class to force expansion in compact mode */}
-      <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="flex-1 min-w-0 h-auto w-full h-full" preserveAspectRatio="none">
+      <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="flex-1 min-w-0 w-full h-full" preserveAspectRatio="none">
         <defs>
           <linearGradient id="onTimeDeliveryBarGradient" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="#4ade80" />
@@ -706,7 +730,7 @@ const padding = isExpanded ? 85 : 48;
       {showHeader && <h2 className="text-base font-semibold text-gray-800 mb-2 text-center">{title}</h2>}
       {(showHeader || showSubtitle) && subtitle && <p className="text-xs font-semibold text-gray-500 mb-1 text-center tracking-wide uppercase">{subtitle}</p>}
       {/* CHANGED: Added h-full and w-full class to force expansion in compact mode */}
-      <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="w-full h-auto h-full w-full" preserveAspectRatio="none">
+      <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="w-full h-full" preserveAspectRatio="none">
         <defs>
           <linearGradient id="themeBarGradient" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="#60a5fa" />
@@ -795,7 +819,7 @@ const Box4EmployeesLineChart = ({ title, subtitle, labels, values, showAxisLabel
       {showHeader && <h2 className="text-base font-semibold text-gray-800 mb-2 text-center">{title}</h2>}
       {(showHeader || showSubtitle) && subtitle && <p className="text-xs font-semibold text-gray-500 mb-1 text-center tracking-wide uppercase">{subtitle}</p>}
       {/* CHANGED: Added h-full and w-full class to force expansion in compact mode */}
-      <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="w-full h-auto h-full w-full" preserveAspectRatio="none">
+      <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="w-full h-full" preserveAspectRatio="none">
         <defs>
           <linearGradient id="employeeLineGradient" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="#ef4444" stopOpacity="0.30" />
@@ -2906,23 +2930,23 @@ function ManagementDashboard() {
               <div className="flex items-center justify-center p-8 text-gray-500">Loading...</div>
             ) : zeroAccidentsChart ? (
               <div 
-                className="flex-1 min-h-0 cursor-pointer flex items-center"
+                className="flex-1 min-h-0 cursor-pointer flex items-center justify-end"
                 role="button"
                 tabIndex={0}
                 onClick={() => openExpandedChart('zeroAccidents', zeroAccidentsChart)}
                 onKeyDown={(e)=> e.key === 'Enter' && openExpandedChart('zeroAccidents', zeroAccidentsChart)}
               >
-                <ZeroAccidentsBarChart title={zeroAccidentsChart.title} subtitle={zeroAccidentsChart.subtitle} labels={zeroAccidentsChart.labels} actuals={zeroAccidentsChart.actuals} targets={zeroAccidentsChart.targets} showHeader={false} />
+                <ZeroAccidentsBarChart className="max-w-[92%]" title={zeroAccidentsChart.title} subtitle={zeroAccidentsChart.subtitle} labels={zeroAccidentsChart.labels} actuals={zeroAccidentsChart.actuals} targets={zeroAccidentsChart.targets} showHeader={false} />
               </div>
             ) : (
               <div 
-                className="flex-1 min-h-0 cursor-pointer flex items-center"
+                className="flex-1 min-h-0 cursor-pointer flex items-center justify-end"
                 role="button"
                 tabIndex={0}
                 onClick={() => openExpandedChart('zeroAccidents', { title: 'Safety', subtitle: 'Zero Accidents', labels: FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1]), actuals: Array(12).fill(0), targets: Array(12).fill(0) })}
                 onKeyDown={(e)=> e.key === 'Enter' && openExpandedChart('zeroAccidents', { title: 'Safety', subtitle: 'Zero Accidents', labels: FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1]), actuals: Array(12).fill(0), targets: Array(12).fill(0) })}
               >
-                <ZeroAccidentsBarChart title="Safety" subtitle="Zero Accidents" labels={FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1])} actuals={Array(12).fill(0)} targets={Array(12).fill(0)} showHeader={false} />
+                <ZeroAccidentsBarChart className="max-w-[92%]" title="Safety" subtitle="Zero Accidents" labels={FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1])} actuals={Array(12).fill(0)} targets={Array(12).fill(0)} showHeader={false} />
               </div>
             )}
           </div>

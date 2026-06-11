@@ -136,3 +136,5 @@ If formula is not calculating:
    - `target_formula` for computed target
 4. Check syntax: commas, parentheses, function names.
 5. Test with a smaller formula first (for example, `v101 + v102`).
+
+-----------------------------------------------------------------------

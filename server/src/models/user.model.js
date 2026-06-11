@@ -47,14 +47,17 @@ exports.createUser = async (userData) => {
     const year = now.getFullYear();
     const leaveEntitled = 0;
 
-    const entitlementQuery = `
-      INSERT INTO leaves_entitlement (
-        user_id, year, leave_entitled, leaves_accumulated, leaves_availed
-      )
-      VALUES ($1, $2, $3, 0.0, 0.0)
-      ON CONFLICT (user_id, year) DO NOTHING
-    `;
-    await client.query(entitlementQuery, [user.id, year, leaveEntitled]);
+    // Don't create entitlement for Super admin accounts
+    if (!userData.role || String(userData.role).toLowerCase() !== 'super admin') {
+      const entitlementQuery = `
+        INSERT INTO leaves_entitlement (
+          user_id, year, leave_entitled, leaves_accumulated, leaves_availed
+        )
+        VALUES ($1, $2, $3, 0.0, 0.0)
+        ON CONFLICT (user_id, year) DO NOTHING
+      `;
+      await client.query(entitlementQuery, [user.id, year, leaveEntitled]);
+    }
     
     await client.query('COMMIT');
     
@@ -199,10 +202,13 @@ exports.getAllUsers = async () => {
            u.phone, u.address, u.bloodgroup, u.department_id, u.designation_id, 
            u.status, u.created_at,
            d.department_name,
-           des.designation_name
+           des.designation_name,
+           COALESCE(r.role_name, 'employee') as role
     FROM users u
     LEFT JOIN departments d ON u.department_id = d.id
     LEFT JOIN designations des ON u.designation_id = des.id
+    LEFT JOIN user_roles ur ON ur.user_id = u.id AND ur.status = 'active'
+    LEFT JOIN roles r ON r.id = ur.role_id
     ORDER BY u.created_at DESC
   `;
   const result = await db.query(query);
