@@ -432,8 +432,8 @@ const padding = isExpanded ? 85 : 48;
 
 // Bar Chart component for Zero Accidents (shows actual vs target per month)
 const ZeroAccidentsBarChart = ({ title, subtitle, labels, actuals, targets, showHeader = true, showAxisLabels = true, xAxisTitle = 'Month', yAxisTitle = 'Value', isExpanded = false }) => {
-  const svgHeight = isExpanded ? 300 : 216;
-const padding = isExpanded ? 85 : 48;
+  const svgHeight = isExpanded ? 300 : 260;
+  const padding = isExpanded ? 60 : 20;
 
   const svgWidth = 900;
 
@@ -444,7 +444,10 @@ const padding = isExpanded ? 85 : 48;
   const minVal = 0;
   const range = maxVal - minVal;
   const groupWidth = plotWidth / labels.length;
-  const barWidth = isExpanded ? Math.min(36, groupWidth * 0.35) : Math.min(20, groupWidth * 0.4);
+  const barWidth = isExpanded ? Math.min(36, groupWidth * 0.35) : Math.min(26, groupWidth * 0.45);
+  const axisLabelFontSize = isExpanded ? 14 : 16;
+  const axisTitleFontSize = isExpanded ? 14 : 16;
+  const legendFontSize = isExpanded ? 10 : 9;
   const getX = (idx, which) => {
     const base = padding + idx * groupWidth + groupWidth / 2;
     // which: 0 = actual (left), 1 = target (right)
@@ -452,16 +455,19 @@ const padding = isExpanded ? 85 : 48;
   };
   const getY = (val) => svgHeight - padding - ((val - minVal) / (range || 1)) * plotHeight;
   const getBarHeight = (val) => ((val - minVal) / (range || 1)) * plotHeight;
+  const maxVisibleXLabels = isExpanded ? labels.length : 7;
+  const xLabelStep = labels.length > maxVisibleXLabels ? Math.ceil(labels.length / maxVisibleXLabels) : 1;
+  const xAxisLabelY = svgHeight - padding + (isExpanded ? 26 : 16);
+  const xLabelRotation = !isExpanded ? -35 : 0;
 
   const displayAxisLabels = isExpanded || showAxisLabels;
 
   return (
-    <div className="w-full h-full flex flex-col">
+    <div className="w-full h-full flex flex-col min-h-0">
       {showHeader && <h2 className="text-base font-semibold text-gray-800 mb-2 text-center">{title}</h2>}
       {showHeader && subtitle && <p className="text-sm text-gray-600 mb-2 text-center">{subtitle}</p>}
-      <div className="flex flex-row flex-1 min-h-0 items-center gap-1">
-      {/* CHANGED: Added h-full and w-full class to force expansion in compact mode */}
-      <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="flex-1 min-w-0 h-auto w-full h-full" preserveAspectRatio="none">
+      <div className="flex flex-row flex-1 min-h-0 items-stretch gap-0.5">
+      <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="flex-1 min-w-0 w-full h-full" preserveAspectRatio="xMinYMin meet" style={{ minHeight: `${svgHeight}px` }}>
         <defs>
           <linearGradient id="zeroAccidentsActualGradient" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="#60a5fa" />
@@ -476,15 +482,18 @@ const padding = isExpanded ? 85 : 48;
         {(() => {
           // Use integer ticks (0,1,2,3...) when values are small (<=10), otherwise fallback to 5 evenly spaced ticks
           let tickValues;
+          let tickRange;
           if (maxVal <= 10) {
             const maxTick = Math.max(3, Math.ceil(maxVal));
             tickValues = Array.from({ length: maxTick + 1 }, (_, i) => i);
+            tickRange = maxTick;
           } else {
             const ticks = 5;
             tickValues = Array.from({ length: ticks + 1 }, (_, i) => minVal + (i / ticks) * range);
+            tickRange = range;
           }
           return tickValues.map((tick, i) => {
-            const ratio = (tick - minVal) / (range || 1);
+            const ratio = (tick - minVal) / (tickRange || 1);
             const y = svgHeight - padding - ratio * plotHeight;
             return (
               <g key={`grid-${i}`}>
@@ -507,40 +516,60 @@ const padding = isExpanded ? 85 : 48;
           </g>
         ))}
 
-        {displayAxisLabels && labels.map((label, idx) => (
-            <text key={`x-label-${idx}`} x={padding + idx * groupWidth + groupWidth / 2} y={svgHeight - padding + 20} textAnchor="middle" fontSize="13" fontWeight="500" fill="#4b5563">{label}</text>
-        ))}
+        {displayAxisLabels && labels.map((label, idx) => {
+          if (idx % xLabelStep !== 0) return null;
+          const x = padding + idx * groupWidth + groupWidth / 2;
+          const rotate = xLabelRotation;
+          return (
+            <text
+              key={`x-label-${idx}`}
+              x={x}
+              y={xAxisLabelY}
+              transform={rotate ? `rotate(${rotate} ${x} ${xAxisLabelY})` : undefined}
+              dominantBaseline={rotate ? 'hanging' : 'middle'}
+              textAnchor={rotate ? 'end' : 'middle'}
+              fontSize={axisLabelFontSize}
+              fontWeight="600"
+              fill="#4b5563"
+            >
+              {label}
+            </text>
+          );
+        })}
 
         {displayAxisLabels && (() => {
           let tickValues;
+          let tickRange;
           if (maxVal <= 10) {
             const maxTick = Math.max(3, Math.ceil(maxVal));
             tickValues = Array.from({ length: maxTick + 1 }, (_, i) => i);
+            tickRange = maxTick;
           } else {
             const ticks = 5;
             tickValues = Array.from({ length: ticks + 1 }, (_, i) => minVal + (i / ticks) * range);
+            tickRange = range;
           }
           return tickValues.map((tick, i) => {
-            const ratio = (tick - minVal) / (range || 1);
+            const ratio = (tick - minVal) / (tickRange || 1);
             const y = svgHeight - padding - ratio * plotHeight;
             const label = Number.isFinite(tick) ? Math.round(tick).toString() : String(tick);
             return (
-              <text key={`y-label-${i}`} x={padding - 10} y={y + 4} textAnchor="end" fontSize="14" fontWeight="500" fill="#4b5563">{label}</text>
+              <text key={`y-label-${i}`} x={padding - 10} y={y} dominantBaseline="middle" textAnchor="end" fontSize={axisLabelFontSize} fontWeight="600" fill="#4b5563">{label}</text>
             );
           });
         })()}
 
         {displayAxisLabels && (
           <>
-            <text x={svgWidth / 2} y={svgHeight - 5} textAnchor="middle" fontSize="14" fontWeight="600" fill="#374151">{xAxisTitle}</text>
-            <text x={20} y={svgHeight / 2} textAnchor="middle" fontSize="14" fontWeight="600" fill="#374151" transform={`rotate(-90 20 ${svgHeight / 2})`}>{yAxisTitle}</text>
+            <text x={svgWidth / 2} y={svgHeight - 5} textAnchor="middle" fontSize={axisTitleFontSize} fontWeight="600" fill="#374151">{xAxisTitle}</text>
+            <text x={20} y={svgHeight / 2} textAnchor="middle" fontSize={axisTitleFontSize} fontWeight="600" fill="#374151" transform={`rotate(-90 20 ${svgHeight / 2})`}>{yAxisTitle}</text>
           </>
         )}
       </svg>
 
-      <div className="flex flex-col justify-center gap-2 pl-2 w-16 flex-shrink-0">
-        <div className="flex items-center gap-1"><span className="w-3 h-3 bg-[#2563eb] rounded flex-shrink-0"></span><span className="text-[10px] text-gray-600">Actual</span></div>
-        <div className="flex items-center gap-1"><span className="w-3 h-3 bg-[#d97706] rounded flex-shrink-0"></span><span className="text-[10px] text-gray-600">Target</span></div>
+      <div className="flex flex-col justify-center gap-1 pl-2 w-12 flex-shrink-0">
+        <div className="flex items-center gap-1"><span className="w-2 h-2 bg-[#2563eb] rounded flex-shrink-0"></span><span style={{ fontSize: `${legendFontSize}px` }} className="text-gray-600">Actual</span></div>
+        <div className="flex items-center gap-1"><span className="w-2 h-2 bg-[#d97706] rounded flex-shrink-0"></span><span style={{ fontSize: `${legendFontSize}px` }} className="text-gray-600">Target</span></div>
       </div>
       </div>
     </div>

@@ -187,13 +187,19 @@ const ManagementCalendar = () => {
 		if (!ticket) return '-';
 		const hasRejectionData = Boolean(ticket.rejected_by || ticket.rejected_by_reason || String(ticket.status || '').toLowerCase() === 'rejected');
 		if (!hasRejectionData) return '-';
+		// Prefer explicit rejected_date (from server) or updated_at when status is Rejected
+		if (ticket.rejected_date) return getDateOnlyDisplayFromTimestamp(ticket.rejected_date);
+		if (String(ticket.status || '').toLowerCase() === 'rejected') return getDateOnlyDisplayFromTimestamp(ticket.updated_at);
 		const closedDate = getClosedDateDisplay(ticket);
 		if (closedDate !== '-') return closedDate;
-		return getDateOnlyDisplayFromTimestamp(ticket.updated_at);
+		return '-';
 	};
 
 	const getClosedDateDisplay = (ticket) => {
-		if (!ticket || String(ticket.status || '').toLowerCase() !== 'closed') return '-';
+		if (!ticket) return '-';
+		const st = String(ticket.status || '').toLowerCase();
+		if (st === 'rejected') return '-NA-';
+		if (st !== 'closed') return '-';
 		return getDateOnlyDisplayFromTimestamp(ticket.updated_at);
 	};
 
@@ -881,7 +887,7 @@ const ManagementCalendar = () => {
 			{/* Filtered Table */}
 			{showFilteredTable && (
 				<div className="mt-6 overflow-hidden bg-white shadow-xl rounded-xl">
-					<div className="overflow-x-auto">
+										<div className="overflow-x-auto overflow-hidden rounded-t-lg">
 						<table className="min-w-full divide-y divide-gray-200">
 							<thead className="bg-blue-600">
 								<tr>
@@ -1026,7 +1032,7 @@ const ManagementCalendar = () => {
 					{/* Ticket Modal */}
 					{showTicketModal && (
 						<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-							<div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+							<div className="bg-white rounded-lg shadow-xl w-full max-w-5xl max-h-[90vh] overflow-y-auto">
 								<div className="p-6">
 									<div className="flex items-center justify-between mb-4">
 										<h3 className="text-xl font-bold text-gray-800">Tickets</h3>
@@ -1037,7 +1043,7 @@ const ManagementCalendar = () => {
 									) : (
 										<div className="overflow-x-auto">
 											<table className="min-w-full text-sm border">
-												<thead className="bg-gray-100 text-gray-700">
+												<thead className="bg-blue-600 text-white">
 													<tr>
 														<th className="text-left px-4 py-2 border">Title</th>
 														<th className="text-left px-4 py-2 border">Description</th>

@@ -921,7 +921,7 @@ const EmployeeCalendar = ({ joinDate }) => {
                 {/* Ticket Modal */}
                 {showTicketModal && (
                   <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-                    <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-2xl relative">
+                    <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-5xl relative">
                       <button
                         className="absolute top-2 right-2 text-gray-500 hover:text-gray-800 text-xl font-bold"
                         onClick={closeTicketModal}
@@ -932,10 +932,10 @@ const EmployeeCalendar = ({ joinDate }) => {
                       {selectedTickets.length === 0 ? (
                         <div className="text-center text-gray-500">No tickets found for this date.</div>
                       ) : (
-                        <div className="overflow-x-auto">
-                          <table className="min-w-full bg-white border rounded-lg">
-                            <thead>
-                              <tr className="bg-green-100 text-green-800">
+                        <div className="overflow-x-auto overflow-hidden rounded-t-lg">
+                          <table className="min-w-full bg-white border">
+                            <thead className="bg-blue-600 text-white">
+                              <tr>
                                 <th className="py-2 px-4 text-center">Title</th>
                                 <th className="py-2 px-4 text-center">Description</th>
                                 <th className="py-2 px-4 text-center">Category</th>

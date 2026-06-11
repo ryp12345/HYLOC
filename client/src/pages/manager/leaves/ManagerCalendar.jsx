@@ -1024,7 +1024,7 @@ const ManagerCalendar = ({ joinDate }) => {
 
     {showCalendarLeaveModal && selectedCalendarDate && (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <div className="bg-white rounded-lg shadow-xl w-full max-w-5xl max-h-[90vh] overflow-y-auto">
+        <div className="bg-white shadow-xl w-full max-w-5xl max-h-[90vh] overflow-y-auto">
           <div className="p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xl font-bold text-gray-800">
@@ -1041,9 +1041,9 @@ const ManagerCalendar = ({ joinDate }) => {
             {selectedCalendarLeaves.length === 0 ? (
               <div className="text-center text-gray-500 py-8">No leaves for this date</div>
             ) : (
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto overflow-hidden rounded-t-lg">
                 <table className="min-w-full text-sm border">
-                  <thead className="bg-gray-100 text-gray-700">
+                  <thead className="bg-blue-600 text-white">
                     <tr>
                       <th className="text-left px-4 py-2 border">User Name</th>
                       <th className="text-left px-4 py-2 border">Role</th>
@@ -1088,7 +1088,7 @@ const ManagerCalendar = ({ joinDate }) => {
     {/* Ticket Modal */}
     {showTicketModal && (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+        <div className="bg-white shadow-xl w-full max-w-5xl max-h-[90vh] overflow-y-auto">
           <div className="p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xl font-bold text-gray-800">Tickets</h3>
@@ -1096,10 +1096,10 @@ const ManagerCalendar = ({ joinDate }) => {
             </div>
             {selectedTickets.length === 0 ? (
               <div className="text-center text-gray-500 py-8">No tickets for this date</div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full text-sm border">
-                  <thead className="bg-gray-100 text-gray-700">
+              ) : (
+              <div className="overflow-x-auto rounded-t-lg">
+                <table className="min-w-full text-sm border rounded-t-lg overflow-hidden">
+                  <thead className="bg-blue-600 text-white rounded-t-lg">
                     <tr>
                       <th className="text-left px-4 py-2 border">Title</th>
                       <th className="text-left px-4 py-2 border">Description</th>

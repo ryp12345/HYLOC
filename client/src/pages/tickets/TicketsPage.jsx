@@ -785,7 +785,11 @@ export default function TicketsPage() {
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{(page - 1) * PAGE_SIZE + idx + 1}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{row.title}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded bg-blue-100 text-blue-800">{row.status}</span>
+                        {String(row.status || '').toLowerCase() === 'rejected' ? (
+                          <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded bg-red-200 text-red-900">{row.status}</span>
+                        ) : (
+                          <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded bg-blue-100 text-blue-800">{row.status}</span>
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{renderPriorityChip(row.priority)}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{row.category}</td>
@@ -967,6 +971,8 @@ export default function TicketsPage() {
                                   const roleNorm = (user?.role || '').toLowerCase();
                                   const hideManagement = roleNorm === 'employee' || roleNorm === 'manager';
                                   return users
+                                    .slice()
+                                    .sort((a, b) => String((a.firstname || a.name || a.full_name || '')).localeCompare(String((b.firstname || b.name || b.full_name || ''))))
                                     .filter(u => !(hideManagement && String((u.role || '').toLowerCase()) === 'management'))
                                     .map(u => (
                                       <option key={u.id} value={u.id}>{`${u.firstname || u.name || u.full_name || u.email}${u.lastname ? ' ' + u.lastname : ''}`}</option>

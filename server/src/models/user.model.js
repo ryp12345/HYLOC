@@ -271,13 +271,15 @@ exports.getUsersByDepartmentMinimal = async (departmentId) => {
 };
 
 exports.getAssignableUsers = async () => {
+  // Use DISTINCT ON to ensure each user appears only once even if multiple
+  // active role rows exist (defensive against inconsistent user_roles data).
   const query = `
-    SELECT u.id, u.firstname, u.lastname, u.email, COALESCE(r.role_name, 'employee') as role
+    SELECT DISTINCT ON (u.id) u.id, u.firstname, u.lastname, u.email, COALESCE(r.role_name, 'employee') as role
     FROM users u
     LEFT JOIN user_roles ur ON ur.user_id = u.id AND ur.status = 'active'
     LEFT JOIN roles r ON r.id = ur.role_id
     WHERE u.status = 'active'
-    ORDER BY u.firstname, u.lastname
+    ORDER BY u.id, ur.created_at DESC, u.firstname, u.lastname
   `;
   const result = await db.query(query);
   return result.rows;

@@ -6,7 +6,9 @@ exports.getMyTickets = async (req, res) => {
       return res.status(401).json({ success: false, message: 'Unauthorized' });
     }
     const tickets = await ticketModel.getTicketsByUserId(userId);
-    res.status(200).json({ success: true, data: tickets });
+    // Attach rejected_date for rejected tickets (use updated_at)
+    const enriched = (tickets || []).map(t => ({ ...(t || {}), ...(String(t?.status || '').toLowerCase() === 'rejected' ? { rejected_date: t.updated_at } : {}) }));
+    res.status(200).json({ success: true, data: enriched });
   } catch (error) {
     console.error('Get my tickets error:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch user tickets', error: error.message });
@@ -149,7 +151,8 @@ exports.createTicket = async (req, res) => {
 exports.getAllTickets = async (req, res) => {
   try {
     const tickets = await ticketModel.getAllTickets();
-    res.status(200).json({ success: true, data: tickets });
+    const enriched = (tickets || []).map(t => ({ ...(t || {}), ...(String(t?.status || '').toLowerCase() === 'rejected' ? { rejected_date: t.updated_at } : {}) }));
+    res.status(200).json({ success: true, data: enriched });
   } catch (error) {
     console.error('Get all tickets error:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch tickets', error: error.message });
@@ -160,7 +163,8 @@ exports.getTicketById = async (req, res) => {
   try {
     const ticket = await ticketModel.getTicketById(req.params.id);
     if (!ticket) return res.status(404).json({ success: false, message: 'Ticket not found' });
-    res.status(200).json({ success: true, data: ticket });
+    const enriched = { ...(ticket || {}), ...(String(ticket?.status || '').toLowerCase() === 'rejected' ? { rejected_date: ticket.updated_at } : {}) };
+    res.status(200).json({ success: true, data: enriched });
   } catch (error) {
     console.error('Get ticket by id error:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch ticket', error: error.message });
@@ -299,10 +303,8 @@ exports.updateTicket = async (req, res) => {
             return res.status(403).json({ success: false, message: 'Only Management users can reject tickets' });
           }
 
-          // Treat Management rejection as an effective close: set status to 'Closed'
+          // Keep status as 'Rejected', record who rejected it and reason.
           try {
-            payload.status = 'Closed';
-            // record who rejected it for audit
             payload.rejected_by = requesterId;
             if (payload.rejected_by_reason === undefined || payload.rejected_by_reason === null) {
               payload.rejected_by_reason = 'None Specified';
@@ -310,11 +312,12 @@ exports.updateTicket = async (req, res) => {
               const normalizedReason = String(payload.rejected_by_reason).trim();
               payload.rejected_by_reason = normalizedReason || 'None Specified';
             }
-            // Notify the creator that the ticket was rejected (effectively closed)
+
+            // Notify the creator that the ticket was rejected
             const creatorMessage = `Type: Ticket rejected\nTitle: ${existing.title}\nDescription: ${existing.description || ''}`;
             await notificationModel.createNotification({ created_by: requesterId, assigned_to: existing.user_id, message: creatorMessage, type: 'ticket_status' });
           } catch (e) {
-            console.error('Error handling Rejected→Closed transition:', e);
+            console.error('Error handling Rejected transition:', e);
           }
         } else {
           // For other status changes, send standard format to all recipients (kept commented intentionally)
@@ -353,6 +356,14 @@ exports.updateTicket = async (req, res) => {
     const updated = await ticketModel.updateTicket(id, payload);
     console.log('DEBUG: Updated ticket result', updated);
     if (!updated) return res.status(404).json({ success: false, message: 'Ticket not found' });
+    // When rejected by Management, expose rejected_date (use updated_at)
+    try {
+      if (String(updated.status || '').toLowerCase() === 'rejected') {
+        updated.rejected_date = updated.updated_at;
+      }
+    } catch (e) {
+      console.error('Error attaching rejected_date to updated ticket:', e);
+    }
 
     const replacedOrClearedAttachment = Boolean(req.file && req.file.filename) || payload.attachment === null;
     if (replacedOrClearedAttachment && existing.attachment && existing.attachment !== updated.attachment) {
