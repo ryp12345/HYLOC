@@ -1032,18 +1032,18 @@ const ManagementCalendar = () => {
 					{/* Ticket Modal */}
 					{showTicketModal && (
 						<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-							<div className="bg-white rounded-lg shadow-xl w-full max-w-5xl max-h-[90vh] overflow-y-auto">
+							<div className="bg-white shadow-xl w-full max-w-5xl max-h-[90vh] overflow-y-auto">
 								<div className="p-6">
 									<div className="flex items-center justify-between mb-4">
 										<h3 className="text-xl font-bold text-gray-800">Tickets</h3>
 										<button onClick={closeTicketModal} className="text-gray-500 hover:text-gray-700 text-2xl">×</button>
 									</div>
-									{selectedTickets.length === 0 ? (
+										{selectedTickets.length === 0 ? (
 										<div className="text-center text-gray-500 py-8">No tickets for this date</div>
 									) : (
-										<div className="overflow-x-auto">
-											<table className="min-w-full text-sm border">
-												<thead className="bg-blue-600 text-white">
+										<div className="overflow-x-auto overflow-hidden rounded-t-lg">
+											<table className="min-w-full text-sm border overflow-hidden">
+												<thead className="bg-blue-600 text-white rounded-t-lg">
 													<tr>
 														<th className="text-left px-4 py-2 border">Title</th>
 														<th className="text-left px-4 py-2 border">Description</th>

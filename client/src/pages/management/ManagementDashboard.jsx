@@ -33,10 +33,10 @@ const Industry40LineChart = ({
   isExpanded = false,
 }) => {
   // COMPACT MODE: Dimensions set to 100% height, but viewBox maintains coordinate system
-  const svgHeight = isExpanded ? 310 : 216; 
-  const padding = isExpanded ? 85 : 48; 
+  const svgHeight = isExpanded ? 310 : 216;
+  const padding = isExpanded ? 85 : 48;
   const svgWidth = 900;
-  
+
   const plotWidth = svgWidth - padding * 2;
   const plotHeight = svgHeight - padding * 2;
 
@@ -78,87 +78,87 @@ const Industry40LineChart = ({
     <div className="w-full h-full flex flex-col">
       {showHeader && <h2 className="text-base font-semibold text-gray-800 mb-2 text-center">{title}</h2>}
       <div className="flex flex-row flex-1 min-h-0 items-center gap-1">
-      {/* CHANGED: Added h-full and w-full class to force expansion in compact mode */}
-      <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="flex-1 min-w-0 w-full h-full" preserveAspectRatio="none">
-        <defs>
-          <linearGradient id="industry40Gradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#41aafe" stopOpacity="0.4" />
-            <stop offset="100%" stopColor="#41aafe" stopOpacity="0.0" />
-          </linearGradient>
-          <linearGradient id="industry40TargetGradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#ffb74d" stopOpacity="0.15" />
-            <stop offset="100%" stopColor="#ffb74d" stopOpacity="0.0" />
-          </linearGradient>
-        </defs>
+        {/* CHANGED: Added h-full and w-full class to force expansion in compact mode */}
+        <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="flex-1 min-w-0 w-full h-full" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="industry40Gradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#41aafe" stopOpacity="0.4" />
+              <stop offset="100%" stopColor="#41aafe" stopOpacity="0.0" />
+            </linearGradient>
+            <linearGradient id="industry40TargetGradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#ffb74d" stopOpacity="0.15" />
+              <stop offset="100%" stopColor="#ffb74d" stopOpacity="0.0" />
+            </linearGradient>
+          </defs>
 
-        {/* Shaded Areas underneath lines */}
-        {actualAreaPath && (
-          <path d={actualAreaPath} fill="url(#industry40Gradient)" />
-        )}
-        {targetAreaPath && (
-          <path d={targetAreaPath} fill="url(#industry40TargetGradient)" />
-        )}
+          {/* Shaded Areas underneath lines */}
+          {actualAreaPath && (
+            <path d={actualAreaPath} fill="url(#industry40Gradient)" />
+          )}
+          {targetAreaPath && (
+            <path d={targetAreaPath} fill="url(#industry40TargetGradient)" />
+          )}
 
-        {/* Grid lines + Y ticks */}
-        {(() => {
-          const ticks = 5;
-          const tickValues = Array.from({ length: ticks + 1 }, (_, i) => minVal + (i / ticks) * range);
-          return tickValues.map((tick, i) => {
-            const ratio = (tick - minVal) / (range || 1);
-            const y = svgHeight - padding - ratio * plotHeight;
-            return (
-              <g key={`grid-${i}`}>
-                <line
-                  x1={padding}
-                  y1={y}
-                  x2={svgWidth - padding}
-                  y2={y}
-                  stroke="#e5e7eb"
-                  strokeWidth="1"
-                  strokeDasharray="5,5"
-                />
-              </g>
-            );
-          });
-        })()}
+          {/* Grid lines + Y ticks */}
+          {(() => {
+            const ticks = 5;
+            const tickValues = Array.from({ length: ticks + 1 }, (_, i) => minVal + (i / ticks) * range);
+            return tickValues.map((tick, i) => {
+              const ratio = (tick - minVal) / (range || 1);
+              const y = svgHeight - padding - ratio * plotHeight;
+              return (
+                <g key={`grid-${i}`}>
+                  <line
+                    x1={padding}
+                    y1={y}
+                    x2={svgWidth - padding}
+                    y2={y}
+                    stroke="#e5e7eb"
+                    strokeWidth="1"
+                    strokeDasharray="5,5"
+                  />
+                </g>
+              );
+            });
+          })()}
 
-        {/* Y-axis line */}
-        <line x1={padding} y1={padding} x2={padding} y2={svgHeight - padding} stroke="#1f2937" strokeWidth="2" />
-        {/* X-axis line */}
-        <line x1={padding} y1={svgHeight - padding} x2={svgWidth - padding} y2={svgHeight - padding} stroke="#1f2937" strokeWidth="2" />
+          {/* Y-axis line */}
+          <line x1={padding} y1={padding} x2={padding} y2={svgHeight - padding} stroke="#1f2937" strokeWidth="2" />
+          {/* X-axis line */}
+          <line x1={padding} y1={svgHeight - padding} x2={svgWidth - padding} y2={svgHeight - padding} stroke="#1f2937" strokeWidth="2" />
 
-        {/* Target line (background) */}
-        <path d={targetPath} stroke="#ffb74d" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round" opacity="0.7" />
+          {/* Target line (background) */}
+          <path d={targetPath} stroke="#ffb74d" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round" opacity="0.7" />
 
-        {/* Actual line (foreground) */}
-        <path d={actualPath} stroke="#41aafe" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+          {/* Actual line (foreground) */}
+          <path d={actualPath} stroke="#41aafe" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" />
 
-        {/* Target dots + labels */}
-        {targets.map((val, idx) => ( 
-          <g key={`target-dot-${idx}`}>
-            <circle cx={getX(idx)} cy={getY(val)} r="5" fill="#ffb74d" stroke="white" strokeWidth="2" />
-                {displayPointLabels && ( 
-                  <text x={getX(idx)} y={getY(val) - 10} textAnchor="middle" fontSize="14" fontWeight="600" fill="#c97706">{formatY(Number(val))}</text> 
-                )} 
-          </g>
-        ))}
+          {/* Target dots + labels */}
+          {targets.map((val, idx) => (
+            <g key={`target-dot-${idx}`}>
+              <circle cx={getX(idx)} cy={getY(val)} r="5" fill="#ffb74d" stroke="white" strokeWidth="2" />
+              {displayPointLabels && (
+                <text x={getX(idx)} y={getY(val) - 10} textAnchor="middle" fontSize="14" fontWeight="600" fill="#c97706">{formatY(Number(val))}</text>
+              )}
+            </g>
+          ))}
 
-        {/* Actual dots + labels */}
-          {actuals.map((val, idx) => ( 
-          <g key={`actual-dot-${idx}`}>
-            <circle cx={getX(idx)} cy={getY(val)} r="5" fill="#41aafe" stroke="white" strokeWidth="2" />
-                  {displayPointLabels && ( 
-                    <text x={getX(idx)} y={getY(val) - 18} textAnchor="middle" fontSize="14" fontWeight="700" fill="#0ea5e9">{formatY(Number(val))}</text> 
-                  )} 
-          </g>
-        ))}
+          {/* Actual dots + labels */}
+          {actuals.map((val, idx) => (
+            <g key={`actual-dot-${idx}`}>
+              <circle cx={getX(idx)} cy={getY(val)} r="5" fill="#41aafe" stroke="white" strokeWidth="2" />
+              {displayPointLabels && (
+                <text x={getX(idx)} y={getY(val) - 18} textAnchor="middle" fontSize="14" fontWeight="700" fill="#0ea5e9">{formatY(Number(val))}</text>
+              )}
+            </g>
+          ))}
 
-        {/* X-axis labels */}
-        {labels.map((label, idx) => (
+          {/* X-axis labels */}
+          {labels.map((label, idx) => (
             <text
               key={`x-label-${idx}`}
               x={getX(idx)}
-              y={svgHeight - padding + 20} 
+              y={svgHeight - padding + 20}
               textAnchor="middle"
               fontSize="16"
               fontWeight="500"
@@ -166,54 +166,54 @@ const Industry40LineChart = ({
             >
               {label}
             </text>
-        ))}
+          ))}
 
-        {/* Y-axis labels (formatted) */}
-        {displayAxisLabels && (() => {
-          const ticks = 5;
-          const tickValues = Array.from({ length: ticks + 1 }, (_, i) => minVal + (i / ticks) * range);
-          return tickValues.map((tick, i) => {
-            const ratio = (tick - minVal) / (range || 1);
-            const y = svgHeight - padding - ratio * plotHeight;
-            return (
-              <text key={`y-label-${i}`} x={padding - 10} y={y + 4} textAnchor="end"fontSize="14" fontWeight="500" fill="#4b5563">
-                {formatY(tick)}
+          {/* Y-axis labels (formatted) */}
+          {displayAxisLabels && (() => {
+            const ticks = 5;
+            const tickValues = Array.from({ length: ticks + 1 }, (_, i) => minVal + (i / ticks) * range);
+            return tickValues.map((tick, i) => {
+              const ratio = (tick - minVal) / (range || 1);
+              const y = svgHeight - padding - ratio * plotHeight;
+              return (
+                <text key={`y-label-${i}`} x={padding - 10} y={y + 4} textAnchor="end" fontSize="14" fontWeight="500" fill="#4b5563">
+                  {formatY(tick)}
+                </text>
+              );
+            });
+          })()}
+
+          {/* Axis titles */}
+          {displayAxisLabels && (
+            <>
+              <text x={svgWidth / 2} y={svgHeight - 5} textAnchor="middle" fontSize="14" fontWeight="600" fill="#374151">
+                {xAxisTitle}
               </text>
-            );
-          });
-        })()}
+              <text
+                x={20}
+                y={svgHeight / 2}
+                textAnchor="middle"
+                fontSize="14"
+                fontWeight="600"
+                fill="#374151"
+                transform={`rotate(-90 20 ${svgHeight / 2})`}
+              >
+                {yAxisTitle}
+              </text>
+            </>
+          )}
+        </svg>
 
-        {/* Axis titles */}
-        {displayAxisLabels && (
-          <>
-            <text x={svgWidth / 2} y={svgHeight - 5} textAnchor="middle" fontSize="14" fontWeight="600" fill="#374151">
-              {xAxisTitle}
-            </text>
-            <text
-              x={20}
-              y={svgHeight / 2}
-              textAnchor="middle"
-              fontSize="14"
-              fontWeight="600"
-              fill="#374151"
-              transform={`rotate(-90 20 ${svgHeight / 2})`}
-            >
-              {yAxisTitle}
-            </text>
-          </>
-        )}
-      </svg>
-
-      <div className="flex flex-col justify-center gap-2 pl-2 w-14 flex-shrink-0">
-        <div className="flex items-center gap-1">
-          <span className="w-4 h-[3px] bg-[#41aafe] rounded flex-shrink-0"></span>
-          <span className="text-[10px] text-gray-600">Actual</span>
+        <div className="flex flex-col justify-center gap-2 pl-2 w-14 flex-shrink-0">
+          <div className="flex items-center gap-1">
+            <span className="w-4 h-[3px] bg-[#41aafe] rounded flex-shrink-0"></span>
+            <span className="text-[10px] text-gray-600">Actual</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="w-4 h-[3px] bg-[#ffb74d] rounded flex-shrink-0"></span>
+            <span className="text-[10px] text-gray-600">Target</span>
+          </div>
         </div>
-        <div className="flex items-center gap-1">
-          <span className="w-4 h-[3px] bg-[#ffb74d] rounded flex-shrink-0"></span>
-          <span className="text-[10px] text-gray-600">Target</span>
-        </div>
-      </div>
       </div>
     </div>
   );
@@ -223,7 +223,7 @@ const Industry40LineChart = ({
 const SpeedometerGauge = ({ efficiency, month, year, isExpanded = false }) => {
   const radius = 80;
   const circumference = 2 * Math.PI * radius;
-  
+
   // Calculate angle: -180 to 0 degrees (left to right semicircle)
   // 0-60 red, 61-80 yellow, >80 green
   const angle = -180 + (Math.min(Math.max(efficiency, 0), 100) / 100) * 180;
@@ -241,9 +241,9 @@ const SpeedometerGauge = ({ efficiency, month, year, isExpanded = false }) => {
   return (
     <div className={`flex flex-col items-center justify-center h-full min-h-0 relative z-10 ${isExpanded ? 'py-6 w-full max-w-[480px]' : ''}`}>
       <h3 className={`font-semibold text-gray-800 mb-1 whitespace-nowrap ${isExpanded ? 'text-2xl mb-4' : 'text-[10px] sm:text-xs'}`}>{month} {year}</h3>
-      <svg 
-        viewBox="0 0 300 200" 
-        className="w-full h-auto flex-1 min-h-0" 
+      <svg
+        viewBox="0 0 300 200"
+        className="w-full h-auto flex-1 min-h-0"
         style={{
           maxWidth: isExpanded ? '450px' : '300px',
           maxHeight: isExpanded ? '300px' : '100px'
@@ -257,7 +257,7 @@ const SpeedometerGauge = ({ efficiency, month, year, isExpanded = false }) => {
           strokeWidth="20"
           strokeLinecap="round"
         />
-        
+
         {/* Red zone (0-60) */}
         <path
           d="M 70 150 A 80 80 0 0 1 126 82"
@@ -266,7 +266,7 @@ const SpeedometerGauge = ({ efficiency, month, year, isExpanded = false }) => {
           strokeWidth="20"
           strokeLinecap="round"
         />
-        
+
         {/* Yellow zone (61-80) */}
         <path
           d="M 126 82 A 80 80 0 0 1 174 82"
@@ -275,7 +275,7 @@ const SpeedometerGauge = ({ efficiency, month, year, isExpanded = false }) => {
           strokeWidth="20"
           strokeLinecap="round"
         />
-        
+
         {/* Green zone (81-100) */}
         <path
           d="M 174 82 A 80 80 0 0 1 230 150"
@@ -286,20 +286,20 @@ const SpeedometerGauge = ({ efficiency, month, year, isExpanded = false }) => {
         />
 
         {/* Needle & Arrow Tip Group with smooth transition */}
-        <g 
-          transform={`rotate(${angle}, 150, 150)`} 
-          style={{ 
-            transition: 'transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)' 
+        <g
+          transform={`rotate(${angle}, 150, 150)`}
+          style={{
+            transition: 'transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)'
           }}
         >
-          <line 
-            x1="150" 
-            y1="150" 
-            x2="230" 
-            y2="150" 
-            stroke={color} 
-            strokeWidth="4" 
-            strokeLinecap="round" 
+          <line
+            x1="150"
+            y1="150"
+            x2="230"
+            y2="150"
+            stroke={color}
+            strokeWidth="4"
+            strokeLinecap="round"
             style={{ transition: 'stroke 0.4s ease' }}
           />
           {/* Arrow tip correctly aligned and pointing right (at 230, 150) */}
@@ -309,13 +309,13 @@ const SpeedometerGauge = ({ efficiency, month, year, isExpanded = false }) => {
             style={{ transition: 'fill 0.4s ease' }}
           />
         </g>
-        
+
         {/* Center dot */}
-        <circle 
-          cx="150" 
-          cy="150" 
-          r="8" 
-          fill={color} 
+        <circle
+          cx="150"
+          cy="150"
+          r="8"
+          fill={color}
           style={{ transition: 'fill 0.4s ease' }}
         />
 
@@ -324,14 +324,13 @@ const SpeedometerGauge = ({ efficiency, month, year, isExpanded = false }) => {
         <text x="150" y="50" fontSize="14" fontWeight="600" fill="#4b5563" textAnchor="middle">50</text>
         <text x="225" y="175" fontSize="14" fontWeight="600" fill="#4b5563" textAnchor="middle">100</text>
       </svg>
-      
+
       <div className={`text-center ${isExpanded ? 'mt-3' : 'mt-0.5'}`}>
         <div className={`font-extrabold text-gray-800 ${isExpanded ? 'text-2xl' : 'text-base sm:text-lg'}`}>{efficiency.toFixed(1)}%</div>
-        <div className={`text-xs font-semibold mt-0.5 px-2 py-0.5 rounded-full inline-block ${
-          status === 'Excellent' ? 'bg-green-100 text-green-700' :
+        <div className={`text-xs font-semibold mt-0.5 px-2 py-0.5 rounded-full inline-block ${status === 'Excellent' ? 'bg-green-100 text-green-700' :
           status === 'Good' ? 'bg-yellow-100 text-yellow-700' :
-          'bg-red-100 text-red-700'
-        }`}>
+            'bg-red-100 text-red-700'
+          }`}>
           {status}
         </div>
       </div>
@@ -341,8 +340,8 @@ const SpeedometerGauge = ({ efficiency, month, year, isExpanded = false }) => {
 
 // Bar Chart Component for Green Factory
 const GreenFactoryBarChart = ({ title, subtitle, labels, values, showHeader = true, showAxisLabels = true, xAxisTitle = 'Month', yAxisTitle = 'Value', isExpanded = false }) => {
- const svgHeight = isExpanded ? 270 : 216;
-const padding = isExpanded ? 85 : 48;
+  const svgHeight = isExpanded ? 270 : 216;
+  const padding = isExpanded ? 85 : 48;
 
   const svgWidth = 900;
 
@@ -365,66 +364,66 @@ const padding = isExpanded ? 85 : 48;
       {showHeader && <h2 className="text-base font-semibold text-gray-800 mb-2 text-center">{title}</h2>}
       {showHeader && subtitle && <p className="text-sm text-gray-600 mb-2 text-center">{subtitle}</p>}
       <div className="flex flex-row flex-1 min-h-0 items-center gap-1">
-      {/* CHANGED: Added h-full and w-full class to force expansion in compact mode */}
-      <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="flex-1 min-w-0 w-full h-full" preserveAspectRatio="none">
-        <defs>
-          <linearGradient id="greenFactoryBarGradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#10b981" />
-            <stop offset="100%" stopColor="#047857" />
-          </linearGradient>
-        </defs>
+        {/* CHANGED: Added h-full and w-full class to force expansion in compact mode */}
+        <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="flex-1 min-w-0 w-full h-full" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="greenFactoryBarGradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#10b981" />
+              <stop offset="100%" stopColor="#047857" />
+            </linearGradient>
+          </defs>
 
-        {(() => {
-          const ticks = 5;
-          const tickValues = Array.from({ length: ticks + 1 }, (_, i) => minVal + (i / ticks) * range);
-          return tickValues.map((tick, i) => {
-            const ratio = (tick - minVal) / (range || 1);
-            const y = svgHeight - padding - ratio * plotHeight;
-            return (
-              <g key={`grid-${i}`}>
-                <line x1={padding} y1={y} x2={svgWidth - padding} y2={y} stroke="#e5e7eb" strokeWidth="1" strokeDasharray="5,5" />
-              </g>
-            );
-          });
-        })()}
+          {(() => {
+            const ticks = 5;
+            const tickValues = Array.from({ length: ticks + 1 }, (_, i) => minVal + (i / ticks) * range);
+            return tickValues.map((tick, i) => {
+              const ratio = (tick - minVal) / (range || 1);
+              const y = svgHeight - padding - ratio * plotHeight;
+              return (
+                <g key={`grid-${i}`}>
+                  <line x1={padding} y1={y} x2={svgWidth - padding} y2={y} stroke="#e5e7eb" strokeWidth="1" strokeDasharray="5,5" />
+                </g>
+              );
+            });
+          })()}
 
-        <line x1={padding} y1={padding} x2={padding} y2={svgHeight - padding} stroke="#1f2937" strokeWidth="2" />
-        <line x1={padding} y1={svgHeight - padding} x2={svgWidth - padding} y2={svgHeight - padding} stroke="#1f2937" strokeWidth="2" />
+          <line x1={padding} y1={padding} x2={padding} y2={svgHeight - padding} stroke="#1f2937" strokeWidth="2" />
+          <line x1={padding} y1={svgHeight - padding} x2={svgWidth - padding} y2={svgHeight - padding} stroke="#1f2937" strokeWidth="2" />
 
-        {values.map((val, idx) => (
-          <g key={`bar-${idx}`}>
-            <rect x={getX(idx)} y={getY(val)} width={barWidth} height={getBarHeight(val)} fill="url(#greenFactoryBarGradient)" stroke="white" strokeWidth="1" rx="4" />
-            <text x={getX(idx) + barWidth / 2} y={getY(val) - 5} textAnchor="middle" fontSize="14" fontWeight="600" fill="#10b981">{val.toFixed(1)}%</text>
-          </g>
-        ))}
-        {displayAxisLabels && labels.map((label, idx) => (
-          <text key={`x-label-${idx}`} x={padding + (idx * plotWidth) / labels.length + (plotWidth / labels.length / 2)} y={svgHeight - padding + 20} textAnchor="middle" fontSize="13" fontWeight="500" fill="#4b5563">{label}</text>
-        ))}
+          {values.map((val, idx) => (
+            <g key={`bar-${idx}`}>
+              <rect x={getX(idx)} y={getY(val)} width={barWidth} height={getBarHeight(val)} fill="url(#greenFactoryBarGradient)" stroke="white" strokeWidth="1" rx="4" />
+              <text x={getX(idx) + barWidth / 2} y={getY(val) - 5} textAnchor="middle" fontSize="14" fontWeight="600" fill="#10b981">{val.toFixed(1)}%</text>
+            </g>
+          ))}
+          {displayAxisLabels && labels.map((label, idx) => (
+            <text key={`x-label-${idx}`} x={padding + (idx * plotWidth) / labels.length + (plotWidth / labels.length / 2)} y={svgHeight - padding + 20} textAnchor="middle" fontSize="13" fontWeight="500" fill="#4b5563">{label}</text>
+          ))}
 
-        {displayAxisLabels && (() => {
-          const ticks = 5;
-          const tickValues = Array.from({ length: ticks + 1 }, (_, i) => minVal + (i / ticks) * range);
-          const shouldShowDecimals = range < 10;
-          return tickValues.map((tick, i) => {
-            const ratio = (tick - minVal) / (range || 1);
-            const y = svgHeight - padding - ratio * plotHeight;
-            const label = (shouldShowDecimals ? tick.toFixed(1) : Math.round(tick).toString()) + '%';
-            return (
-              <text key={`y-label-${i}`} x={padding - 10} y={y + 4} textAnchor="end" fontSize="14" fontWeight="500" fill="#4b5563">{label}</text>
-            );
-          });
-        })()}
+          {displayAxisLabels && (() => {
+            const ticks = 5;
+            const tickValues = Array.from({ length: ticks + 1 }, (_, i) => minVal + (i / ticks) * range);
+            const shouldShowDecimals = range < 10;
+            return tickValues.map((tick, i) => {
+              const ratio = (tick - minVal) / (range || 1);
+              const y = svgHeight - padding - ratio * plotHeight;
+              const label = (shouldShowDecimals ? tick.toFixed(1) : Math.round(tick).toString()) + '%';
+              return (
+                <text key={`y-label-${i}`} x={padding - 10} y={y + 4} textAnchor="end" fontSize="14" fontWeight="500" fill="#4b5563">{label}</text>
+              );
+            });
+          })()}
 
-        {displayAxisLabels && (
-          <>
-            <text x={svgWidth / 2} y={svgHeight - 5} textAnchor="middle" fontSize="14" fontWeight="600" fill="#374151">{xAxisTitle}</text>
-            <text x={20} y={svgHeight / 2} textAnchor="middle" fontSize="14" fontWeight="600" fill="#374151" transform={`rotate(-90 20 ${svgHeight / 2})`}>{yAxisTitle}</text>
-          </>
-        )}
-      </svg>
-      <div className="flex flex-col justify-center gap-2 pl-2 w-16 flex-shrink-0">
-        <div className="flex items-center gap-1"><span className="w-3 h-3 bg-[#10b981] rounded flex-shrink-0"></span><span className="text-[10px] text-gray-600">Value %</span></div>
-      </div>
+          {displayAxisLabels && (
+            <>
+              <text x={svgWidth / 2} y={svgHeight - 5} textAnchor="middle" fontSize="14" fontWeight="600" fill="#374151">{xAxisTitle}</text>
+              <text x={20} y={svgHeight / 2} textAnchor="middle" fontSize="14" fontWeight="600" fill="#374151" transform={`rotate(-90 20 ${svgHeight / 2})`}>{yAxisTitle}</text>
+            </>
+          )}
+        </svg>
+        <div className="flex flex-col justify-center gap-2 pl-2 w-16 flex-shrink-0">
+          <div className="flex items-center gap-1"><span className="w-3 h-3 bg-[#10b981] rounded flex-shrink-0"></span><span className="text-[10px] text-gray-600">Value %</span></div>
+        </div>
       </div>
     </div>
   );
@@ -491,110 +490,110 @@ const ZeroAccidentsBarChart = ({ title, subtitle, labels, actuals, targets, show
       {showHeader && <h2 className="text-base font-semibold text-gray-800 mb-2 text-center">{title}</h2>}
       {showHeader && subtitle && <p className="text-sm text-gray-600 mb-2 text-center">{subtitle}</p>}
       <div className="flex flex-row flex-1 min-h-0 items-stretch justify-end gap-0.5 overflow-hidden">
-      <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="flex-1 min-w-0 h-full" preserveAspectRatio="none">
-        <defs>
-          <linearGradient id="zeroAccidentsActualGradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#60a5fa" />
-            <stop offset="100%" stopColor="#2563eb" />
-          </linearGradient>
-          <linearGradient id="zeroAccidentsTargetGradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#fbbf24" />
-            <stop offset="100%" stopColor="#d97706" />
-          </linearGradient>
-        </defs>
+        <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="flex-1 min-w-0 h-full" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="zeroAccidentsActualGradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#60a5fa" />
+              <stop offset="100%" stopColor="#2563eb" />
+            </linearGradient>
+            <linearGradient id="zeroAccidentsTargetGradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#fbbf24" />
+              <stop offset="100%" stopColor="#d97706" />
+            </linearGradient>
+          </defs>
 
-        {(() => {
-          // Use integer ticks (0,1,2,3...) when values are small (<=10), otherwise fallback to 5 evenly spaced ticks
-          let tickValues;
-          let tickRange;
-          if (maxVal <= 10) {
-            const maxTick = Math.max(3, Math.ceil(maxVal));
-            tickValues = Array.from({ length: maxTick + 1 }, (_, i) => i);
-            tickRange = maxTick;
-          } else {
-            const ticks = 5;
-            tickValues = Array.from({ length: ticks + 1 }, (_, i) => minVal + (i / ticks) * range);
-            tickRange = range;
-          }
-          return tickValues.map((tick, i) => {
-            const ratio = (tick - minVal) / (tickRange || 1);
-            const y = svgHeight - padding - ratio * plotHeight;
+          {(() => {
+            // Use integer ticks (0,1,2,3...) when values are small (<=10), otherwise fallback to 5 evenly spaced ticks
+            let tickValues;
+            let tickRange;
+            if (maxVal <= 10) {
+              const maxTick = Math.max(3, Math.ceil(maxVal));
+              tickValues = Array.from({ length: maxTick + 1 }, (_, i) => i);
+              tickRange = maxTick;
+            } else {
+              const ticks = 5;
+              tickValues = Array.from({ length: ticks + 1 }, (_, i) => minVal + (i / ticks) * range);
+              tickRange = range;
+            }
+            return tickValues.map((tick, i) => {
+              const ratio = (tick - minVal) / (tickRange || 1);
+              const y = svgHeight - padding - ratio * plotHeight;
+              return (
+                <g key={`grid-${i}`}>
+                  <line x1={padding} y1={y} x2={svgWidth - padding} y2={y} stroke="#e5e7eb" strokeWidth="1" strokeDasharray="5,5" />
+                </g>
+              );
+            });
+          })()}
+
+          <line x1={padding} y1={padding} x2={padding} y2={svgHeight - padding} stroke="#1f2937" strokeWidth="2" />
+          <line x1={padding} y1={svgHeight - padding} x2={svgWidth - padding} y2={svgHeight - padding} stroke="#1f2937" strokeWidth="2" />
+
+          {displayLabels.map((label, idx) => (
+            <g key={`group-${idx}`}>
+              <rect x={getX(idx, 0)} y={getY(displayActuals[idx] || 0)} width={barWidth} height={getBarHeight(displayActuals[idx] || 0)} fill="url(#zeroAccidentsActualGradient)" rx="4" />
+              <rect x={getX(idx, 1)} y={getY(displayTargets[idx] || 0)} width={barWidth} height={getBarHeight(displayTargets[idx] || 0)} fill="url(#zeroAccidentsTargetGradient)" rx="4" />
+
+              <text x={getX(idx, 0) + barWidth / 2} y={getValueLabelY(displayActuals[idx] || 0)} textAnchor="middle" fontSize="12" fontWeight="600" fill="#2563eb">{(displayActuals[idx] || 0).toFixed(0)}</text>
+              <text x={getX(idx, 1) + barWidth / 2} y={getValueLabelY(displayTargets[idx] || 0)} textAnchor="middle" fontSize="12" fontWeight="600" fill="#d97706">{(displayTargets[idx] || 0).toFixed(0)}</text>
+            </g>
+          ))}
+
+          {displayAxisLabels && displayLabels.map((label, idx) => {
+            if (idx % xLabelStep !== 0) return null;
+            const x = padding + idx * groupWidth + groupWidth / 2;
+            const rotate = xLabelRotation;
             return (
-              <g key={`grid-${i}`}>
-                <line x1={padding} y1={y} x2={svgWidth - padding} y2={y} stroke="#e5e7eb" strokeWidth="1" strokeDasharray="5,5" />
-              </g>
+              <text
+                key={`x-label-${idx}`}
+                x={x}
+                y={xAxisLabelY}
+                transform={rotate ? `rotate(${rotate} ${x} ${xAxisLabelY})` : undefined}
+                dominantBaseline="hanging"
+                textAnchor="middle"
+                fontSize={axisLabelFontSize}
+                fontWeight="600"
+                fill="#4b5563"
+              >
+                {label}
+              </text>
             );
-          });
-        })()}
+          })}
 
-        <line x1={padding} y1={padding} x2={padding} y2={svgHeight - padding} stroke="#1f2937" strokeWidth="2" />
-        <line x1={padding} y1={svgHeight - padding} x2={svgWidth - padding} y2={svgHeight - padding} stroke="#1f2937" strokeWidth="2" />
+          {displayAxisLabels && (() => {
+            let tickValues;
+            let tickRange;
+            if (maxVal <= 10) {
+              const maxTick = Math.max(3, Math.ceil(maxVal));
+              tickValues = Array.from({ length: maxTick + 1 }, (_, i) => i);
+              tickRange = maxTick;
+            } else {
+              const ticks = 5;
+              tickValues = Array.from({ length: ticks + 1 }, (_, i) => minVal + (i / ticks) * range);
+              tickRange = range;
+            }
+            return tickValues.map((tick, i) => {
+              const ratio = (tick - minVal) / (tickRange || 1);
+              const y = svgHeight - padding - ratio * plotHeight;
+              const label = Number.isFinite(tick) ? Math.round(tick).toString() : String(tick);
+              return (
+                <text key={`y-label-${i}`} x={padding - 8} y={y} dominantBaseline="middle" textAnchor="end" fontSize={axisLabelFontSize} fontWeight="600" fill="#4b5563">{label}</text>
+              );
+            });
+          })()}
 
-        {displayLabels.map((label, idx) => (
-          <g key={`group-${idx}`}>
-            <rect x={getX(idx, 0)} y={getY(displayActuals[idx] || 0)} width={barWidth} height={getBarHeight(displayActuals[idx] || 0)} fill="url(#zeroAccidentsActualGradient)" rx="4" />
-            <rect x={getX(idx, 1)} y={getY(displayTargets[idx] || 0)} width={barWidth} height={getBarHeight(displayTargets[idx] || 0)} fill="url(#zeroAccidentsTargetGradient)" rx="4" />
+          {displayAxisLabels && (
+            <>
+              <text x={svgWidth / 2} y={svgHeight - 5} textAnchor="middle" fontSize={axisTitleFontSize} fontWeight="600" fill="#374151">{xAxisTitle}</text>
+              <text x={20} y={svgHeight / 2} textAnchor="middle" fontSize={axisTitleFontSize} fontWeight="600" fill="#374151" transform={`rotate(-90 20 ${svgHeight / 2})`}>{yAxisTitle}</text>
+            </>
+          )}
+        </svg>
 
-            <text x={getX(idx, 0) + barWidth / 2} y={getValueLabelY(displayActuals[idx] || 0)} textAnchor="middle" fontSize="12" fontWeight="600" fill="#2563eb">{(displayActuals[idx] || 0).toFixed(0)}</text>
-            <text x={getX(idx, 1) + barWidth / 2} y={getValueLabelY(displayTargets[idx] || 0)} textAnchor="middle" fontSize="12" fontWeight="600" fill="#d97706">{(displayTargets[idx] || 0).toFixed(0)}</text>
-          </g>
-        ))}
-
-        {displayAxisLabels && displayLabels.map((label, idx) => {
-          if (idx % xLabelStep !== 0) return null;
-          const x = padding + idx * groupWidth + groupWidth / 2;
-          const rotate = xLabelRotation;
-          return (
-            <text
-              key={`x-label-${idx}`}
-              x={x}
-              y={xAxisLabelY}
-              transform={rotate ? `rotate(${rotate} ${x} ${xAxisLabelY})` : undefined}
-              dominantBaseline="hanging"
-              textAnchor="middle"
-              fontSize={axisLabelFontSize}
-              fontWeight="600"
-              fill="#4b5563"
-            >
-              {label}
-            </text>
-          );
-        })}
-
-        {displayAxisLabels && (() => {
-          let tickValues;
-          let tickRange;
-          if (maxVal <= 10) {
-            const maxTick = Math.max(3, Math.ceil(maxVal));
-            tickValues = Array.from({ length: maxTick + 1 }, (_, i) => i);
-            tickRange = maxTick;
-          } else {
-            const ticks = 5;
-            tickValues = Array.from({ length: ticks + 1 }, (_, i) => minVal + (i / ticks) * range);
-            tickRange = range;
-          }
-          return tickValues.map((tick, i) => {
-            const ratio = (tick - minVal) / (tickRange || 1);
-            const y = svgHeight - padding - ratio * plotHeight;
-            const label = Number.isFinite(tick) ? Math.round(tick).toString() : String(tick);
-            return (
-              <text key={`y-label-${i}`} x={padding - 8} y={y} dominantBaseline="middle" textAnchor="end" fontSize={axisLabelFontSize} fontWeight="600" fill="#4b5563">{label}</text>
-            );
-          });
-        })()}
-
-        {displayAxisLabels && (
-          <>
-            <text x={svgWidth / 2} y={svgHeight - 5} textAnchor="middle" fontSize={axisTitleFontSize} fontWeight="600" fill="#374151">{xAxisTitle}</text>
-            <text x={20} y={svgHeight / 2} textAnchor="middle" fontSize={axisTitleFontSize} fontWeight="600" fill="#374151" transform={`rotate(-90 20 ${svgHeight / 2})`}>{yAxisTitle}</text>
-          </>
-        )}
-      </svg>
-
-      <div className="flex flex-col justify-center gap-1 pl-2 w-24 flex-shrink-0">
-        <div className="flex items-center gap-1"><span className="w-2 h-2 bg-[#2563eb] rounded flex-shrink-0"></span><span style={{ fontSize: `${legendFontSize}px` }} className="text-gray-600">Actual</span></div>
-        <div className="flex items-center gap-1"><span className="w-2 h-2 bg-[#d97706] rounded flex-shrink-0"></span><span style={{ fontSize: `${legendFontSize}px` }} className="text-gray-600">Target</span></div>
-      </div>
+        <div className="flex flex-col justify-center gap-1 pl-2 w-24 flex-shrink-0">
+          <div className="flex items-center gap-1"><span className="w-2 h-2 bg-[#2563eb] rounded flex-shrink-0"></span><span style={{ fontSize: `${legendFontSize}px` }} className="text-gray-600">Actual</span></div>
+          <div className="flex items-center gap-1"><span className="w-2 h-2 bg-[#d97706] rounded flex-shrink-0"></span><span style={{ fontSize: `${legendFontSize}px` }} className="text-gray-600">Target</span></div>
+        </div>
       </div>
     </div>
   );
@@ -603,7 +602,7 @@ const ZeroAccidentsBarChart = ({ title, subtitle, labels, actuals, targets, show
 // On Time Delivery mixed chart (Target line + Achieved bars)
 const OnTimeDeliveryBarChart = ({ title, subtitle, labels, actuals, targets, showHeader = true, showAxisLabels = true, xAxisTitle = 'Month', yAxisTitle = 'Percent', isExpanded = false }) => {
   const svgHeight = isExpanded ? 300 : 216;
-const padding = isExpanded ? 85 : 48;
+  const padding = isExpanded ? 85 : 48;
 
   const svgWidth = 900;
 
@@ -633,73 +632,73 @@ const padding = isExpanded ? 85 : 48;
       {showHeader && <h2 className="text-base font-semibold text-gray-800 mb-2 text-center">{title}</h2>}
       {showHeader && subtitle && <p className="text-sm text-gray-600 mb-2 text-center">{subtitle}</p>}
       <div className="flex flex-row flex-1 min-h-0 items-center gap-1">
-      {/* CHANGED: Added h-full and w-full class to force expansion in compact mode */}
-      <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="flex-1 min-w-0 w-full h-full" preserveAspectRatio="none">
-        <defs>
-          <linearGradient id="onTimeDeliveryBarGradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#4ade80" />
-            <stop offset="100%" stopColor="#15803d" />
-          </linearGradient>
-        </defs>
+        {/* CHANGED: Added h-full and w-full class to force expansion in compact mode */}
+        <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="flex-1 min-w-0 w-full h-full" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="onTimeDeliveryBarGradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#4ade80" />
+              <stop offset="100%" stopColor="#15803d" />
+            </linearGradient>
+          </defs>
 
-        {(() => {
-          const ticks = 5;
-          const tickValues = Array.from({ length: ticks + 1 }, (_, i) => minVal + (i / ticks) * range);
-          return tickValues.map((tick, i) => {
-            const ratio = (tick - minVal) / (range || 1);
-            const y = svgHeight - padding - ratio * plotHeight;
-            return (
-              <g key={`grid-${i}`}>
-                <line x1={padding} y1={y} x2={svgWidth - padding} y2={y} stroke="#e5e7eb" strokeWidth="1" strokeDasharray="5,5" />
-              </g>
-            );
-          });
-        })()}
+          {(() => {
+            const ticks = 5;
+            const tickValues = Array.from({ length: ticks + 1 }, (_, i) => minVal + (i / ticks) * range);
+            return tickValues.map((tick, i) => {
+              const ratio = (tick - minVal) / (range || 1);
+              const y = svgHeight - padding - ratio * plotHeight;
+              return (
+                <g key={`grid-${i}`}>
+                  <line x1={padding} y1={y} x2={svgWidth - padding} y2={y} stroke="#e5e7eb" strokeWidth="1" strokeDasharray="5,5" />
+                </g>
+              );
+            });
+          })()}
 
-        <line x1={padding} y1={padding} x2={padding} y2={svgHeight - padding} stroke="#1f2937" strokeWidth="2" />
-        <line x1={padding} y1={svgHeight - padding} x2={svgWidth - padding} y2={svgHeight - padding} stroke="#1f2937" strokeWidth="2" />
+          <line x1={padding} y1={padding} x2={padding} y2={svgHeight - padding} stroke="#1f2937" strokeWidth="2" />
+          <line x1={padding} y1={svgHeight - padding} x2={svgWidth - padding} y2={svgHeight - padding} stroke="#1f2937" strokeWidth="2" />
 
-        <path d={targetPath} stroke="#f59e0b" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+          <path d={targetPath} stroke="#f59e0b" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" />
 
-        {labels.map((label, idx) => (
-          <g key={`group-${idx}`}>
-            <rect x={getX(idx)} y={getY(actuals[idx] || 0)} width={barWidth} height={getBarHeight(actuals[idx] || 0)} fill="url(#onTimeDeliveryBarGradient)" rx="4" />
-            <circle cx={getX(idx) + barWidth / 2} cy={getY(targets[idx] || 0)} r="4.5" fill="#f59e0b" stroke="#ffffff" strokeWidth="2" />
+          {labels.map((label, idx) => (
+            <g key={`group-${idx}`}>
+              <rect x={getX(idx)} y={getY(actuals[idx] || 0)} width={barWidth} height={getBarHeight(actuals[idx] || 0)} fill="url(#onTimeDeliveryBarGradient)" rx="4" />
+              <circle cx={getX(idx) + barWidth / 2} cy={getY(targets[idx] || 0)} r="4.5" fill="#f59e0b" stroke="#ffffff" strokeWidth="2" />
 
-            <text x={getX(idx) + barWidth / 2} y={getY(targets[idx] || 0) - 8} textAnchor="middle" fontSize="14" fontWeight="600" fill="#92400e">{Math.round(targets[idx] || 0)}</text>
-            <text x={getX(idx) + barWidth / 2} y={getY(actuals[idx] || 0) - 5} textAnchor="middle" fontSize="14" fontWeight="600" fill="#166534">{Math.round(actuals[idx] || 0)}</text>
-          </g>
-        ))}
+              <text x={getX(idx) + barWidth / 2} y={getY(targets[idx] || 0) - 8} textAnchor="middle" fontSize="14" fontWeight="600" fill="#92400e">{Math.round(targets[idx] || 0)}</text>
+              <text x={getX(idx) + barWidth / 2} y={getY(actuals[idx] || 0) - 5} textAnchor="middle" fontSize="14" fontWeight="600" fill="#166534">{Math.round(actuals[idx] || 0)}</text>
+            </g>
+          ))}
 
-        {displayAxisLabels && labels.map((label, idx) => (
-          <text key={`x-label-${idx}`} x={padding + idx * groupWidth + groupWidth / 2} y={svgHeight - padding + 20} textAnchor="middle" fontSize="13" fontWeight="500" fill="#4b5563">{label}</text>
-        ))}
+          {displayAxisLabels && labels.map((label, idx) => (
+            <text key={`x-label-${idx}`} x={padding + idx * groupWidth + groupWidth / 2} y={svgHeight - padding + 20} textAnchor="middle" fontSize="13" fontWeight="500" fill="#4b5563">{label}</text>
+          ))}
 
-        {displayAxisLabels && (() => {
-          const ticks = 5;
-          const tickValues = Array.from({ length: ticks + 1 }, (_, i) => minVal + (i / ticks) * range);
-          const shouldShowDecimals = range < 10;
-          return tickValues.map((tick, i) => {
-            const ratio = (tick - minVal) / (range || 1);
-            const y = svgHeight - padding - ratio * plotHeight;
-            const label = (shouldShowDecimals ? tick.toFixed(1) : Math.round(tick).toString()) + '%';
-            return (
-              <text key={`y-label-${i}`} x={padding - 10} y={y + 4} textAnchor="end" fontSize="14" fontWeight="500" fill="#4b5563">{label}</text>
-            );
-          });
-        })()}
-        {displayAxisLabels && (
-          <>
-            <text x={svgWidth / 2} y={svgHeight - 5} textAnchor="middle" fontSize="14" fontWeight="600" fill="#374151">{xAxisTitle}</text>
-            <text x={20} y={svgHeight / 2} textAnchor="middle" fontSize="14" fontWeight="600" fill="#374151" transform={`rotate(-90 20 ${svgHeight / 2})`}>{yAxisTitle}</text>
-          </>
-        )}
-      </svg>
+          {displayAxisLabels && (() => {
+            const ticks = 5;
+            const tickValues = Array.from({ length: ticks + 1 }, (_, i) => minVal + (i / ticks) * range);
+            const shouldShowDecimals = range < 10;
+            return tickValues.map((tick, i) => {
+              const ratio = (tick - minVal) / (range || 1);
+              const y = svgHeight - padding - ratio * plotHeight;
+              const label = (shouldShowDecimals ? tick.toFixed(1) : Math.round(tick).toString()) + '%';
+              return (
+                <text key={`y-label-${i}`} x={padding - 10} y={y + 4} textAnchor="end" fontSize="14" fontWeight="500" fill="#4b5563">{label}</text>
+              );
+            });
+          })()}
+          {displayAxisLabels && (
+            <>
+              <text x={svgWidth / 2} y={svgHeight - 5} textAnchor="middle" fontSize="14" fontWeight="600" fill="#374151">{xAxisTitle}</text>
+              <text x={20} y={svgHeight / 2} textAnchor="middle" fontSize="14" fontWeight="600" fill="#374151" transform={`rotate(-90 20 ${svgHeight / 2})`}>{yAxisTitle}</text>
+            </>
+          )}
+        </svg>
 
-      <div className="flex flex-col justify-center gap-2 pl-2 w-16 flex-shrink-0">
-        <div className="flex items-center gap-1"><span className="w-4 h-0.5 bg-[#f59e0b] rounded flex-shrink-0"></span><span className="text-[10px] text-gray-600">Target</span></div>
-        <div className="flex items-center gap-1"><span className="w-3 h-3 bg-[#15803d] rounded flex-shrink-0"></span><span className="text-[10px] text-gray-600">Achieved</span></div>
-      </div>
+        <div className="flex flex-col justify-center gap-2 pl-2 w-16 flex-shrink-0">
+          <div className="flex items-center gap-1"><span className="w-4 h-0.5 bg-[#f59e0b] rounded flex-shrink-0"></span><span className="text-[10px] text-gray-600">Target</span></div>
+          <div className="flex items-center gap-1"><span className="w-3 h-3 bg-[#15803d] rounded flex-shrink-0"></span><span className="text-[10px] text-gray-600">Achieved</span></div>
+        </div>
       </div>
     </div>
   );
@@ -708,8 +707,8 @@ const padding = isExpanded ? 85 : 48;
 // Theme (Bar chart) component
 const Box4ThemeBarChart = ({ title, subtitle, labels, values, showAxisLabels = true, xAxisTitle = 'Month', yAxisTitle = 'Value', showHeader = true, showSubtitle, isExpanded = false }) => {
   const svgWidth = 900;
- const svgHeight = isExpanded ? 420 : 216;
-const padding = isExpanded ? 85 : 48;
+  const svgHeight = isExpanded ? 420 : 216;
+  const padding = isExpanded ? 85 : 48;
 
   const plotWidth = svgWidth - padding * 2;
   const plotHeight = svgHeight - padding * 2;
@@ -1374,7 +1373,7 @@ function ManagementDashboard() {
   const [expandedChartData, setExpandedChartData] = useState(null);
   const [kpiIdMap, setKpiIdMap] = useState({});
   const navigate = useNavigate();
-  
+
   const [selectedFiscalYear, setSelectedFiscalYear] = useState(getCurrentFiscalYear());
   const [availableFiscalYears, setAvailableFiscalYears] = useState([]);
   const [cachedKpiValues, setCachedKpiValues] = useState([]);
@@ -1401,7 +1400,7 @@ function ManagementDashboard() {
       };
     });
   }, [departmentPerformance]);
-  
+
   // Computed fiscal month sequence based on selected year
   const FISCAL_MONTH_SEQUENCE = useMemo(() => getFiscalMonthSequence(selectedFiscalYear), [selectedFiscalYear]);
 
@@ -1425,7 +1424,7 @@ function ManagementDashboard() {
       .filter(res => res.status === 'fulfilled')
       .flatMap(res => res.value?.data?.data || [])
       .filter(Boolean);
-    
+
     return allValues;
   };
 
@@ -1436,7 +1435,7 @@ function ManagementDashboard() {
       const matches = checks.some(check => check(dataText));
       return matches;
     });
-    
+
     return found;
   };
 
@@ -1444,7 +1443,7 @@ function ManagementDashboard() {
   useEffect(() => {
     if (availableFiscalYears.length > 0 && !availableFiscalYears.includes(selectedFiscalYear)) {
       // Find closest available year
-      const closest = availableFiscalYears.reduce((prev, curr) => 
+      const closest = availableFiscalYears.reduce((prev, curr) =>
         Math.abs(curr - selectedFiscalYear) < Math.abs(prev - selectedFiscalYear) ? curr : prev
       );
       setSelectedFiscalYear(closest);
@@ -1455,11 +1454,11 @@ function ManagementDashboard() {
     const loadAllData = async () => {
       try {
         await fetchStatistics();
-        
+
         // Fetch KPI values once for all charts to avoid multiple redundant API calls
         const fiscalValues = await getKpiValuesForFiscalYear();
         setCachedKpiValues(fiscalValues);
-        
+
         // Pass cached values to all chart functions with individual error handling
         const chartResults = await Promise.allSettled([
           loadIndustry40Chart(fiscalValues),
@@ -1473,7 +1472,7 @@ function ManagementDashboard() {
           loadThemeChart(fiscalValues),
           loadEmployeesChart(fiscalValues)
         ]);
-        
+
         // Log any failures
         chartResults.forEach((result, index) => {
           const chartNames = ['Industry40', 'ZeroQuality', 'Sales', 'Profitability', 'PlantEfficiency', 'GreenFactory', 'ZeroAccidents', 'OnTimeDelivery', 'Theme', 'Employees'];
@@ -1485,7 +1484,7 @@ function ManagementDashboard() {
         console.error('Error loading dashboard data:', error);
       }
     };
-    
+
     loadAllData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedFiscalYear]);
@@ -1508,15 +1507,15 @@ function ManagementDashboard() {
         const kpisData = kpisResponse.data;
         // Check if data is wrapped in another object (e.g., { data: [...] })
         const allKpis = Array.isArray(kpisData) ? kpisData : (Array.isArray(kpisData?.data) ? kpisData.data : []);
-        
+
         // console.log('All KPIs:', allKpis.length, 'Selected Fiscal Year:', selectedFiscalYear);
         // console.log('Sample KPIs fin_year values:', allKpis.slice(0, 5).map(k => ({ title: k.title, fin_year: k.fin_year, type: typeof k.fin_year })));
-        
+
         // Extract unique available fiscal years from ALL KPIs
         const fiscalYears = allKpis
           .map(kpi => parseFiscalYear(kpi.fin_year))
           .filter(year => year != null && !isNaN(year) && year > 0);
-        
+
         if (fiscalYears.length > 0) {
           const uniqueYears = [...new Set(fiscalYears)].sort((a, b) => a - b);
           //console.log('Available fiscal years:', uniqueYears);
@@ -1526,9 +1525,9 @@ function ManagementDashboard() {
         // Filter KPIs by selected fiscal year - handle both string and number comparison
         const kpis = allKpis.filter(kpi => isFiscalYearMatch(kpi.fin_year, selectedFiscalYear));
         fiscalKpis = kpis;
-        
+
         //console.log('Filtered KPIs for fiscal year', selectedFiscalYear, ':', kpis.length);
-        
+
         setKpiStats({
           total: kpis.length
         });
@@ -1648,13 +1647,13 @@ function ManagementDashboard() {
     try {
       setGreenFactoryLoading(true);
       console.log(`📊 Loading Green Factory Chart for Fiscal Year: ${selectedFiscalYear}`);
-      
+
       // Match "GREEN FACTORY" exactly
       const greenFactoryValue = findKpiValueByData(
         fiscalValues,
         (text) => text === 'green factory'
       );
-      
+
       if (!greenFactoryValue) {
         console.warn('KPI value not found for GREEN FACTORY');
         setGreenFactoryChart(null);
@@ -1702,13 +1701,13 @@ function ManagementDashboard() {
     try {
       setZeroAccidentsLoading(true);
       console.log(`📊 Loading Zero Accidents Chart for Fiscal Year: ${selectedFiscalYear}`);
-      
+
       // Match "ZERO ACCIDENTS" exactly
       const zeroAccidentsValue = findKpiValueByData(
         fiscalValues,
         (text) => text === 'zero accidents'
       );
-      
+
       if (!zeroAccidentsValue) {
         console.warn('KPI value not found for ZERO ACCIDENTS');
         setZeroAccidentsChart(null);
@@ -1759,13 +1758,13 @@ function ManagementDashboard() {
     try {
       setOnTimeDeliveryLoading(true);
       console.log(`📊 Loading On Time Delivery Chart for Fiscal Year: ${selectedFiscalYear}`);
-      
+
       // Match "ON TIME DELIVERY" exactly
       const onTimeDeliveryValue = findKpiValueByData(
         fiscalValues,
         (text) => text === 'on time delivery'
       );
-      
+
       if (!onTimeDeliveryValue) {
         console.warn('KPI value not found for ON TIME DELIVERY');
         setOnTimeDeliveryChart(null);
@@ -1817,13 +1816,13 @@ function ManagementDashboard() {
     try {
       setThemeChartLoading(true);
       console.log(`📊 Loading Theme Chart for Fiscal Year: ${selectedFiscalYear}`);
-      
+
       // Match "THEME OF THE YEAR 2025-26 - UNLOCK THE POWER OF "YOU"" exactly
       const themeValue = findKpiValueByData(
         fiscalValues,
         (text) => text.includes('theme of the year') && text.includes('unlock the power of')
       );
-      
+
       if (!themeValue) {
         console.warn('KPI value not found for THEME OF THE YEAR');
         setThemeChart(null);
@@ -1868,13 +1867,13 @@ function ManagementDashboard() {
     try {
       setEmployeesChartLoading(true);
       console.log(`📊 Loading Employees Chart for Fiscal Year: ${selectedFiscalYear}`);
-      
+
       // Match "NO. OF EMPLOYEES WHO LEFT" exactly
       const employeesValue = findKpiValueByData(
         fiscalValues,
         (text) => text === 'no. of employees who left'
       );
-      
+
       if (!employeesValue) {
         console.warn('KPI value not found for NO. OF EMPLOYEES WHO LEFT');
         setEmployeesChart(null);
@@ -1917,10 +1916,10 @@ function ManagementDashboard() {
   const loadPlantEfficiency = async (fiscalValues) => {
     try {
       setEfficiencyLoading(true);
-      
+
       // Debug: log all KPI values to find the exact OPE data field
       //console.log('All fiscal KPI values:', fiscalValues.map(v => ({ id: v.id, data: v.data })));
-      
+
       // Match "OVERALL PLANT EFFICIENCY (OPE)" exactly
       const opeValue = findKpiValueByData(
         fiscalValues,
@@ -1954,7 +1953,7 @@ function ManagementDashboard() {
             lastAvailableIdx = idx;
           }
           //console.log(`Month ${month}/${year} - Target:`, targetRow, 'Actual:', actualRow);
-          
+
           const target = targetRow ? parseNumeric(targetRow.value) : 0;
           const actual = actualRow ? parseNumeric(actualRow.value) : 0;
           // If target is missing, assume actual is already a percent value.
@@ -2070,14 +2069,14 @@ function ManagementDashboard() {
   const navigateChart = (direction) => {
     const currentIndex = CHART_KEYS.indexOf(expandedChart);
     if (currentIndex === -1) return;
-    
+
     let nextIndex;
     if (direction === 'next') {
       nextIndex = (currentIndex + 1) % CHART_KEYS.length;
     } else {
       nextIndex = (currentIndex - 1 + CHART_KEYS.length) % CHART_KEYS.length;
     }
-    
+
     const nextKey = CHART_KEYS[nextIndex];
     setExpandedChart(nextKey);
     setExpandedChartData(getChartData(nextKey));
@@ -2105,7 +2104,7 @@ function ManagementDashboard() {
       try {
         const fiscalKpis = await getKpisForFiscalYear();
         const titleLower = chartTitle.toLowerCase();
-        
+
         let matchedKpi = fiscalKpis.find(k => {
           const kTitle = (k.title || '').toLowerCase();
           return kTitle === titleLower;
@@ -2138,8 +2137,8 @@ function ManagementDashboard() {
     }
 
     if (kpiId) {
-      navigate(`/management/kpi/${kpiId}`, { 
-        state: { fiscalYear: selectedFiscalYear } 
+      navigate(`/management/kpi/${kpiId}`, {
+        state: { fiscalYear: selectedFiscalYear }
       });
     } else {
       console.warn(`No KPI ID found for chart title: ${chartTitle}`);
@@ -2154,7 +2153,7 @@ function ManagementDashboard() {
       const industry40Value = findKpiValueByData(fiscalValues, (text) =>
         text.includes('industry 4.0') || text.includes('industry4.0') || text.includes('industry4')
       );
-      
+
       if (!industry40Value) {
         console.warn('KPI value not found for Industry 4.0');
         setIndustry40Chart(null);
@@ -2184,10 +2183,10 @@ function ManagementDashboard() {
           const actualValue = actualRow ? parseNumeric(actualRow.value) : 0;
           const targetValue = targetRow ? parseNumeric(targetRow.value) : 0;
           console.log(`    ✅ Industry 4.0 data: month=${month}, year=${year}, actual=${actualValue}, target=${targetValue}`);
-          
-          byMonth.push({ 
-            actual: actualValue, 
-            target: targetValue 
+
+          byMonth.push({
+            actual: actualValue,
+            target: targetValue
           });
         } catch (err) {
           console.warn(`Failed to load data for month ${month}, year ${year}:`, err);
@@ -2224,7 +2223,7 @@ function ManagementDashboard() {
       const qualityValue = findKpiValueByData(fiscalValues, (text) =>
         text.includes('zero quality') || (text.includes('quality') && text.includes('complaint'))
       );
-      
+
       if (!qualityValue) {
         console.warn('KPI value not found for ZERO QUALITY COMPLAINTS FROM CUSTOMERS');
         setZeroQualityChart(null);
@@ -2254,10 +2253,10 @@ function ManagementDashboard() {
           const actualValue = actualRow ? parseNumeric(actualRow.value) : 0;
           const targetValue = targetRow ? parseNumeric(targetRow.value) : 0;
           console.log(`    ✅ Zero Quality data: month=${month}, year=${year}, actual=${actualValue}, target=${targetValue}`);
-          
-          byMonth.push({ 
-            actual: actualValue, 
-            target: targetValue 
+
+          byMonth.push({
+            actual: actualValue,
+            target: targetValue
           });
         } catch (err) {
           console.warn(`Failed to load data for month ${month}, year ${year}:`, err);
@@ -2311,7 +2310,7 @@ function ManagementDashboard() {
 
       const salesByMonth = [];
       let lastAvailableIdx = -1;
-      
+
       // Fetch all data for the KPI value for this fiscal year
       for (let idx = 0; idx < FISCAL_MONTH_SEQUENCE.length; idx++) {
         const { month, year } = FISCAL_MONTH_SEQUENCE[idx];
@@ -2332,12 +2331,12 @@ function ManagementDashboard() {
 
           const actualValue = actualRow ? parseNumeric(actualRow.value) : 0;
           const targetValue = targetRow ? parseNumeric(targetRow.value) : 0;
-          
+
           console.log(`    ✅ Sales data: month=${month}, year=${year}, actual=${actualValue}, target=${targetValue}`);
-          
-          salesByMonth.push({ 
-            month, 
-            year, 
+
+          salesByMonth.push({
+            month,
+            year,
             actual: actualValue,  // actual value
             target: targetValue   // target value
           });
@@ -2369,7 +2368,7 @@ function ManagementDashboard() {
       const profitValue = findKpiValueByData(fiscalValues, (text) =>
         text.includes('profit') || text.includes('p & l') || text.includes('p&l')
       );
-      
+
       if (!profitValue) {
         console.warn('KPI value not found for PROFITABILITY AS PER LATEST P & L STATEMENT');
         setMonthlyProfitData([]);
@@ -2378,7 +2377,7 @@ function ManagementDashboard() {
 
       const profitByMonth = [];
       let lastAvailableIdx = -1;
-      
+
       // Fetch all data for the KPI value for this fiscal year
       for (let idx = 0; idx < FISCAL_MONTH_SEQUENCE.length; idx++) {
         const { month, year } = FISCAL_MONTH_SEQUENCE[idx];
@@ -2400,10 +2399,10 @@ function ManagementDashboard() {
           const actualValue = actualRow ? parseNumeric(actualRow.value) : 0;
           const targetValue = targetRow ? parseNumeric(targetRow.value) : 100;
           console.log(`    ✅ Profitability data: month=${month}, year=${year}, profit=${actualValue}, target=${targetValue}`);
-          
-          profitByMonth.push({ 
-            month, 
-            year, 
+
+          profitByMonth.push({
+            month,
+            year,
             profit: actualValue,  // actual value
             target: targetValue   // target value
           });
@@ -2438,7 +2437,7 @@ function ManagementDashboard() {
               Welcome, {user?.firstName} {user?.lastName}
             </p> */}
           </div>
-          
+
           {/* Compact Fiscal Year Selector */}
           <div className="flex items-center gap-1 bg-white rounded shadow px-2 py-1 border border-gray-200 h-9 min-h-0">
             <button
@@ -2451,7 +2450,7 @@ function ManagementDashboard() {
               disabled={availableFiscalYears.length === 0 || availableFiscalYears.indexOf(selectedFiscalYear) <= 0}
               className="px-2 py-0.5 rounded bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors font-semibold text-xs focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-40 disabled:cursor-not-allowed"
               title="Previous Fiscal Year"
-              style={{lineHeight: '1'}}
+              style={{ lineHeight: '1' }}
             >
               ‹
             </button>
@@ -2475,7 +2474,7 @@ function ManagementDashboard() {
               disabled={availableFiscalYears.length === 0 || availableFiscalYears.indexOf(selectedFiscalYear) >= availableFiscalYears.length - 1}
               className="px-2 py-0.5 rounded bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors font-semibold text-xs focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-40 disabled:cursor-not-allowed"
               title="Next Fiscal Year"
-              style={{lineHeight: '1'}}
+              style={{ lineHeight: '1' }}
             >
               ›
             </button>
@@ -2490,554 +2489,554 @@ function ManagementDashboard() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 lg:grid-rows-3 gap-2 lg:h-[calc(110vh-120px)] overflow-hidden">
           {/* Plant Efficiency Speedometer */}
           <div className="w-full h-full min-h-0 lg:col-span-4 lg:row-span-1">
-          <div className="bg-white rounded-lg shadow border-2 border-blue-500 p-2 h-full min-h-0 overflow-hidden flex flex-col">
-            <button 
-              type="button"
-              onClick={() => handleKPITitleClick('Plant Efficiency')}
-              className="w-full mb-1 px-2 sm:px-2 md:px-3 py-1 text-xs sm:text-sm lg:text-sm font-semibold leading-snug text-blue-900 bg-blue-100 rounded-md hover:bg-blue-200 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 whitespace-normal break-words"
-              title="Go to Plant Efficiency KPI"
-            >
-              ⚡ Plant Efficiency
-            </button>
-            {efficiencyLoading ? (
-              <div className="flex items-center justify-center p-8 text-gray-500 text-sm">Loading...</div>
-            ) : (
-              <div className="flex items-center justify-center gap-1 sm:gap-2 md:gap-4 relative w-full min-w-0 flex-1 min-h-0 overflow-hidden">
-                {/* Previous Month Button */}
-                <button 
-                  type="button"
-                  className="bg-gray-100 border border-gray-300 rounded-full w-6 h-6 sm:w-8 sm:h-8 md:w-9 md:h-9 flex items-center justify-center cursor-pointer text-sm sm:text-xl md:text-2xl text-gray-600 hover:bg-gray-200 hover:text-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex-shrink-0 relative z-10"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    if (!monthlyEfficiency.length) return;
-                    setSelectedFiscalIndex(selectedFiscalIndex === 0 ? monthlyEfficiency.length - 1 : selectedFiscalIndex - 1);
-                  }}
-                  disabled={monthlyEfficiency.length <= 1}
-                  title="Previous Month"
-                >
-                  ‹
-                </button>
-                
-                {/* Speedometer Gauge - Click to Open Modal */}
-                <div 
-                  className="flex-1 min-w-0 flex flex-col justify-center items-center cursor-pointer hover:opacity-80 transition-opacity h-full min-h-0"
-                  role="button"
-                  tabIndex={0}
-                  onClick={(e) => {
-                    if (e.target.closest('button')) return;
-                    openExpandedChart('plantEfficiency', { monthlyEfficiency, selectedFiscalIndex });
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.target.closest('button')) {
-                      openExpandedChart('plantEfficiency', { monthlyEfficiency, selectedFiscalIndex });
-                    }
-                  }}
-                >
-                  <SpeedometerGauge 
-                    efficiency={monthlyEfficiency[selectedFiscalIndex]?.efficiency || 0}
-                    month={MONTH_LABELS[(monthlyEfficiency[selectedFiscalIndex]?.month || 1) - 1]}
-                    year={monthlyEfficiency[selectedFiscalIndex]?.year || ''}
-                  />
-                </div>
-
-                {/* Next Month Button */}
-                <button 
-                  type="button"
-                  className="bg-gray-100 border border-gray-300 rounded-full w-6 h-6 sm:w-8 sm:h-8 md:w-9 md:h-9 flex items-center justify-center cursor-pointer text-sm sm:text-xl md:text-2xl text-gray-600 hover:bg-gray-200 hover:text-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex-shrink-0 relative z-10"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    if (!monthlyEfficiency.length) return;
-                    setSelectedFiscalIndex(selectedFiscalIndex === monthlyEfficiency.length - 1 ? 0 : selectedFiscalIndex + 1);
-                  }}
-                  disabled={monthlyEfficiency.length <= 1}
-                  title="Next Month"
-                >
-                  ›
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Industry 4.0 Chart */}
-        <div className="w-full h-full min-h-0 lg:col-span-4 lg:row-span-1">
-          <div className="bg-white rounded-lg shadow border-2 border-blue-500 p-2 h-full min-h-0 overflow-hidden flex flex-col">
-            <button 
-              onClick={() => handleKPITitleClick('Industry 4.0')}
-              className="w-full mb-2 px-2 sm:px-2 md:px-3 py-1 text-xs sm:text-sm lg:text-sm font-semibold leading-snug text-blue-900 bg-blue-100 rounded-md hover:bg-blue-200 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 whitespace-normal break-words"
-            >
-              🏭 Industry 4.0
-            </button>
-            {industry40Loading ? (
-              <div className="flex items-center justify-center p-8 text-gray-500 text-sm">Loading...</div>
-            ) : industry40Chart ? (
-              <div 
-                className="flex-1 min-h-0 cursor-pointer flex items-center"
-                role="button"
-                tabIndex={0}
-                onClick={() => openExpandedChart('industry40', industry40Chart)}
-                onKeyDown={(e) => e.key === 'Enter' && openExpandedChart('industry40', industry40Chart)}
+            <div className="bg-white rounded-lg shadow border-2 border-blue-500 p-2 h-full min-h-0 overflow-hidden flex flex-col">
+              <button
+                type="button"
+                onClick={() => handleKPITitleClick('Plant Efficiency')}
+                className="w-full mb-1 px-2 sm:px-2 md:px-3 py-1 text-xs sm:text-sm lg:text-sm font-bold leading-snug text-blue-900 bg-blue-100 rounded-md hover:bg-blue-200 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 whitespace-normal break-words"
+                title="Go to Plant Efficiency KPI"
               >
-              <Industry40LineChart
-                title={industry40Chart.title}
-                labels={industry40Chart.labels}
-                actuals={industry40Chart.actuals}
-                targets={industry40Chart.targets}
-                showHeader={false}
-              />
-              </div>
-            ) : (
-              <div 
-                className="flex-1 min-h-0 cursor-pointer flex items-center"
-                role="button"
-                tabIndex={0}
-                onClick={() => openExpandedChart('industry40', { title: 'Industry 4.0 Performance', labels: MONTH_LABELS, actuals: Array(12).fill(0), targets: Array(12).fill(0) })}
-                onKeyDown={(e) => e.key === 'Enter' && openExpandedChart('industry40', { title: 'Industry 4.0 Performance', labels: MONTH_LABELS, actuals: Array(12).fill(0), targets: Array(12).fill(0) })}
-              >
-              <Industry40LineChart
-                title="Industry 4.0 Performance"
-                labels={MONTH_LABELS}
-                actuals={Array(12).fill(0)}
-                targets={Array(12).fill(0)}
-                showHeader={false}
-              />
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Zero Quality Complaints Chart */}
-        <div className="w-full h-full min-h-0 lg:col-span-4 lg:row-span-1">
-          <div className="bg-white rounded-lg shadow border-2 border-blue-500 p-2 h-full min-h-0 overflow-hidden flex flex-col">
-            <button 
-              onClick={() => handleKPITitleClick('Zero Quality')}
-              className="w-full mb-2 px-2 sm:px-2 md:px-3 py-1 text-xs sm:text-sm lg:text-sm font-semibold leading-snug text-blue-900 bg-blue-100 rounded-md hover:bg-blue-200 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 whitespace-normal break-words"
-            >
-              ✅ Zero Quality Complaints
-            </button>
-            {zeroQualityLoading ? (
-              <div className="flex items-center justify-center p-8 text-gray-500 text-sm">Loading...</div>
-            ) : zeroQualityChart ? (
-              <div 
-                className="flex-1 min-h-0 cursor-pointer flex items-center"
-                role="button"
-                tabIndex={0}
-                onClick={() => openExpandedChart('zeroQuality', zeroQualityChart)}
-                onKeyDown={(e) => e.key === 'Enter' && openExpandedChart('zeroQuality', zeroQualityChart)}
-              >
-              <Industry40LineChart
-                title={zeroQualityChart.title}
-                labels={zeroQualityChart.labels}
-                actuals={zeroQualityChart.actuals}
-                targets={zeroQualityChart.targets}
-                showHeader={false}
-              />
-              </div>
-            ) : (
-              <div 
-                className="flex-1 min-h-0 cursor-pointer flex items-center"
-                role="button"
-                tabIndex={0}
-                onClick={() => openExpandedChart('zeroQuality', { title: 'Zero Quality Complaints', labels: MONTH_LABELS, actuals: Array(12).fill(0), targets: Array(12).fill(0) })}
-                onKeyDown={(e) => e.key === 'Enter' && openExpandedChart('zeroQuality', { title: 'Zero Quality Complaints', labels: MONTH_LABELS, actuals: Array(12).fill(0), targets: Array(12).fill(0) })}
-              >
-              <Industry40LineChart
-                title="Zero Quality Complaints"
-                labels={MONTH_LABELS}
-                actuals={Array(12).fill(0)}
-                targets={Array(12).fill(0)}
-                showHeader={false}
-              />
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Revenue and Profitability Split Chart */}
-        <div className="w-full h-full min-h-0 lg:col-span-6 lg:row-span-1">
-          <div className="bg-white rounded-lg shadow border-2 border-blue-500 h-full min-h-0 flex flex-col p-2 overflow-hidden">
-            {/* Group Title */}
-            <button
-              onClick={() => handleKPITitleClick('Cost')}
-              className="w-full mb-1 px-2 sm:px-2 md:px-3 py-1 text-xs sm:text-sm lg:text-sm font-semibold leading-snug text-blue-900 bg-blue-100 rounded-md hover:bg-blue-200 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 whitespace-normal break-words"
-            >
-              💰 Cost
-            </button>
-            <div className="flex flex-col md:flex-row h-full flex-1">
-            {/* Revenue Section */}
-            <div className="flex-1 px-2 pb-2 pt-1 md:px-4 md:pb-4 md:pt-1 flex flex-col md:border-r border-gray-200 min-w-0 justify-center h-full">
-              <button 
-                onClick={() => handleKPITitleClick('Revenue')}
-                className="text-xs md:text-sm font-bold text-gray-500 mb-1 md:mb-1 text-center tracking-wide hover:text-blue-600 transition-colors cursor-pointer px-2 md:px-3 py-0.5 md:py-1 rounded-md hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-400"
-              >
-                REVENUE
+                ⚡ Plant Efficiency
               </button>
-              {salesLoading ? (
-                <div className="flex items-center justify-center p-2 md:p-4 text-gray-500 text-sm">Loading...</div>
+              {efficiencyLoading ? (
+                <div className="flex items-center justify-center p-8 text-gray-500 text-sm">Loading...</div>
               ) : (
-                (() => {
-                  const latestSalesIdx = monthlySalesData.reduce((idx, d, i) => d.actual > 0 ? i : idx, -1);
-                  const activeIdx = latestSalesIdx >= 0 ? latestSalesIdx : (monthlySalesData.length > 0 ? monthlySalesData.length - 1 : 0);
-                  const cumulActual = monthlySalesData.slice(0, activeIdx + 1).reduce((s, d) => s + Number(d.actual || 0), 0);
-                  const cumulTarget = monthlySalesData.slice(0, activeIdx + 1).reduce((s, d) => s + Number(d.target || 0), 0);
-                  const startEntry = monthlySalesData[0];
-                  const endEntry = monthlySalesData[activeIdx];
-                  const pct = cumulTarget > 0 ? Math.min((cumulActual / cumulTarget) * 100, 100) : 0;
-                  const achievedAngle = (pct / 100) * 360;
-                  const achievedRadians = (achievedAngle * Math.PI) / 180;
-                  const radius = 70; const cx = 100; const cy = 100;
-                  const x1 = cx + radius * Math.cos(-Math.PI / 2);
-                  const y1 = cy + radius * Math.sin(-Math.PI / 2);
-                  const x2 = cx + radius * Math.cos(-Math.PI / 2 + achievedRadians);
-                  const y2 = cy + radius * Math.sin(-Math.PI / 2 + achievedRadians);
-                  const largeArc = achievedAngle > 180 ? 1 : 0;
-                  const startLabel = startEntry ? `${MONTH_LABELS[(startEntry.month || 1) - 1]} ${startEntry.year}` : '';
-                  const endLabel = endEntry ? `${MONTH_LABELS[(endEntry.month || 1) - 1]} ${endEntry.year}` : '';
-                  const dateLabel = startLabel === endLabel ? startLabel : `${startLabel} – ${endLabel}`;
-                  return (
-                    <div className="flex flex-col items-center flex-1 min-w-0 justify-center h-full cursor-pointer"
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => openExpandedChart('salesProfit', { monthlySalesData, selectedSalesIndex, monthlyProfitData, selectedProfitIndex })}
-                      onKeyDown={(e) => e.key === 'Enter' && openExpandedChart('salesProfit', { monthlySalesData, selectedSalesIndex, monthlyProfitData, selectedProfitIndex })}
-                    >
-                      <h5 className="text-[9px] md:text-[10px] font-semibold text-gray-800 mb-1 whitespace-nowrap">
-                        {dateLabel}
-                      </h5>
-                      <div className="flex flex-row items-center justify-center gap-2 md:gap-4 flex-1 h-full min-h-0 w-full">
-                        <div className="flex items-center justify-center min-h-0">
-                          <svg viewBox="0 0 200 200" className="w-[90px] md:w-[108px] h-[90px] md:h-[108px] flex-shrink-0" style={{maxHeight: '90px'}}>
-                            <defs>
-                              <filter id="revenueTextShadow" x="-50%" y="-50%" width="200%" height="200%">
-                                <feDropShadow dx="0" dy="0" stdDeviation="2" floodOpacity="0.8" floodColor="#000000" />
-                              </filter>
-                            </defs>
-                            {pct > 0 && (
-                              <>
-                                {pct >= 99.9 ? (
-                                  <circle cx={cx} cy={cy} r={radius} fill="#0d47a1" stroke="white" strokeWidth="2" />
-                                ) : (
-                                  <path d={`M ${cx} ${cy} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2} Z`} fill="#0d47a1" stroke="white" strokeWidth="2" />
-                                )}
-                              </>
-                            )}
-                            {pct < 99.9 && (
-                              <path d={`M ${cx} ${cy} L ${x2} ${y2} A ${radius} ${radius} 0 ${achievedAngle > 180 ? 0 : 1} 1 ${x1} ${y1} Z`} fill="#f3f4f6" stroke="#d1d5db" strokeWidth="2" />
-                            )}
-                            <text x={cx} y={cy - 8} textAnchor="middle" fontSize="20" fontWeight="700" fill="white" filter="url(#revenueTextShadow)">
-                              {cumulActual.toFixed(0)}
-                            </text>
-                            <text x={cx} y={cy + 12} textAnchor="middle" fontSize="10" fill="white" filter="url(#revenueTextShadow)">
-                              of {cumulTarget.toFixed(0)} target
-                            </text>
-                          </svg>
-                        </div>
-                        <div className="flex flex-col gap-1 md:gap-1.5 justify-center">
-                          <div className="flex items-center gap-1.5 text-[9px] md:text-[10px] text-gray-600">
-                            <span className="w-2 md:w-2.5 h-2 md:h-2.5 bg-[#0d47a1] rounded flex-shrink-0"></span>
-                            <span className="whitespace-nowrap font-medium">Actual: {cumulActual.toFixed(0)}</span>
-                          </div>
-                          <div className="flex items-center gap-1.5 text-[9px] md:text-[10px] text-gray-600">
-                            <span className="w-2 md:w-2.5 h-2 md:h-2.5 bg-[#f3f4f6] border border-[#d1d5db] rounded flex-shrink-0"></span>
-                            <span className="whitespace-nowrap font-medium">Target: {cumulTarget.toFixed(0)}</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })()
-              )}
-            </div>
-            
-            {/* Profitability Section */}
-            <div className="flex-1 px-2 pb-2 pt-1 md:px-4 md:pb-4 md:pt-1 flex flex-col border-t md:border-t-0 min-w-0 justify-center h-full">
-              <button 
-                onClick={() => handleKPITitleClick('Profitability')}
-                className="text-xs md:text-sm font-bold text-gray-500 mb-1 md:mb-1 text-center tracking-wide hover:text-blue-600 transition-colors cursor-pointer px-2 md:px-3 py-0.5 md:py-1 rounded-md hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-400"
-              >
-                PROFITABILITY (YTD)
-              </button>
-              {profitabilityLoading ? (
-                <div className="flex items-center justify-center p-2 md:p-4 text-gray-500 text-sm">Loading...</div>
-              ) : (
-                <div className="flex items-center justify-center gap-1 md:gap-2 flex-1 cursor-pointer"
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => openExpandedChart('salesProfit', { monthlySalesData, selectedSalesIndex, monthlyProfitData, selectedProfitIndex })}
-                  onKeyDown={(e) => e.key === 'Enter' && openExpandedChart('salesProfit', { monthlySalesData, selectedSalesIndex, monthlyProfitData, selectedProfitIndex })}
-                >
-                  <button 
-                    className="bg-gray-100 border border-gray-300 rounded-full w-7 h-7 md:w-8 md:h-8 flex items-center justify-center cursor-pointer text-base md:text-lg text-gray-600 hover:bg-gray-200 hover:text-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex-shrink-0"
+                <div className="flex items-center justify-center gap-1 sm:gap-2 md:gap-4 relative w-full min-w-0 flex-1 min-h-0 overflow-hidden">
+                  {/* Previous Month Button */}
+                  <button
+                    type="button"
+                    className="bg-gray-100 border border-gray-300 rounded-full w-6 h-6 sm:w-8 sm:h-8 md:w-9 md:h-9 flex items-center justify-center cursor-pointer text-sm sm:text-xl md:text-2xl text-gray-600 hover:bg-gray-200 hover:text-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex-shrink-0 relative z-10"
                     onClick={(e) => {
+                      e.preventDefault();
                       e.stopPropagation();
-                      if (!monthlyProfitData.length) return;
-                      setSelectedProfitIndex(selectedProfitIndex === 0 ? monthlyProfitData.length - 1 : selectedProfitIndex - 1);
+                      if (!monthlyEfficiency.length) return;
+                      setSelectedFiscalIndex(selectedFiscalIndex === 0 ? monthlyEfficiency.length - 1 : selectedFiscalIndex - 1);
                     }}
-                    disabled={!monthlyProfitData.length}
+                    disabled={monthlyEfficiency.length <= 1}
+                    title="Previous Month"
                   >
                     ‹
                   </button>
-                  <div className="flex flex-col items-center flex-initial min-w-0 justify-center h-full mx-2 md:mx-4">
-                    <h5 className="text-[9px] md:text-[10px] font-semibold text-gray-800 mb-1 md:mb-1 whitespace-nowrap">
-                      {MONTH_LABELS[(monthlyProfitData[selectedProfitIndex]?.month || 1) - 1]} {monthlyProfitData[selectedProfitIndex]?.year || ''}
-                    </h5>
-                    <div className="flex flex-row items-center justify-center gap-2 md:gap-4 flex-1 h-full min-h-0 w-full">
-                      <div className="flex items-center justify-center min-h-0">
-                        <svg viewBox="0 0 200 200" className="w-[90px] md:w-[108px] h-[90px] md:h-[108px] flex-shrink-0" style={{maxHeight: '90px'}}>
-                        <defs>
-                          <filter id="profitabilityTextShadow" x="-50%" y="-50%" width="200%" height="200%">
-                            <feDropShadow dx="0" dy="0" stdDeviation="2" floodOpacity="0.8" floodColor="#000000" />
-                          </filter>
-                        </defs>
-                        {(() => {
-                          const profitData = monthlyProfitData[selectedProfitIndex] || { profit: 0, target: 100 };
-                          const radius = 70;
-                          const cx = 100;
-                          const cy = 100;
-                          const profit = profitData.profit;
-                          const target = profitData.target;
-                          const percentageAchieved = target > 0 ? Math.min((profit / target) * 100, 100) : 0;
-                          
-                          const achievedAngle = (percentageAchieved / 100) * 360;
-                          const achievedRadians = (achievedAngle * Math.PI) / 180;
-                          
-                          const x1 = cx + radius * Math.cos(-Math.PI / 2);
-                          const y1 = cy + radius * Math.sin(-Math.PI / 2);
-                          const x2 = cx + radius * Math.cos(-Math.PI / 2 + achievedRadians);
-                          const y2 = cy + radius * Math.sin(-Math.PI / 2 + achievedRadians);
-                          
-                          const largeArc = achievedAngle > 180 ? 1 : 0;
-                          
-                          return (
-                            <>
-                              {percentageAchieved > 0 && (
-                                <>
-                                  {percentageAchieved >= 99.9 ? (
-                                    // Draw full circle when at or near 100%
-                                    <circle cx={cx} cy={cy} r={radius} fill="#15803d" stroke="white" strokeWidth="2" />
-                                  ) : (
-                                    // Draw partial arc
-                                    <path
-                                      d={`M ${cx} ${cy} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2} Z`}
-                                      fill="#15803d"
-                                      stroke="white"
-                                      strokeWidth="2"
-                                    />
-                                  )}
-                                </>
-                              )}
-                              
-                              {percentageAchieved < 99.9 && (
-                                <path
-                                  d={`M ${cx} ${cy} L ${x2} ${y2} A ${radius} ${radius} 0 ${achievedAngle > 180 ? 0 : 1} 1 ${x1} ${y1} Z`}
-                                  fill="#f3f4f6"
-                                  stroke="#d1d5db"
-                                  strokeWidth="2"
-                                />
-                              )}
-                              
-                              <text x={cx} y={cy - 8} textAnchor="middle" fontSize="20" fontWeight="700" fill="white" filter="url(#profitabilityTextShadow)">
-                                {profit.toFixed(1)}%
-                              </text>
-                              <text x={cx} y={cy + 12} textAnchor="middle" fontSize="10" fill="white" filter="url(#profitabilityTextShadow)">
-                                of {target.toFixed(1)}% target
-                              </text>
-                            </>
-                          );
-                        })()}
-                      </svg>
-                      </div>
-                      
-                      <div className="flex flex-col gap-1 md:gap-1.5 justify-center">
-                        <div className="flex items-center gap-1.5 text-[9px] md:text-[10px] text-gray-600">
-                          <span className="w-2 md:w-2.5 h-2 md:h-2.5 bg-[#15803d] rounded flex-shrink-0"></span>
-                          <span className="whitespace-nowrap font-medium">Actual: {(monthlyProfitData[selectedProfitIndex]?.profit || 0).toFixed(1)}%</span>
-                        </div>
-                        <div className="flex items-center gap-1.5 text-[9px] md:text-[10px] text-gray-600">
-                          <span className="w-2 md:w-2.5 h-2 md:h-2.5 bg-[#f3f4f6] border border-[#d1d5db] rounded flex-shrink-0"></span>
-                          <span className="whitespace-nowrap font-medium">Target: {(monthlyProfitData[selectedProfitIndex]?.target || 0).toFixed(1)}%</span>
-                        </div>
-                      </div>
-                    </div>
+
+                  {/* Speedometer Gauge - Click to Open Modal */}
+                  <div
+                    className="flex-1 min-w-0 flex flex-col justify-center items-center cursor-pointer hover:opacity-80 transition-opacity h-full min-h-0"
+                    role="button"
+                    tabIndex={0}
+                    onClick={(e) => {
+                      if (e.target.closest('button')) return;
+                      openExpandedChart('plantEfficiency', { monthlyEfficiency, selectedFiscalIndex });
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.target.closest('button')) {
+                        openExpandedChart('plantEfficiency', { monthlyEfficiency, selectedFiscalIndex });
+                      }
+                    }}
+                  >
+                    <SpeedometerGauge
+                      efficiency={monthlyEfficiency[selectedFiscalIndex]?.efficiency || 0}
+                      month={MONTH_LABELS[(monthlyEfficiency[selectedFiscalIndex]?.month || 1) - 1]}
+                      year={monthlyEfficiency[selectedFiscalIndex]?.year || ''}
+                    />
                   </div>
 
-                  <button 
-                    className="bg-gray-100 border border-gray-300 rounded-full w-7 h-7 md:w-8 md:h-8 flex items-center justify-center cursor-pointer text-base md:text-lg text-gray-600 hover:bg-gray-200 hover:text-gray-800 transition-all flex-shrink-0"
+                  {/* Next Month Button */}
+                  <button
+                    type="button"
+                    className="bg-gray-100 border border-gray-300 rounded-full w-6 h-6 sm:w-8 sm:h-8 md:w-9 md:h-9 flex items-center justify-center cursor-pointer text-sm sm:text-xl md:text-2xl text-gray-600 hover:bg-gray-200 hover:text-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex-shrink-0 relative z-10"
                     onClick={(e) => {
+                      e.preventDefault();
                       e.stopPropagation();
-                      if (!monthlyProfitData.length) return;
-                      setSelectedProfitIndex(selectedProfitIndex === monthlyProfitData.length - 1 ? 0 : selectedProfitIndex + 1);
+                      if (!monthlyEfficiency.length) return;
+                      setSelectedFiscalIndex(selectedFiscalIndex === monthlyEfficiency.length - 1 ? 0 : selectedFiscalIndex + 1);
                     }}
-                    disabled={!monthlyProfitData.length}
+                    disabled={monthlyEfficiency.length <= 1}
+                    title="Next Month"
                   >
                     ›
                   </button>
                 </div>
               )}
             </div>
+          </div>
+
+          {/* Industry 4.0 Chart */}
+          <div className="w-full h-full min-h-0 lg:col-span-4 lg:row-span-1">
+            <div className="bg-white rounded-lg shadow border-2 border-blue-500 p-2 h-full min-h-0 overflow-hidden flex flex-col">
+              <button
+                onClick={() => handleKPITitleClick('Industry 4.0')}
+                className="w-full mb-2 px-2 sm:px-2 md:px-3 py-1 text-xs sm:text-sm lg:text-sm font-bold leading-snug text-blue-900 bg-blue-100 rounded-md hover:bg-blue-200 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 whitespace-normal break-words"
+              >
+                🏭 Industry 4.0
+              </button>
+              {industry40Loading ? (
+                <div className="flex items-center justify-center p-8 text-gray-500 text-sm">Loading...</div>
+              ) : industry40Chart ? (
+                <div
+                  className="flex-1 min-h-0 cursor-pointer flex items-center"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => openExpandedChart('industry40', industry40Chart)}
+                  onKeyDown={(e) => e.key === 'Enter' && openExpandedChart('industry40', industry40Chart)}
+                >
+                  <Industry40LineChart
+                    title={industry40Chart.title}
+                    labels={industry40Chart.labels}
+                    actuals={industry40Chart.actuals}
+                    targets={industry40Chart.targets}
+                    showHeader={false}
+                  />
+                </div>
+              ) : (
+                <div
+                  className="flex-1 min-h-0 cursor-pointer flex items-center"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => openExpandedChart('industry40', { title: 'Industry 4.0 Performance', labels: MONTH_LABELS, actuals: Array(12).fill(0), targets: Array(12).fill(0) })}
+                  onKeyDown={(e) => e.key === 'Enter' && openExpandedChart('industry40', { title: 'Industry 4.0 Performance', labels: MONTH_LABELS, actuals: Array(12).fill(0), targets: Array(12).fill(0) })}
+                >
+                  <Industry40LineChart
+                    title="Industry 4.0 Performance"
+                    labels={MONTH_LABELS}
+                    actuals={Array(12).fill(0)}
+                    targets={Array(12).fill(0)}
+                    showHeader={false}
+                  />
+                </div>
+              )}
             </div>
           </div>
-        </div>
-        {/* Row 2: Cost (col-span-3) + On Time Delivery (col-span-3) */}
-        {/* On Time Delivery */}
-        <div className="w-full h-full min-h-0 lg:col-span-6 lg:row-span-1">
-          <div className="bg-white rounded-lg shadow border-2 border-blue-500 p-2 h-full min-h-0 overflow-hidden flex flex-col">
-            <button 
-              onClick={() => handleKPITitleClick('On Time Delivery')}
-              className="w-full mb-2 px-3 py-1 text-sm font-semibold text-blue-900 bg-blue-100 rounded-md hover:bg-blue-200 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              🚚 On Time Delivery
-            </button>
-            {onTimeDeliveryLoading ? (
-              <div className="flex items-center justify-center p-8 text-gray-500">Loading...</div>
-            ) : onTimeDeliveryChart ? (
-              <div 
-                className="flex-1 min-h-0 cursor-pointer flex items-center"
-                role="button"
-                tabIndex={0}
-                onClick={() => openExpandedChart('onTimeDelivery', onTimeDeliveryChart)}
-                onKeyDown={(e)=> e.key === 'Enter' && openExpandedChart('onTimeDelivery', onTimeDeliveryChart)}
-              >
-                <OnTimeDeliveryBarChart title={onTimeDeliveryChart.title} subtitle={onTimeDeliveryChart.subtitle} labels={onTimeDeliveryChart.labels} actuals={onTimeDeliveryChart.actuals} targets={onTimeDeliveryChart.targets} showHeader={false} />
-              </div>
-            ) : (
-              <div 
-                className="flex-1 min-h-0 cursor-pointer flex items-center"
-                role="button"
-                tabIndex={0}
-                onClick={() => openExpandedChart('onTimeDelivery', { title: 'On Time Delivery', subtitle: 'Target vs Achieved', labels: FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1]), actuals: Array(12).fill(0), targets: Array(12).fill(0) })}
-                onKeyDown={(e)=> e.key === 'Enter' && openExpandedChart('onTimeDelivery', { title: 'On Time Delivery', subtitle: 'Target vs Achieved', labels: FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1]), actuals: Array(12).fill(0), targets: Array(12).fill(0) })}
-              >
-                <OnTimeDeliveryBarChart title="On Time Delivery" subtitle="Target vs Achieved" labels={FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1])} actuals={Array(12).fill(0)} targets={Array(12).fill(0)} showHeader={false} />
-              </div>
-            )}
-          </div>
-        </div>
 
-        {/* Row 3: Zero Accidents, Green Factory, Morale (each col-span-2) */}
-        {/* Zero Accidents */}
-        <div className="w-full h-full min-h-0 lg:col-span-3">
-          <div className="bg-white rounded-lg shadow border-2 border-blue-500 p-2 h-full min-h-0 overflow-hidden flex flex-col">
-            <button 
-              onClick={() => handleKPITitleClick('Zero Accidents')}
-              className="w-full mb-2 px-3 py-1 text-sm font-semibold text-blue-900 bg-blue-100 rounded-md hover:bg-blue-200 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              🦺 Zero Accidents
-            </button>
-            {zeroAccidentsLoading ? (
-              <div className="flex items-center justify-center p-8 text-gray-500">Loading...</div>
-            ) : zeroAccidentsChart ? (
-              <div 
-                className="flex-1 min-h-0 cursor-pointer flex items-center justify-end"
-                role="button"
-                tabIndex={0}
-                onClick={() => openExpandedChart('zeroAccidents', zeroAccidentsChart)}
-                onKeyDown={(e)=> e.key === 'Enter' && openExpandedChart('zeroAccidents', zeroAccidentsChart)}
+          {/* Zero Quality Complaints Chart */}
+          <div className="w-full h-full min-h-0 lg:col-span-4 lg:row-span-1">
+            <div className="bg-white rounded-lg shadow border-2 border-blue-500 p-2 h-full min-h-0 overflow-hidden flex flex-col">
+              <button
+                onClick={() => handleKPITitleClick('Zero Quality')}
+                className="w-full mb-2 px-2 sm:px-2 md:px-3 py-1 text-xs sm:text-sm lg:text-sm font-bold leading-snug text-blue-900 bg-blue-100 rounded-md hover:bg-blue-200 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 whitespace-normal break-words"
               >
-                <ZeroAccidentsBarChart className="max-w-[92%]" title={zeroAccidentsChart.title} subtitle={zeroAccidentsChart.subtitle} labels={zeroAccidentsChart.labels} actuals={zeroAccidentsChart.actuals} targets={zeroAccidentsChart.targets} showHeader={false} />
-              </div>
-            ) : (
-              <div 
-                className="flex-1 min-h-0 cursor-pointer flex items-center justify-end"
-                role="button"
-                tabIndex={0}
-                onClick={() => openExpandedChart('zeroAccidents', { title: 'Safety', subtitle: 'Zero Accidents', labels: FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1]), actuals: Array(12).fill(0), targets: Array(12).fill(0) })}
-                onKeyDown={(e)=> e.key === 'Enter' && openExpandedChart('zeroAccidents', { title: 'Safety', subtitle: 'Zero Accidents', labels: FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1]), actuals: Array(12).fill(0), targets: Array(12).fill(0) })}
-              >
-                <ZeroAccidentsBarChart className="max-w-[92%]" title="Safety" subtitle="Zero Accidents" labels={FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1])} actuals={Array(12).fill(0)} targets={Array(12).fill(0)} showHeader={false} />
-              </div>
-            )}
+                ✅ Zero Quality Complaints
+              </button>
+              {zeroQualityLoading ? (
+                <div className="flex items-center justify-center p-8 text-gray-500 text-sm">Loading...</div>
+              ) : zeroQualityChart ? (
+                <div
+                  className="flex-1 min-h-0 cursor-pointer flex items-center"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => openExpandedChart('zeroQuality', zeroQualityChart)}
+                  onKeyDown={(e) => e.key === 'Enter' && openExpandedChart('zeroQuality', zeroQualityChart)}
+                >
+                  <Industry40LineChart
+                    title={zeroQualityChart.title}
+                    labels={zeroQualityChart.labels}
+                    actuals={zeroQualityChart.actuals}
+                    targets={zeroQualityChart.targets}
+                    showHeader={false}
+                  />
+                </div>
+              ) : (
+                <div
+                  className="flex-1 min-h-0 cursor-pointer flex items-center"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => openExpandedChart('zeroQuality', { title: 'Zero Quality Complaints', labels: MONTH_LABELS, actuals: Array(12).fill(0), targets: Array(12).fill(0) })}
+                  onKeyDown={(e) => e.key === 'Enter' && openExpandedChart('zeroQuality', { title: 'Zero Quality Complaints', labels: MONTH_LABELS, actuals: Array(12).fill(0), targets: Array(12).fill(0) })}
+                >
+                  <Industry40LineChart
+                    title="Zero Quality Complaints"
+                    labels={MONTH_LABELS}
+                    actuals={Array(12).fill(0)}
+                    targets={Array(12).fill(0)}
+                    showHeader={false}
+                  />
+                </div>
+              )}
+            </div>
           </div>
-        </div>
 
-        {/* Green Factory */}
-        <div className="w-full h-full min-h-0 lg:col-span-3">
-          <div className="bg-white rounded-lg shadow border-2 border-blue-500 p-2 h-full min-h-0 overflow-hidden flex flex-col">
-            <button 
-              onClick={() => handleKPITitleClick('Green Factory')}
-              className="w-full mb-2 px-3 py-1 text-sm font-semibold text-blue-900 bg-blue-100 rounded-md hover:bg-blue-200 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              🌿 Green Factory
-            </button>
-            {greenFactoryLoading ? (
-              <div className="flex items-center justify-center p-8 text-gray-500">Loading...</div>
-            ) : greenFactoryChart ? (
-              <div 
-                className="flex-1 min-h-0 cursor-pointer flex items-center"
-                role="button"
-                tabIndex={0}
-                onClick={() => openExpandedChart('greenFactory', greenFactoryChart)}
-                onKeyDown={(e)=> e.key === 'Enter' && openExpandedChart('greenFactory', greenFactoryChart)}
+          {/* Revenue and Profitability Split Chart */}
+          <div className="w-full h-full min-h-0 lg:col-span-6 lg:row-span-1">
+            <div className="bg-white rounded-lg shadow border-2 border-blue-500 h-full min-h-0 flex flex-col p-2 overflow-hidden">
+              {/* Group Title */}
+              <button
+                onClick={() => handleKPITitleClick('Cost')}
+                className="w-full mb-1 px-2 sm:px-2 md:px-3 py-1 text-xs sm:text-sm lg:text-sm font-bold leading-snug text-blue-900 bg-blue-100 rounded-md hover:bg-blue-200 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 whitespace-normal break-words"
               >
-                <GreenFactoryBarChart title={greenFactoryChart.title} subtitle={greenFactoryChart.subtitle} labels={greenFactoryChart.labels} values={greenFactoryChart.values} showHeader={false} />
-              </div>
-            ) : (
-              <div 
-                className="flex-1 min-h-0 cursor-pointer flex items-center"
-                role="button"
-                tabIndex={0}
-                onClick={() => openExpandedChart('greenFactory', { title: 'Environment', subtitle: 'Green Factory', labels: FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1]), values: Array(12).fill(0) })}
-                onKeyDown={(e)=> e.key === 'Enter' && openExpandedChart('greenFactory', { title: 'Environment', subtitle: 'Green Factory', labels: FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1]), values: Array(12).fill(0) })}
-              >
-                <GreenFactoryBarChart title="Environment" subtitle="Green Factory" labels={FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1])} values={Array(12).fill(0)} showHeader={false} />
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Morale */}
-        <div className="w-full h-full min-h-0 lg:col-span-6">
-          <div className="bg-white rounded-lg shadow border-2 border-blue-500 p-2 h-full min-h-0 flex flex-col overflow-hidden">
-            <button
-              onClick={() => handleKPITitleClick('Morale')}
-              className="w-full mb-1 px-3 py-1 text-sm font-semibold text-blue-900 bg-blue-100 rounded-md hover:bg-blue-200 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              😊 Morale
-            </button>
-            <div className="flex flex-col md:flex-row h-full flex-1">
-              <div className="flex-1 px-4 pb-4 pt-1 md:border-r border-gray-200 min-w-0">
-                {themeChartLoading ? (
-                  <div className="flex items-center justify-center p-8 text-gray-500">Loading...</div>
-                ) : (
-                  <div 
-                    className="h-full cursor-pointer"
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => openExpandedChart('themeEmployees', { themeChart, employeesChart })}
-                    onKeyDown={(e)=> e.key === 'Enter' && openExpandedChart('themeEmployees', { themeChart, employeesChart })}
+                💰 Cost
+              </button>
+              <div className="flex flex-col md:flex-row h-full flex-1">
+                {/* Revenue Section */}
+                <div className="flex-1 px-2 pb-2 pt-1 md:px-4 md:pb-4 md:pt-1 flex flex-col md:border-r border-gray-200 min-w-0 justify-center h-full">
+                  <button
+                    onClick={() => handleKPITitleClick('Revenue')}
+                    className="text-xs md:text-sm font-bold text-gray-500 mb-1 md:mb-1 text-center tracking-wide hover:text-blue-600 transition-colors cursor-pointer px-2 md:px-3 py-0.5 md:py-1 rounded-md hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-400"
                   >
-                    {themeChart ? (
-                      <Box4ThemeBarChart title={themeChart.title} subtitle={themeChart.subtitle} labels={themeChart.labels} values={themeChart.values} showHeader={false} showSubtitle={true} />
-                    ) : (
-                      <Box4ThemeBarChart title="Theme Of The Year" subtitle="Unlock The Power of You" labels={FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1])} values={Array(12).fill(0)} showHeader={false} showSubtitle={true} />
-                    )}
-                  </div>
-                )}
-              </div>
-              <div className="flex-1 px-4 pb-4 pt-1 min-w-0">
-                {employeesChartLoading ? (
-                  <div className="flex items-center justify-center p-8 text-gray-500">Loading...</div>
-                ) : (
-                  <div 
-                    className="h-full cursor-pointer"
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => openExpandedChart('themeEmployees', { themeChart, employeesChart })}
-                    onKeyDown={(e)=> e.key === 'Enter' && openExpandedChart('themeEmployees', { themeChart, employeesChart })}
+                    REVENUE
+                  </button>
+                  {salesLoading ? (
+                    <div className="flex items-center justify-center p-2 md:p-4 text-gray-500 text-sm">Loading...</div>
+                  ) : (
+                    (() => {
+                      const latestSalesIdx = monthlySalesData.reduce((idx, d, i) => d.actual > 0 ? i : idx, -1);
+                      const activeIdx = latestSalesIdx >= 0 ? latestSalesIdx : (monthlySalesData.length > 0 ? monthlySalesData.length - 1 : 0);
+                      const cumulActual = monthlySalesData.slice(0, activeIdx + 1).reduce((s, d) => s + Number(d.actual || 0), 0);
+                      const cumulTarget = monthlySalesData.slice(0, activeIdx + 1).reduce((s, d) => s + Number(d.target || 0), 0);
+                      const startEntry = monthlySalesData[0];
+                      const endEntry = monthlySalesData[activeIdx];
+                      const pct = cumulTarget > 0 ? Math.min((cumulActual / cumulTarget) * 100, 100) : 0;
+                      const achievedAngle = (pct / 100) * 360;
+                      const achievedRadians = (achievedAngle * Math.PI) / 180;
+                      const radius = 70; const cx = 100; const cy = 100;
+                      const x1 = cx + radius * Math.cos(-Math.PI / 2);
+                      const y1 = cy + radius * Math.sin(-Math.PI / 2);
+                      const x2 = cx + radius * Math.cos(-Math.PI / 2 + achievedRadians);
+                      const y2 = cy + radius * Math.sin(-Math.PI / 2 + achievedRadians);
+                      const largeArc = achievedAngle > 180 ? 1 : 0;
+                      const startLabel = startEntry ? `${MONTH_LABELS[(startEntry.month || 1) - 1]} ${startEntry.year}` : '';
+                      const endLabel = endEntry ? `${MONTH_LABELS[(endEntry.month || 1) - 1]} ${endEntry.year}` : '';
+                      const dateLabel = startLabel === endLabel ? startLabel : `${startLabel} – ${endLabel}`;
+                      return (
+                        <div className="flex flex-col items-center flex-1 min-w-0 justify-center h-full cursor-pointer"
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => openExpandedChart('salesProfit', { monthlySalesData, selectedSalesIndex, monthlyProfitData, selectedProfitIndex })}
+                          onKeyDown={(e) => e.key === 'Enter' && openExpandedChart('salesProfit', { monthlySalesData, selectedSalesIndex, monthlyProfitData, selectedProfitIndex })}
+                        >
+                          <h5 className="text-[9px] md:text-[10px] font-semibold text-gray-800 mb-1 whitespace-nowrap">
+                            {dateLabel}
+                          </h5>
+                          <div className="flex flex-row items-center justify-center gap-2 md:gap-4 flex-1 h-full min-h-0 w-full">
+                            <div className="flex items-center justify-center min-h-0">
+                              <svg viewBox="0 0 200 200" className="w-[90px] md:w-[108px] h-[90px] md:h-[108px] flex-shrink-0" style={{ maxHeight: '90px' }}>
+                                <defs>
+                                  <filter id="revenueTextShadow" x="-50%" y="-50%" width="200%" height="200%">
+                                    <feDropShadow dx="0" dy="0" stdDeviation="2" floodOpacity="0.8" floodColor="#000000" />
+                                  </filter>
+                                </defs>
+                                {pct > 0 && (
+                                  <>
+                                    {pct >= 99.9 ? (
+                                      <circle cx={cx} cy={cy} r={radius} fill="#0d47a1" stroke="white" strokeWidth="2" />
+                                    ) : (
+                                      <path d={`M ${cx} ${cy} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2} Z`} fill="#0d47a1" stroke="white" strokeWidth="2" />
+                                    )}
+                                  </>
+                                )}
+                                {pct < 99.9 && (
+                                  <path d={`M ${cx} ${cy} L ${x2} ${y2} A ${radius} ${radius} 0 ${achievedAngle > 180 ? 0 : 1} 1 ${x1} ${y1} Z`} fill="#f3f4f6" stroke="#d1d5db" strokeWidth="2" />
+                                )}
+                                <text x={cx} y={cy - 8} textAnchor="middle" fontSize="20" fontWeight="700" fill="white" filter="url(#revenueTextShadow)">
+                                  {cumulActual.toFixed(0)}
+                                </text>
+                                <text x={cx} y={cy + 12} textAnchor="middle" fontSize="10" fill="white" filter="url(#revenueTextShadow)">
+                                  of {cumulTarget.toFixed(0)} target
+                                </text>
+                              </svg>
+                            </div>
+                            <div className="flex flex-col gap-1 md:gap-1.5 justify-center">
+                              <div className="flex items-center gap-1.5 text-[9px] md:text-[10px] text-gray-600">
+                                <span className="w-2 md:w-2.5 h-2 md:h-2.5 bg-[#0d47a1] rounded flex-shrink-0"></span>
+                                <span className="whitespace-nowrap font-medium">Actual: {cumulActual.toFixed(0)}</span>
+                              </div>
+                              <div className="flex items-center gap-1.5 text-[9px] md:text-[10px] text-gray-600">
+                                <span className="w-2 md:w-2.5 h-2 md:h-2.5 bg-[#f3f4f6] border border-[#d1d5db] rounded flex-shrink-0"></span>
+                                <span className="whitespace-nowrap font-medium">Target: {cumulTarget.toFixed(0)}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()
+                  )}
+                </div>
+
+                {/* Profitability Section */}
+                <div className="flex-1 px-2 pb-2 pt-1 md:px-4 md:pb-4 md:pt-1 flex flex-col border-t md:border-t-0 min-w-0 justify-center h-full">
+                  <button
+                    onClick={() => handleKPITitleClick('Profitability')}
+                    className="text-xs md:text-sm font-bold text-gray-500 mb-1 md:mb-1 text-center tracking-wide hover:text-blue-600 transition-colors cursor-pointer px-2 md:px-3 py-0.5 md:py-1 rounded-md hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-400"
                   >
-                    {employeesChart ? (
-                      <Box4EmployeesLineChart title={employeesChart.title} subtitle={employeesChart.subtitle} labels={employeesChart.labels} values={employeesChart.values} showHeader={false} showSubtitle={true} />
-                    ) : (
-                      <Box4EmployeesLineChart title="No. of Employees Who Left" subtitle="Monthly Attrition" labels={FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1])} values={Array(12).fill(0)} showHeader={false} showSubtitle={true} />
-                    )}
-                  </div>
-                )}
+                    PROFITABILITY (YTD)
+                  </button>
+                  {profitabilityLoading ? (
+                    <div className="flex items-center justify-center p-2 md:p-4 text-gray-500 text-sm">Loading...</div>
+                  ) : (
+                    <div className="flex items-center justify-center gap-1 md:gap-2 flex-1 cursor-pointer"
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => openExpandedChart('salesProfit', { monthlySalesData, selectedSalesIndex, monthlyProfitData, selectedProfitIndex })}
+                      onKeyDown={(e) => e.key === 'Enter' && openExpandedChart('salesProfit', { monthlySalesData, selectedSalesIndex, monthlyProfitData, selectedProfitIndex })}
+                    >
+                      <button
+                        className="bg-gray-100 border border-gray-300 rounded-full w-7 h-7 md:w-8 md:h-8 flex items-center justify-center cursor-pointer text-base md:text-lg text-gray-600 hover:bg-gray-200 hover:text-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex-shrink-0"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (!monthlyProfitData.length) return;
+                          setSelectedProfitIndex(selectedProfitIndex === 0 ? monthlyProfitData.length - 1 : selectedProfitIndex - 1);
+                        }}
+                        disabled={!monthlyProfitData.length}
+                      >
+                        ‹
+                      </button>
+                      <div className="flex flex-col items-center flex-initial min-w-0 justify-center h-full mx-2 md:mx-4">
+                        <h5 className="text-[9px] md:text-[10px] font-semibold text-gray-800 mb-1 md:mb-1 whitespace-nowrap">
+                          {MONTH_LABELS[(monthlyProfitData[selectedProfitIndex]?.month || 1) - 1]} {monthlyProfitData[selectedProfitIndex]?.year || ''}
+                        </h5>
+                        <div className="flex flex-row items-center justify-center gap-2 md:gap-4 flex-1 h-full min-h-0 w-full">
+                          <div className="flex items-center justify-center min-h-0">
+                            <svg viewBox="0 0 200 200" className="w-[90px] md:w-[108px] h-[90px] md:h-[108px] flex-shrink-0" style={{ maxHeight: '90px' }}>
+                              <defs>
+                                <filter id="profitabilityTextShadow" x="-50%" y="-50%" width="200%" height="200%">
+                                  <feDropShadow dx="0" dy="0" stdDeviation="2" floodOpacity="0.8" floodColor="#000000" />
+                                </filter>
+                              </defs>
+                              {(() => {
+                                const profitData = monthlyProfitData[selectedProfitIndex] || { profit: 0, target: 100 };
+                                const radius = 70;
+                                const cx = 100;
+                                const cy = 100;
+                                const profit = profitData.profit;
+                                const target = profitData.target;
+                                const percentageAchieved = target > 0 ? Math.min((profit / target) * 100, 100) : 0;
+
+                                const achievedAngle = (percentageAchieved / 100) * 360;
+                                const achievedRadians = (achievedAngle * Math.PI) / 180;
+
+                                const x1 = cx + radius * Math.cos(-Math.PI / 2);
+                                const y1 = cy + radius * Math.sin(-Math.PI / 2);
+                                const x2 = cx + radius * Math.cos(-Math.PI / 2 + achievedRadians);
+                                const y2 = cy + radius * Math.sin(-Math.PI / 2 + achievedRadians);
+
+                                const largeArc = achievedAngle > 180 ? 1 : 0;
+
+                                return (
+                                  <>
+                                    {percentageAchieved > 0 && (
+                                      <>
+                                        {percentageAchieved >= 99.9 ? (
+                                          // Draw full circle when at or near 100%
+                                          <circle cx={cx} cy={cy} r={radius} fill="#15803d" stroke="white" strokeWidth="2" />
+                                        ) : (
+                                          // Draw partial arc
+                                          <path
+                                            d={`M ${cx} ${cy} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2} Z`}
+                                            fill="#15803d"
+                                            stroke="white"
+                                            strokeWidth="2"
+                                          />
+                                        )}
+                                      </>
+                                    )}
+
+                                    {percentageAchieved < 99.9 && (
+                                      <path
+                                        d={`M ${cx} ${cy} L ${x2} ${y2} A ${radius} ${radius} 0 ${achievedAngle > 180 ? 0 : 1} 1 ${x1} ${y1} Z`}
+                                        fill="#f3f4f6"
+                                        stroke="#d1d5db"
+                                        strokeWidth="2"
+                                      />
+                                    )}
+
+                                    <text x={cx} y={cy - 8} textAnchor="middle" fontSize="20" fontWeight="700" fill="white" filter="url(#profitabilityTextShadow)">
+                                      {profit.toFixed(1)}%
+                                    </text>
+                                    <text x={cx} y={cy + 12} textAnchor="middle" fontSize="10" fill="white" filter="url(#profitabilityTextShadow)">
+                                      of {target.toFixed(1)}% target
+                                    </text>
+                                  </>
+                                );
+                              })()}
+                            </svg>
+                          </div>
+
+                          <div className="flex flex-col gap-1 md:gap-1.5 justify-center">
+                            <div className="flex items-center gap-1.5 text-[9px] md:text-[10px] text-gray-600">
+                              <span className="w-2 md:w-2.5 h-2 md:h-2.5 bg-[#15803d] rounded flex-shrink-0"></span>
+                              <span className="whitespace-nowrap font-medium">Actual: {(monthlyProfitData[selectedProfitIndex]?.profit || 0).toFixed(1)}%</span>
+                            </div>
+                            <div className="flex items-center gap-1.5 text-[9px] md:text-[10px] text-gray-600">
+                              <span className="w-2 md:w-2.5 h-2 md:h-2.5 bg-[#f3f4f6] border border-[#d1d5db] rounded flex-shrink-0"></span>
+                              <span className="whitespace-nowrap font-medium">Target: {(monthlyProfitData[selectedProfitIndex]?.target || 0).toFixed(1)}%</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <button
+                        className="bg-gray-100 border border-gray-300 rounded-full w-7 h-7 md:w-8 md:h-8 flex items-center justify-center cursor-pointer text-base md:text-lg text-gray-600 hover:bg-gray-200 hover:text-gray-800 transition-all flex-shrink-0"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (!monthlyProfitData.length) return;
+                          setSelectedProfitIndex(selectedProfitIndex === monthlyProfitData.length - 1 ? 0 : selectedProfitIndex + 1);
+                        }}
+                        disabled={!monthlyProfitData.length}
+                      >
+                        ›
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
-        </div>
+          {/* Row 2: Cost (col-span-3) + On Time Delivery (col-span-3) */}
+          {/* On Time Delivery */}
+          <div className="w-full h-full min-h-0 lg:col-span-6 lg:row-span-1">
+            <div className="bg-white rounded-lg shadow border-2 border-blue-500 p-2 h-full min-h-0 overflow-hidden flex flex-col">
+              <button
+                onClick={() => handleKPITitleClick('On Time Delivery')}
+                className="w-full mb-2 px-3 py-1 text-sm font-bold text-blue-900 bg-blue-100 rounded-md hover:bg-blue-200 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                🚚 On Time Delivery
+              </button>
+              {onTimeDeliveryLoading ? (
+                <div className="flex items-center justify-center p-8 text-gray-500">Loading...</div>
+              ) : onTimeDeliveryChart ? (
+                <div
+                  className="flex-1 min-h-0 cursor-pointer flex items-center"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => openExpandedChart('onTimeDelivery', onTimeDeliveryChart)}
+                  onKeyDown={(e) => e.key === 'Enter' && openExpandedChart('onTimeDelivery', onTimeDeliveryChart)}
+                >
+                  <OnTimeDeliveryBarChart title={onTimeDeliveryChart.title} subtitle={onTimeDeliveryChart.subtitle} labels={onTimeDeliveryChart.labels} actuals={onTimeDeliveryChart.actuals} targets={onTimeDeliveryChart.targets} showHeader={false} />
+                </div>
+              ) : (
+                <div
+                  className="flex-1 min-h-0 cursor-pointer flex items-center"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => openExpandedChart('onTimeDelivery', { title: 'On Time Delivery', subtitle: 'Target vs Achieved', labels: FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1]), actuals: Array(12).fill(0), targets: Array(12).fill(0) })}
+                  onKeyDown={(e) => e.key === 'Enter' && openExpandedChart('onTimeDelivery', { title: 'On Time Delivery', subtitle: 'Target vs Achieved', labels: FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1]), actuals: Array(12).fill(0), targets: Array(12).fill(0) })}
+                >
+                  <OnTimeDeliveryBarChart title="On Time Delivery" subtitle="Target vs Achieved" labels={FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1])} actuals={Array(12).fill(0)} targets={Array(12).fill(0)} showHeader={false} />
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Row 3: Zero Accidents, Green Factory, Morale (each col-span-2) */}
+          {/* Zero Accidents */}
+          <div className="w-full h-full min-h-0 lg:col-span-3">
+            <div className="bg-white rounded-lg shadow border-2 border-blue-500 p-2 h-full min-h-0 overflow-hidden flex flex-col">
+              <button
+                onClick={() => handleKPITitleClick('Zero Accidents')}
+                className="w-full mb-2 px-3 py-1 text-sm font-bold text-blue-900 bg-blue-100 rounded-md hover:bg-blue-200 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                🦺 Zero Accidents
+              </button>
+              {zeroAccidentsLoading ? (
+                <div className="flex items-center justify-center p-8 text-gray-500">Loading...</div>
+              ) : zeroAccidentsChart ? (
+                <div
+                  className="flex-1 min-h-0 cursor-pointer flex items-center justify-end"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => openExpandedChart('zeroAccidents', zeroAccidentsChart)}
+                  onKeyDown={(e) => e.key === 'Enter' && openExpandedChart('zeroAccidents', zeroAccidentsChart)}
+                >
+                  <ZeroAccidentsBarChart className="max-w-[92%]" title={zeroAccidentsChart.title} subtitle={zeroAccidentsChart.subtitle} labels={zeroAccidentsChart.labels} actuals={zeroAccidentsChart.actuals} targets={zeroAccidentsChart.targets} showHeader={false} />
+                </div>
+              ) : (
+                <div
+                  className="flex-1 min-h-0 cursor-pointer flex items-center justify-end"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => openExpandedChart('zeroAccidents', { title: 'Safety', subtitle: 'Zero Accidents', labels: FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1]), actuals: Array(12).fill(0), targets: Array(12).fill(0) })}
+                  onKeyDown={(e) => e.key === 'Enter' && openExpandedChart('zeroAccidents', { title: 'Safety', subtitle: 'Zero Accidents', labels: FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1]), actuals: Array(12).fill(0), targets: Array(12).fill(0) })}
+                >
+                  <ZeroAccidentsBarChart className="max-w-[92%]" title="Safety" subtitle="Zero Accidents" labels={FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1])} actuals={Array(12).fill(0)} targets={Array(12).fill(0)} showHeader={false} />
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Green Factory */}
+          <div className="w-full h-full min-h-0 lg:col-span-3">
+            <div className="bg-white rounded-lg shadow border-2 border-blue-500 p-2 h-full min-h-0 overflow-hidden flex flex-col">
+              <button
+                onClick={() => handleKPITitleClick('Green Factory')}
+                className="w-full mb-2 px-3 py-1 text-sm font-bold text-blue-900 bg-blue-100 rounded-md hover:bg-blue-200 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                🌿 Green Factory
+              </button>
+              {greenFactoryLoading ? (
+                <div className="flex items-center justify-center p-8 text-gray-500">Loading...</div>
+              ) : greenFactoryChart ? (
+                <div
+                  className="flex-1 min-h-0 cursor-pointer flex items-center"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => openExpandedChart('greenFactory', greenFactoryChart)}
+                  onKeyDown={(e) => e.key === 'Enter' && openExpandedChart('greenFactory', greenFactoryChart)}
+                >
+                  <GreenFactoryBarChart title={greenFactoryChart.title} subtitle={greenFactoryChart.subtitle} labels={greenFactoryChart.labels} values={greenFactoryChart.values} showHeader={false} />
+                </div>
+              ) : (
+                <div
+                  className="flex-1 min-h-0 cursor-pointer flex items-center"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => openExpandedChart('greenFactory', { title: 'Environment', subtitle: 'Green Factory', labels: FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1]), values: Array(12).fill(0) })}
+                  onKeyDown={(e) => e.key === 'Enter' && openExpandedChart('greenFactory', { title: 'Environment', subtitle: 'Green Factory', labels: FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1]), values: Array(12).fill(0) })}
+                >
+                  <GreenFactoryBarChart title="Environment" subtitle="Green Factory" labels={FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1])} values={Array(12).fill(0)} showHeader={false} />
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Morale */}
+          <div className="w-full h-full min-h-0 lg:col-span-6">
+            <div className="bg-white rounded-lg shadow border-2 border-blue-500 p-2 h-full min-h-0 flex flex-col overflow-hidden">
+              <button
+                onClick={() => handleKPITitleClick('Morale')}
+                className="w-full mb-1 px-3 py-1 text-sm font-bold text-blue-900 bg-blue-100 rounded-md hover:bg-blue-200 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                😊 Morale
+              </button>
+              <div className="flex flex-col md:flex-row h-full flex-1">
+                <div className="flex-1 px-4 pb-4 pt-1 md:border-r border-gray-200 min-w-0">
+                  {themeChartLoading ? (
+                    <div className="flex items-center justify-center p-8 text-gray-500">Loading...</div>
+                  ) : (
+                    <div
+                      className="h-full cursor-pointer"
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => openExpandedChart('themeEmployees', { themeChart, employeesChart })}
+                      onKeyDown={(e) => e.key === 'Enter' && openExpandedChart('themeEmployees', { themeChart, employeesChart })}
+                    >
+                      {themeChart ? (
+                        <Box4ThemeBarChart title={themeChart.title} subtitle={themeChart.subtitle} labels={themeChart.labels} values={themeChart.values} showHeader={false} showSubtitle={true} />
+                      ) : (
+                        <Box4ThemeBarChart title="Theme Of The Year" subtitle="Unlock The Power of You" labels={FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1])} values={Array(12).fill(0)} showHeader={false} showSubtitle={true} />
+                      )}
+                    </div>
+                  )}
+                </div>
+                <div className="flex-1 px-4 pb-4 pt-1 min-w-0">
+                  {employeesChartLoading ? (
+                    <div className="flex items-center justify-center p-8 text-gray-500">Loading...</div>
+                  ) : (
+                    <div
+                      className="h-full cursor-pointer"
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => openExpandedChart('themeEmployees', { themeChart, employeesChart })}
+                      onKeyDown={(e) => e.key === 'Enter' && openExpandedChart('themeEmployees', { themeChart, employeesChart })}
+                    >
+                      {employeesChart ? (
+                        <Box4EmployeesLineChart title={employeesChart.title} subtitle={employeesChart.subtitle} labels={employeesChart.labels} values={employeesChart.values} showHeader={false} showSubtitle={true} />
+                      ) : (
+                        <Box4EmployeesLineChart title="No. of Employees Who Left" subtitle="Monthly Attrition" labels={FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1])} values={Array(12).fill(0)} showHeader={false} showSubtitle={true} />
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
 
         </div>
       </div>
@@ -3103,7 +3102,7 @@ function ManagementDashboard() {
       </div>
       {/* Overview Cards End*/}
 
-     
+
 
       {expandedChart && expandedChartData && (
         <div className="expanded-chart-modal-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={closeExpandedChart}>
@@ -3134,24 +3133,24 @@ function ManagementDashboard() {
                 {expandedChart === 'plantEfficiency'
                   ? 'Plant Efficiency (Apr - Mar)'
                   : expandedChart === 'industry40'
-                  ? expandedChartData.title || 'Industry 4.0'
-                  : expandedChart === 'zeroQuality'
-                  ? expandedChartData.title || 'Zero Quality Complaints'
-                  : expandedChart === 'zeroAccidents'
-                  ? expandedChartData.title || 'Zero Accidents'
-                  : expandedChart === 'onTimeDelivery'
-                  ? expandedChartData.title || 'On Time Delivery'
-                  : expandedChart === 'themeChart'
-                  ? expandedChartData.title || 'Theme Of The Year'
-                  : expandedChart === 'employeesChart'
-                  ? expandedChartData.title || 'Employees Left'
-                  : expandedChart === 'greenFactory'
-                  ? expandedChartData.title || 'Green Factory'
-                  : expandedChart === 'themeEmployees'
-                  ? 'Morale (Theme Of The Year & Employees Left)'
-                  : expandedChart === 'salesProfit'
-                  ? 'Revenue & Profitability'
-                  : 'Chart'}
+                    ? expandedChartData.title || 'Industry 4.0'
+                    : expandedChart === 'zeroQuality'
+                      ? expandedChartData.title || 'Zero Quality Complaints'
+                      : expandedChart === 'zeroAccidents'
+                        ? expandedChartData.title || 'Zero Accidents'
+                        : expandedChart === 'onTimeDelivery'
+                          ? expandedChartData.title || 'On Time Delivery'
+                          : expandedChart === 'themeChart'
+                            ? expandedChartData.title || 'Theme Of The Year'
+                            : expandedChart === 'employeesChart'
+                              ? expandedChartData.title || 'Employees Left'
+                              : expandedChart === 'greenFactory'
+                                ? expandedChartData.title || 'Green Factory'
+                                : expandedChart === 'themeEmployees'
+                                  ? 'Morale (Theme Of The Year & Employees Left)'
+                                  : expandedChart === 'salesProfit'
+                                    ? 'Revenue & Profitability'
+                                    : 'Chart'}
               </h2>
               <button className="text-2xl p-1 mr-2 text-gray-400 hover:text-gray-600 transition-colors focus:outline-none" onClick={closeExpandedChart}>✕</button>
             </div>
