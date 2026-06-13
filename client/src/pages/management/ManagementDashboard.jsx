@@ -179,7 +179,7 @@ const Industry40LineChart = ({
                     x={getX(idx)}
                     y={targetLabelY}
                     textAnchor="middle"
-                    fontSize={isExpanded ? 13 : 11}
+                    fontSize={isExpanded ? 14 : 12}
                     fontWeight="600"
                     fill="#c97706"
                     clipPath="url(#industry40ClipLabels)"
@@ -202,9 +202,9 @@ const Industry40LineChart = ({
                     x={getX(idx)}
                     y={actualLabelY}
                     textAnchor="middle"
-                    fontSize={isExpanded ? 13 : 11}
-                    fontWeight="700"
-                    fill="#0ea5e9"
+fontSize={isExpanded ? 14 : 12}
+                fontWeight="700"
+                fill="#0ea5e9"
                     clipPath="url(#industry40ClipLabels)"
                   >
                     {formatY(Number(val))}
@@ -237,10 +237,10 @@ const Industry40LineChart = ({
             const ticks = 5;
             const tickValues = Array.from({ length: ticks + 1 }, (_, i) => minVal + (i / ticks) * range);
             return tickValues.map((tick, i) => {
-              const ratio = (tick - minVal) / (range || 1);
-              const y = svgHeight - paddingBottom - ratio * plotHeight;
-              return (
-                <text key={`y-label-${i}`} x={paddingLeft - 8} y={y + 4} textAnchor="end" fontSize={isExpanded ? 13 : 11} fontWeight="500" fill="#4b5563">
+const ratio = (tick - minVal) / (range || 1);
+               const y = svgHeight - paddingBottom - ratio * plotHeight;
+               return (
+                 <text key={`y-label-${i}`} x={paddingLeft - 8} y={y + 4} textAnchor="end" fontSize={isExpanded ? 14 : 12} fontWeight="500" fill="#4b5563">
                   {formatY(tick)}
                 </text>
               );
@@ -473,7 +473,7 @@ const GreenFactoryBarChart = ({ title, subtitle, labels, values, showHeader = tr
                 x={getX(idx) + barWidth / 2}
                 y={getDataLabelY(val)}
                 textAnchor="middle"
-                fontSize={isExpanded ? 13 : 11}
+                fontSize={isExpanded ? 13 : 12}
                 fontWeight="600"
                 fill="#047857"
               >
@@ -531,10 +531,10 @@ const GreenFactoryBarChart = ({ title, subtitle, labels, values, showHeader = tr
 // Bar Chart component for Zero Accidents (shows actual vs target per month)
 const ZeroAccidentsBarChart = ({ title, subtitle, labels, actuals, targets, showHeader = true, showAxisLabels = true, xAxisTitle = 'Month', yAxisTitle = 'Value', isExpanded = false, className = '' }) => {
   const svgHeight = isExpanded ? 360 : 210;
-  const paddingLeft = isExpanded ? 48 : 30;
+  const paddingLeft = isExpanded ? 62 : 42
   const paddingRight = isExpanded ? 12 : 8;
-  const paddingTop = isExpanded ? 32 : 22;
-  const paddingBottom = isExpanded ? 48 : 32;
+  const paddingTop = isExpanded ? 40 : 26
+  const paddingBottom =  isExpanded ? 68 : 48
 
   const svgWidth = 640;
 
@@ -565,8 +565,8 @@ const ZeroAccidentsBarChart = ({ title, subtitle, labels, actuals, targets, show
   const range = maxVal - minVal;
   const groupWidth = plotWidth / Math.max(displayLabels.length, 1);
   const barWidth = isExpanded ? Math.min(42, groupWidth * 0.45) : Math.min(34, groupWidth * 0.55);
-  const axisLabelFontSize = isExpanded ? 13 : 11;
-  const axisTitleFontSize = isExpanded ? 13 : 11;
+  const axisLabelFontSize = isExpanded ? 15 : 13;
+  const axisTitleFontSize = isExpanded ? 15 : 13;
   const legendFontSize = isExpanded ? 12 : 10;
   const getX = (idx, which) => {
     const base = paddingLeft + idx * groupWidth + groupWidth / 2;
@@ -656,7 +656,7 @@ const ZeroAccidentsBarChart = ({ title, subtitle, labels, actuals, targets, show
                 x={getX(idx, 0) + barWidth / 2}
                 y={getValueLabelY(displayActuals[idx] || 0, displayTargets[idx] || 0, 0)}
                 textAnchor="middle"
-                fontSize={isExpanded ? 12 : 10}
+                fontSize={isExpanded ? 13 : 11}
                 fontWeight="600"
                 fill="#2563eb"
               >
