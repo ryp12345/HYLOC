@@ -632,7 +632,9 @@ const EmployeeCalendar = ({ joinDate }) => {
   const weekDays = getWeekDays(currentDate);
   const entitlementTotal = parseFloat(leaveBalance?.leave_entitled ?? 0) + parseFloat(leaveBalance?.leaves_accumulated ?? 0);
   const availedTotal = parseFloat(leaveBalance?.leaves_availed ?? 0);
-  const unpaidLeaveDays = Math.max(availedTotal - entitlementTotal, 0);
+  const unpaidLeaveDays = leaves
+    .filter(l => isUnpaidLeave(l) && l.status !== 'Rejected' && l.status !== 'Cancelled')
+    .reduce((sum, l) => sum + parseFloat(l.credited_days || 0), 0);
 
   return (
     <div className="w-full space-y-6">
@@ -921,7 +923,7 @@ const EmployeeCalendar = ({ joinDate }) => {
                 {/* Ticket Modal */}
                 {showTicketModal && (
                   <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-                    <div className="bg-white shadow-lg p-6 w-full max-w-5xl relative">
+                    <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-5xl relative">
                       <button
                         className="absolute top-2 right-2 text-gray-500 hover:text-gray-800 text-xl font-bold"
                         onClick={closeTicketModal}

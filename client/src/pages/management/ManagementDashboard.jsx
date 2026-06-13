@@ -34,18 +34,21 @@ const Industry40LineChart = ({
 }) => {
   // COMPACT MODE: Dimensions set to 100% height, but viewBox maintains coordinate system
   const svgHeight = isExpanded ? 310 : 216;
-  const padding = isExpanded ? 85 : 48;
+  const paddingLeft = isExpanded ? 90 : 55;
+  const paddingRight = isExpanded ? 20 : 12;
+  const paddingTop = isExpanded ? 40 : 28;
+  const paddingBottom = isExpanded ? 50 : 36;
   const svgWidth = 900;
 
-  const plotWidth = svgWidth - padding * 2;
-  const plotHeight = svgHeight - padding * 2;
+  const plotWidth = svgWidth - paddingLeft - paddingRight;
+  const plotHeight = svgHeight - paddingTop - paddingBottom;
 
   const maxVal = Math.max(...actuals, ...targets, 1);
   const minVal = 0;
   const range = maxVal - minVal;
 
-  const getX = (idx) => padding + (idx / (labels.length - 1 || 1)) * plotWidth;
-  const getY = (val) => svgHeight - padding - ((val - minVal) / range) * plotHeight;
+  const getX = (idx) => paddingLeft + (idx / (labels.length - 1 || 1)) * plotWidth;
+  const getY = (val) => svgHeight - paddingBottom - ((val - minVal) / (range || 1)) * plotHeight;
 
   const formatVal = (v) => {
     if (!Number.isFinite(v)) return String(v);
@@ -65,20 +68,45 @@ const Industry40LineChart = ({
 
   // Generate filled area paths for gradients
   const actualAreaPath = actuals.length > 0 ? (
-    `${actualPath} L ${getX(actuals.length - 1)} ${svgHeight - padding} L ${getX(0)} ${svgHeight - padding} Z`
+    `${actualPath} L ${getX(actuals.length - 1)} ${svgHeight - paddingBottom} L ${getX(0)} ${svgHeight - paddingBottom} Z`
   ) : '';
   const targetAreaPath = targets.length > 0 ? (
-    `${targetPath} L ${getX(targets.length - 1)} ${svgHeight - padding} L ${getX(0)} ${svgHeight - padding} Z`
+    `${targetPath} L ${getX(targets.length - 1)} ${svgHeight - paddingBottom} L ${getX(0)} ${svgHeight - paddingBottom} Z`
   ) : '';
 
   const displayPointLabels = isExpanded || showPointLabels;
   const displayAxisLabels = isExpanded || showAxisLabels;
 
+  // Smart label positioning to avoid overlap between actual and target at same x
+  const getLabelPositions = (idx) => {
+    const ay = getY(actuals[idx] ?? 0);
+    const ty = getY(targets[idx] ?? 0);
+    const gap = Math.abs(ay - ty);
+    const labelH = 16;
+    // default: actual above its dot, target below its dot
+    let actualLabelY = Math.max(ay - 22, paddingTop + labelH);
+    let targetLabelY = Math.max(ty - 10, paddingTop + labelH);
+    if (gap < 30) {
+      // values are close — separate labels: actual goes above, target goes further below
+      if (ay <= ty) {
+        actualLabelY = Math.max(ay - 26, paddingTop + labelH);
+        targetLabelY = Math.min(ty + 20, svgHeight - paddingBottom - 4);
+      } else {
+        targetLabelY = Math.max(ty - 26, paddingTop + labelH);
+        actualLabelY = Math.min(ay + 20, svgHeight - paddingBottom - 4);
+      }
+    }
+    return { actualLabelY, targetLabelY };
+  };
+
+  // X-axis label thinning for compact mode with many labels
+  const maxXLabels = isExpanded ? labels.length : Math.min(labels.length, 12);
+  const xStep = labels.length > maxXLabels ? Math.ceil(labels.length / maxXLabels) : 1;
+
   return (
     <div className="w-full h-full flex flex-col">
       {showHeader && <h2 className="text-base font-semibold text-gray-800 mb-2 text-center">{title}</h2>}
       <div className="flex flex-row flex-1 min-h-0 items-center gap-1">
-        {/* CHANGED: Added h-full and w-full class to force expansion in compact mode */}
         <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="flex-1 min-w-0 w-full h-full" preserveAspectRatio="none">
           <defs>
             <linearGradient id="industry40Gradient" x1="0" y1="0" x2="0" y2="1">
@@ -91,6 +119,13 @@ const Industry40LineChart = ({
             </linearGradient>
           </defs>
 
+          {/* Clip region to keep labels inside chart area */}
+          <defs>
+            <clipPath id="industry40ClipLabels">
+              <rect x={0} y={0} width={svgWidth} height={svgHeight} />
+            </clipPath>
+          </defs>
+
           {/* Shaded Areas underneath lines */}
           {actualAreaPath && (
             <path d={actualAreaPath} fill="url(#industry40Gradient)" />
@@ -99,19 +134,19 @@ const Industry40LineChart = ({
             <path d={targetAreaPath} fill="url(#industry40TargetGradient)" />
           )}
 
-          {/* Grid lines + Y ticks */}
+          {/* Grid lines */}
           {(() => {
             const ticks = 5;
             const tickValues = Array.from({ length: ticks + 1 }, (_, i) => minVal + (i / ticks) * range);
             return tickValues.map((tick, i) => {
               const ratio = (tick - minVal) / (range || 1);
-              const y = svgHeight - padding - ratio * plotHeight;
+              const y = svgHeight - paddingBottom - ratio * plotHeight;
               return (
                 <g key={`grid-${i}`}>
                   <line
-                    x1={padding}
+                    x1={paddingLeft}
                     y1={y}
-                    x2={svgWidth - padding}
+                    x2={svgWidth - paddingRight}
                     y2={y}
                     stroke="#e5e7eb"
                     strokeWidth="1"
@@ -123,9 +158,9 @@ const Industry40LineChart = ({
           })()}
 
           {/* Y-axis line */}
-          <line x1={padding} y1={padding} x2={padding} y2={svgHeight - padding} stroke="#1f2937" strokeWidth="2" />
+          <line x1={paddingLeft} y1={paddingTop} x2={paddingLeft} y2={svgHeight - paddingBottom} stroke="#1f2937" strokeWidth="2" />
           {/* X-axis line */}
-          <line x1={padding} y1={svgHeight - padding} x2={svgWidth - padding} y2={svgHeight - padding} stroke="#1f2937" strokeWidth="2" />
+          <line x1={paddingLeft} y1={svgHeight - paddingBottom} x2={svgWidth - paddingRight} y2={svgHeight - paddingBottom} stroke="#1f2937" strokeWidth="2" />
 
           {/* Target line (background) */}
           <path d={targetPath} stroke="#ffb74d" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round" opacity="0.7" />
@@ -133,50 +168,79 @@ const Industry40LineChart = ({
           {/* Actual line (foreground) */}
           <path d={actualPath} stroke="#41aafe" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" />
 
-          {/* Target dots + labels */}
-          {targets.map((val, idx) => (
-            <g key={`target-dot-${idx}`}>
-              <circle cx={getX(idx)} cy={getY(val)} r="5" fill="#ffb74d" stroke="white" strokeWidth="2" />
-              {displayPointLabels && (
-                <text x={getX(idx)} y={getY(val) - 10} textAnchor="middle" fontSize="14" fontWeight="600" fill="#c97706">{formatY(Number(val))}</text>
-              )}
-            </g>
-          ))}
+          {/* Target dots + labels (rendered first so actual labels appear on top) */}
+          {targets.map((val, idx) => {
+            const { targetLabelY } = getLabelPositions(idx);
+            return (
+              <g key={`target-dot-${idx}`}>
+                <circle cx={getX(idx)} cy={getY(val)} r="5" fill="#ffb74d" stroke="white" strokeWidth="2" />
+                {displayPointLabels && (
+                  <text
+                    x={getX(idx)}
+                    y={targetLabelY}
+                    textAnchor="middle"
+                    fontSize={isExpanded ? 13 : 11}
+                    fontWeight="600"
+                    fill="#c97706"
+                    clipPath="url(#industry40ClipLabels)"
+                  >
+                    {formatY(Number(val))}
+                  </text>
+                )}
+              </g>
+            );
+          })}
 
           {/* Actual dots + labels */}
-          {actuals.map((val, idx) => (
-            <g key={`actual-dot-${idx}`}>
-              <circle cx={getX(idx)} cy={getY(val)} r="5" fill="#41aafe" stroke="white" strokeWidth="2" />
-              {displayPointLabels && (
-                <text x={getX(idx)} y={getY(val) - 18} textAnchor="middle" fontSize="14" fontWeight="700" fill="#0ea5e9">{formatY(Number(val))}</text>
-              )}
-            </g>
-          ))}
+          {actuals.map((val, idx) => {
+            const { actualLabelY } = getLabelPositions(idx);
+            return (
+              <g key={`actual-dot-${idx}`}>
+                <circle cx={getX(idx)} cy={getY(val)} r="5" fill="#41aafe" stroke="white" strokeWidth="2" />
+                {displayPointLabels && (
+                  <text
+                    x={getX(idx)}
+                    y={actualLabelY}
+                    textAnchor="middle"
+                    fontSize={isExpanded ? 13 : 11}
+                    fontWeight="700"
+                    fill="#0ea5e9"
+                    clipPath="url(#industry40ClipLabels)"
+                  >
+                    {formatY(Number(val))}
+                  </text>
+                )}
+              </g>
+            );
+          })}
 
-          {/* X-axis labels */}
-          {labels.map((label, idx) => (
-            <text
-              key={`x-label-${idx}`}
-              x={getX(idx)}
-              y={svgHeight - padding + 20}
-              textAnchor="middle"
-              fontSize="16"
-              fontWeight="500"
-              fill="#4b5563"
-            >
-              {label}
-            </text>
-          ))}
+          {/* X-axis labels — thin out if too many */}
+          {labels.map((label, idx) => {
+            if (idx % xStep !== 0) return null;
+            return (
+              <text
+                key={`x-label-${idx}`}
+                x={getX(idx)}
+                y={svgHeight - paddingBottom + (isExpanded ? 20 : 16)}
+                textAnchor="middle"
+                fontSize={isExpanded ? 14 : 12}
+                fontWeight="500"
+                fill="#4b5563"
+              >
+                {label}
+              </text>
+            );
+          })}
 
-          {/* Y-axis labels (formatted) */}
+          {/* Y-axis labels */}
           {displayAxisLabels && (() => {
             const ticks = 5;
             const tickValues = Array.from({ length: ticks + 1 }, (_, i) => minVal + (i / ticks) * range);
             return tickValues.map((tick, i) => {
               const ratio = (tick - minVal) / (range || 1);
-              const y = svgHeight - padding - ratio * plotHeight;
+              const y = svgHeight - paddingBottom - ratio * plotHeight;
               return (
-                <text key={`y-label-${i}`} x={padding - 10} y={y + 4} textAnchor="end" fontSize="14" fontWeight="500" fill="#4b5563">
+                <text key={`y-label-${i}`} x={paddingLeft - 8} y={y + 4} textAnchor="end" fontSize={isExpanded ? 13 : 11} fontWeight="500" fill="#4b5563">
                   {formatY(tick)}
                 </text>
               );
@@ -186,17 +250,17 @@ const Industry40LineChart = ({
           {/* Axis titles */}
           {displayAxisLabels && (
             <>
-              <text x={svgWidth / 2} y={svgHeight - 5} textAnchor="middle" fontSize="14" fontWeight="600" fill="#374151">
+              <text x={paddingLeft + plotWidth / 2} y={svgHeight - 4} textAnchor="middle" fontSize="13" fontWeight="600" fill="#374151">
                 {xAxisTitle}
               </text>
               <text
-                x={20}
-                y={svgHeight / 2}
+                x={14}
+                y={paddingTop + plotHeight / 2}
                 textAnchor="middle"
-                fontSize="14"
+                fontSize="13"
                 fontWeight="600"
                 fill="#374151"
-                transform={`rotate(-90 20 ${svgHeight / 2})`}
+                transform={`rotate(-90 14 ${paddingTop + plotHeight / 2})`}
               >
                 {yAxisTitle}
               </text>
@@ -340,31 +404,43 @@ const SpeedometerGauge = ({ efficiency, month, year, isExpanded = false }) => {
 
 // Bar Chart Component for Green Factory
 const GreenFactoryBarChart = ({ title, subtitle, labels, values, showHeader = true, showAxisLabels = true, xAxisTitle = 'Month', yAxisTitle = 'Value', isExpanded = false }) => {
-  const svgHeight = isExpanded ? 270 : 216;
-  const padding = isExpanded ? 85 : 48;
+  const svgHeight = isExpanded ? 290 : 216;
+  const paddingLeft = isExpanded ? 90 : 55;
+  const paddingRight = isExpanded ? 16 : 10;
+  const paddingTop = isExpanded ? 36 : 26;
+  const paddingBottom = isExpanded ? 50 : 36;
 
   const svgWidth = 900;
 
-  const plotWidth = svgWidth - padding * 2;
-  const plotHeight = svgHeight - padding * 2;
+  const plotWidth = svgWidth - paddingLeft - paddingRight;
+  const plotHeight = svgHeight - paddingTop - paddingBottom;
 
   const maxVal = Math.max(...values, 100);
   const minVal = 0;
   const range = maxVal - minVal;
 
   const barWidth = plotWidth / (values.length * 1.5);
-  const getX = (idx) => padding + (idx * plotWidth) / values.length + (plotWidth / values.length / 2 - barWidth / 2);
-  const getY = (val) => svgHeight - padding - ((val - minVal) / range) * plotHeight;
-  const getBarHeight = (val) => ((val - minVal) / range) * plotHeight;
+  const getX = (idx) => paddingLeft + (idx * plotWidth) / values.length + (plotWidth / values.length / 2 - barWidth / 2);
+  const getY = (val) => svgHeight - paddingBottom - ((val - minVal) / (range || 1)) * plotHeight;
+  const getBarHeight = (val) => ((val - minVal) / (range || 1)) * plotHeight;
+
+  // Guard data label so it stays inside the chart top boundary
+  const getDataLabelY = (val) => {
+    const barTop = getY(val);
+    return Math.max(barTop - 6, paddingTop + 14);
+  };
 
   const displayAxisLabels = isExpanded || showAxisLabels;
+
+  // Thin out X labels if too many
+  const maxXLabels = isExpanded ? labels.length : 12;
+  const xStep = labels.length > maxXLabels ? Math.ceil(labels.length / maxXLabels) : 1;
 
   return (
     <div className="w-full h-full flex flex-col">
       {showHeader && <h2 className="text-base font-semibold text-gray-800 mb-2 text-center">{title}</h2>}
       {showHeader && subtitle && <p className="text-sm text-gray-600 mb-2 text-center">{subtitle}</p>}
       <div className="flex flex-row flex-1 min-h-0 items-center gap-1">
-        {/* CHANGED: Added h-full and w-full class to force expansion in compact mode */}
         <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="flex-1 min-w-0 w-full h-full" preserveAspectRatio="none">
           <defs>
             <linearGradient id="greenFactoryBarGradient" x1="0" y1="0" x2="0" y2="1">
@@ -378,27 +454,50 @@ const GreenFactoryBarChart = ({ title, subtitle, labels, values, showHeader = tr
             const tickValues = Array.from({ length: ticks + 1 }, (_, i) => minVal + (i / ticks) * range);
             return tickValues.map((tick, i) => {
               const ratio = (tick - minVal) / (range || 1);
-              const y = svgHeight - padding - ratio * plotHeight;
+              const y = svgHeight - paddingBottom - ratio * plotHeight;
               return (
                 <g key={`grid-${i}`}>
-                  <line x1={padding} y1={y} x2={svgWidth - padding} y2={y} stroke="#e5e7eb" strokeWidth="1" strokeDasharray="5,5" />
+                  <line x1={paddingLeft} y1={y} x2={svgWidth - paddingRight} y2={y} stroke="#e5e7eb" strokeWidth="1" strokeDasharray="5,5" />
                 </g>
               );
             });
           })()}
 
-          <line x1={padding} y1={padding} x2={padding} y2={svgHeight - padding} stroke="#1f2937" strokeWidth="2" />
-          <line x1={padding} y1={svgHeight - padding} x2={svgWidth - padding} y2={svgHeight - padding} stroke="#1f2937" strokeWidth="2" />
+          <line x1={paddingLeft} y1={paddingTop} x2={paddingLeft} y2={svgHeight - paddingBottom} stroke="#1f2937" strokeWidth="2" />
+          <line x1={paddingLeft} y1={svgHeight - paddingBottom} x2={svgWidth - paddingRight} y2={svgHeight - paddingBottom} stroke="#1f2937" strokeWidth="2" />
 
           {values.map((val, idx) => (
             <g key={`bar-${idx}`}>
               <rect x={getX(idx)} y={getY(val)} width={barWidth} height={getBarHeight(val)} fill="url(#greenFactoryBarGradient)" stroke="white" strokeWidth="1" rx="4" />
-              <text x={getX(idx) + barWidth / 2} y={getY(val) - 5} textAnchor="middle" fontSize="14" fontWeight="600" fill="#10b981">{val.toFixed(1)}%</text>
+              <text
+                x={getX(idx) + barWidth / 2}
+                y={getDataLabelY(val)}
+                textAnchor="middle"
+                fontSize={isExpanded ? 13 : 11}
+                fontWeight="600"
+                fill="#047857"
+              >
+                {val.toFixed(1)}%
+              </text>
             </g>
           ))}
-          {displayAxisLabels && labels.map((label, idx) => (
-            <text key={`x-label-${idx}`} x={padding + (idx * plotWidth) / labels.length + (plotWidth / labels.length / 2)} y={svgHeight - padding + 20} textAnchor="middle" fontSize="13" fontWeight="500" fill="#4b5563">{label}</text>
-          ))}
+
+          {displayAxisLabels && labels.map((label, idx) => {
+            if (idx % xStep !== 0) return null;
+            return (
+              <text
+                key={`x-label-${idx}`}
+                x={paddingLeft + (idx * plotWidth) / labels.length + (plotWidth / labels.length / 2)}
+                y={svgHeight - paddingBottom + (isExpanded ? 18 : 14)}
+                textAnchor="middle"
+                fontSize={isExpanded ? 13 : 11}
+                fontWeight="500"
+                fill="#4b5563"
+              >
+                {label}
+              </text>
+            );
+          })}
 
           {displayAxisLabels && (() => {
             const ticks = 5;
@@ -406,18 +505,18 @@ const GreenFactoryBarChart = ({ title, subtitle, labels, values, showHeader = tr
             const shouldShowDecimals = range < 10;
             return tickValues.map((tick, i) => {
               const ratio = (tick - minVal) / (range || 1);
-              const y = svgHeight - padding - ratio * plotHeight;
+              const y = svgHeight - paddingBottom - ratio * plotHeight;
               const label = (shouldShowDecimals ? tick.toFixed(1) : Math.round(tick).toString()) + '%';
               return (
-                <text key={`y-label-${i}`} x={padding - 10} y={y + 4} textAnchor="end" fontSize="14" fontWeight="500" fill="#4b5563">{label}</text>
+                <text key={`y-label-${i}`} x={paddingLeft - 8} y={y + 4} textAnchor="end" fontSize={isExpanded ? 12 : 10} fontWeight="500" fill="#4b5563">{label}</text>
               );
             });
           })()}
 
           {displayAxisLabels && (
             <>
-              <text x={svgWidth / 2} y={svgHeight - 5} textAnchor="middle" fontSize="14" fontWeight="600" fill="#374151">{xAxisTitle}</text>
-              <text x={20} y={svgHeight / 2} textAnchor="middle" fontSize="14" fontWeight="600" fill="#374151" transform={`rotate(-90 20 ${svgHeight / 2})`}>{yAxisTitle}</text>
+              <text x={paddingLeft + plotWidth / 2} y={svgHeight - 4} textAnchor="middle" fontSize="13" fontWeight="600" fill="#374151">{xAxisTitle}</text>
+              <text x={14} y={paddingTop + plotHeight / 2} textAnchor="middle" fontSize="13" fontWeight="600" fill="#374151" transform={`rotate(-90 14 ${paddingTop + plotHeight / 2})`}>{yAxisTitle}</text>
             </>
           )}
         </svg>
@@ -432,7 +531,10 @@ const GreenFactoryBarChart = ({ title, subtitle, labels, values, showHeader = tr
 // Bar Chart component for Zero Accidents (shows actual vs target per month)
 const ZeroAccidentsBarChart = ({ title, subtitle, labels, actuals, targets, showHeader = true, showAxisLabels = true, xAxisTitle = 'Month', yAxisTitle = 'Value', isExpanded = false, className = '' }) => {
   const svgHeight = isExpanded ? 360 : 210;
-  const padding = isExpanded ? 38 : 24;
+  const paddingLeft = isExpanded ? 48 : 30;
+  const paddingRight = isExpanded ? 12 : 8;
+  const paddingTop = isExpanded ? 32 : 22;
+  const paddingBottom = isExpanded ? 48 : 32;
 
   const svgWidth = 640;
 
@@ -455,33 +557,50 @@ const ZeroAccidentsBarChart = ({ title, subtitle, labels, actuals, targets, show
   const displayActuals = displayData.map((item) => item.actual);
   const displayTargets = displayData.map((item) => item.target);
 
-  const plotWidth = svgWidth - padding * 2;
-  const plotHeight = svgHeight - padding * 2;
+  const plotWidth = svgWidth - paddingLeft - paddingRight;
+  const plotHeight = svgHeight - paddingTop - paddingBottom;
 
   const maxVal = Math.max(...displayActuals, ...displayTargets, 1);
   const minVal = 0;
   const range = maxVal - minVal;
   const groupWidth = plotWidth / Math.max(displayLabels.length, 1);
   const barWidth = isExpanded ? Math.min(42, groupWidth * 0.45) : Math.min(34, groupWidth * 0.55);
-  const axisLabelFontSize = isExpanded ? 14 : 12;
-  const axisTitleFontSize = isExpanded ? 14 : 12;
+  const axisLabelFontSize = isExpanded ? 13 : 11;
+  const axisTitleFontSize = isExpanded ? 13 : 11;
   const legendFontSize = isExpanded ? 12 : 10;
   const getX = (idx, which) => {
-    const base = padding + idx * groupWidth + groupWidth / 2;
+    const base = paddingLeft + idx * groupWidth + groupWidth / 2;
     // which: 0 = actual (left), 1 = target (right)
     return base + (which === 0 ? -barWidth * 1.1 : barWidth * 0.1);
   };
-  const getY = (val) => svgHeight - padding - ((val - minVal) / (range || 1)) * plotHeight;
+  const getY = (val) => svgHeight - paddingBottom - ((val - minVal) / (range || 1)) * plotHeight;
   const getBarHeight = (val) => ((val - minVal) / (range || 1)) * plotHeight;
-  const getValueLabelY = (val) => {
-    const y = getY(val);
-    const offset = 20;
-    return Math.max(y - offset, padding + 14);
+
+  // Smart label Y: separate actual vs target if they're close
+  const getValueLabelY = (actualVal, targetVal, which) => {
+    const ay = getY(actualVal);
+    const ty = getY(targetVal);
+    const labelMinY = paddingTop + 14;
+    if (which === 0) {
+      // actual bar label
+      const raw = ay - 18;
+      if (Math.abs(ay - ty) < 28) {
+        return Math.max(Math.min(ay - 22, ty - 10) - 6, labelMinY);
+      }
+      return Math.max(raw, labelMinY);
+    } else {
+      // target bar label
+      const raw = ty - 18;
+      if (Math.abs(ay - ty) < 28) {
+        return Math.max(Math.min(ty - 22, ay - 10) - 6, labelMinY);
+      }
+      return Math.max(raw, labelMinY);
+    }
   };
+
   const maxVisibleXLabels = isExpanded ? displayLabels.length : 8;
   const xLabelStep = displayLabels.length > maxVisibleXLabels ? Math.ceil(displayLabels.length / maxVisibleXLabels) : 1;
-  const xAxisLabelY = svgHeight - padding + (isExpanded ? 18 : 14);
-  const xLabelRotation = 0;
+  const xAxisLabelY = svgHeight - paddingBottom + (isExpanded ? 18 : 13);
 
   const displayAxisLabels = isExpanded || showAxisLabels;
 
@@ -503,7 +622,6 @@ const ZeroAccidentsBarChart = ({ title, subtitle, labels, actuals, targets, show
           </defs>
 
           {(() => {
-            // Use integer ticks (0,1,2,3...) when values are small (<=10), otherwise fallback to 5 evenly spaced ticks
             let tickValues;
             let tickRange;
             if (maxVal <= 10) {
@@ -517,38 +635,54 @@ const ZeroAccidentsBarChart = ({ title, subtitle, labels, actuals, targets, show
             }
             return tickValues.map((tick, i) => {
               const ratio = (tick - minVal) / (tickRange || 1);
-              const y = svgHeight - padding - ratio * plotHeight;
+              const y = svgHeight - paddingBottom - ratio * plotHeight;
               return (
                 <g key={`grid-${i}`}>
-                  <line x1={padding} y1={y} x2={svgWidth - padding} y2={y} stroke="#e5e7eb" strokeWidth="1" strokeDasharray="5,5" />
+                  <line x1={paddingLeft} y1={y} x2={svgWidth - paddingRight} y2={y} stroke="#e5e7eb" strokeWidth="1" strokeDasharray="5,5" />
                 </g>
               );
             });
           })()}
 
-          <line x1={padding} y1={padding} x2={padding} y2={svgHeight - padding} stroke="#1f2937" strokeWidth="2" />
-          <line x1={padding} y1={svgHeight - padding} x2={svgWidth - padding} y2={svgHeight - padding} stroke="#1f2937" strokeWidth="2" />
+          <line x1={paddingLeft} y1={paddingTop} x2={paddingLeft} y2={svgHeight - paddingBottom} stroke="#1f2937" strokeWidth="2" />
+          <line x1={paddingLeft} y1={svgHeight - paddingBottom} x2={svgWidth - paddingRight} y2={svgHeight - paddingBottom} stroke="#1f2937" strokeWidth="2" />
 
           {displayLabels.map((label, idx) => (
             <g key={`group-${idx}`}>
               <rect x={getX(idx, 0)} y={getY(displayActuals[idx] || 0)} width={barWidth} height={getBarHeight(displayActuals[idx] || 0)} fill="url(#zeroAccidentsActualGradient)" rx="4" />
               <rect x={getX(idx, 1)} y={getY(displayTargets[idx] || 0)} width={barWidth} height={getBarHeight(displayTargets[idx] || 0)} fill="url(#zeroAccidentsTargetGradient)" rx="4" />
 
-              <text x={getX(idx, 0) + barWidth / 2} y={getValueLabelY(displayActuals[idx] || 0)} textAnchor="middle" fontSize="12" fontWeight="600" fill="#2563eb">{(displayActuals[idx] || 0).toFixed(0)}</text>
-              <text x={getX(idx, 1) + barWidth / 2} y={getValueLabelY(displayTargets[idx] || 0)} textAnchor="middle" fontSize="12" fontWeight="600" fill="#d97706">{(displayTargets[idx] || 0).toFixed(0)}</text>
+              <text
+                x={getX(idx, 0) + barWidth / 2}
+                y={getValueLabelY(displayActuals[idx] || 0, displayTargets[idx] || 0, 0)}
+                textAnchor="middle"
+                fontSize={isExpanded ? 12 : 10}
+                fontWeight="600"
+                fill="#2563eb"
+              >
+                {(displayActuals[idx] || 0).toFixed(0)}
+              </text>
+              <text
+                x={getX(idx, 1) + barWidth / 2}
+                y={getValueLabelY(displayActuals[idx] || 0, displayTargets[idx] || 0, 1)}
+                textAnchor="middle"
+                fontSize={isExpanded ? 12 : 10}
+                fontWeight="600"
+                fill="#d97706"
+              >
+                {(displayTargets[idx] || 0).toFixed(0)}
+              </text>
             </g>
           ))}
 
           {displayAxisLabels && displayLabels.map((label, idx) => {
             if (idx % xLabelStep !== 0) return null;
-            const x = padding + idx * groupWidth + groupWidth / 2;
-            const rotate = xLabelRotation;
+            const x = paddingLeft + idx * groupWidth + groupWidth / 2;
             return (
               <text
                 key={`x-label-${idx}`}
                 x={x}
                 y={xAxisLabelY}
-                transform={rotate ? `rotate(${rotate} ${x} ${xAxisLabelY})` : undefined}
                 dominantBaseline="hanging"
                 textAnchor="middle"
                 fontSize={axisLabelFontSize}
@@ -574,18 +708,18 @@ const ZeroAccidentsBarChart = ({ title, subtitle, labels, actuals, targets, show
             }
             return tickValues.map((tick, i) => {
               const ratio = (tick - minVal) / (tickRange || 1);
-              const y = svgHeight - padding - ratio * plotHeight;
+              const y = svgHeight - paddingBottom - ratio * plotHeight;
               const label = Number.isFinite(tick) ? Math.round(tick).toString() : String(tick);
               return (
-                <text key={`y-label-${i}`} x={padding - 8} y={y} dominantBaseline="middle" textAnchor="end" fontSize={axisLabelFontSize} fontWeight="600" fill="#4b5563">{label}</text>
+                <text key={`y-label-${i}`} x={paddingLeft - 6} y={y} dominantBaseline="middle" textAnchor="end" fontSize={axisLabelFontSize} fontWeight="600" fill="#4b5563">{label}</text>
               );
             });
           })()}
 
           {displayAxisLabels && (
             <>
-              <text x={svgWidth / 2} y={svgHeight - 5} textAnchor="middle" fontSize={axisTitleFontSize} fontWeight="600" fill="#374151">{xAxisTitle}</text>
-              <text x={20} y={svgHeight / 2} textAnchor="middle" fontSize={axisTitleFontSize} fontWeight="600" fill="#374151" transform={`rotate(-90 20 ${svgHeight / 2})`}>{yAxisTitle}</text>
+              <text x={paddingLeft + plotWidth / 2} y={svgHeight - 4} textAnchor="middle" fontSize={axisTitleFontSize} fontWeight="600" fill="#374151">{xAxisTitle}</text>
+              <text x={12} y={paddingTop + plotHeight / 2} textAnchor="middle" fontSize={axisTitleFontSize} fontWeight="600" fill="#374151" transform={`rotate(-90 12 ${paddingTop + plotHeight / 2})`}>{yAxisTitle}</text>
             </>
           )}
         </svg>
@@ -601,13 +735,16 @@ const ZeroAccidentsBarChart = ({ title, subtitle, labels, actuals, targets, show
 
 // On Time Delivery mixed chart (Target line + Achieved bars)
 const OnTimeDeliveryBarChart = ({ title, subtitle, labels, actuals, targets, showHeader = true, showAxisLabels = true, xAxisTitle = 'Month', yAxisTitle = 'Percent', isExpanded = false }) => {
-  const svgHeight = isExpanded ? 300 : 216;
-  const padding = isExpanded ? 85 : 48;
+  const svgHeight = isExpanded ? 320 : 216;
+  const paddingLeft = isExpanded ? 90 : 55;
+  const paddingRight = isExpanded ? 16 : 10;
+  const paddingTop = isExpanded ? 42 : 30;
+  const paddingBottom = isExpanded ? 52 : 38;
 
   const svgWidth = 900;
 
-  const plotWidth = svgWidth - padding * 2;
-  const plotHeight = svgHeight - padding * 2;
+  const plotWidth = svgWidth - paddingLeft - paddingRight;
+  const plotHeight = svgHeight - paddingTop - paddingBottom;
 
   const maxVal = Math.max(...actuals, ...targets, 1);
   const minVal = 0;
@@ -616,23 +753,49 @@ const OnTimeDeliveryBarChart = ({ title, subtitle, labels, actuals, targets, sho
   const groupWidth = plotWidth / labels.length;
   const barWidth = Math.min(28, groupWidth * 0.45);
   const getX = (idx) => {
-    const center = padding + idx * groupWidth + groupWidth / 2;
+    const center = paddingLeft + idx * groupWidth + groupWidth / 2;
     return center - barWidth / 2;
   };
-  const getY = (val) => svgHeight - padding - ((val - minVal) / (range || 1)) * plotHeight;
+  const getY = (val) => svgHeight - paddingBottom - ((val - minVal) / (range || 1)) * plotHeight;
   const getBarHeight = (val) => ((val - minVal) / (range || 1)) * plotHeight;
   const targetPath = targets
     .map((val, idx) => `${idx === 0 ? 'M' : 'L'} ${getX(idx) + barWidth / 2} ${getY(val || 0)}`)
     .join(' ');
 
+  // Smart positioning: separate actual (bar) label from target (line) label when close
+  const getActualLabelY = (idx) => {
+    const ay = getY(actuals[idx] || 0);
+    const ty = getY(targets[idx] || 0);
+    const labelMinY = paddingTop + 14;
+    const raw = ay - 8;
+    if (Math.abs(ay - ty) < 24) {
+      // push actual label below the bar top if target label is competing
+      return Math.min(ay + 18, svgHeight - paddingBottom - 4);
+    }
+    return Math.max(raw, labelMinY);
+  };
+  const getTargetLabelY = (idx) => {
+    const ay = getY(actuals[idx] || 0);
+    const ty = getY(targets[idx] || 0);
+    const labelMinY = paddingTop + 14;
+    const raw = ty - 10;
+    if (Math.abs(ay - ty) < 24) {
+      return Math.max(ty - 20, labelMinY);
+    }
+    return Math.max(raw, labelMinY);
+  };
+
   const displayAxisLabels = isExpanded || showAxisLabels;
+
+  // Thin X labels if many
+  const maxXLabels = isExpanded ? labels.length : 12;
+  const xStep = labels.length > maxXLabels ? Math.ceil(labels.length / maxXLabels) : 1;
 
   return (
     <div className="w-full h-full flex flex-col">
       {showHeader && <h2 className="text-base font-semibold text-gray-800 mb-2 text-center">{title}</h2>}
       {showHeader && subtitle && <p className="text-sm text-gray-600 mb-2 text-center">{subtitle}</p>}
       <div className="flex flex-row flex-1 min-h-0 items-center gap-1">
-        {/* CHANGED: Added h-full and w-full class to force expansion in compact mode */}
         <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="flex-1 min-w-0 w-full h-full" preserveAspectRatio="none">
           <defs>
             <linearGradient id="onTimeDeliveryBarGradient" x1="0" y1="0" x2="0" y2="1">
@@ -646,17 +809,17 @@ const OnTimeDeliveryBarChart = ({ title, subtitle, labels, actuals, targets, sho
             const tickValues = Array.from({ length: ticks + 1 }, (_, i) => minVal + (i / ticks) * range);
             return tickValues.map((tick, i) => {
               const ratio = (tick - minVal) / (range || 1);
-              const y = svgHeight - padding - ratio * plotHeight;
+              const y = svgHeight - paddingBottom - ratio * plotHeight;
               return (
                 <g key={`grid-${i}`}>
-                  <line x1={padding} y1={y} x2={svgWidth - padding} y2={y} stroke="#e5e7eb" strokeWidth="1" strokeDasharray="5,5" />
+                  <line x1={paddingLeft} y1={y} x2={svgWidth - paddingRight} y2={y} stroke="#e5e7eb" strokeWidth="1" strokeDasharray="5,5" />
                 </g>
               );
             });
           })()}
 
-          <line x1={padding} y1={padding} x2={padding} y2={svgHeight - padding} stroke="#1f2937" strokeWidth="2" />
-          <line x1={padding} y1={svgHeight - padding} x2={svgWidth - padding} y2={svgHeight - padding} stroke="#1f2937" strokeWidth="2" />
+          <line x1={paddingLeft} y1={paddingTop} x2={paddingLeft} y2={svgHeight - paddingBottom} stroke="#1f2937" strokeWidth="2" />
+          <line x1={paddingLeft} y1={svgHeight - paddingBottom} x2={svgWidth - paddingRight} y2={svgHeight - paddingBottom} stroke="#1f2937" strokeWidth="2" />
 
           <path d={targetPath} stroke="#f59e0b" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" />
 
@@ -665,14 +828,47 @@ const OnTimeDeliveryBarChart = ({ title, subtitle, labels, actuals, targets, sho
               <rect x={getX(idx)} y={getY(actuals[idx] || 0)} width={barWidth} height={getBarHeight(actuals[idx] || 0)} fill="url(#onTimeDeliveryBarGradient)" rx="4" />
               <circle cx={getX(idx) + barWidth / 2} cy={getY(targets[idx] || 0)} r="4.5" fill="#f59e0b" stroke="#ffffff" strokeWidth="2" />
 
-              <text x={getX(idx) + barWidth / 2} y={getY(targets[idx] || 0) - 8} textAnchor="middle" fontSize="14" fontWeight="600" fill="#92400e">{Math.round(targets[idx] || 0)}</text>
-              <text x={getX(idx) + barWidth / 2} y={getY(actuals[idx] || 0) - 5} textAnchor="middle" fontSize="14" fontWeight="600" fill="#166534">{Math.round(actuals[idx] || 0)}</text>
+              {/* Target label — positioned above target dot, separated from actual label */}
+              <text
+                x={getX(idx) + barWidth / 2}
+                y={getTargetLabelY(idx)}
+                textAnchor="middle"
+                fontSize={isExpanded ? 12 : 10}
+                fontWeight="600"
+                fill="#92400e"
+              >
+                {Math.round(targets[idx] || 0)}
+              </text>
+              {/* Actual label — positioned above bar top, separated from target label */}
+              <text
+                x={getX(idx) + barWidth / 2}
+                y={getActualLabelY(idx)}
+                textAnchor="middle"
+                fontSize={isExpanded ? 12 : 10}
+                fontWeight="600"
+                fill="#166534"
+              >
+                {Math.round(actuals[idx] || 0)}
+              </text>
             </g>
           ))}
 
-          {displayAxisLabels && labels.map((label, idx) => (
-            <text key={`x-label-${idx}`} x={padding + idx * groupWidth + groupWidth / 2} y={svgHeight - padding + 20} textAnchor="middle" fontSize="13" fontWeight="500" fill="#4b5563">{label}</text>
-          ))}
+          {displayAxisLabels && labels.map((label, idx) => {
+            if (idx % xStep !== 0) return null;
+            return (
+              <text
+                key={`x-label-${idx}`}
+                x={paddingLeft + idx * groupWidth + groupWidth / 2}
+                y={svgHeight - paddingBottom + (isExpanded ? 18 : 14)}
+                textAnchor="middle"
+                fontSize={isExpanded ? 13 : 11}
+                fontWeight="500"
+                fill="#4b5563"
+              >
+                {label}
+              </text>
+            );
+          })}
 
           {displayAxisLabels && (() => {
             const ticks = 5;
@@ -680,17 +876,17 @@ const OnTimeDeliveryBarChart = ({ title, subtitle, labels, actuals, targets, sho
             const shouldShowDecimals = range < 10;
             return tickValues.map((tick, i) => {
               const ratio = (tick - minVal) / (range || 1);
-              const y = svgHeight - padding - ratio * plotHeight;
+              const y = svgHeight - paddingBottom - ratio * plotHeight;
               const label = (shouldShowDecimals ? tick.toFixed(1) : Math.round(tick).toString()) + '%';
               return (
-                <text key={`y-label-${i}`} x={padding - 10} y={y + 4} textAnchor="end" fontSize="14" fontWeight="500" fill="#4b5563">{label}</text>
+                <text key={`y-label-${i}`} x={paddingLeft - 8} y={y + 4} textAnchor="end" fontSize={isExpanded ? 12 : 10} fontWeight="500" fill="#4b5563">{label}</text>
               );
             });
           })()}
           {displayAxisLabels && (
             <>
-              <text x={svgWidth / 2} y={svgHeight - 5} textAnchor="middle" fontSize="14" fontWeight="600" fill="#374151">{xAxisTitle}</text>
-              <text x={20} y={svgHeight / 2} textAnchor="middle" fontSize="14" fontWeight="600" fill="#374151" transform={`rotate(-90 20 ${svgHeight / 2})`}>{yAxisTitle}</text>
+              <text x={paddingLeft + plotWidth / 2} y={svgHeight - 4} textAnchor="middle" fontSize="13" fontWeight="600" fill="#374151">{xAxisTitle}</text>
+              <text x={14} y={paddingTop + plotHeight / 2} textAnchor="middle" fontSize="13" fontWeight="600" fill="#374151" transform={`rotate(-90 14 ${paddingTop + plotHeight / 2})`}>{yAxisTitle}</text>
             </>
           )}
         </svg>
@@ -708,27 +904,34 @@ const OnTimeDeliveryBarChart = ({ title, subtitle, labels, actuals, targets, sho
 const Box4ThemeBarChart = ({ title, subtitle, labels, values, showAxisLabels = true, xAxisTitle = 'Month', yAxisTitle = 'Value', showHeader = true, showSubtitle, isExpanded = false }) => {
   const svgWidth = 900;
   const svgHeight = isExpanded ? 420 : 216;
-  const padding = isExpanded ? 85 : 48;
+  const paddingLeft = isExpanded ? 90 : 55;
+  const paddingRight = isExpanded ? 16 : 10;
+  const paddingTop = isExpanded ? 40 : 28;
+  const paddingBottom = isExpanded ? 52 : 38;
 
-  const plotWidth = svgWidth - padding * 2;
-  const plotHeight = svgHeight - padding * 2;
+  const plotWidth = svgWidth - paddingLeft - paddingRight;
+  const plotHeight = svgHeight - paddingTop - paddingBottom;
 
   const maxVal = Math.max(...values, 1);
   const minVal = 0;
   const range = maxVal - minVal;
 
   const barWidth = plotWidth / (values.length * 1.5);
-  const getX = (idx) => padding + (idx * plotWidth) / values.length + (plotWidth / values.length / 2 - barWidth / 2);
-  const getY = (val) => svgHeight - padding - ((val - minVal) / (range || 1)) * plotHeight;
+  const getX = (idx) => paddingLeft + (idx * plotWidth) / values.length + (plotWidth / values.length / 2 - barWidth / 2);
+  const getY = (val) => svgHeight - paddingBottom - ((val - minVal) / (range || 1)) * plotHeight;
   const getBarHeight = (val) => ((val - minVal) / (range || 1)) * plotHeight;
+  const getDataLabelY = (val) => Math.max(getY(val) - 6, paddingTop + 14);
 
   const displayAxisLabels = isExpanded || showAxisLabels;
+
+  // Thin X labels if too many
+  const maxXLabels = isExpanded ? labels.length : 12;
+  const xStep = labels.length > maxXLabels ? Math.ceil(labels.length / maxXLabels) : 1;
 
   return (
     <div className="w-full h-full">
       {showHeader && <h2 className="text-base font-semibold text-gray-800 mb-2 text-center">{title}</h2>}
       {(showHeader || showSubtitle) && subtitle && <p className="text-xs font-semibold text-gray-500 mb-1 text-center tracking-wide uppercase">{subtitle}</p>}
-      {/* CHANGED: Added h-full and w-full class to force expansion in compact mode */}
       <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="w-full h-full" preserveAspectRatio="none">
         <defs>
           <linearGradient id="themeBarGradient" x1="0" y1="0" x2="0" y2="1">
@@ -742,28 +945,50 @@ const Box4ThemeBarChart = ({ title, subtitle, labels, values, showAxisLabels = t
           const tickValues = Array.from({ length: ticks + 1 }, (_, i) => minVal + (i / ticks) * range);
           return tickValues.map((tick, i) => {
             const ratio = (tick - minVal) / (range || 1);
-            const y = svgHeight - padding - ratio * plotHeight;
+            const y = svgHeight - paddingBottom - ratio * plotHeight;
             return (
               <g key={`grid-${i}`}>
-                <line x1={padding} y1={y} x2={svgWidth - padding} y2={y} stroke="#e5e7eb" strokeWidth="1" strokeDasharray="5,5" />
+                <line x1={paddingLeft} y1={y} x2={svgWidth - paddingRight} y2={y} stroke="#e5e7eb" strokeWidth="1" strokeDasharray="5,5" />
               </g>
             );
           });
         })()}
 
-        <line x1={padding} y1={padding} x2={padding} y2={svgHeight - padding} stroke="#1f2937" strokeWidth="2" />
-        <line x1={padding} y1={svgHeight - padding} x2={svgWidth - padding} y2={svgHeight - padding} stroke="#1f2937" strokeWidth="2" />
+        <line x1={paddingLeft} y1={paddingTop} x2={paddingLeft} y2={svgHeight - paddingBottom} stroke="#1f2937" strokeWidth="2" />
+        <line x1={paddingLeft} y1={svgHeight - paddingBottom} x2={svgWidth - paddingRight} y2={svgHeight - paddingBottom} stroke="#1f2937" strokeWidth="2" />
 
         {values.map((val, idx) => (
           <g key={`bar-${idx}`}>
             <rect x={getX(idx)} y={getY(val)} width={barWidth} height={getBarHeight(val)} fill="url(#themeBarGradient)" stroke="white" strokeWidth="1" rx="4" />
-            <text x={getX(idx) + barWidth / 2} y={getY(val) - 5} textAnchor="middle" fontSize="14" fontWeight="600" fill="#1e40af">{Math.round(val)}</text>
+            <text
+              x={getX(idx) + barWidth / 2}
+              y={getDataLabelY(val)}
+              textAnchor="middle"
+              fontSize={isExpanded ? 13 : 11}
+              fontWeight="600"
+              fill="#1e40af"
+            >
+              {Math.round(val)}
+            </text>
           </g>
         ))}
 
-        {displayAxisLabels && labels.map((label, idx) => (
-          <text key={`x-label-${idx}`} x={padding + (idx * plotWidth) / labels.length + (plotWidth / labels.length / 2)} y={svgHeight - padding + 20} textAnchor="middle" fontSize="13" fontWeight="500" fill="#4b5563">{label}</text>
-        ))}
+        {displayAxisLabels && labels.map((label, idx) => {
+          if (idx % xStep !== 0) return null;
+          return (
+            <text
+              key={`x-label-${idx}`}
+              x={paddingLeft + (idx * plotWidth) / labels.length + (plotWidth / labels.length / 2)}
+              y={svgHeight - paddingBottom + (isExpanded ? 18 : 14)}
+              textAnchor="middle"
+              fontSize={isExpanded ? 13 : 11}
+              fontWeight="500"
+              fill="#4b5563"
+            >
+              {label}
+            </text>
+          );
+        })}
 
         {displayAxisLabels && (() => {
           const ticks = 5;
@@ -771,18 +996,18 @@ const Box4ThemeBarChart = ({ title, subtitle, labels, values, showAxisLabels = t
           const shouldShowDecimals = range < 10;
           return tickValues.map((tick, i) => {
             const ratio = (tick - minVal) / (range || 1);
-            const y = svgHeight - padding - ratio * plotHeight;
+            const y = svgHeight - paddingBottom - ratio * plotHeight;
             const label = (shouldShowDecimals ? tick.toFixed(1) : Math.round(tick).toString());
             return (
-              <text key={`y-label-${i}`} x={padding - 10} y={y + 4} textAnchor="end" fontSize="14" fontWeight="500" fill="#4b5563">{label}</text>
+              <text key={`y-label-${i}`} x={paddingLeft - 8} y={y + 4} textAnchor="end" fontSize={isExpanded ? 12 : 10} fontWeight="500" fill="#4b5563">{label}</text>
             );
           });
         })()}
 
         {displayAxisLabels && (
           <>
-            <text x={svgWidth / 2} y={svgHeight - 5} textAnchor="middle" fontSize="14" fontWeight="600" fill="#374151">{xAxisTitle}</text>
-            <text x={20} y={svgHeight / 2} textAnchor="middle" fontSize="14" fontWeight="600" fill="#374151" transform={`rotate(-90 20 ${svgHeight / 2})`}>{yAxisTitle}</text>
+            <text x={paddingLeft + plotWidth / 2} y={svgHeight - 4} textAnchor="middle" fontSize="13" fontWeight="600" fill="#374151">{xAxisTitle}</text>
+            <text x={14} y={paddingTop + plotHeight / 2} textAnchor="middle" fontSize="13" fontWeight="600" fill="#374151" transform={`rotate(-90 14 ${paddingTop + plotHeight / 2})`}>{yAxisTitle}</text>
           </>
         )}
       </svg>
@@ -793,31 +1018,40 @@ const Box4ThemeBarChart = ({ title, subtitle, labels, values, showAxisLabels = t
 // Employees left line chart
 const Box4EmployeesLineChart = ({ title, subtitle, labels, values, showAxisLabels = true, showPointLabels = true, xAxisTitle = 'Month', yAxisTitle = 'Count', showHeader = true, showSubtitle, isExpanded = false }) => {
   const svgWidth = 900;
-  const svgHeight = isExpanded ? 420 : 180; // Reduced compact height
-  const padding = isExpanded ? 85 : 40; // Reduced compact padding
-  const plotWidth = svgWidth - padding * 2;
-  const plotHeight = svgHeight - padding * 2;
+  const svgHeight = isExpanded ? 420 : 180;
+  const paddingLeft = isExpanded ? 90 : 52;
+  const paddingRight = isExpanded ? 16 : 10;
+  const paddingTop = isExpanded ? 40 : 26;
+  const paddingBottom = isExpanded ? 52 : 36;
+  const plotWidth = svgWidth - paddingLeft - paddingRight;
+  const plotHeight = svgHeight - paddingTop - paddingBottom;
 
   const maxVal = Math.max(...values, 1);
   const minVal = 0;
   const range = maxVal - minVal;
 
-  const getX = (idx) => padding + (idx / (labels.length - 1 || 1)) * plotWidth;
-  const getY = (val) => svgHeight - padding - ((val - minVal) / (range || 1)) * plotHeight;
+  const getX = (idx) => paddingLeft + (idx / (labels.length - 1 || 1)) * plotWidth;
+  const getY = (val) => svgHeight - paddingBottom - ((val - minVal) / (range || 1)) * plotHeight;
 
   const path = values.map((val, idx) => `${idx === 0 ? 'M' : 'L'} ${getX(idx)} ${getY(val)}`).join(' ');
   const areaPath = values.length > 0 ? (
-    `${path} L ${getX(values.length - 1)} ${svgHeight - padding} L ${getX(0)} ${svgHeight - padding} Z`
+    `${path} L ${getX(values.length - 1)} ${svgHeight - paddingBottom} L ${getX(0)} ${svgHeight - paddingBottom} Z`
   ) : '';
 
   const displayAxisLabels = isExpanded || showAxisLabels;
   const displayPointLabels = isExpanded || showPointLabels;
 
+  // Prevent point labels from going above the top padding boundary
+  const getPointLabelY = (val) => Math.max(getY(val) - 14, paddingTop + 12);
+
+  // Thin X labels if too many
+  const maxXLabels = isExpanded ? labels.length : 12;
+  const xStep = labels.length > maxXLabels ? Math.ceil(labels.length / maxXLabels) : 1;
+
   return (
     <div className="w-full h-full">
       {showHeader && <h2 className="text-base font-semibold text-gray-800 mb-2 text-center">{title}</h2>}
       {(showHeader || showSubtitle) && subtitle && <p className="text-xs font-semibold text-gray-500 mb-1 text-center tracking-wide uppercase">{subtitle}</p>}
-      {/* CHANGED: Added h-full and w-full class to force expansion in compact mode */}
       <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="w-full h-full" preserveAspectRatio="none">
         <defs>
           <linearGradient id="employeeLineGradient" x1="0" y1="0" x2="0" y2="1">
@@ -831,17 +1065,17 @@ const Box4EmployeesLineChart = ({ title, subtitle, labels, values, showAxisLabel
           const tickValues = Array.from({ length: ticks + 1 }, (_, i) => minVal + (i / ticks) * range);
           return tickValues.map((tick, i) => {
             const ratio = (tick - minVal) / (range || 1);
-            const y = svgHeight - padding - ratio * plotHeight;
+            const y = svgHeight - paddingBottom - ratio * plotHeight;
             return (
               <g key={`grid-${i}`}>
-                <line x1={padding} y1={y} x2={svgWidth - padding} y2={y} stroke="#e5e7eb" strokeWidth="1" strokeDasharray="5,5" />
+                <line x1={paddingLeft} y1={y} x2={svgWidth - paddingRight} y2={y} stroke="#e5e7eb" strokeWidth="1" strokeDasharray="5,5" />
               </g>
             );
           });
         })()}
 
-        <line x1={padding} y1={padding} x2={padding} y2={svgHeight - padding} stroke="#1f2937" strokeWidth="2" />
-        <line x1={padding} y1={svgHeight - padding} x2={svgWidth - padding} y2={svgHeight - padding} stroke="#1f2937" strokeWidth="2" />
+        <line x1={paddingLeft} y1={paddingTop} x2={paddingLeft} y2={svgHeight - paddingBottom} stroke="#1f2937" strokeWidth="2" />
+        <line x1={paddingLeft} y1={svgHeight - paddingBottom} x2={svgWidth - paddingRight} y2={svgHeight - paddingBottom} stroke="#1f2937" strokeWidth="2" />
 
         {areaPath && <path d={areaPath} fill="url(#employeeLineGradient)" />}
         <path d={path} stroke="#ef4444" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" />
@@ -849,13 +1083,37 @@ const Box4EmployeesLineChart = ({ title, subtitle, labels, values, showAxisLabel
         {values.map((val, idx) => (
           <g key={`dot-${idx}`}>
             <circle cx={getX(idx)} cy={getY(val)} r="5" fill="#ef4444" stroke="white" strokeWidth="2" />
-            {displayPointLabels && <text x={getX(idx)} y={getY(val) - 12} textAnchor="middle" fontSize="14" fontWeight="600" fill="#991b1b">{Math.round(val)}</text>}
+            {displayPointLabels && (
+              <text
+                x={getX(idx)}
+                y={getPointLabelY(val)}
+                textAnchor="middle"
+                fontSize={isExpanded ? 13 : 11}
+                fontWeight="600"
+                fill="#991b1b"
+              >
+                {Math.round(val)}
+              </text>
+            )}
           </g>
         ))}
 
-        {displayAxisLabels && labels.map((label, idx) => (
-          <text key={`x-label-${idx}`} x={padding + (idx / (labels.length - 1 || 1)) * plotWidth} y={svgHeight - padding + 20} textAnchor="middle" fontSize="13" fontWeight="500" fill="#4b5563">{label}</text>
-        ))}
+        {displayAxisLabels && labels.map((label, idx) => {
+          if (idx % xStep !== 0) return null;
+          return (
+            <text
+              key={`x-label-${idx}`}
+              x={paddingLeft + (idx / (labels.length - 1 || 1)) * plotWidth}
+              y={svgHeight - paddingBottom + (isExpanded ? 18 : 14)}
+              textAnchor="middle"
+              fontSize={isExpanded ? 13 : 11}
+              fontWeight="500"
+              fill="#4b5563"
+            >
+              {label}
+            </text>
+          );
+        })}
 
         {displayAxisLabels && (() => {
           const ticks = 5;
@@ -863,18 +1121,18 @@ const Box4EmployeesLineChart = ({ title, subtitle, labels, values, showAxisLabel
           const shouldShowDecimals = range < 10;
           return tickValues.map((tick, i) => {
             const ratio = (tick - minVal) / (range || 1);
-            const y = svgHeight - padding - ratio * plotHeight;
+            const y = svgHeight - paddingBottom - ratio * plotHeight;
             const label = (shouldShowDecimals ? tick.toFixed(1) : Math.round(tick).toString());
             return (
-              <text key={`y-label-${i}`} x={padding - 10} y={y + 4} textAnchor="end" fontSize="14" fontWeight="500" fill="#4b5563">{label}</text>
+              <text key={`y-label-${i}`} x={paddingLeft - 8} y={y + 4} textAnchor="end" fontSize={isExpanded ? 12 : 10} fontWeight="500" fill="#4b5563">{label}</text>
             );
           });
         })()}
 
         {displayAxisLabels && (
           <>
-            <text x={svgWidth / 2} y={svgHeight - 5} textAnchor="middle" fontSize="14" fontWeight="600" fill="#374151">{xAxisTitle}</text>
-            <text x={20} y={svgHeight / 2} textAnchor="middle" fontSize="14" fontWeight="600" fill="#374151" transform={`rotate(-90 20 ${svgHeight / 2})`}>{yAxisTitle}</text>
+            <text x={paddingLeft + plotWidth / 2} y={svgHeight - 4} textAnchor="middle" fontSize="13" fontWeight="600" fill="#374151">{xAxisTitle}</text>
+            <text x={14} y={paddingTop + plotHeight / 2} textAnchor="middle" fontSize="13" fontWeight="600" fill="#374151" transform={`rotate(-90 14 ${paddingTop + plotHeight / 2})`}>{yAxisTitle}</text>
           </>
         )}
       </svg>
@@ -1036,19 +1294,26 @@ const PillarRadarChart = ({ pillars, onPillarClick, compact = false }) => {
               {normalizedPillars.map((pillar, index) => {
                 const angle = index * angleStep;
                 const point = toPoint(pillar.value, angle);
-                const labelRadius = radius + 22;
+                // Keep labels closer and use textAnchor based on quadrant to avoid overflow
+                const labelRadius = radius + 26;
                 const labelPoint = toPoint(maxValue, angle);
                 const labelX = center + labelRadius * Math.sin(angle);
                 const labelY = center - labelRadius * Math.cos(angle);
+                // Clamp label position to stay within SVG bounds with margin
+                const margin = 10;
+                const clampedLX = Math.max(margin, Math.min(size - margin, labelX));
+                const clampedLY = Math.max(margin + 14, Math.min(size - margin, labelY));
+                const sinA = Math.sin(angle);
+                const anchor = sinA > 0.3 ? 'start' : sinA < -0.3 ? 'end' : 'middle';
 
                 return (
                   <g key={pillar.id || pillar.name}>
                     <circle cx={point.x} cy={point.y} r="5" fill="#2563eb" stroke="white" strokeWidth="2" />
                     <text
-                      x={labelX}
-                      y={labelY}
-                      textAnchor="middle"
-                      fontSize="14"
+                      x={clampedLX}
+                      y={clampedLY}
+                      textAnchor={anchor}
+                      fontSize="13"
                       fontWeight="700"
                       fill="#1e3a8a"
                       style={{ cursor: 'pointer' }}
@@ -1195,18 +1460,23 @@ const DepartmentPerformanceRadarChart = ({ departments, onDepartmentClick }) => 
           {normalizedDepartments.map((department, index) => {
             const angle = index * angleStep;
             const point = toPoint(department.value, angle);
-            const labelRadius = radius + 54;
-            const labelX = center + labelRadius * Math.sin(angle);
-            const labelY = center - labelRadius * Math.cos(angle);
+            // Use adaptive label radius and clamp to SVG bounds
+            const labelRadius = radius + 50;
+            const rawLX = center + labelRadius * Math.sin(angle);
+            const rawLY = center - labelRadius * Math.cos(angle);
             const words = String(department.name || '').trim().split(/\s+/).filter(Boolean);
-            const textAnchor = Math.sin(angle) > 0.35 ? 'start' : (Math.sin(angle) < -0.35 ? 'end' : 'middle');
+            const sinA = Math.sin(angle);
+            const textAnchor = sinA > 0.35 ? 'start' : (sinA < -0.35 ? 'end' : 'middle');
             const labelDx = textAnchor === 'start' ? 6 : (textAnchor === 'end' ? -6 : 0);
+            // Clamp label within SVG (size=500), with margin accounting for text length
+            const svgMarginX = textAnchor === 'start' ? 4 : (textAnchor === 'end' ? -4 : 0);
+            const labelX = Math.max(14, Math.min(size - 14, rawLX + labelDx + svgMarginX));
+            const labelY = Math.max(16, Math.min(size - 6, rawLY));
             const lines = [];
 
             if (words.length <= 1) {
               lines.push(words[0] || '');
             } else if (words.length === 2) {
-              // Keep two-word labels (e.g. Management Representatives) in two lines.
               lines.push(words[0]);
               lines.push(words[1]);
             } else {
@@ -1215,13 +1485,16 @@ const DepartmentPerformanceRadarChart = ({ departments, onDepartmentClick }) => 
               lines.push(words.slice(splitIndex).join(' '));
             }
 
-            const safeLines = lines.slice(0, 2).map((line) => (line.length <= 24 ? line : `${line.slice(0, 21)}...`));
+            const safeLines = lines.slice(0, 2).map((line) => (line.length <= 22 ? line : `${line.slice(0, 19)}...`));
+
+            // Value label: push it above or below the dot so it doesn't overlap dept name
+            const valueLabelY = Math.max(point.y - 12, 10);
 
             return (
               <g key={department.id || department.name}>
                 <circle cx={point.x} cy={point.y} r="5" fill="#15803d" stroke="white" strokeWidth="2" />
                 <text
-                  x={labelX + labelDx}
+                  x={labelX}
                   y={labelY}
                   textAnchor={textAnchor}
                   fontSize="11"
@@ -1231,14 +1504,14 @@ const DepartmentPerformanceRadarChart = ({ departments, onDepartmentClick }) => 
                   onClick={() => onDepartmentClick?.(department)}
                 >
                   {safeLines.map((line, lineIndex) => (
-                    <tspan key={`${department.id || department.name}-line-${lineIndex}`} x={labelX + labelDx} dy={lineIndex === 0 ? 0 : 13}>
+                    <tspan key={`${department.id || department.name}-line-${lineIndex}`} x={labelX} dy={lineIndex === 0 ? 0 : 14}>
                       {line}
                     </tspan>
                   ))}
                 </text>
                 <text
                   x={point.x}
-                  y={point.y - 10}
+                  y={valueLabelY}
                   textAnchor="middle"
                   fontSize="10"
                   fontWeight="600"
@@ -2500,7 +2773,7 @@ function ManagementDashboard() {
               </button>
               {efficiencyLoading ? (
                 <div className="flex items-center justify-center p-8 text-gray-500 text-sm">Loading...</div>
-              ) : (
+              ) : monthlyEfficiency && monthlyEfficiency.length > 0 ? (
                 <div className="flex items-center justify-center gap-1 sm:gap-2 md:gap-4 relative w-full min-w-0 flex-1 min-h-0 overflow-hidden">
                   {/* Previous Month Button */}
                   <button
@@ -2556,6 +2829,8 @@ function ManagementDashboard() {
                     ›
                   </button>
                 </div>
+              ) : (
+                <div className="flex items-center justify-center flex-1 h-full min-h-0 text-gray-500 text-sm font-medium">No data</div>
               )}
             </div>
           </div>
@@ -2588,21 +2863,7 @@ function ManagementDashboard() {
                   />
                 </div>
               ) : (
-                <div
-                  className="flex-1 min-h-0 cursor-pointer flex items-center"
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => openExpandedChart('industry40', { title: 'Industry 4.0 Performance', labels: MONTH_LABELS, actuals: Array(12).fill(0), targets: Array(12).fill(0) })}
-                  onKeyDown={(e) => e.key === 'Enter' && openExpandedChart('industry40', { title: 'Industry 4.0 Performance', labels: MONTH_LABELS, actuals: Array(12).fill(0), targets: Array(12).fill(0) })}
-                >
-                  <Industry40LineChart
-                    title="Industry 4.0 Performance"
-                    labels={MONTH_LABELS}
-                    actuals={Array(12).fill(0)}
-                    targets={Array(12).fill(0)}
-                    showHeader={false}
-                  />
-                </div>
+                <div className="flex items-center justify-center flex-1 h-full min-h-0 text-gray-500 text-sm font-medium">No data</div>
               )}
             </div>
           </div>
@@ -2635,21 +2896,7 @@ function ManagementDashboard() {
                   />
                 </div>
               ) : (
-                <div
-                  className="flex-1 min-h-0 cursor-pointer flex items-center"
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => openExpandedChart('zeroQuality', { title: 'Zero Quality Complaints', labels: MONTH_LABELS, actuals: Array(12).fill(0), targets: Array(12).fill(0) })}
-                  onKeyDown={(e) => e.key === 'Enter' && openExpandedChart('zeroQuality', { title: 'Zero Quality Complaints', labels: MONTH_LABELS, actuals: Array(12).fill(0), targets: Array(12).fill(0) })}
-                >
-                  <Industry40LineChart
-                    title="Zero Quality Complaints"
-                    labels={MONTH_LABELS}
-                    actuals={Array(12).fill(0)}
-                    targets={Array(12).fill(0)}
-                    showHeader={false}
-                  />
-                </div>
+                <div className="flex items-center justify-center flex-1 h-full min-h-0 text-gray-500 text-sm font-medium">No data</div>
               )}
             </div>
           </div>
@@ -2675,7 +2922,7 @@ function ManagementDashboard() {
                   </button>
                   {salesLoading ? (
                     <div className="flex items-center justify-center p-2 md:p-4 text-gray-500 text-sm">Loading...</div>
-                  ) : (
+                  ) : monthlySalesData && monthlySalesData.length > 0 ? (
                     (() => {
                       const latestSalesIdx = monthlySalesData.reduce((idx, d, i) => d.actual > 0 ? i : idx, -1);
                       const activeIdx = latestSalesIdx >= 0 ? latestSalesIdx : (monthlySalesData.length > 0 ? monthlySalesData.length - 1 : 0);
@@ -2747,6 +2994,8 @@ function ManagementDashboard() {
                         </div>
                       );
                     })()
+                  ) : (
+                    <div className="flex items-center justify-center flex-1 h-full min-h-0 text-gray-500 text-sm font-medium">No data</div>
                   )}
                 </div>
 
@@ -2760,7 +3009,7 @@ function ManagementDashboard() {
                   </button>
                   {profitabilityLoading ? (
                     <div className="flex items-center justify-center p-2 md:p-4 text-gray-500 text-sm">Loading...</div>
-                  ) : (
+                  ) : monthlyProfitData && monthlyProfitData.length > 0 ? (
                     <div className="flex items-center justify-center gap-1 md:gap-2 flex-1 cursor-pointer"
                       role="button"
                       tabIndex={0}
@@ -2874,6 +3123,8 @@ function ManagementDashboard() {
                         ›
                       </button>
                     </div>
+                  ) : (
+                    <div className="flex items-center justify-center flex-1 h-full min-h-0 text-gray-500 text-sm font-medium">No data</div>
                   )}
                 </div>
               </div>
@@ -2902,15 +3153,7 @@ function ManagementDashboard() {
                   <OnTimeDeliveryBarChart title={onTimeDeliveryChart.title} subtitle={onTimeDeliveryChart.subtitle} labels={onTimeDeliveryChart.labels} actuals={onTimeDeliveryChart.actuals} targets={onTimeDeliveryChart.targets} showHeader={false} />
                 </div>
               ) : (
-                <div
-                  className="flex-1 min-h-0 cursor-pointer flex items-center"
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => openExpandedChart('onTimeDelivery', { title: 'On Time Delivery', subtitle: 'Target vs Achieved', labels: FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1]), actuals: Array(12).fill(0), targets: Array(12).fill(0) })}
-                  onKeyDown={(e) => e.key === 'Enter' && openExpandedChart('onTimeDelivery', { title: 'On Time Delivery', subtitle: 'Target vs Achieved', labels: FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1]), actuals: Array(12).fill(0), targets: Array(12).fill(0) })}
-                >
-                  <OnTimeDeliveryBarChart title="On Time Delivery" subtitle="Target vs Achieved" labels={FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1])} actuals={Array(12).fill(0)} targets={Array(12).fill(0)} showHeader={false} />
-                </div>
+                <div className="flex items-center justify-center flex-1 h-full min-h-0 text-gray-500 text-sm font-medium">No data</div>
               )}
             </div>
           </div>
@@ -2938,15 +3181,7 @@ function ManagementDashboard() {
                   <ZeroAccidentsBarChart className="max-w-[92%]" title={zeroAccidentsChart.title} subtitle={zeroAccidentsChart.subtitle} labels={zeroAccidentsChart.labels} actuals={zeroAccidentsChart.actuals} targets={zeroAccidentsChart.targets} showHeader={false} />
                 </div>
               ) : (
-                <div
-                  className="flex-1 min-h-0 cursor-pointer flex items-center justify-end"
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => openExpandedChart('zeroAccidents', { title: 'Safety', subtitle: 'Zero Accidents', labels: FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1]), actuals: Array(12).fill(0), targets: Array(12).fill(0) })}
-                  onKeyDown={(e) => e.key === 'Enter' && openExpandedChart('zeroAccidents', { title: 'Safety', subtitle: 'Zero Accidents', labels: FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1]), actuals: Array(12).fill(0), targets: Array(12).fill(0) })}
-                >
-                  <ZeroAccidentsBarChart className="max-w-[92%]" title="Safety" subtitle="Zero Accidents" labels={FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1])} actuals={Array(12).fill(0)} targets={Array(12).fill(0)} showHeader={false} />
-                </div>
+                <div className="flex items-center justify-center flex-1 h-full min-h-0 text-gray-500 text-sm font-medium">No data</div>
               )}
             </div>
           </div>
@@ -2973,15 +3208,7 @@ function ManagementDashboard() {
                   <GreenFactoryBarChart title={greenFactoryChart.title} subtitle={greenFactoryChart.subtitle} labels={greenFactoryChart.labels} values={greenFactoryChart.values} showHeader={false} />
                 </div>
               ) : (
-                <div
-                  className="flex-1 min-h-0 cursor-pointer flex items-center"
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => openExpandedChart('greenFactory', { title: 'Environment', subtitle: 'Green Factory', labels: FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1]), values: Array(12).fill(0) })}
-                  onKeyDown={(e) => e.key === 'Enter' && openExpandedChart('greenFactory', { title: 'Environment', subtitle: 'Green Factory', labels: FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1]), values: Array(12).fill(0) })}
-                >
-                  <GreenFactoryBarChart title="Environment" subtitle="Green Factory" labels={FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1])} values={Array(12).fill(0)} showHeader={false} />
-                </div>
+                <div className="flex items-center justify-center flex-1 h-full min-h-0 text-gray-500 text-sm font-medium">No data</div>
               )}
             </div>
           </div>
@@ -3010,7 +3237,7 @@ function ManagementDashboard() {
                       {themeChart ? (
                         <Box4ThemeBarChart title={themeChart.title} subtitle={themeChart.subtitle} labels={themeChart.labels} values={themeChart.values} showHeader={false} showSubtitle={true} />
                       ) : (
-                        <Box4ThemeBarChart title="Theme Of The Year" subtitle="Unlock The Power of You" labels={FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1])} values={Array(12).fill(0)} showHeader={false} showSubtitle={true} />
+                        <div className="flex items-center justify-center flex-1 h-full min-h-0 text-gray-500 text-sm font-medium">No data</div>
                       )}
                     </div>
                   )}
@@ -3029,7 +3256,7 @@ function ManagementDashboard() {
                       {employeesChart ? (
                         <Box4EmployeesLineChart title={employeesChart.title} subtitle={employeesChart.subtitle} labels={employeesChart.labels} values={employeesChart.values} showHeader={false} showSubtitle={true} />
                       ) : (
-                        <Box4EmployeesLineChart title="No. of Employees Who Left" subtitle="Monthly Attrition" labels={FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1])} values={Array(12).fill(0)} showHeader={false} showSubtitle={true} />
+                        <div className="flex items-center justify-center flex-1 h-full min-h-0 text-gray-500 text-sm font-medium">No data</div>
                       )}
                     </div>
                   )}
