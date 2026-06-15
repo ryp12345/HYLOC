@@ -202,9 +202,9 @@ const Industry40LineChart = ({
                     x={getX(idx)}
                     y={actualLabelY}
                     textAnchor="middle"
-fontSize={isExpanded ? 14 : 12}
-                fontWeight="700"
-                fill="#0ea5e9"
+                    fontSize={isExpanded ? 14 : 12}
+                    fontWeight="700"
+                    fill="#0ea5e9"
                     clipPath="url(#industry40ClipLabels)"
                   >
                     {formatY(Number(val))}
@@ -237,10 +237,10 @@ fontSize={isExpanded ? 14 : 12}
             const ticks = 5;
             const tickValues = Array.from({ length: ticks + 1 }, (_, i) => minVal + (i / ticks) * range);
             return tickValues.map((tick, i) => {
-const ratio = (tick - minVal) / (range || 1);
-               const y = svgHeight - paddingBottom - ratio * plotHeight;
-               return (
-                 <text key={`y-label-${i}`} x={paddingLeft - 8} y={y + 4} textAnchor="end" fontSize={isExpanded ? 14 : 12} fontWeight="500" fill="#4b5563">
+              const ratio = (tick - minVal) / (range || 1);
+              const y = svgHeight - paddingBottom - ratio * plotHeight;
+              return (
+                <text key={`y-label-${i}`} x={paddingLeft - 8} y={y + 4} textAnchor="end" fontSize={isExpanded ? 14 : 12} fontWeight="500" fill="#4b5563">
                   {formatY(tick)}
                 </text>
               );
@@ -530,11 +530,11 @@ const GreenFactoryBarChart = ({ title, subtitle, labels, values, showHeader = tr
 
 // Bar Chart component for Zero Accidents (shows actual vs target per month)
 const ZeroAccidentsBarChart = ({ title, subtitle, labels, actuals, targets, showHeader = true, showAxisLabels = true, xAxisTitle = 'Month', yAxisTitle = 'Value', isExpanded = false, className = '' }) => {
-  const svgHeight = isExpanded ? 360 : 210;
-  const paddingLeft = isExpanded ? 62 : 42
+  const svgHeight = isExpanded ? 420 : 260;
+  const paddingLeft = isExpanded ? 69 : 42
   const paddingRight = isExpanded ? 12 : 8;
   const paddingTop = isExpanded ? 40 : 26
-  const paddingBottom =  isExpanded ? 68 : 48
+  const paddingBottom = isExpanded ? 75 : 52;
 
   const svgWidth = 640;
 
@@ -565,8 +565,8 @@ const ZeroAccidentsBarChart = ({ title, subtitle, labels, actuals, targets, show
   const range = maxVal - minVal;
   const groupWidth = plotWidth / Math.max(displayLabels.length, 1);
   const barWidth = isExpanded ? Math.min(42, groupWidth * 0.45) : Math.min(34, groupWidth * 0.55);
-  const axisLabelFontSize = isExpanded ? 15 : 13;
-  const axisTitleFontSize = isExpanded ? 15 : 13;
+  const axisLabelFontSize = isExpanded ? 20 : 18;
+  const axisTitleFontSize = isExpanded ? 25 : 22;
   const legendFontSize = isExpanded ? 12 : 10;
   const getX = (idx, which) => {
     const base = paddingLeft + idx * groupWidth + groupWidth / 2;
@@ -1197,7 +1197,7 @@ const PillarRadarChart = ({ pillars, onPillarClick, compact = false }) => {
         <div className="py-16 text-center text-gray-500">No pillars available</div>
       ) : compact ? (
         <div className="w-full h-full flex items-center justify-center">
-          <svg viewBox={`0 0 ${size} ${size}`} className="w-full h-full max-h-[260px]">
+          <svg viewBox={`0 0 ${size} ${size}`} className="w-full h-full max-h-[260px]" preserveAspectRatio="none">
             {[...Array(ringSteps)].map((_, ringIndex) => {
               const ringRadius = ((ringIndex + 1) / ringSteps) * radius;
               return (
@@ -1676,6 +1676,8 @@ function ManagementDashboard() {
 
   // Computed fiscal month sequence based on selected year
   const FISCAL_MONTH_SEQUENCE = useMemo(() => getFiscalMonthSequence(selectedFiscalYear), [selectedFiscalYear]);
+
+  // (no responsive CSS injection here) keep original sizing logic
 
   const getKpisForFiscalYear = async () => {
     const kpisRes = await api.get('/kpis');
@@ -3720,4 +3722,4 @@ function ManagementDashboard() {
   );
 }
 
-export default ManagementDashboard;
+export default ManagementDashboard; 
