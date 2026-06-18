@@ -306,89 +306,151 @@ const SpeedometerGauge = ({ efficiency, month, year, isExpanded = false }) => {
     <div className={`flex flex-col items-center justify-center h-full min-h-0 relative z-10 ${isExpanded ? 'py-6 w-full max-w-[480px]' : ''}`}>
       <h3 className={`font-semibold text-gray-800 mb-1 whitespace-nowrap ${isExpanded ? 'text-2xl mb-4' : 'text-[10px] sm:text-xs'}`}>{month} {year}</h3>
       <svg
-        viewBox="0 0 300 200"
+        viewBox="0 0 300 220"
         className="w-full h-auto flex-1 min-h-0"
         style={{
-          maxWidth: isExpanded ? '450px' : '300px',
-          maxHeight: isExpanded ? '300px' : '100px'
+          width: isExpanded ? "700px" : "600px",
+          height: isExpanded ? "500px" : "400px",
+          maxWidth: "100%",
         }}
       >
-        {/* Background arc */}
+        {/* Background Arc */}
         <path
-          d="M 70 150 A 80 80 0 0 1 230 150"
+          d="M 12 180 A 138 138 0 0 1 288 180"
           fill="none"
           stroke="#e5e7eb"
-          strokeWidth="20"
+          strokeWidth="24"
           strokeLinecap="round"
         />
 
-        {/* Red zone (0-60) */}
+        {/* Red Zone */}
         <path
-          d="M 70 150 A 80 80 0 0 1 126 82"
+          d="M 12 180 A 138 138 0 0 1 106 49"
           fill="none"
           stroke="#ef4444"
-          strokeWidth="20"
+          strokeWidth="24"
           strokeLinecap="round"
         />
 
-        {/* Yellow zone (61-80) */}
+        {/* Yellow Zone */}
         <path
-          d="M 126 82 A 80 80 0 0 1 174 82"
+          d="M 106 49 A 138 138 0 0 1 194 49"
           fill="none"
           stroke="#eab308"
-          strokeWidth="20"
+          strokeWidth="24"
           strokeLinecap="round"
         />
 
-        {/* Green zone (81-100) */}
+        {/* Green Zone */}
         <path
-          d="M 174 82 A 80 80 0 0 1 230 150"
+          d="M 194 49 A 138 138 0 0 1 288 180"
           fill="none"
           stroke="#22c55e"
-          strokeWidth="20"
+          strokeWidth="24"
           strokeLinecap="round"
         />
 
-        {/* Needle & Arrow Tip Group with smooth transition */}
+        {/* Tick Marks */}
+        <line x1="18" y1="180" x2="32" y2="180" stroke="#374151" strokeWidth="3" />
+        <line x1="66" y1="84" x2="78" y2="92" stroke="#374151" strokeWidth="3" />
+        <line x1="150" y1="42" x2="150" y2="58" stroke="#374151" strokeWidth="3" />
+        <line x1="234" y1="84" x2="222" y2="92" stroke="#374151" strokeWidth="3" />
+        <line x1="282" y1="180" x2="268" y2="180" stroke="#374151" strokeWidth="3" />
+
+        {/* Needle */}
         <g
-          transform={`rotate(${angle}, 150, 150)`}
+          transform={`rotate(${angle}, 150, 180)`}
           style={{
-            transition: 'transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)'
+            transition: "transform 0.7s cubic-bezier(0.34, 1.56, 0.64, 1)",
           }}
         >
           <line
             x1="150"
-            y1="150"
-            x2="230"
-            y2="150"
+            y1="180"
+            x2="272"
+            y2="180"
             stroke={color}
-            strokeWidth="4"
+            strokeWidth="5"
             strokeLinecap="round"
-            style={{ transition: 'stroke 0.4s ease' }}
           />
-          {/* Arrow tip correctly aligned and pointing right (at 230, 150) */}
+
           <polygon
-            points="230,150 218,144 218,156"
+            points="272,180 255,171 255,189"
             fill={color}
-            style={{ transition: 'fill 0.4s ease' }}
           />
         </g>
 
-        {/* Center dot */}
+        {/* Center Hub */}
         <circle
           cx="150"
-          cy="150"
-          r="8"
+          cy="180"
+          r="14"
           fill={color}
-          style={{ transition: 'fill 0.4s ease' }}
+        />
+
+        <circle
+          cx="150"
+          cy="180"
+          r="5"
+          fill="#fff"
         />
 
         {/* Labels */}
-        <text x="75" y="175" fontSize="14" fontWeight="600" fill="#4b5563" textAnchor="middle">0</text>
-        <text x="150" y="50" fontSize="14" fontWeight="600" fill="#4b5563" textAnchor="middle">50</text>
-        <text x="225" y="175" fontSize="14" fontWeight="600" fill="#4b5563" textAnchor="middle">100</text>
-      </svg>
+        <text
+          x="8"
+          y="204"
+          fontSize="14"
+          fontWeight="700"
+          fill="#4b5563"
+          textAnchor="start"
+        >
+          0
+        </text>
 
+        <text
+          x="62"
+          y="80"
+          fontSize="14"
+          fontWeight="700"
+          fill="#4b5563"
+          textAnchor="middle"
+        >
+          25
+        </text>
+
+        <text
+          x="150"
+          y="28"
+          fontSize="14"
+          fontWeight="700"
+          fill="#4b5563"
+          textAnchor="middle"
+        >
+          50
+        </text>
+
+        <text
+          x="238"
+          y="80"
+          fontSize="14"
+          fontWeight="700"
+          fill="#4b5563"
+          textAnchor="middle"
+        >
+          75
+        </text>
+
+        <text
+          x="292"
+          y="204"
+          fontSize="14"
+          fontWeight="700"
+          fill="#4b5563"
+          textAnchor="end"
+        >
+          100
+        </text>
+      </svg>
       <div className={`text-center ${isExpanded ? 'mt-3' : 'mt-0.5'}`}>
         <div className={`font-extrabold text-gray-800 ${isExpanded ? 'text-2xl' : 'text-base sm:text-lg'}`}>{efficiency.toFixed(1)}%</div>
         <div className={`text-xs font-semibold mt-0.5 px-2 py-0.5 rounded-full inline-block ${status === 'Excellent' ? 'bg-green-100 text-green-700' :
@@ -530,13 +592,13 @@ const GreenFactoryBarChart = ({ title, subtitle, labels, values, showHeader = tr
 
 // Bar Chart component for Zero Accidents (shows actual vs target per month)
 const ZeroAccidentsBarChart = ({ title, subtitle, labels, actuals, targets, showHeader = true, showAxisLabels = true, xAxisTitle = 'Month', yAxisTitle = 'Value', isExpanded = false, className = '' }) => {
-  const svgHeight = isExpanded ? 420 : 260;
-  const paddingLeft = isExpanded ? 69 : 42
-  const paddingRight = isExpanded ? 12 : 8;
-  const paddingTop = isExpanded ? 40 : 26
-  const paddingBottom = isExpanded ? 75 : 52;
+  const svgHeight = isExpanded ? 290 : 216;
+  const paddingLeft = isExpanded ? 90 : 55;
+  const paddingRight = isExpanded ? 16 : 10;
+  const paddingTop = isExpanded ? 36 : 26;
+  const paddingBottom = isExpanded ? 50 : 36;
 
-  const svgWidth = 640;
+  const svgWidth = 900;
 
   const baseData = labels.map((label, idx) => {
     const actualValue = Number(actuals[idx] ?? 0);
@@ -564,9 +626,9 @@ const ZeroAccidentsBarChart = ({ title, subtitle, labels, actuals, targets, show
   const minVal = 0;
   const range = maxVal - minVal;
   const groupWidth = plotWidth / Math.max(displayLabels.length, 1);
-  const barWidth = isExpanded ? Math.min(42, groupWidth * 0.45) : Math.min(34, groupWidth * 0.55);
-  const axisLabelFontSize = isExpanded ? 20 : 18;
-  const axisTitleFontSize = isExpanded ? 25 : 22;
+  const barWidth = groupWidth * 0.4;
+  const axisLabelFontSize = isExpanded ? 13 : 11;
+  const axisTitleFontSize = 13;
   const legendFontSize = isExpanded ? 12 : 10;
   const getX = (idx, which) => {
     const base = paddingLeft + idx * groupWidth + groupWidth / 2;
@@ -2935,7 +2997,7 @@ function ManagementDashboard() {
                       const pct = cumulTarget > 0 ? Math.min((cumulActual / cumulTarget) * 100, 100) : 0;
                       const achievedAngle = (pct / 100) * 360;
                       const achievedRadians = (achievedAngle * Math.PI) / 180;
-                      const radius = 70; const cx = 100; const cy = 100;
+                      const radius = 99; const cx = 100; const cy = 100;
                       const x1 = cx + radius * Math.cos(-Math.PI / 2);
                       const y1 = cy + radius * Math.sin(-Math.PI / 2);
                       const x2 = cx + radius * Math.cos(-Math.PI / 2 + achievedRadians);
@@ -3043,7 +3105,7 @@ function ManagementDashboard() {
                               </defs>
                               {(() => {
                                 const profitData = monthlyProfitData[selectedProfitIndex] || { profit: 0, target: 100 };
-                                const radius = 70;
+                                const radius = 99;
                                 const cx = 100;
                                 const cy = 100;
                                 const profit = profitData.profit;
@@ -3132,6 +3194,7 @@ function ManagementDashboard() {
               </div>
             </div>
           </div>
+
           {/* Row 2: Cost (col-span-3) + On Time Delivery (col-span-3) */}
           {/* On Time Delivery */}
           <div className="w-full h-full min-h-0 lg:col-span-6 lg:row-span-1">
