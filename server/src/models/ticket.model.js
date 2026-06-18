@@ -42,9 +42,59 @@ exports.getTicketStatuses = async () => {
   return result.rows.map(row => row.value);
 };
 
-// Get all tickets
+// Get all tickets (unrestricted — internal use only)
 exports.getAllTickets = async () => {
   const result = await pool.query('SELECT * FROM tickets ORDER BY created_at DESC');
+  return result.rows;
+};
+
+// Get tickets visible to a specific user based on role:
+// - Management: all tickets
+// - Employee / Manager: only tickets they created OR are assigned to
+exports.getTicketsForUser = async (userId, role) => {
+  const roleNorm = role && typeof role === 'string' ? role.toLowerCase() : (role && role.name ? String(role.name).toLowerCase() : '');
+  if (roleNorm === 'management') {
+    const result = await pool.query('SELECT * FROM tickets ORDER BY created_at DESC');
+    return result.rows;
+  }
+
+  // For Managers, include tickets created by Employees in the same department
+  if (roleNorm === 'manager') {
+    try {
+      const deptRes = await pool.query('SELECT department_id FROM users WHERE id = $1', [userId]);
+      const deptId = deptRes.rows && deptRes.rows[0] ? deptRes.rows[0].department_id : null;
+      if (!deptId) {
+        // Fallback to creator/assignee only
+        const fallback = await pool.query('SELECT * FROM tickets WHERE user_id = $1 OR assigned_to = $1 ORDER BY created_at DESC', [userId]);
+        return fallback.rows;
+      }
+
+      const query = `
+        SELECT t.*
+        FROM tickets t
+        LEFT JOIN users u ON u.id = t.user_id
+        LEFT JOIN user_roles ur ON ur.user_id = u.id AND ur.status = 'active'
+        LEFT JOIN roles r ON r.id = ur.role_id
+        WHERE t.user_id = $1
+          OR t.assigned_to = $1
+          OR (u.department_id = $2 AND LOWER(r.role_name) = 'employee')
+        ORDER BY t.created_at DESC
+      `;
+      const result = await pool.query(query, [userId, deptId]);
+      return result.rows;
+    } catch (e) {
+      // On error, fallback to minimal visibility
+      console.error('getTicketsForUser (manager) error:', e);
+      const fallback = await pool.query('SELECT * FROM tickets WHERE user_id = $1 OR assigned_to = $1 ORDER BY created_at DESC', [userId]);
+      return fallback.rows;
+    }
+  }
+
+  // Default: creator or assignee only
+  const result = await pool.query(
+    'SELECT * FROM tickets WHERE user_id = $1 OR assigned_to = $1 ORDER BY created_at DESC',
+    [userId]
+  );
   return result.rows;
 };
 
@@ -54,9 +104,12 @@ exports.getTicketById = async (id) => {
   return result.rows[0];
 };
 
-// Get tickets created by a specific user
+// Get tickets where user is creator OR assignee (used for "my tickets" endpoint)
 exports.getTicketsByUserId = async (userId) => {
-  const result = await pool.query('SELECT * FROM tickets WHERE user_id = $1 ORDER BY created_at DESC', [userId]);
+  const result = await pool.query(
+    'SELECT * FROM tickets WHERE user_id = $1 OR assigned_to = $1 ORDER BY created_at DESC',
+    [userId]
+  );
   return result.rows;
 };
 

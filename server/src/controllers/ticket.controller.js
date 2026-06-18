@@ -1,4 +1,6 @@
-// Get tickets created by the logged-in user
+// Get tickets visible to the logged-in user:
+// - Management: all tickets
+// - Employee / Manager: tickets they created OR are assigned to
 exports.getMyTickets = async (req, res) => {
   try {
     const userId = req.user?.userId;
@@ -85,6 +87,9 @@ exports.createTicket = async (req, res) => {
     if (!title || !user_id || !due_date) {
       return res.status(400).json({ success: false, message: 'Title, user_id (creator) and due_date are required' });
     }
+    if (!assigned_to) {
+      return res.status(400).json({ success: false, message: 'Assignee is required' });
+    }
 
     // If a file was uploaded, build a URL path for it
     let attachmentUrl = null;
@@ -150,7 +155,9 @@ exports.createTicket = async (req, res) => {
 
 exports.getAllTickets = async (req, res) => {
   try {
-    const tickets = await ticketModel.getAllTickets();
+    const userId = req.user?.userId;
+    const role = req.user?.role;
+    const tickets = await ticketModel.getTicketsForUser(userId, role);
     const enriched = (tickets || []).map(t => ({ ...(t || {}), ...(String(t?.status || '').toLowerCase() === 'rejected' ? { rejected_date: t.updated_at } : {}) }));
     res.status(200).json({ success: true, data: enriched });
   } catch (error) {
@@ -163,6 +170,37 @@ exports.getTicketById = async (req, res) => {
   try {
     const ticket = await ticketModel.getTicketById(req.params.id);
     if (!ticket) return res.status(404).json({ success: false, message: 'Ticket not found' });
+
+    // Authorization: only Creator, Assignee, or Management may view a ticket
+    const requesterId = req.user?.userId;
+    const requesterRole = req.user?.role;
+    const isManagement = requesterRole && String(requesterRole).toLowerCase() === 'management';
+    const isCreator = String(ticket.user_id) === String(requesterId);
+    const isAssignee = ticket.assigned_to && String(ticket.assigned_to) === String(requesterId);
+
+    // Allow viewing if Management, creator, assignee, or Manager of same department as creator
+    if (!isManagement && !isCreator && !isAssignee) {
+      try {
+        const reqRoleNorm = requesterRole ? String(requesterRole).toLowerCase() : '';
+        let isManagerSameDept = false;
+        if (reqRoleNorm === 'manager') {
+          const deptRes = await pool.query('SELECT id, department_id FROM users WHERE id = ANY($1)', [[requesterId, ticket.user_id]]);
+          const rowsById = (deptRes.rows || []).reduce((acc, r) => ({ ...acc, [String(r.id)]: r }), {});
+          const requesterDept = rowsById[String(requesterId)] ? rowsById[String(requesterId)].department_id : null;
+          const creatorDept = rowsById[String(ticket.user_id)] ? rowsById[String(ticket.user_id)].department_id : null;
+          if (requesterDept && creatorDept && String(requesterDept) === String(creatorDept)) {
+            isManagerSameDept = true;
+          }
+        }
+        if (!isManagerSameDept) {
+          return res.status(403).json({ success: false, message: 'You are not authorized to view this ticket' });
+        }
+      } catch (e) {
+        console.error('Department-check error on getTicketById:', e);
+        return res.status(403).json({ success: false, message: 'You are not authorized to view this ticket' });
+      }
+    }
+
     const enriched = { ...(ticket || {}), ...(String(ticket?.status || '').toLowerCase() === 'rejected' ? { rejected_date: ticket.updated_at } : {}) };
     res.status(200).json({ success: true, data: enriched });
   } catch (error) {
@@ -185,6 +223,12 @@ exports.updateTicket = async (req, res) => {
     // fetch existing ticket to enforce rules
     const existing = await ticketModel.getTicketById(id);
     if (!existing) return res.status(404).json({ success: false, message: 'Ticket not found' });
+
+    // Assignee is required — either retained from existing or explicitly provided in payload
+    const incomingAssignee = payload.assigned_to !== undefined ? payload.assigned_to : existing.assigned_to;
+    if (!incomingAssignee) {
+      return res.status(400).json({ success: false, message: 'Assignee is required' });
+    }
 
     const requesterId = req.user?.userId;
     const requesterRole = req.user?.role;

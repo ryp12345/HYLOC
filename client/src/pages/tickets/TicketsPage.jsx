@@ -300,6 +300,10 @@ export default function TicketsPage() {
       setError('Due Date is required');
       return;
     }
+    if (!form.assigned_to) {
+      setError('Assign To is required');
+      return;
+    }
     try {
       if (editingId) {
         // If ticket is Open and creator assigns it, set status to Assigned
@@ -944,7 +948,7 @@ export default function TicketsPage() {
                     </div>
                     <div className="flex gap-4">
                       <div className="flex-1">
-                        <label className="block mb-2 text-sm font-medium text-gray-700">Assign To</label>
+                        <label className="block mb-2 text-sm font-medium text-gray-700">Assign To *</label>
                         <select
                           value={form.assigned_to}
                           onChange={e => {
@@ -959,7 +963,7 @@ export default function TicketsPage() {
                               setForm({ ...form, assigned_to: newAssigned });
                             }
                           }}
-                          className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          className={`block w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${editingId && !form.assigned_to ? 'border-red-400 bg-red-50' : 'border-gray-300'}`}
                           disabled={editingId && form.status === 'Open' && !form.assigned_to && String(form.user_id) !== String(user?.id)}
                         >
                           {users.length === 0 ? (
@@ -1092,7 +1096,28 @@ export default function TicketsPage() {
                     </div>
                     <div className="flex justify-end space-x-4 pt-4">
                       <button type="button" onClick={onClose} className="inline-flex justify-center px-6 py-3 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">Cancel</button>
-                      <button type="submit" className="inline-flex justify-center px-6 py-3 text-sm font-medium text-white border border-transparent rounded-lg shadow-sm bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">{editingId ? 'Update Ticket' : 'Create Ticket'}</button>
+                      {(() => {
+                        const isEditing = Boolean(editingId);
+                        const isAssignee = String(form.assigned_to) === String(user?.id);
+                        const isCreator = String(form.user_id) === String(user?.id);
+                        const isManagementUser = String(user?.role || '').toLowerCase() === 'management';
+                        const disableUpdateBtn = isEditing && isAssignee && !isCreator && !isManagementUser;
+
+                        return (
+                          <button
+                            type="submit"
+                            disabled={disableUpdateBtn}
+                            title={disableUpdateBtn ? "Assignees are not allowed to update the ticket directly" : undefined}
+                            className={`inline-flex justify-center px-6 py-3 text-sm font-medium text-white border border-transparent rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
+                              disableUpdateBtn 
+                                ? 'bg-blue-400 opacity-50 cursor-not-allowed' 
+                                : 'bg-blue-600 hover:bg-blue-700'
+                            }`}
+                          >
+                            {editingId ? 'Update Ticket' : 'Create Ticket'}
+                          </button>
+                        );
+                      })()}
                     </div>
                   </form>
                 </div>

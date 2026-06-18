@@ -730,7 +730,7 @@ const ManagementCalendar = () => {
 	const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 	const entitlementTotal = parseFloat(leaveBalance?.leave_entitled ?? 0) + parseFloat(leaveBalance?.leaves_accumulated ?? 0);
 	const availedTotal = parseFloat(leaveBalance?.leaves_availed ?? 0);
-	const unpaidLeaveDays = leaves
+	const unpaidLeaveDays = myLeaves
 		.filter(l => isUnpaidLeave(l) && l.status !== 'Rejected' && l.status !== 'Cancelled')
 		.reduce((sum, l) => sum + parseFloat(l.credited_days || 0), 0);
 
