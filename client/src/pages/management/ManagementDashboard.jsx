@@ -3566,11 +3566,11 @@ function ManagementDashboard() {
               {expandedChart === 'themeEmployees' && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full h-full">
                   <div className="bg-gray-50 rounded-xl p-8 border border-gray-100 shadow-sm flex flex-col h-full">
-                    <h4 className="font-semibold text-xl text-gray-700 mb-6 border-b pb-4 text-center">Theme Of The Year</h4>
+                    {/* <h4 className="font-semibold text-xl text-gray-700 mb-6 border-b pb-4 text-center">Theme Of The Year</h4> */}
                     <div className="flex-1 min-h-0">
                       <Box4ThemeBarChart
                         title={expandedChartData?.themeChart?.title || 'Theme Of The Year'}
-                        subtitle={expandedChartData?.themeChart?.subtitle || 'Unlock The Power of You'}
+                        // subtitle={expandedChartData?.themeChart?.subtitle || 'Unlock The Power of You'}
                         labels={expandedChartData?.themeChart?.labels || FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1])}
                         values={expandedChartData?.themeChart?.values || Array(12).fill(0)}
                         isExpanded={true}
@@ -3579,11 +3579,11 @@ function ManagementDashboard() {
                   </div>
 
                   <div className="bg-gray-50 rounded-xl p-8 border border-gray-100 shadow-sm flex flex-col h-full">
-                    <h4 className="font-semibold text-xl text-gray-700 mb-6 border-b pb-4 text-center">Employees Left</h4>
+                    {/* <h4 className="font-semibold text-xl text-gray-700 mb-6 border-b pb-4 text-center">Employees Left</h4> */}
                     <div className="flex-1 min-h-0">
                       <Box4EmployeesLineChart
                         title={expandedChartData?.employeesChart?.title || 'No. of Employees Who Left'}
-                        subtitle={expandedChartData?.employeesChart?.subtitle || 'Monthly Attrition'}
+                        // subtitle={expandedChartData?.employeesChart?.subtitle || 'Monthly Attrition'}
                         labels={expandedChartData?.employeesChart?.labels || FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1])}
                         values={expandedChartData?.employeesChart?.values || Array(12).fill(0)}
                         isExpanded={true}
