@@ -3329,7 +3329,6 @@ function ManagementDashboard() {
               </div>
             </div>
           </div>
-
         </div>
       </div>
       {/* Performance Dashboard Section End */}
@@ -3565,49 +3564,53 @@ function ManagementDashboard() {
               )}
 
               {expandedChart === 'themeEmployees' && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full p-4">
-                  <div className="bg-gray-50 rounded-xl p-6 border border-gray-100 shadow-sm">
-                    <h4 className="font-semibold text-lg text-gray-700 mb-4 border-b pb-2">Theme Of The Year</h4>
-                    <Box4ThemeBarChart
-                      title={expandedChartData?.themeChart?.title || 'Theme Of The Year'}
-                      subtitle={expandedChartData?.themeChart?.subtitle || 'Unlock The Power of You'}
-                      labels={expandedChartData?.themeChart?.labels || FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1])}
-                      values={expandedChartData?.themeChart?.values || Array(12).fill(0)}
-                      isExpanded={true}
-                    />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full h-full">
+                  <div className="bg-gray-50 rounded-xl p-8 border border-gray-100 shadow-sm flex flex-col h-full">
+                    <h4 className="font-semibold text-xl text-gray-700 mb-6 border-b pb-4 text-center">Theme Of The Year</h4>
+                    <div className="flex-1 min-h-0">
+                      <Box4ThemeBarChart
+                        title={expandedChartData?.themeChart?.title || 'Theme Of The Year'}
+                        subtitle={expandedChartData?.themeChart?.subtitle || 'Unlock The Power of You'}
+                        labels={expandedChartData?.themeChart?.labels || FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1])}
+                        values={expandedChartData?.themeChart?.values || Array(12).fill(0)}
+                        isExpanded={true}
+                      />
+                    </div>
                   </div>
 
-                  <div className="bg-gray-50 rounded-xl p-6 border border-gray-100 shadow-sm">
-                    <h4 className="font-semibold text-lg text-gray-700 mb-4 border-b pb-2">Employees Left</h4>
-                    <Box4EmployeesLineChart
-                      title={expandedChartData?.employeesChart?.title || 'No. of Employees Who Left'}
-                      subtitle={expandedChartData?.employeesChart?.subtitle || 'Monthly Attrition'}
-                      labels={expandedChartData?.employeesChart?.labels || FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1])}
-                      values={expandedChartData?.employeesChart?.values || Array(12).fill(0)}
-                      isExpanded={true}
-                    />
+                  <div className="bg-gray-50 rounded-xl p-8 border border-gray-100 shadow-sm flex flex-col h-full">
+                    <h4 className="font-semibold text-xl text-gray-700 mb-6 border-b pb-4 text-center">Employees Left</h4>
+                    <div className="flex-1 min-h-0">
+                      <Box4EmployeesLineChart
+                        title={expandedChartData?.employeesChart?.title || 'No. of Employees Who Left'}
+                        subtitle={expandedChartData?.employeesChart?.subtitle || 'Monthly Attrition'}
+                        labels={expandedChartData?.employeesChart?.labels || FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1])}
+                        values={expandedChartData?.employeesChart?.values || Array(12).fill(0)}
+                        isExpanded={true}
+                      />
+                    </div>
                   </div>
                 </div>
               )}
 
               {expandedChart === 'salesProfit' && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="flex-1 p-4 rounded-lg border border-gray-100">
-                    <h4 className="font-semibold mb-3 text-center">Revenue</h4>
-                    <div className="flex items-center justify-center gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 h-full">
+                  <div className="flex flex-col justify-center rounded-xl border border-gray-100 p-8 shadow-sm">
+                    <h4 className="font-semibold text-xl mb-6 text-center">Revenue</h4>
+                    <div className="flex items-center justify-center gap-6">
                       <button
-                        className="bg-gray-100 border border-gray-300 rounded-full w-8 h-8 flex items-center justify-center text-lg text-gray-600 hover:bg-gray-200 hover:text-gray-800 disabled:opacity-40 disabled:cursor-not-allowed"
+                        className="bg-gray-100 border border-gray-300 rounded-full w-12 h-12 flex items-center justify-center text-2xl text-gray-600 hover:bg-gray-200 hover:text-gray-800 disabled:opacity-40 disabled:cursor-not-allowed shadow-sm transition-transform hover:scale-105 active:scale-95"
                         onClick={(e) => { e.stopPropagation(); if (!monthlySalesData.length) return; setSelectedSalesIndex(selectedSalesIndex === 0 ? monthlySalesData.length - 1 : selectedSalesIndex - 1); }}
                         disabled={!monthlySalesData.length}
                       >
                         ‹
                       </button>
                       <div className="flex flex-col items-center">
-                        <h5 className="text-sm font-semibold text-gray-800 mb-2">
+                        <h5 className="text-lg font-bold text-gray-800 mb-4">
                           {MONTH_LABELS[(monthlySalesData[selectedSalesIndex]?.month || 1) - 1]} {monthlySalesData[selectedSalesIndex]?.year || ''}
                         </h5>
                         <div className="flex items-center justify-center">
-                          <svg viewBox="0 0 200 200" className="w-[160px] h-[160px]">
+                          <svg viewBox="0 0 200 200" className="w-[280px] h-[280px]">
                             <defs>
                               <filter id="revenueModalTextShadow" x="-50%" y="-50%" width="200%" height="200%">
                                 <feDropShadow dx="0" dy="0" stdDeviation="2" floodOpacity="0.8" floodColor="#000000" />
@@ -3663,19 +3666,19 @@ function ManagementDashboard() {
                             })()}
                           </svg>
                         </div>
-                        <div className="flex flex-col gap-1 mt-2">
-                          <div className="flex items-center gap-2 text-xs text-gray-600">
-                            <span className="w-3 h-3 bg-[#0d47a1] rounded"></span>
+                        <div className="flex flex-col gap-2 mt-6">
+                          <div className="flex items-center gap-3 text-sm text-gray-700 font-medium">
+                            <span className="w-4 h-4 bg-[#0d47a1] rounded"></span>
                             <span>Actual: {Number(monthlySalesData[selectedSalesIndex]?.actual || 0).toFixed(0)}</span>
                           </div>
-                          <div className="flex items-center gap-2 text-xs text-gray-600">
-                            <span className="w-3 h-3 bg-[#0d47a1] rounded"></span>
+                          <div className="flex items-center gap-3 text-sm text-gray-700 font-medium">
+                            <span className="w-4 h-4 bg-[#0d47a1] rounded"></span>
                             <span>Target: {Number(monthlySalesData[selectedSalesIndex]?.target || 0).toFixed(0)}</span>
                           </div>
                         </div>
                       </div>
                       <button
-                        className="bg-gray-100 border border-gray-300 rounded-full w-8 h-8 flex items-center justify-center text-lg text-gray-600 hover:bg-gray-200 hover:text-gray-800"
+                        className="bg-gray-100 border border-gray-300 rounded-full w-12 h-12 flex items-center justify-center text-2xl text-gray-600 hover:bg-gray-200 hover:text-gray-800 disabled:opacity-40 disabled:cursor-not-allowed shadow-sm transition-transform hover:scale-105 active:scale-95"
                         onClick={(e) => { e.stopPropagation(); if (!monthlySalesData.length) return; setSelectedSalesIndex(selectedSalesIndex === monthlySalesData.length - 1 ? 0 : selectedSalesIndex + 1); }}
                         disabled={!monthlySalesData.length}
                       >
@@ -3684,22 +3687,22 @@ function ManagementDashboard() {
                     </div>
                   </div>
 
-                  <div className="flex-1 p-4 rounded-lg border border-gray-100">
-                    <h4 className="font-semibold mb-3 text-center">Profitability</h4>
-                    <div className="flex items-center justify-center gap-3">
+                  <div className="flex flex-col justify-center rounded-xl border border-gray-100 p-8 shadow-sm">
+                    <h4 className="font-semibold text-xl mb-6 text-center">Profitability</h4>
+                    <div className="flex items-center justify-center gap-6">
                       <button
-                        className="bg-gray-100 border border-gray-300 rounded-full w-8 h-8 flex items-center justify-center text-lg text-gray-600 hover:bg-gray-200 hover:text-gray-800 disabled:opacity-40 disabled:cursor-not-allowed"
+                        className="bg-gray-100 border border-gray-300 rounded-full w-12 h-12 flex items-center justify-center text-2xl text-gray-600 hover:bg-gray-200 hover:text-gray-800 disabled:opacity-40 disabled:cursor-not-allowed shadow-sm transition-transform hover:scale-105 active:scale-95"
                         onClick={(e) => { e.stopPropagation(); if (!monthlyProfitData.length) return; setSelectedProfitIndex(selectedProfitIndex === 0 ? monthlyProfitData.length - 1 : selectedProfitIndex - 1); }}
                         disabled={!monthlyProfitData.length}
                       >
                         ‹
                       </button>
                       <div className="flex flex-col items-center">
-                        <h5 className="text-sm font-semibold text-gray-800 mb-2">
+                        <h5 className="text-lg font-bold text-gray-800 mb-4">
                           {MONTH_LABELS[(monthlyProfitData[selectedProfitIndex]?.month || 1) - 1]} {monthlyProfitData[selectedProfitIndex]?.year || ''}
                         </h5>
                         <div className="flex items-center justify-center">
-                          <svg viewBox="0 0 200 200" className="w-[160px] h-[160px]">
+                          <svg viewBox="0 0 200 200" className="w-[280px] h-[280px]">
                             <defs>
                               <filter id="profitModalTextShadow" x="-50%" y="-50%" width="200%" height="200%">
                                 <feDropShadow dx="0" dy="0" stdDeviation="2" floodOpacity="0.8" floodColor="#000000" />
@@ -3755,19 +3758,19 @@ function ManagementDashboard() {
                             })()}
                           </svg>
                         </div>
-                        <div className="flex flex-col gap-1 mt-2">
-                          <div className="flex items-center gap-2 text-xs text-gray-600">
-                            <span className="w-3 h-3 bg-[#15803d] rounded"></span>
+                        <div className="flex flex-col gap-2 mt-6">
+                          <div className="flex items-center gap-3 text-sm text-gray-700 font-medium">
+                            <span className="w-4 h-4 bg-[#15803d] rounded"></span>
                             <span>Actual: {(monthlyProfitData[selectedProfitIndex]?.profit || 0).toFixed(1)}%</span>
                           </div>
-                          <div className="flex items-center gap-2 text-xs text-gray-600">
-                            <span className="w-3 h-3 bg-[#15803d] rounded"></span>
+                          <div className="flex items-center gap-3 text-sm text-gray-700 font-medium">
+                            <span className="w-4 h-4 bg-[#15803d] rounded"></span>
                             <span>Target: {(monthlyProfitData[selectedProfitIndex]?.target || 0).toFixed(1)}%</span>
                           </div>
                         </div>
                       </div>
                       <button
-                        className="bg-gray-100 border border-gray-300 rounded-full w-8 h-8 flex items-center justify-center text-lg text-gray-600 hover:bg-gray-200 hover:text-gray-800"
+                        className="bg-gray-100 border border-gray-300 rounded-full w-12 h-12 flex items-center justify-center text-2xl text-gray-600 hover:bg-gray-200 hover:text-gray-800 disabled:opacity-40 disabled:cursor-not-allowed shadow-sm transition-transform hover:scale-105 active:scale-95"
                         onClick={(e) => { e.stopPropagation(); if (!monthlyProfitData.length) return; setSelectedProfitIndex(selectedProfitIndex === monthlyProfitData.length - 1 ? 0 : selectedProfitIndex + 1); }}
                         disabled={!monthlyProfitData.length}
                       >
