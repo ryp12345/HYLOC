@@ -2303,15 +2303,23 @@ function ManagementDashboard() {
         }
       }
 
-      const sliceEnd = lastAvailableIdx >= 0 ? lastAvailableIdx + 1 : 12;
+      const currentDate = new Date();
+      const currentCalendarMonth = currentDate.getMonth() + 1;
+      const currentCalendarYear = currentDate.getFullYear();
+      const actualFiscalYear = currentCalendarMonth >= 4 ? currentCalendarYear : currentCalendarYear - 1;
+
+      const currentFiscalIndex = currentCalendarMonth >= 4 ? currentCalendarMonth - 4 : currentCalendarMonth + 8;
+      const targetIndex = currentFiscalIndex > 0 ? currentFiscalIndex - 1 : 0;
+
+      const sliceEnd = Math.max(lastAvailableIdx >= 0 ? lastAvailableIdx + 1 : 0, targetIndex + 1, 1);
       const monthly = FISCAL_MONTH_SEQUENCE.map((entry, idx) => ({
         month: entry.month,
         year: entry.year,
         efficiency: efficiencyByIndex[idx] || 0,
-      })).slice(0, sliceEnd);
+      })).slice(0, Math.min(sliceEnd, 12));
 
       setMonthlyEfficiency(monthly);
-      setSelectedFiscalIndex(0);
+      setSelectedFiscalIndex(Math.min(targetIndex, monthly.length - 1));
     } catch (err) {
       //console.error('Failed to load plant efficiency', err);
     } finally {

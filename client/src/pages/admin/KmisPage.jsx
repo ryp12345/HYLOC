@@ -1182,7 +1182,7 @@ function KmisPage() {
                 />
               </div>
               <div className="mb-5">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">KMI Title *</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">KPI Title *</label>
                 <input
                   type="text"
                   name="title"

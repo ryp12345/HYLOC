@@ -941,7 +941,10 @@ function KmiDetail() {
                   name="data_operator"
                   value={formData.data_operator}
                   onChange={handleChange}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  disabled={formData.kpi_type === 'computed'}
+                  className={`w-full px-3 py-2.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 ${
+                    formData.kpi_type === 'computed' ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : 'bg-white'
+                  }`}
                 >
                   <option value="">Select Operator</option>
                   {users.length === 0 ? (
@@ -982,36 +985,40 @@ function KmiDetail() {
                   ))}
                 </select>
               </div>
-               <div className="mb-5 flex items-center">
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    name="target_required"
-                    checked={formData.target_required}
-                    onChange={handleChange}
-                    className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-2 focus:ring-blue-500"
-                    id="target_required"
-                  />
-                  <label htmlFor="target_required" className="text-sm font-medium text-gray-700 cursor-pointer">
-                    Target Required
-                  </label>
-                </div>
-                <span className={`ml-auto text-sm font-semibold ${formData.target_required ? 'text-green-600' : 'text-blue-600'}`}>
-                  {formData.target_required ? 'Yes' : 'No'}
-                </span>
-              </div>
-              {formData.target_required && (
-                <div className="mb-5">
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Default Target Value</label>
-                  <input
-                    type="text"
-                    name="default_target_value"
-                    value={formData.default_target_value}
-                    onChange={handleChange}
-                    placeholder="e.g., 100, 50%"
-                    className="w-full px-3 py-2.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                  />
-                </div>
+              {formData.kpi_type !== 'computed' && (
+                <>
+                  <div className="mb-5 flex items-center">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        name="target_required"
+                        checked={formData.target_required}
+                        onChange={handleChange}
+                        className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-2 focus:ring-blue-500"
+                        id="target_required"
+                      />
+                      <label htmlFor="target_required" className="text-sm font-medium text-gray-700 cursor-pointer">
+                        Target Required
+                      </label>
+                    </div>
+                    <span className={`ml-auto text-sm font-semibold ${formData.target_required ? 'text-green-600' : 'text-blue-600'}`}>
+                      {formData.target_required ? 'Yes' : 'No'}
+                    </span>
+                  </div>
+                  {formData.target_required && (
+                    <div className="mb-5">
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Default Target Value</label>
+                      <input
+                        type="text"
+                        name="default_target_value"
+                        value={formData.default_target_value}
+                        onChange={handleChange}
+                        placeholder="e.g., 100, 50%"
+                        className="w-full px-3 py-2.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                      />
+                    </div>
+                  )}
+                </>
               )}
              
               <div className="flex justify-end gap-3 pt-4">
