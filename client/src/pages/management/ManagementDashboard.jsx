@@ -1739,6 +1739,34 @@ function ManagementDashboard() {
   // Computed fiscal month sequence based on selected year
   const FISCAL_MONTH_SEQUENCE = useMemo(() => getFiscalMonthSequence(selectedFiscalYear), [selectedFiscalYear]);
 
+  const previousMonthReferenceDate = useMemo(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  }, []);
+
+  const getPreferredPreviousMonthIndex = (rows) => {
+    if (!Array.isArray(rows) || rows.length === 0) return 0;
+
+    const prevMonth = previousMonthReferenceDate.getMonth() + 1;
+    const prevYear = previousMonthReferenceDate.getFullYear();
+    const exactMatch = rows.findIndex((row) => Number(row.month) === prevMonth && Number(row.year) === prevYear);
+    if (exactMatch >= 0) return exactMatch;
+
+    let bestIdx = -1;
+    for (let i = 0; i < rows.length; i++) {
+      const rowMonth = Number(rows[i]?.month);
+      const rowYear = Number(rows[i]?.year);
+      if (!Number.isFinite(rowMonth) || !Number.isFinite(rowYear)) continue;
+      const rowDate = new Date(rowYear, rowMonth - 1, 1);
+      if (rowDate <= previousMonthReferenceDate) {
+        bestIdx = i;
+      }
+    }
+
+    if (bestIdx >= 0) return bestIdx;
+    return Math.max(rows.length - 1, 0);
+  };
+
   // (no responsive CSS injection here) keep original sizing logic
 
   const getKpisForFiscalYear = async () => {
@@ -2303,13 +2331,7 @@ function ManagementDashboard() {
         }
       }
 
-      const currentDate = new Date();
-      const currentCalendarMonth = currentDate.getMonth() + 1;
-      const currentCalendarYear = currentDate.getFullYear();
-      const actualFiscalYear = currentCalendarMonth >= 4 ? currentCalendarYear : currentCalendarYear - 1;
-
-      const currentFiscalIndex = currentCalendarMonth >= 4 ? currentCalendarMonth - 4 : currentCalendarMonth + 8;
-      const targetIndex = currentFiscalIndex > 0 ? currentFiscalIndex - 1 : 0;
+      const targetIndex = getPreferredPreviousMonthIndex(FISCAL_MONTH_SEQUENCE);
 
       const sliceEnd = Math.max(lastAvailableIdx >= 0 ? lastAvailableIdx + 1 : 0, targetIndex + 1, 1);
       const monthly = FISCAL_MONTH_SEQUENCE.map((entry, idx) => ({
@@ -2319,7 +2341,8 @@ function ManagementDashboard() {
       })).slice(0, Math.min(sliceEnd, 12));
 
       setMonthlyEfficiency(monthly);
-      setSelectedFiscalIndex(Math.min(targetIndex, monthly.length - 1));
+      const preferredIndex = getPreferredPreviousMonthIndex(monthly);
+      setSelectedFiscalIndex(Math.min(preferredIndex, Math.max(monthly.length - 1, 0)));
     } catch (err) {
       //console.error('Failed to load plant efficiency', err);
     } finally {
@@ -2696,7 +2719,7 @@ function ManagementDashboard() {
       setMonthlySalesData(slicedSales);
       const displayYear = `${FISCAL_MONTH_SEQUENCE[0].year}-${FISCAL_MONTH_SEQUENCE[FISCAL_MONTH_SEQUENCE.length - 1].year}`;
       setSalesDisplayYear(displayYear);
-      setSelectedSalesIndex(0);
+      setSelectedSalesIndex(getPreferredPreviousMonthIndex(slicedSales));
     } catch (err) {
       console.error('Failed to load Sales data', err);
       setMonthlySalesData([]);
@@ -2760,7 +2783,7 @@ function ManagementDashboard() {
       const sliceEnd = lastAvailableIdx >= 0 ? lastAvailableIdx + 1 : 12;
       const slicedProfit = profitByMonth.slice(0, sliceEnd);
       setMonthlyProfitData(slicedProfit);
-      setSelectedProfitIndex(0);
+      setSelectedProfitIndex(getPreferredPreviousMonthIndex(slicedProfit));
     } catch (err) {
       console.error('Failed to load Profitability data', err);
       setMonthlyProfitData([]);
@@ -2996,8 +3019,7 @@ function ManagementDashboard() {
                     <div className="flex items-center justify-center p-2 md:p-4 text-gray-500 text-sm">Loading...</div>
                   ) : monthlySalesData && monthlySalesData.length > 0 ? (
                     (() => {
-                      const latestSalesIdx = monthlySalesData.reduce((idx, d, i) => d.actual > 0 ? i : idx, -1);
-                      const activeIdx = latestSalesIdx >= 0 ? latestSalesIdx : (monthlySalesData.length > 0 ? monthlySalesData.length - 1 : 0);
+                      const activeIdx = Math.min(Math.max(selectedSalesIndex, 0), monthlySalesData.length - 1);
                       const cumulActual = monthlySalesData.slice(0, activeIdx + 1).reduce((s, d) => s + Number(d.actual || 0), 0);
                       const cumulTarget = monthlySalesData.slice(0, activeIdx + 1).reduce((s, d) => s + Number(d.target || 0), 0);
                       const startEntry = monthlySalesData[0];

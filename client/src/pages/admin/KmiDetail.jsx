@@ -166,7 +166,7 @@ function KmiDetail() {
   const handleAddNew = () => {
     setEditingValue(null);
     setFormData({
-      data: '',
+      data: kmi?.title || '',
       data_operator: '',
       target_required: true,
       uom: '',
@@ -187,6 +187,12 @@ function KmiDetail() {
     setTargetVarSearchQueries({});
     setShowModal(true);
   };
+
+  useEffect(() => {
+    if (!showModal || editingValue || formData.data) return;
+    if (!kmi?.title) return;
+    setFormData((prev) => ({ ...prev, data: kmi.title }));
+  }, [showModal, editingValue, kmi, formData.data]);
 
   const handleEdit = (value) => {
     setEditingValue(value);

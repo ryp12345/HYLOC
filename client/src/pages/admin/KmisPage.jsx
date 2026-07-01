@@ -634,6 +634,25 @@ function KmisPage() {
       .filter(node => node !== null);
   };
 
+  const collectAllNodeIds = (nodes) => {
+    const ids = new Set();
+    const collect = (node) => {
+      ids.add(node.id);
+      (node.children || []).forEach(collect);
+    };
+    (nodes || []).forEach(collect);
+    return ids;
+  };
+
+  const handleExpandAll = () => {
+    const visibleTree = getFilteredTree();
+    setExpandedNodes(collectAllNodeIds(visibleTree));
+  };
+
+  const handleCollapseAll = () => {
+    setExpandedNodes(new Set());
+  };
+
   // Auto-expand nodes when search is active
   const getCategoryNameById = (id) => categories.find((c) => String(c.id) === String(id))?.category_name || 'Category';
 
@@ -1079,6 +1098,22 @@ function KmisPage() {
         <div className="text-center py-10 text-gray-500 text-base">Loading KMIs...</div>
       ) : (
         <div className="bg-white p-5 rounded-lg shadow">
+          <div className="mb-4 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={handleExpandAll}
+              className="px-3 py-1.5 rounded-md text-sm font-medium border border-blue-200 text-blue-700 bg-blue-50 hover:bg-blue-100 transition-colors"
+            >
+              Expand All
+            </button>
+            <button
+              type="button"
+              onClick={handleCollapseAll}
+              className="px-3 py-1.5 rounded-md text-sm font-medium border border-gray-200 text-gray-700 bg-gray-50 hover:bg-gray-100 transition-colors"
+            >
+              Collapse All
+            </button>
+          </div>
           {kpiTree.length === 0 ? (
             <div className="text-center py-10 text-gray-500 text-base">No KPIs found for the selected year</div>
           ) : getFilteredTree().length === 0 ? (
