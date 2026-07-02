@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import axios from '../../api/axios';
 import { useAuth } from '../../context/AuthContext';
 import Notification from '../../components/common/Notification';
@@ -16,6 +16,8 @@ const getInitialYear = () => {
 
 function KmisPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const fromKmisState = location.state?.fromKmisState;
   const { user, loading: authLoading } = useAuth();
   const normalizedRole = (user?.role?.name || user?.role || '').toString().trim().toLowerCase();
   const isAdmin = normalizedRole === 'admin';
@@ -27,7 +29,9 @@ function KmisPage() {
   const [departments, setDepartments] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [financialYears, setFinancialYears] = useState([]);
-  const [selectedYear, setSelectedYear] = useState(getInitialYear());
+  const [selectedYear, setSelectedYear] = useState(() => {
+    return fromKmisState?.selectedYear || getInitialYear();
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showModal, setShowModal] = useState(false);
@@ -41,9 +45,13 @@ function KmisPage() {
     department_id: '',
     emp_id: ''
   });
-  const [expandedNodes, setExpandedNodes] = useState(new Set());
+  const [expandedNodes, setExpandedNodes] = useState(() => {
+    return fromKmisState?.expandedNodes ? new Set(fromKmisState.expandedNodes) : new Set();
+  });
   const [notification, setNotification] = useState({ show: false, message: '', type: '' });
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(() => {
+    return fromKmisState?.searchQuery || '';
+  });
   const [showReplicateModal, setShowReplicateModal] = useState(false);
   const [replicateFromYear, setReplicateFromYear] = useState('');
   const [previousYearKpis, setPreviousYearKpis] = useState([]);
@@ -51,6 +59,9 @@ function KmisPage() {
   const [selectedKpisToReplicate, setSelectedKpisToReplicate] = useState(new Set());
   const [replicateLoading, setReplicateLoading] = useState(false);
   const [replicateExpandedNodes, setReplicateExpandedNodes] = useState(new Set());
+
+  const isInitialLoad = useRef(true);
+  const lastYearRef = useRef(fromKmisState?.selectedYear || getInitialYear());
   
   // Check if user is admin
   useEffect(() => {
@@ -183,7 +194,17 @@ function KmisPage() {
       const tree = buildTree(enriched, year);
       setKpis(data);
       setKpiTree(tree);
-      setExpandedNodes(new Set());
+      
+      // Only reset expanded nodes if the year actually changed,
+      // AND we are not on the initial load restoring state.
+      if (lastYearRef.current !== year) {
+        setExpandedNodes(new Set());
+        lastYearRef.current = year;
+      }
+      if (isInitialLoad.current) {
+        isInitialLoad.current = false;
+      }
+      
       setError('');
     } catch (err) {
       const errorMsg = 'Failed to load KMIs';
@@ -467,7 +488,16 @@ function KmisPage() {
   };
 
   const handleView = (kmi) => {
-    navigate(`/admin/kmis/${kmi.id}`, { state: { kmi } });
+    navigate(`/admin/kmis/${kmi.id}`, {
+      state: {
+        kmi,
+        fromKmisState: {
+          selectedYear,
+          expandedNodes: Array.from(expandedNodes),
+          searchQuery
+        }
+      }
+    });
   };
 
   const handleSubmit = async (e) => {

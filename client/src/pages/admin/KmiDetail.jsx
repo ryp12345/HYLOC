@@ -54,17 +54,17 @@ function KmiDetail() {
   const loadKmiDetails = async () => {
     try {
       setLoading(true);
-      
+
       // Load KMI if not passed via state
       if (!kmi) {
         const kmiResponse = await axios.get(`/kpis/${id}`);
         setKmi(kmiResponse.data.data);
       }
-      
+
       // Load KPI values
       const valuesResponse = await axios.get(`/kpi-values?kpi_id=${id}`);
       setKpiValues(valuesResponse.data.data || []);
-      
+
       setError('');
     } catch (err) {
       const errorMsg = 'Failed to load KMI details';
@@ -196,22 +196,22 @@ function KmiDetail() {
 
   const handleEdit = (value) => {
     setEditingValue(value);
-    
+
     // Parse formula to extract variables and set up selections
     const formula = value.formula || '';
     const sourceIds = Array.isArray(value.source_kpi_value_ids)
       ? value.source_kpi_value_ids
       : (typeof value.source_kpi_value_ids === 'string'
-          ? value.source_kpi_value_ids.split(',').map((x) => Number(x)).filter((n) => !Number.isNaN(n))
-          : []);
+        ? value.source_kpi_value_ids.split(',').map((x) => Number(x)).filter((n) => !Number.isNaN(n))
+        : []);
     // Parse target formula and ids if present
     const targetFormula = value.target_formula || '';
     const targetSourceIds = Array.isArray(value.target_source_kpi_value_ids)
       ? value.target_source_kpi_value_ids
       : (typeof value.target_source_kpi_value_ids === 'string'
-          ? value.target_source_kpi_value_ids.split(',').map((x) => Number(x)).filter((n) => !Number.isNaN(n))
-          : []);
-    
+        ? value.target_source_kpi_value_ids.split(',').map((x) => Number(x)).filter((n) => !Number.isNaN(n))
+        : []);
+
     // Extract variables from formula
     const tokens = [];
     const seen = new Set();
@@ -225,7 +225,7 @@ function KmiDetail() {
       }
     }
     setFormulaVars(tokens);
-    
+
     // Build variable selections map from the actual IDs in the formula
     const selections = {};
     tokens.forEach((tok) => {
@@ -255,7 +255,7 @@ function KmiDetail() {
       if (targetSourceIds.includes(idNum)) tSelections[tok] = idNum;
     });
     setTargetVarSelections(tSelections);
-    
+
     // Determine computation type from presence of formulas
     const hasActualFormula = !!(formula && formula.trim());
     const hasTargetFormula = !!(targetFormula && targetFormula.trim());
@@ -341,7 +341,7 @@ function KmiDetail() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     try {
       // If computed, ensure variable selections are complete depending on computation type
       if (formData.kpi_type === 'computed') {
@@ -415,9 +415,9 @@ function KmiDetail() {
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setFormData({ 
-      ...formData, 
-      [name]: type === 'checkbox' ? checked : value 
+    setFormData({
+      ...formData,
+      [name]: type === 'checkbox' ? checked : value
     });
 
     // If formula changed, parse variables like v1, v2, v3
@@ -524,7 +524,16 @@ function KmiDetail() {
     return (
       <div className="w-full max-w-7xl mx-auto p-6">
         <div className="bg-red-50 border border-red-200 text-red-800 p-4 rounded-lg mb-4">{error || 'KMI not found'}</div>
-        <button className="px-5 py-2.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50" onClick={() => navigate('/admin/kmis')}>
+        <button
+          className="px-5 py-2.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+          onClick={() => {
+            if (location.state?.fromKmisState) {
+              navigate('/admin/kmis', { state: { fromKmisState: location.state.fromKmisState } });
+            } else {
+              navigate('/admin/kmis');
+            }
+          }}
+        >
           ← Back to KMIs
         </button>
       </div>
@@ -532,9 +541,18 @@ function KmiDetail() {
   }
   return (
     <div className="w-full max-w-7xl mx-auto p-6">
-          <Notification show={notification.show} message={notification.message} type={notification.type} onClose={() => setNotification({ show: false, message: '', type: '' })} />
+      <Notification show={notification.show} message={notification.message} type={notification.type} onClose={() => setNotification({ show: false, message: '', type: '' })} />
       <div className="mb-6 flex justify-between items-center">
-        <button className="px-5 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-md text-sm font-medium" onClick={() => navigate('/admin/kmis')}>
+        <button
+          className="px-5 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-md text-sm font-medium"
+          onClick={() => {
+            if (location.state?.fromKmisState) {
+              navigate('/admin/kmis', { state: { fromKmisState: location.state.fromKmisState } });
+            } else {
+              navigate('/admin/kmis');
+            }
+          }}
+        >
           ← Back to KMIs
         </button>
         <h2 className="text-2xl font-bold text-gray-800">KMI Details</h2>
@@ -769,7 +787,7 @@ function KmiDetail() {
                                   return label.includes(searchQuery.toLowerCase());
                                 });
                                 const selectedKv = allowedValuesForYear.find(kv => kv.id === targetVarSelections[tok]);
-                                const selectedLabel = selectedKv 
+                                const selectedLabel = selectedKv
                                   ? `v${selectedKv.id} - ${selectedKv.data} (${getKpiMeta(selectedKv.kpi_id).title})`
                                   : '';
                                 return (
@@ -797,9 +815,9 @@ function KmiDetail() {
                                         const selectedKv = allowedValuesForYear.find(kv => kv.id === targetVarSelections[tok]);
                                         if (selectedKv) {
                                           const meta = getKpiMeta(selectedKv.kpi_id);
-                                          setTargetVarSearchQueries((prev) => ({ 
-                                            ...prev, 
-                                            [tok]: `v${selectedKv.id} - ${selectedKv.data} (${meta.title})` 
+                                          setTargetVarSearchQueries((prev) => ({
+                                            ...prev,
+                                            [tok]: `v${selectedKv.id} - ${selectedKv.data} (${meta.title})`
                                           }));
                                         }
                                       }}
@@ -812,8 +830,8 @@ function KmiDetail() {
                                       {filteredOptions.map((kv) => {
                                         const meta = getKpiMeta(kv.kpi_id);
                                         return (
-                                          <option 
-                                            key={kv.id} 
+                                          <option
+                                            key={kv.id}
                                             value={`v${kv.id} - ${kv.data} (${meta.title})`}
                                           />
                                         );
@@ -844,10 +862,10 @@ function KmiDetail() {
                               return label.includes(searchQuery.toLowerCase());
                             });
                             const selectedKv = allowedValuesForYear.find(kv => kv.id === varSelections[tok]);
-                            const selectedLabel = selectedKv 
+                            const selectedLabel = selectedKv
                               ? `v${selectedKv.id} - ${selectedKv.data} (${getKpiMeta(selectedKv.kpi_id).title})`
                               : '';
-                            
+
                             return (
                               <div key={tok} className="bg-white p-2 rounded border border-gray-300">
                                 <label className="text-sm font-semibold text-gray-700 mb-1 block">
@@ -874,9 +892,9 @@ function KmiDetail() {
                                     const selectedKv = allowedValuesForYear.find(kv => kv.id === varSelections[tok]);
                                     if (selectedKv) {
                                       const meta = getKpiMeta(selectedKv.kpi_id);
-                                      setVarSearchQueries((prev) => ({ 
-                                        ...prev, 
-                                        [tok]: `v${selectedKv.id} - ${selectedKv.data} (${meta.title})` 
+                                      setVarSearchQueries((prev) => ({
+                                        ...prev,
+                                        [tok]: `v${selectedKv.id} - ${selectedKv.data} (${meta.title})`
                                       }));
                                     }
                                   }}
@@ -889,8 +907,8 @@ function KmiDetail() {
                                   {filteredOptions.map((kv) => {
                                     const meta = getKpiMeta(kv.kpi_id);
                                     return (
-                                      <option 
-                                        key={kv.id} 
+                                      <option
+                                        key={kv.id}
                                         value={`v${kv.id} - ${kv.data} (${meta.title})`}
                                       />
                                     );
@@ -948,15 +966,14 @@ function KmiDetail() {
                   value={formData.data_operator}
                   onChange={handleChange}
                   disabled={formData.kpi_type === 'computed'}
-                  className={`w-full px-3 py-2.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 ${
-                    formData.kpi_type === 'computed' ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : 'bg-white'
-                  }`}
+                  className={`w-full px-3 py-2.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 ${formData.kpi_type === 'computed' ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : 'bg-white'
+                    }`}
                 >
                   <option value="">Select Operator</option>
                   {users.length === 0 ? (
                     <option disabled>No users available</option>
                   ) : (
-                    [...users]
+                    Array.from(new Map([...users].map(user => [user.empid ?? user.id, user])).values())
                       .sort((a, b) => {
                         const nameA = `${a.firstname || ''} ${a.lastname || ''}`.trim().toLowerCase();
                         const nameB = `${b.firstname || ''} ${b.lastname || ''}`.trim().toLowerCase();
@@ -1026,7 +1043,7 @@ function KmiDetail() {
                   )}
                 </>
               )}
-             
+
               <div className="flex justify-end gap-3 pt-4">
                 <button type="button" className="px-5 py-2.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50" onClick={() => setShowModal(false)}>
                   Cancel
