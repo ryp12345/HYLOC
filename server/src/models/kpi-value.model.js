@@ -180,7 +180,7 @@ exports.updateKPIValue = async (id, kpiValue) => {
       [
         data || null,
         kpi_id || null,
-        data_operator || null,
+        data_operator !== undefined ? data_operator : null,
         target_required !== undefined ? target_required : null,
         uom || null,
         kpi_type || null,

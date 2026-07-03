@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS public.kpi_values
     kpi_id bigint NOT NULL,
     created_at timestamp without time zone NOT NULL DEFAULT now(),
     updated_at timestamp without time zone NOT NULL DEFAULT now(),
-    "data operator" integer NOT NULL,
+    "data operator" integer,
     target_required boolean,
     uom integer,
     kpi_type character varying COLLATE pg_catalog."default" NOT NULL DEFAULT 'manual'::character varying,

@@ -266,7 +266,9 @@ function KmiDetail() {
 
     setFormData({
       data: value.data || '',
-      data_operator: value.data_operator != null ? String(value.data_operator) : (value['data operator'] || ''),
+      data_operator: value.kpi_type === 'computed'
+        ? ''
+        : (value.data_operator != null ? String(value.data_operator) : (value['data operator'] || '')),
       target_required: value.target_required !== undefined ? value.target_required : true,
       uom: value.uom != null ? String(value.uom) : '',
       kpi_type: value.kpi_type || 'manual',
@@ -415,10 +417,16 @@ function KmiDetail() {
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setFormData({
+    const nextFormData = {
       ...formData,
       [name]: type === 'checkbox' ? checked : value
-    });
+    };
+
+    if (name === 'kpi_type' && value === 'computed') {
+      nextFormData.data_operator = '';
+    }
+
+    setFormData(nextFormData);
 
     // If formula changed, parse variables like v1, v2, v3
     if (name === 'formula') {

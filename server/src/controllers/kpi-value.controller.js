@@ -107,18 +107,27 @@ exports.getKPIValuesByKPI = async (req, res) => {
     const { kpiId } = req.params;
     const userRole = req.user?.role ? req.user.role.toLowerCase() : '';
     const userId = req.user?.userId || req.user?.id;
-    
+
     const values = await kpiValueModel.getKPIValuesByKPI(kpiId);
-    
+
     if (userRole === 'employee' || userRole === 'manager') {
-      const filteredValues = values.filter(v => v.data_operator_id === userId);
+      const userResult = await pool.query('SELECT empid FROM users WHERE id = $1', [userId]);
+      if (userResult.rows.length === 0) {
+        return res.status(200).json({
+          success: true,
+          message: 'KPI values retrieved successfully',
+          data: []
+        });
+      }
+      const userEmpid = userResult.rows[0].empid;
+      const filteredValues = values.filter(v => v.data_operator === userEmpid);
       return res.status(200).json({
         success: true,
         message: 'KPI values retrieved successfully',
         data: filteredValues
       });
     }
-    
+
     res.status(200).json({
       success: true,
       message: 'KPI values retrieved successfully',
@@ -138,18 +147,27 @@ exports.getKPIValuesByPillar = async (req, res) => {
     const { pillerId } = req.params;
     const userRole = req.user?.role ? req.user.role.toLowerCase() : '';
     const userId = req.user?.userId || req.user?.id;
-    
+
     const values = await kpiValueModel.getKPIValuesByPillar(pillerId);
-    
+
     if (userRole === 'employee' || userRole === 'manager') {
-      const filteredValues = values.filter(v => v.data_operator_id === userId);
+      const userResult = await pool.query('SELECT empid FROM users WHERE id = $1', [userId]);
+      if (userResult.rows.length === 0) {
+        return res.status(200).json({
+          success: true,
+          message: 'KPI values retrieved successfully',
+          data: []
+        });
+      }
+      const userEmpid = userResult.rows[0].empid;
+      const filteredValues = values.filter(v => v.data_operator === userEmpid);
       return res.status(200).json({
         success: true,
         message: 'KPI values retrieved successfully',
         data: filteredValues
       });
     }
-    
+
     res.status(200).json({
       success: true,
       message: 'KPI values retrieved successfully',
@@ -169,24 +187,33 @@ exports.getKPIValueById = async (req, res) => {
     const { id } = req.params;
     const userRole = req.user?.role ? req.user.role.toLowerCase() : '';
     const userId = req.user?.userId || req.user?.id; // JWT has userId field
-    
+
     const value = await kpiValueModel.getKPIValueById(id);
-    
+
     if (!value) {
       return res.status(404).json({
         success: false,
         message: 'KPI value not found'
       });
     }
-    
-    // For employees and managers, verify they have access to this value
-    if ((userRole === 'employee' || userRole === 'manager') && value.data_operator_id !== userId) {
-      return res.status(403).json({
-        success: false,
-        message: 'Access denied. You do not have permission to view this KPI value.'
-      });
+
+    if (userRole === 'employee' || userRole === 'manager') {
+      const userResult = await pool.query('SELECT empid FROM users WHERE id = $1', [userId]);
+      if (userResult.rows.length === 0) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied. You do not have permission to view this KPI value.'
+        });
+      }
+      const userEmpid = userResult.rows[0].empid;
+      if (value.data_operator !== userEmpid) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied. You do not have permission to view this KPI value.'
+        });
+      }
     }
-    
+
     res.status(200).json({
       success: true,
       message: 'KPI value retrieved successfully',
