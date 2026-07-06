@@ -88,7 +88,8 @@ function KmiDetail() {
   const loadPillers = async () => {
     try {
       const response = await axios.get('/pillers');
-      setPillers(response.data.data || []);
+      const data = (response.data.data || []).sort((a, b) => (a.piller_name || '').localeCompare(b.piller_name || ''));
+      setPillers(data);
     } catch (err) {
       console.error('Failed to load pillers', err);
     }
@@ -106,7 +107,8 @@ function KmiDetail() {
   const loadUnits = async () => {
     try {
       const response = await axios.get('/unit-master');
-      setUnits(response.data.data || []);
+      const data = (response.data.data || []).sort((a, b) => (a.unit_name || '').localeCompare(b.unit_name || ''));
+      setUnits(data);
     } catch (err) {
       console.error('Failed to load units', err);
     }
@@ -703,9 +705,9 @@ function KmiDetail() {
                     onChange={handleChange}
                     className="w-full px-3 py-2.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                   >
-                    <option value="both">Both actual and target computed using formula</option>
                     <option value="actual_computed">Actual computed using formula; target uses default</option>
                     <option value="target_computed">Actual manual; target computed using formula</option>
+                    <option value="both">Both actual and target computed using formula</option>
                   </select>
                   <p className="text-xs text-gray-600 mt-2">Option 1: System calculates both values | Option 2: System calculates actual, uses default for target | Option 3: User enters actual, system calculates target</p>
                 </div>

@@ -42,7 +42,11 @@ export default function UsersPage() {
   };
   
   const loadDepartments = async () => {
-    try { const res = await getDepartments(); setDepartments(res.data?.data || []); }
+    try { 
+      const depts = (await getDepartments()).data?.data || [];
+      const sorted = [...depts].sort((a, b) => (a.department_name || '').localeCompare(b.department_name || ''));
+      setDepartments(sorted); 
+    }
     catch { setDepartments([]); }
   };
   

@@ -128,12 +128,12 @@ export default function RolesPage() {
 
   // Filtered, sorted, and paginated data
   const filtered = useMemo(() => {
-    // Sort latest first by createdAt or id desc
     const sorted = [...rows].sort((a, b) => {
-      const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
-      const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
-      if (bTime !== aTime) return bTime - aTime;
-      return (b.id || 0) - (a.id || 0);
+      const aName = (a.role_name || '').toLowerCase();
+      const bName = (b.role_name || '').toLowerCase();
+      if (aName < bName) return -1;
+      if (aName > bName) return 1;
+      return 0;
     });
     const q = search.toLowerCase();
     return sorted.filter(r => (

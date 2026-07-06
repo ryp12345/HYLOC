@@ -34,7 +34,12 @@ export default function UserRolePage() {
   const loadUsers = async () => {
     try { 
       const res = await getUsers(); 
-      setUsers(res.data?.data || []); 
+      const sortedUsers = [...(res.data?.data || [])].sort((a, b) => {
+        const aName = `${a.firstname || ''} ${a.lastname || ''} ${a.email || ''}`.trim().toLowerCase();
+        const bName = `${b.firstname || ''} ${b.lastname || ''} ${b.email || ''}`.trim().toLowerCase();
+        return aName.localeCompare(bName, undefined, { numeric: true, sensitivity: 'base' });
+      });
+      setUsers(sortedUsers); 
     }
     catch { setUsers([]); }
   };
@@ -42,7 +47,12 @@ export default function UserRolePage() {
   const loadRoles = async () => {
     try { 
       const res = await getRoles(); 
-      setRoles(res.data?.data || []); 
+      const sortedRoles = [...(res.data?.data || [])].sort((a, b) => {
+        const aName = String(a.role_name || '').trim().toLowerCase();
+        const bName = String(b.role_name || '').trim().toLowerCase();
+        return aName.localeCompare(bName, undefined, { numeric: true, sensitivity: 'base' });
+      });
+      setRoles(sortedRoles); 
     }
     catch { setRoles([]); }
   };

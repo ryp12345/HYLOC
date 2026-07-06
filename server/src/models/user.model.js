@@ -207,8 +207,14 @@ exports.getAllUsers = async () => {
     FROM users u
     LEFT JOIN departments d ON u.department_id = d.id
     LEFT JOIN designations des ON u.designation_id = des.id
-    LEFT JOIN user_roles ur ON ur.user_id = u.id AND ur.status = 'active'
-    LEFT JOIN roles r ON r.id = ur.role_id
+    LEFT JOIN LATERAL (
+      SELECT r.role_name
+      FROM user_roles ur
+      JOIN roles r ON r.id = ur.role_id
+      WHERE ur.user_id = u.id AND ur.status = 'active'
+      ORDER BY ur.created_at DESC, ur.id DESC
+      LIMIT 1
+    ) r ON true
     ORDER BY u.created_at DESC
   `;
   const result = await db.query(query);

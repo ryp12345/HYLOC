@@ -27,7 +27,7 @@ const Sidebar = () => {
     { name: 'Roles', path: '/admin/roles', icon: '🔐' },
     { name: 'Department', path: '/admin/departments', icon: '🏢' },
     { name: 'Designation', path: '/admin/designations', icon: '🏷️' },
-    { name: 'Association', path: '/admin/associations', icon: '🤝' },
+    // { name: 'Association', path: '/admin/associations', icon: '🤝' },
     { name: 'Users', path: '/admin/users', icon: '👥' },
     { name: "KMI's", path: '/admin/kmis', icon: '📚' },
     { name: 'Unit Master', path: '/admin/unit-master', icon: '📏' },
@@ -55,7 +55,7 @@ const Sidebar = () => {
     { name: 'Tickets', path: '/tickets', icon: '🎫' },
   ];
 
- 
+
 
   const managerLinks = [
     { name: 'Dashboard', path: getDashboardPath(), icon: '📊' },
@@ -97,9 +97,8 @@ const Sidebar = () => {
 
   return (
     <aside
-      className={`${
-        sidebarWidth
-      } text-white transition-all duration-300 min-h-screen shadow-lg`}
+      className={`${sidebarWidth
+        } text-white transition-all duration-300 min-h-screen shadow-lg`}
       style={{ backgroundColor: '#001f3f' }}
     >
       {/* Toggle Button */}
@@ -129,11 +128,10 @@ const Sidebar = () => {
                 <button
                   onClick={() => setExpandedMenu(expandedMenu === link.name ? null : link.name)}
                   title={!isOpen && !expandedMenu ? link.name : ''}
-                  className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition duration-200 ${
-                    expandedMenu === link.name
-                      ? 'bg-blue-500 text-white'
-                      : 'text-gray-300 hover:bg-gray-700'
-                  }`}
+                  className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition duration-200 ${expandedMenu === link.name
+                    ? 'bg-blue-500 text-white'
+                    : 'text-gray-300 hover:bg-gray-700'
+                    }`}
                 >
                   <span className="text-xl">{link.icon}</span>
                   {(isOpen || (!isOpen && expandedMenu)) && (
@@ -152,11 +150,10 @@ const Sidebar = () => {
                         key={subitem.path}
                         to={subitem.path}
                         title={!isOpen && expandedMenu ? subitem.name : ''}
-                        className={`flex items-center space-x-3 px-8 py-2 rounded-lg transition duration-200 text-sm ${
-                          location.pathname === subitem.path
-                            ? 'bg-blue-500 text-white font-semibold'
-                            : 'text-gray-400 hover:text-gray-200 hover:bg-gray-700'
-                        }`}
+                        className={`flex items-center space-x-3 px-8 py-2 rounded-lg transition duration-200 text-sm ${location.pathname === subitem.path
+                          ? 'bg-blue-500 text-white font-semibold'
+                          : 'text-gray-400 hover:text-gray-200 hover:bg-gray-700'
+                          }`}
                       >
                         <span className="text-lg">{subitem.icon}</span>
                         <span className="font-medium">{subitem.name}</span>
@@ -170,11 +167,10 @@ const Sidebar = () => {
               <Link
                 to={link.path}
                 title={!isOpen ? link.name : ''}
-                className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition duration-200 ${
-                  location.pathname === link.path
-                    ? 'bg-blue-500 text-white'
-                    : 'text-gray-300 hover:bg-gray-700'
-                }`}
+                className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition duration-200 ${location.pathname === link.path
+                  ? 'bg-blue-500 text-white'
+                  : 'text-gray-300 hover:bg-gray-700'
+                  }`}
               >
                 <span className="text-xl">{link.icon}</span>
                 {isOpen && <span className="font-medium">{link.name}</span>}

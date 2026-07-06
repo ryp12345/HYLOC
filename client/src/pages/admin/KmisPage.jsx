@@ -103,11 +103,9 @@ function KmisPage() {
           axios.get('/users')
         ]);
         setCategories(categoriesRes.data.data || []);
-        const depts = departmentsRes.data.data || [];
-        //console.log('Departments loaded:', depts);
+        const depts = (departmentsRes.data.data || []).sort((a, b) => (a.name || a.department_name || '').localeCompare(b.name || b.department_name || ''));
         setDepartments(depts);
-        const emps = usersRes.data.data || [];
-        //console.log('Employees loaded:', emps);
+        const emps = (usersRes.data.data || []).sort((a, b) => `${a.firstname||''} ${a.lastname||''}`.localeCompare(`${b.firstname||''} ${b.lastname||''}`));
         setEmployees(emps);
       } catch (err) {
         console.error('Failed to load categories, departments, or employees', err);
