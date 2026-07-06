@@ -660,7 +660,7 @@ function KmiDetail() {
             </div>
             <form onSubmit={handleSubmit} className="p-6">
               <div className="mb-5">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Data/Name*</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Data/Name<span className='text-red-500'>*</span></label>
                 <input
                   type="text"
                   name="data"
@@ -672,7 +672,7 @@ function KmiDetail() {
                 />
               </div>
               <div className="mb-5">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">KPI Type *</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">KPI Type <span className='text-red-500'>*</span></label>
                 <select
                   name="kpi_type"
                   value={formData.kpi_type}

@@ -164,6 +164,13 @@ function KmisPage() {
       setLoading(true);
       const response = await axios.get('/kpis');
       const data = response.data.data || [];
+      let kpiValues = [];
+      try {
+        const valuesRes = await axios.get('/kpi-values');
+        kpiValues = valuesRes.data.data || [];
+      } catch (err) {
+        console.debug('Failed to fetch KPI values for hierarchy metadata', err);
+      }
       // fetch department and employee mappings to infer additional categories
       let deptMappings = [];
       let empMappings = [];
@@ -180,14 +187,26 @@ function KmisPage() {
       }
       const deptSet = new Set(deptMappings.map(m => m.kpi_id));
       const empSet = new Set(empMappings.map(m => m.kpi_id));
+      const valueByKpiId = new Map();
+      kpiValues.forEach((value) => {
+        if (!valueByKpiId.has(value.kpi_id)) {
+          valueByKpiId.set(value.kpi_id, value);
+        }
+      });
 
       // Attach inferred category_ids to each kpi for UI rendering
       const enriched = data.map(k => {
+        const kpiValue = valueByKpiId.get(k.id) || {};
         const ids = [];
         if (k.category_id != null) ids.push(String(k.category_id));
         if (deptSet.has(k.id) && !ids.includes('2')) ids.push('2');
         if (empSet.has(k.id) && !ids.includes('4')) ids.push('4');
-        return { ...k, category_ids: ids };
+        return {
+          ...k,
+          category_ids: ids,
+          kpi_type: kpiValue.kpi_type || k.kpi_type || 'manual',
+          data_operator: kpiValue.data_operator ?? k.data_operator ?? null
+        };
       });
       const tree = buildTree(enriched, year);
       setKpis(data);
@@ -273,6 +292,13 @@ function KmisPage() {
     if (!id) return 'None (Top-level KMI)';
     const kpi = kpis.find((k) => k.id === Number(id));
     return kpi?.title || `ID ${id}`;
+  };
+
+  const getOperatorName = (operatorId) => {
+    if (!operatorId) return 'N/A';
+    const user = employees.find((emp) => String(emp.empid ?? emp.id) === String(operatorId));
+    if (!user) return String(operatorId);
+    return `${user.firstname || ''} ${user.lastname || ''}`.trim() || String(operatorId);
   };
 
   // State to store parent KPI title when editing
@@ -369,6 +395,13 @@ function KmisPage() {
       const response = await axios.get('/kpis');
       const data = response.data.data || [];
       const filtered = data.filter(kpi => kpi.fin_year === year);
+      let kpiValues = [];
+      try {
+        const valuesRes = await axios.get('/kpi-values');
+        kpiValues = valuesRes.data.data || [];
+      } catch (err) {
+        console.debug('Failed to fetch KPI values for previous year hierarchy metadata', err);
+      }
       // fetch mappings for previous year KPIs as well so we can show multiple categories
       let deptMappings = [];
       let empMappings = [];
@@ -384,12 +417,24 @@ function KmisPage() {
       }
       const deptSet = new Set(deptMappings.map(m => m.kpi_id));
       const empSet = new Set(empMappings.map(m => m.kpi_id));
+      const valueByKpiId = new Map();
+      kpiValues.forEach((value) => {
+        if (!valueByKpiId.has(value.kpi_id)) {
+          valueByKpiId.set(value.kpi_id, value);
+        }
+      });
       const enriched = filtered.map(k => {
+        const kpiValue = valueByKpiId.get(k.id) || {};
         const ids = [];
         if (k.category_id != null) ids.push(String(k.category_id));
         if (deptSet.has(k.id) && !ids.includes('2')) ids.push('2');
         if (empSet.has(k.id) && !ids.includes('4')) ids.push('4');
-        return { ...k, category_ids: ids };
+        return {
+          ...k,
+          category_ids: ids,
+          kpi_type: kpiValue.kpi_type || k.kpi_type || 'manual',
+          data_operator: kpiValue.data_operator ?? k.data_operator ?? null
+        };
       });
       const tree = buildTree(enriched, year);
       setPreviousYearKpis(enriched);
@@ -702,9 +747,16 @@ function KmisPage() {
   const renderNode = (node, depth = 0) => {
     const isExpanded = expandedNodes.has(node.id);
     const hasChildren = (node.children || []).length > 0;
+    const kpiType = (node.kpi_type || '').toString().trim().toLowerCase();
+    const isComputed = kpiType === 'computed';
+    const isManual = !kpiType || kpiType === 'manual';
+    const hasType = Boolean(kpiType);
+    const operatorId = node.data_operator ?? node['data operator'] ?? null;
+    const hasOperator = Boolean(operatorId);
+    const isMetadataMissing = !hasType || (isManual && !hasOperator);
     return (
       <div key={node.id} className="mb-2" style={{ marginLeft: depth * 16 }}>
-        <div className="bg-white border border-gray-200 rounded-lg p-3 hover:shadow-md transition-shadow">
+        <div className={`rounded-lg p-3 hover:shadow-md transition-shadow border ${isMetadataMissing ? 'bg-red-50 border-red-300' : 'bg-white border-gray-200'}`}>
           <div className="flex items-center gap-2">
             <button
               className={`w-6 h-6 flex items-center justify-center rounded text-sm ${
@@ -729,6 +781,24 @@ function KmisPage() {
                     FY {node.fin_year}
                   </span>
                 )}
+                {hasType ? (
+                  <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${isComputed ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                    {isComputed ? 'Computed' : 'Manual'}
+                  </span>
+                ) : (
+                  <span className="inline-block px-2 py-0.5 bg-red-100 text-red-700 rounded text-xs font-medium">
+                    Type Missing
+                  </span>
+                )}
+                {isManual && hasOperator ? (
+                  <span className="inline-block px-2 py-0.5 bg-slate-100 text-slate-700 rounded text-xs">
+                    Data Operator: {getOperatorName(operatorId)}
+                  </span>
+                ) : isManual ? (
+                  <span className="inline-block px-2 py-0.5 bg-red-100 text-red-700 rounded text-xs font-medium">
+                   Data Operator Missing
+                  </span>
+                ) : null}
               </div>
             </div>
             <div className="flex gap-1">
