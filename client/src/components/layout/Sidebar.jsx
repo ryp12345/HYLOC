@@ -24,15 +24,21 @@ const Sidebar = () => {
 
   const adminLinks = [
     { name: 'Dashboard', path: getDashboardPath(), icon: '📊' },
-    { name: 'Roles', path: '/admin/roles', icon: '🔐' },
-    { name: 'Department', path: '/admin/departments', icon: '🏢' },
-    { name: 'Designation', path: '/admin/designations', icon: '🏷️' },
-    // { name: 'Association', path: '/admin/associations', icon: '🤝' },
-    { name: 'Users', path: '/admin/users', icon: '👥' },
-    { name: "KMI's", path: '/admin/kmis', icon: '📚' },
-    { name: 'Unit Master', path: '/admin/unit-master', icon: '📏' },
-    { name: 'Pillars', path: '/admin/pillers', icon: '🏛️' },
-    { name: 'User-Roles', path: '/admin/user-roles', icon: '🧩' },
+    {
+      name: 'Master',
+      icon: '🧰',
+      submenu: [
+        { name: 'Roles', path: '/admin/roles', icon: '🔐' },
+        { name: 'Department', path: '/admin/departments', icon: '🏢' },
+        { name: 'Designation', path: '/admin/designations', icon: '🏷️' },
+        { name: 'Users', path: '/admin/users', icon: '👥' },
+        { name: "KMI's", path: '/admin/kmis', icon: '📚' },
+        { name: 'Unit Master', path: '/admin/unit-master', icon: '📏' },
+        { name: 'Pillars', path: '/admin/pillers', icon: '🏛️' },
+        { name: 'User-Roles', path: '/admin/user-roles', icon: '🧩' },
+      ],
+    },
+    
     { name: 'Monthly Attendance', path: '/admin/leaves/monthly-attendance', icon: '🗓️' },
     { name: 'Leave Entitlement', path: '/admin/leaves/leave-entitlement', icon: '📋' },
     { name: 'Tickets', path: '/tickets', icon: '🎫' },
@@ -40,19 +46,19 @@ const Sidebar = () => {
 
   const managementLinks = [
     { name: 'KMI/Global Objectives', path: getDashboardPath(), icon: '📊' },
-    { name: 'KMI', path: '/management/mgtkmi', icon: '📚' },
-    { name: 'Pillar', path: '/management/mgtpiller', icon: '🏛️' },
+    { name: 'PLANT KPI Dashboard', path: '/management/plant-efficiency', icon: '🏭' },
+    // { name: 'KMI', path: '/management/mgtkmi', icon: '📚' },
+    // { name: 'Pillar', path: '/management/mgtpiller', icon: '🏛️' },
     { name: 'Calendar', path: '/management/leaves', icon: '📅' },
-    // { name: 'Leave List', path: '/management/leave-approval', icon: '🗂️' },
     {
-      name: 'Leave List',
+      name: 'Leave Dashboard',
       icon: '🗂️',
       submenu: [
         { name: 'My Leave', path: '/management/my-leave' },
         { name: 'Leave Approval', path: '/management/leave-approval' },
       ],
     },
-    { name: 'Tickets', path: '/tickets', icon: '🎫' },
+    { name: 'Ticket Dashboard', path: '/tickets', icon: '🎫' },
   ];
 
 
