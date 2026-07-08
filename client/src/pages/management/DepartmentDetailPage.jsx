@@ -27,8 +27,20 @@ function DepartmentDetailPage() {
   const [error, setError] = useState('');
   const [department, setDepartment] = useState(null);
   const [mappedKpis, setMappedKpis] = useState([]);
+  const [allKpis, setAllKpis] = useState([]);
   const [selectedFiscalYear, setSelectedFiscalYear] = useState(getCurrentFiscalYear());
   const [activeTab, setActiveTab] = useState('department');
+
+  const [employees, setEmployees] = useState([]);
+  const [employeeKpiMappings, setEmployeeKpiMappings] = useState({});
+  const [employeeKpisLoading, setEmployeeKpisLoading] = useState(false);
+  const [employeeKpisLoaded, setEmployeeKpisLoaded] = useState(false);
+
+  useEffect(() => {
+    setEmployeeKpisLoaded(false);
+    setEmployees([]);
+    setEmployeeKpiMappings({});
+  }, [departmentId]);
 
   useEffect(() => {
     const loadDepartmentAnalysis = async () => {
@@ -44,15 +56,16 @@ function DepartmentDetailPage() {
 
         const departmentData = departmentRes?.data?.data || departmentRes?.data || null;
         const mappings = mappingsRes?.data?.data || [];
-        const allKpis = kpisRes?.data?.data || [];
+        const fetchedKpis = kpisRes?.data?.data || [];
 
-        const kpiById = new Map(allKpis.map((kpi) => [Number(kpi.id), kpi]));
+        const kpiById = new Map(fetchedKpis.map((kpi) => [Number(kpi.id), kpi]));
         const linkedKpis = mappings
           .map((mapping) => kpiById.get(Number(mapping.kpi_id)))
           .filter(Boolean)
           .sort((a, b) => (a?.title || '').localeCompare(b?.title || ''));
 
         setDepartment(departmentData);
+        setAllKpis(fetchedKpis);
         setMappedKpis(linkedKpis);
       } catch (loadError) {
         console.error('Failed to load department analysis:', loadError);
@@ -66,6 +79,58 @@ function DepartmentDetailPage() {
       loadDepartmentAnalysis();
     }
   }, [departmentId]);
+
+  useEffect(() => {
+    if (activeTab !== 'employee' || employeeKpisLoaded || !department) return;
+
+    const loadDepartmentEmployees = async () => {
+      setEmployeeKpisLoading(true);
+      try {
+        const usersRes = await api.get(`/users/department/${departmentId}`);
+        const users = usersRes?.data?.data || [];
+        const employeeCategoryKpis = new Map(
+          allKpis
+            .filter((kpi) => String(kpi?.category_id) === '4')
+            .map((kpi) => [Number(kpi.id), kpi])
+        );
+
+        const mappingsMap = {};
+        await Promise.all(
+          users.map(async (user) => {
+            try {
+              const lookupKeys = [user.id, user.empid].filter((value) => value !== undefined && value !== null && value !== '');
+              let mappings = [];
+
+              for (const lookupKey of lookupKeys) {
+                const kpiMappingsRes = await api.get(`/kpi-employees/employee/${lookupKey}`);
+                mappings = kpiMappingsRes?.data?.data || [];
+                if (mappings.length > 0) break;
+              }
+
+              mappingsMap[user.id] = mappings
+                .map((mapping) => ({
+                  ...mapping,
+                  kpi: employeeCategoryKpis.get(Number(mapping.kpi_id)) || null,
+                }))
+                .filter((mapping) => Boolean(mapping.kpi));
+            } catch (e) {
+              mappingsMap[user.id] = [];
+            }
+          })
+        );
+
+        setEmployees(users);
+        setEmployeeKpiMappings(mappingsMap);
+        setEmployeeKpisLoaded(true);
+      } catch (e) {
+        console.error('Failed to load department employees:', e);
+      } finally {
+        setEmployeeKpisLoading(false);
+      }
+    };
+
+    loadDepartmentEmployees();
+  }, [activeTab, employeeKpisLoaded, department, departmentId, allKpis]);
 
   const currentFiscalYear = getCurrentFiscalYear();
 
@@ -110,6 +175,27 @@ function DepartmentDetailPage() {
       coveragePercent,
     };
   }, [mappedKpis, currentFiscalYear, selectedFiscalYear]);
+
+  const employeeKpiRows = useMemo(() => {
+    const rows = [];
+    employees.forEach((emp) => {
+      const name = [emp.firstname, emp.middlename, emp.lastname].filter(Boolean).join(' ') || '-';
+      const mappings = employeeKpiMappings[emp.id] || [];
+      mappings.forEach((mapping) => {
+        const kpi = mapping.kpi;
+        if (kpi && parseFiscalYear(kpi.fin_year) === selectedFiscalYear) {
+          rows.push({
+            empId: emp.id,
+            kpiId: kpi.id,
+            name,
+            kpiTitle: kpi.title || '-',
+            financialYear: kpi.fin_year || '-',
+          });
+        }
+      });
+    });
+    return rows.sort((a, b) => a.name.localeCompare(b.name));
+  }, [employees, employeeKpiMappings, selectedFiscalYear]);
 
   return (
     <div className="space-y-6">
@@ -223,10 +309,10 @@ function DepartmentDetailPage() {
               ) : (
                 <div className="overflow-x-auto">
                   <table className="min-w-full text-sm">
-                    <thead className="bg-gray-50 text-gray-600">
+                    <thead className="bg-blue-600">
                       <tr>
-                        <th className="text-left px-4 py-2 font-semibold">KPI Title</th>
-                        <th className="text-left px-4 py-2 font-semibold">Fiscal Year</th>
+                        <th className="text-left px-4 py-2 text-xs font-medium text-white uppercase tracking-wider">KPI Title</th>
+                        <th className="text-left px-4 py-2 text-xs font-medium text-white uppercase tracking-wider">Fiscal Year</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -241,9 +327,34 @@ function DepartmentDetailPage() {
                 </div>
               )
             ) : (
-              <div className="p-6 text-gray-500">
-                Employee KPI view is ready for wiring to employee mappings for this department.
-              </div>
+              <>
+                {employeeKpisLoading ? (
+                  <div className="p-6 text-gray-500">Loading employee KPIs...</div>
+                ) : employeeKpiRows.length === 0 ? (
+                  <div className="p-6 text-gray-500">No employee KPIs found for this department.</div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full text-sm">
+                      <thead className="bg-blue-600">
+                        <tr>
+                          <th className="text-left px-4 py-2 text-xs font-medium text-white uppercase tracking-wider">Data Operator</th>
+                          <th className="text-left px-4 py-2 text-xs font-medium text-white uppercase tracking-wider">KPI Title</th>
+                          <th className="text-left px-4 py-2 text-xs font-medium text-white uppercase tracking-wider">Fiscal Year</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {employeeKpiRows.map((row) => (
+                          <tr key={`${row.empId}-${row.kpiId}`} className="border-t">
+                            <td className="px-4 py-2 text-gray-800">{row.name}</td>
+                            <td className="px-4 py-2 text-gray-800">{row.kpiTitle}</td>
+                            <td className="px-4 py-2 text-gray-700">{row.financialYear}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </>

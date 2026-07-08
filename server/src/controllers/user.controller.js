@@ -17,7 +17,7 @@ exports.getAllUsers = async (req, res) => {
 exports.getUsersByDepartment = async (req, res) => {
   try {
     const { id } = req.params;
-    const users = await userModel.getUsersByDepartmentMinimal(id);
+    const users = await userModel.getUsersByDepartment(id);
     return sendSuccess(res, users, 'Department users retrieved successfully');
   } catch (error) {
     console.error('Get users by department error:', error);
