@@ -2864,7 +2864,7 @@ function ManagementDashboard() {
                 className="w-full mb-1 px-2 sm:px-2 md:px-3 py-1 text-xs sm:text-sm lg:text-sm font-bold leading-snug text-blue-900 bg-blue-100 rounded-md hover:bg-blue-200 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 whitespace-normal break-words"
                 title="Go to Plant Efficiency KPI"
               >
-                ⚡ Plant Efficiency
+                ⚡ Overall Plant Efficiency(OPE)
               </button>
               {efficiencyLoading ? (
                 <div className="flex items-center justify-center p-8 text-gray-500 text-sm">Loading...</div>
