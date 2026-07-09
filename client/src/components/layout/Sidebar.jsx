@@ -46,7 +46,7 @@ const Sidebar = () => {
 
   const managementLinks = [
     { name: 'KMI/Global Objectives', path: getDashboardPath(), icon: '📊' },
-    { name: 'PLANT KPI Dashboard', path: '/management/plant-efficiency', icon: '🏭' },
+    { name: 'PLANT KPI', path: '/management/plant-efficiency', icon: '🏭' },
     // { name: 'KMI', path: '/management/mgtkmi', icon: '📚' },
     // { name: 'Pillar', path: '/management/mgtpiller', icon: '🏛️' },
     { name: 'Calendar', path: '/management/leaves', icon: '📅' },
