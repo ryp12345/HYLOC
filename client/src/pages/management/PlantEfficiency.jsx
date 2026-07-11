@@ -679,9 +679,10 @@ const PlantEfficiency = () => {
               {(() => {
                 const rows = chart.data || [];
                 const latestRow = [...rows].reverse().find((r) => r.actual != null || r.target != null) || null;
-                const actual = Number(selectedMonthData?.actual ?? latestRow?.actual ?? 0);
-                const target = Number(selectedMonthData?.target ?? latestRow?.target ?? 100);
-                const label = selectedMonthLabel || latestRow?.label || 'N/A';
+                const selectedRow = rows.find((r) => r.label === selectedMonthLabel) || latestRow;
+                const actual = Number(selectedRow?.actual ?? 0);
+                const target = Number(selectedRow?.target ?? 100);
+                const label = selectedRow?.label || 'N/A';
 
                 const pieData = [
                   { name: 'Actual', value: actual, color: '#2563eb' },

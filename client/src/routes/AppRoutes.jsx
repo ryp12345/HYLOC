@@ -516,6 +516,18 @@ const AppRoutes = () => {
             }
           />
 
+          {/* Management KPI/KAI Page */}
+          <Route
+            path="/management/kpikai"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <EmpKpiKaiPage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+
           {/* Employee Leaves */}
           <Route
             path="/employee/leaves"

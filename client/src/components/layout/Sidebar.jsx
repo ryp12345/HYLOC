@@ -22,6 +22,11 @@ const Sidebar = () => {
     }
   };
 
+  const getKpiKaiPath = () => {
+    const roleValue = (user?.role?.name || user?.role || '').toString().toLowerCase();
+    return roleValue === 'management' ? '/management/kpikai' : '/employee/kpikai';
+  };
+
   const adminLinks = [
     { name: 'Dashboard', path: getDashboardPath(), icon: '📊' },
     {
@@ -47,6 +52,7 @@ const Sidebar = () => {
   const managementLinks = [
     { name: 'KMI/Global Objectives', path: getDashboardPath(), icon: '📊' },
     { name: 'PLANT KPI', path: '/management/plant-efficiency', icon: '🏭' },
+    { name: 'My KPIs/KAIs', path: getKpiKaiPath(), icon: '📈' },
     // { name: 'KMI', path: '/management/mgtkmi', icon: '📚' },
     // { name: 'Pillar', path: '/management/mgtpiller', icon: '🏛️' },
     { name: 'Calendar', path: '/management/leaves', icon: '📅' },
@@ -79,7 +85,7 @@ const Sidebar = () => {
   ];
   const employeeLinks = [
     { name: 'Dashboard', path: getDashboardPath(), icon: '📊' },
-    { name: 'My KPIs/KAIs', path: '/employee/kpikai', icon: '📈' },
+    { name: 'My KPIs/KAIs', path: getKpiKaiPath(), icon: '📈' },
     { name: 'Calendar', path: '/employee/leaves', icon: '📅' },
     { name: 'Tickets', path: '/tickets', icon: '🎫' },
   ];
