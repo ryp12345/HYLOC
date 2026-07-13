@@ -274,6 +274,32 @@ exports.updateUser = async (req, res) => {
   }
 };
 
+// Reset user password (admin/management)
+exports.resetUserPassword = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { password } = req.body;
+
+    if (!password) {
+      return sendError(res, 'Password is required', 400);
+    }
+
+    const existingUser = await userModel.findUserById(id);
+    if (!existingUser) {
+      return sendError(res, 'User not found', 404);
+    }
+
+    const updatedUser = await userModel.updateUser(id, {
+      password,
+    });
+
+    return sendSuccess(res, updatedUser, 'Password reset successfully');
+  } catch (error) {
+    console.error('Reset user password error:', error);
+    return sendError(res, 'Failed to reset password', 500);
+  }
+};
+
 // Delete user
 exports.deleteUser = async (req, res) => {
   try {

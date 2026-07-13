@@ -231,9 +231,8 @@ exports.resetPassword = async (req, res) => {
         return sendError(res, 'Invalid OTP or expired', 400);
     }
     if (payload.otp !== otp) return sendError(res, 'Invalid OTP or expired', 400);
-    // Hash new password and update
-    const hashed = await bcrypt.hash(newPassword, 10);
-    await UserModel.updateUser(user.id, { password: hashed });
+    // Update through the shared model so password hashing happens once in one place
+    await UserModel.updateUser(user.id, { password: newPassword });
     return sendSuccess(res, {}, 'Password reset successful', 200);
   } catch (error) {
     return sendError(res, 'Invalid OTP or expired', 400);

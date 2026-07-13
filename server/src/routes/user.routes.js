@@ -47,6 +47,7 @@ router.get('/', authorize('admin', 'management'), userController.getAllUsers);
 router.get('/department/:id', authorize('admin', 'management', 'manager'), userController.getUsersByDepartment);
 router.get('/:id', userController.getUserById);
 router.post('/', authorize('admin'), uploadUser.single('staffPhoto'), userController.createUser);
+router.patch('/:id/reset-password', authorize('admin', 'management'), userController.resetUserPassword);
 router.put('/:id', authorize('admin'), seedExistingEmpidForUpload, uploadUser.single('staffPhoto'), userController.updateUser);
 router.delete('/:id', authorize('admin'), userController.deleteUser);
 

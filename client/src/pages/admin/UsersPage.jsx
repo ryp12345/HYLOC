@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import Notification from '../../components/common/Notification';
-import { getUsers, createUser, updateUser, deleteUser } from '../../api/userApi';
+import { getUsers, createUser, updateUser, deleteUser, resetUserPassword } from '../../api/userApi';
 import { getDepartments } from '../../api/departmentApi';
 import { getDesignations } from '../../api/designationApi';
 import { API_URL } from '../../api/axios';
+import { useAuth } from '../../context/AuthContext';
 
 // Resolve a stored upload path (e.g. /api/uploads/users/EMP001.jpg) to an absolute URL
 const getPhotoUrl = (path) => {
@@ -44,6 +45,7 @@ const initialForm = {
 };
 
 export default function UsersPage() {
+  const { user } = useAuth();
   const [rows, setRows] = useState([]);
   const [search, setSearch] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState('');
@@ -59,6 +61,7 @@ export default function UsersPage() {
   const [photoFile, setPhotoFile] = useState(null);
   const [photoPreview, setPhotoPreview] = useState('');
   const [notification, setNotification] = useState({ show: false, message: '', type: '' });
+  const isManagementView = String(user?.role?.name || user?.role || '').toLowerCase() === 'management';
 
   const load = async () => {
     try { const res = await getUsers(); setRows(res.data?.data || []); }
@@ -191,6 +194,19 @@ export default function UsersPage() {
       load(); 
       showNotification('User deleted successfully!', 'success');
     } catch {}
+  };
+
+  const resetPassword = async (row) => {
+    const nextPassword = window.prompt(`Reset password for ${row.firstname || row.empid || 'user'}`, 'Password@123');
+    if (!nextPassword) return;
+
+    try {
+      await resetUserPassword(row.id, nextPassword);
+      showNotification('Password reset successfully!', 'success');
+    } catch (e) {
+      const msg = e.response?.data?.message || 'Failed to reset password';
+      showNotification(msg, 'error');
+    }
   };
 
   const showNotification = (message, type = 'success') => {
@@ -340,8 +356,12 @@ export default function UsersPage() {
       <div className="max-w-7xl mx-auto">
         <Notification show={notification.show} message={notification.message} type={notification.type} onClose={() => setNotification({ show: false, message: '', type: '' })} />
         <div className="mb-12 text-center">
-          <h1 className="mb-2 text-4xl font-extrabold text-gray-900">Users</h1>
-          <p className="text-lg text-gray-600">Create, update and manage users</p>
+          <h1 className="mb-2 text-4xl font-extrabold text-gray-900">
+            {isManagementView ? 'User Credentials' : 'Users'}
+          </h1>
+          <p className="text-lg text-gray-600">
+            {isManagementView ? 'Reset passwords and manage user credentials' : 'Create, update and manage users'}
+          </p>
         </div>
 
         {/* <div className="flex flex-col gap-4 mb-6 lg:flex-row lg:items-center lg:justify-between">
@@ -466,12 +486,14 @@ export default function UsersPage() {
               Export
             </button>
 
-            <button
-              onClick={openCreate}
-              className="flex items-center justify-center px-6 py-2 font-medium text-white transition rounded-lg shadow bg-blue-600 hover:bg-blue-700"
-            >
-              Add User
-            </button>
+            {!isManagementView && (
+              <button
+                onClick={openCreate}
+                className="flex items-center justify-center px-6 py-2 font-medium text-white transition rounded-lg shadow bg-blue-600 hover:bg-blue-700"
+              >
+                Add User
+              </button>
+            )}
 
           </div>
 
@@ -488,6 +510,7 @@ export default function UsersPage() {
                       <span className="text-[10px]">{sortConfig[0]?.key === 'empid' ? (sortConfig[0].direction === 'asc' ? '▲' : '▼') : '↕'}</span>
                     </button>
                   </th>
+                  <th className="px-6 py-4 text-center text-xs font-medium text-white uppercase tracking-wider">Photo</th>
                   <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">
                     <button type="button" onClick={(e) => handleSort('name', e.shiftKey)} className="inline-flex items-center gap-2" title="Sort by staff name">
                       Name
@@ -507,23 +530,18 @@ export default function UsersPage() {
                       <span className="text-[10px]">{sortConfig[0]?.key === 'designation' ? (sortConfig[0].direction === 'asc' ? '▲' : '▼') : '↕'}</span>
                     </button>
                   </th>
-                  <th className="px-6 py-4 text-center text-xs font-medium text-white uppercase tracking-wider">Photo</th>
                   <th className="px-6 py-4 text-center text-xs font-medium text-white uppercase tracking-wider">Status</th>
                   <th className="px-6 py-4 text-center text-xs font-medium text-white uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {filtered.length === 0 ? (
-                  <tr><td colSpan="9" className="px-6 py-12 text-center text-gray-500">No users found</td></tr>
+                  <tr><td colSpan="10" className="px-6 py-12 text-center text-gray-500">No users found</td></tr>
                 ) : (
                   paginated.map((u, idx) => (
                     <tr key={u.id} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-colors duration-150`}>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{(page - 1) * PAGE_SIZE + idx + 1}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{u.empid || '--N/A--'}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{u.firstname} {u.middlename || ''} {u.lastname}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{u.email}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{u.department_name || '--N/A--'}</td>
-                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{u.designation_name || '--N/A--'}</td>
                        <td className="px-6 py-4 whitespace-nowrap text-center">
                          {u.staff_photo ? (
                            <img src={getPhotoUrl(u.staff_photo)} alt="Staff" className="object-cover w-10 h-10 rounded-full border border-gray-300" />
@@ -531,6 +549,10 @@ export default function UsersPage() {
                            <span className="text-sm text-gray-400">--</span>
                          )}
                        </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{u.firstname} {u.middlename || ''} {u.lastname}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{u.email}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{u.department_name || '--N/A--'}</td>
+                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{u.designation_name || '--N/A--'}</td>
                        <td className="px-6 py-4 whitespace-nowrap text-center">
                         <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
                           u.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
@@ -540,24 +562,36 @@ export default function UsersPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
                         <div className="flex items-center justify-center space-x-2">
-                          <button
-                            onClick={() => openEdit(u)}
-                            className="p-2 text-white transition-colors duration-200 bg-blue-600 rounded-lg hover:bg-blue-700"
-                            title="Edit User"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                            </svg>
-                          </button>
-                          <button
-                            onClick={() => remove(u.id)}
-                            className="p-2 text-white transition-colors duration-200 bg-red-600 rounded-lg hover:bg-red-700"
-                            title="Deactivate User"
-                          >
-                           <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                          </button>
+                          {isManagementView ? (
+                            <button
+                              onClick={() => resetPassword(u)}
+                              className="px-3 py-2 text-xs font-semibold text-white transition-colors duration-200 bg-indigo-600 rounded-lg hover:bg-indigo-700"
+                              title="Reset Password"
+                            >
+                              Reset Password
+                            </button>
+                          ) : (
+                            <>
+                              <button
+                                onClick={() => openEdit(u)}
+                                className="p-2 text-white transition-colors duration-200 bg-blue-600 rounded-lg hover:bg-blue-700"
+                                title="Edit User"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                </svg>
+                              </button>
+                              <button
+                                onClick={() => remove(u.id)}
+                                className="p-2 text-white transition-colors duration-200 bg-red-600 rounded-lg hover:bg-red-700"
+                                title="Deactivate User"
+                              >
+                               <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                              </button>
+                            </>
+                          )}
                         </div>
                       </td>
                     </tr>

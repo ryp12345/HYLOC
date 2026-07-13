@@ -118,6 +118,11 @@ exports.updateUser = async (id, updates) => {
   const client = await db.connect();
   try {
     await client.query('BEGIN');
+
+    const normalizedUpdates = { ...updates };
+    if (normalizedUpdates.password) {
+      normalizedUpdates.password = await hashPassword(normalizedUpdates.password);
+    }
     
     const userFields = [];
     const userValues = [];
@@ -125,10 +130,10 @@ exports.updateUser = async (id, updates) => {
 
     // Handle user table updates
     const userTableFields = ['firstname', 'lastname', 'email', 'password', 'status', 'empid', 'phone', 'address', 'bloodgroup', 'department_id', 'designation_id', 'staff_photo', 'middlename'];
-    Object.keys(updates).forEach((key) => {
-      if (updates[key] !== undefined && userTableFields.includes(key)) {
+    Object.keys(normalizedUpdates).forEach((key) => {
+      if (normalizedUpdates[key] !== undefined && userTableFields.includes(key)) {
         userFields.push(`${key} = $${paramCount}`);
-        userValues.push(updates[key]);
+        userValues.push(normalizedUpdates[key]);
         paramCount++;
       }
     });
@@ -152,10 +157,10 @@ exports.updateUser = async (id, updates) => {
     }
 
     // Handle role update in user_roles table
-    if (updates.role !== undefined) {
+    if (normalizedUpdates.role !== undefined) {
       // Get role_id from roles table
       const roleIdQuery = 'SELECT id FROM roles WHERE role_name = $1';
-      const roleIdResult = await client.query(roleIdQuery, [updates.role]);
+      const roleIdResult = await client.query(roleIdQuery, [normalizedUpdates.role]);
       const roleId = roleIdResult.rows[0]?.id;
       
       if (roleId) {
@@ -178,7 +183,7 @@ exports.updateUser = async (id, updates) => {
             [id, roleId, 'active']
           );
         }
-        user.role = updates.role;
+        user.role = normalizedUpdates.role;
       }
     } else {
       // Get current active role
@@ -209,7 +214,7 @@ exports.getAllUsers = async () => {
   const query = `
     SELECT u.id, u.email, u.firstname, u.middlename, u.lastname, u.empid, 
            u.phone, u.address, u.bloodgroup, u.department_id, u.designation_id, 
-           u.staff_photo, u.status, u.created_at,
+           u.staff_photo, u.status, u.created_at, u.updated_at,
            d.department_name,
            des.designation_name,
            COALESCE(r.role_name, 'employee') as role
@@ -261,7 +266,7 @@ exports.getManagersByDepartment = async (departmentId) => {
 exports.getUsersByDepartment = async (departmentId) => {
   const query = `
     SELECT u.id, u.empid, u.firstname, u.middlename, u.lastname, u.email, 
-           u.department_id, u.designation_id, u.status,
+      u.department_id, u.designation_id, u.status, u.updated_at,
            d.department_name,
            des.designation_name
     FROM users u

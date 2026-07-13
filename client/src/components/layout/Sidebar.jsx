@@ -53,6 +53,7 @@ const Sidebar = () => {
     { name: 'KMI/Global Objectives', path: getDashboardPath(), icon: '📊' },
     { name: 'PLANT KPI', path: '/management/plant-efficiency', icon: '🏭' },
     { name: 'My KPIs/KAIs', path: getKpiKaiPath(), icon: '📈' },
+    { name: 'Reset Credentials', path: '/management/users', icon: '👥' },
     // { name: 'KMI', path: '/management/mgtkmi', icon: '📚' },
     // { name: 'Pillar', path: '/management/mgtpiller', icon: '🏛️' },
     { name: 'Calendar', path: '/management/leaves', icon: '📅' },

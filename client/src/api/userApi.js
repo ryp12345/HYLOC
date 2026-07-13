@@ -34,6 +34,10 @@ export const updateUser = async (id, data) => {
   return await axios.put(`/users/${id}`, data);
 };
 
+export const resetUserPassword = async (id, password) => {
+  return await axios.patch(`/users/${id}/reset-password`, { password });
+};
+
 export const deleteUser = async (id) => {
   return await axios.delete(`/users/${id}`);
 };

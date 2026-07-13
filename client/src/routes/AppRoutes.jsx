@@ -396,6 +396,17 @@ const AppRoutes = () => {
             }
           />
 
+          <Route
+            path="/management/users"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <UsersPage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+
             {/* Management Piller Page */}
           <Route
             path="/management/mgtpiller"

@@ -129,7 +129,6 @@ exports.changePassword = async (userId, currentPassword, newPassword) => {
     throw new Error('Current password is incorrect');
   }
 
-  const hashed = await require('../utils/hash').hashPassword(newPassword);
-  await UserModel.updateUser(userId, { password: hashed });
+  await UserModel.updateUser(userId, { password: newPassword });
   return true;
 };
