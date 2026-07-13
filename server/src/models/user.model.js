@@ -8,9 +8,9 @@ exports.createUser = async (userData) => {
     
     const hashedPassword = await hashPassword(userData.password);
     const userQuery = `
-      INSERT INTO users (email, password, firstname, middlename, lastname, empid, phone, address, bloodgroup, department_id, designation_id, status, created_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW())
-      RETURNING id, email, firstname, middlename, lastname, empid, phone, address, bloodgroup, department_id, designation_id, status, created_at
+      INSERT INTO users (email, password, firstname, middlename, lastname, empid, phone, address, bloodgroup, department_id, designation_id, staff_photo, status, created_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW())
+      RETURNING id, email, firstname, middlename, lastname, empid, phone, address, bloodgroup, department_id, designation_id, staff_photo, status, created_at
     `;
     const userResult = await client.query(userQuery, [
       userData.email, 
@@ -24,6 +24,7 @@ exports.createUser = async (userData) => {
       userData.bloodGroup || null,
       userData.departmentId || null,
       userData.designationId || null,
+      userData.staffPhoto || null,
       userData.status || 'active'
     ]);
     const user = userResult.rows[0];
@@ -92,13 +93,13 @@ exports.findUserByEmpid = async (empid) => {
 };
 
 exports.findUserById = async (id) => {
-  const query = `
-    SELECT u.id, u.email, u.firstname, u.middlename, u.lastname, u.empid, 
-           u.phone, u.address, u.bloodgroup, u.department_id, u.designation_id, 
-           u.status, u.created_at
-    FROM users u 
-    WHERE u.id = $1
-  `;
+    const query = `
+      SELECT u.id, u.email, u.firstname, u.middlename, u.lastname, u.empid, 
+             u.phone, u.address, u.bloodgroup, u.department_id, u.designation_id, 
+             u.staff_photo, u.status, u.created_at
+      FROM users u 
+      WHERE u.id = $1
+    `;
   const result = await db.query(query, [id]);
   return result.rows[0];
 };
@@ -123,7 +124,7 @@ exports.updateUser = async (id, updates) => {
     let paramCount = 1;
 
     // Handle user table updates
-    const userTableFields = ['firstname', 'lastname', 'email', 'password', 'status', 'empid', 'phone', 'address', 'bloodgroup', 'department_id', 'designation_id', 'middlename'];
+    const userTableFields = ['firstname', 'lastname', 'email', 'password', 'status', 'empid', 'phone', 'address', 'bloodgroup', 'department_id', 'designation_id', 'staff_photo', 'middlename'];
     Object.keys(updates).forEach((key) => {
       if (updates[key] !== undefined && userTableFields.includes(key)) {
         userFields.push(`${key} = $${paramCount}`);
@@ -161,14 +162,22 @@ exports.updateUser = async (id, updates) => {
         // Mark existing roles inactive
         await client.query('UPDATE user_roles SET status = $1 WHERE user_id = $2', ['inactive', id]);
 
-        // Insert new role (or update existing) with status active
-        const roleQuery = `
-          INSERT INTO user_roles (user_id, role_id, status, created_at, updated_at)
-          VALUES ($1, $2, $3, NOW(), NOW())
-          ON CONFLICT (user_id, role_id)
-          DO UPDATE SET status = EXCLUDED.status, updated_at = NOW()
-        `;
-        await client.query(roleQuery, [id, roleId, 'active']);
+        // Activate existing user-role row, or insert a new one (no unique constraint required)
+        const existingRoleResult = await client.query(
+          'SELECT id FROM user_roles WHERE user_id = $1 AND role_id = $2',
+          [id, roleId]
+        );
+        if (existingRoleResult.rows[0]) {
+          await client.query(
+            'UPDATE user_roles SET status = $1, updated_at = NOW() WHERE user_id = $2 AND role_id = $3',
+            ['active', id, roleId]
+          );
+        } else {
+          await client.query(
+            'INSERT INTO user_roles (user_id, role_id, status, created_at, updated_at) VALUES ($1, $2, $3, NOW(), NOW())',
+            [id, roleId, 'active']
+          );
+        }
         user.role = updates.role;
       }
     } else {
@@ -200,7 +209,7 @@ exports.getAllUsers = async () => {
   const query = `
     SELECT u.id, u.email, u.firstname, u.middlename, u.lastname, u.empid, 
            u.phone, u.address, u.bloodgroup, u.department_id, u.designation_id, 
-           u.status, u.created_at,
+           u.staff_photo, u.status, u.created_at,
            d.department_name,
            des.designation_name,
            COALESCE(r.role_name, 'employee') as role

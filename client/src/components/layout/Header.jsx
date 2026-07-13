@@ -5,6 +5,27 @@ import ChangePasswordModal from '../../pages/auth/ChangePassword';
 import ViewAllNotification from '../common/ViewAllNotification';
 import NotificationDetail from '../common/NotificationDetail';
 import { getNotifications, markNotificationAsRead } from '../../api/notificationApi';
+import axios from '../../api/axios';
+import { API_URL } from '../../api/axios';
+
+const getPhotoUrl = (path) => {
+  if (!path) return '';
+  if (/^https?:\/\//i.test(path)) return path;
+  if (path.startsWith('/api/uploads/') || path.startsWith('/uploads/')) {
+    try {
+      const appOrigin = API_URL.startsWith('http') ? new URL(API_URL).origin : window.location.origin;
+      return `${appOrigin}${path}`;
+    } catch {
+      return path;
+    }
+  }
+  try {
+    const appOrigin = API_URL.startsWith('http') ? new URL(API_URL).origin : window.location.origin;
+    return `${appOrigin}/api/uploads/users/${String(path).replace(/^\/+/, '')}`;
+  } catch {
+    return path;
+  }
+};
 
 const Navbar = () => {
   const { user, logout } = useAuth();
@@ -17,6 +38,7 @@ const Navbar = () => {
   const [showAllNotifications, setShowAllNotifications] = useState(false);
   const [selectedNotification, setSelectedNotification] = useState(null);
   const [showNotificationDetail, setShowNotificationDetail] = useState(false);
+  const [profilePhoto, setProfilePhoto] = useState('');
 
   // Ref for notification and profile dropdowns
   const notificationRef = useRef(null);
@@ -55,6 +77,40 @@ const Navbar = () => {
     // Optionally, poll every 60s
     // const interval = setInterval(fetchNotifications, 60000);
     // return () => clearInterval(interval);
+  }, [user]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadProfilePhoto = async () => {
+      if (!user) {
+        setProfilePhoto('');
+        return;
+      }
+
+      const initialPhoto = getPhotoUrl(user.staff_photo_url || user.staff_photo);
+      if (initialPhoto) {
+        setProfilePhoto(initialPhoto);
+      }
+
+      try {
+        const response = await axios.get('/users/me');
+        const data = response.data?.data;
+        if (!cancelled && data) {
+          setProfilePhoto(getPhotoUrl(data.staff_photo_url || data.staff_photo));
+        }
+      } catch {
+        if (!cancelled) {
+          setProfilePhoto(initialPhoto);
+        }
+      }
+    };
+
+    loadProfilePhoto();
+
+    return () => {
+      cancelled = true;
+    };
   }, [user]);
 
   const fetchNotifications = async () => {
@@ -219,8 +275,17 @@ const Navbar = () => {
                     onClick={() => setIsProfileOpen(!isProfileOpen)}
                     className="flex items-center space-x-2 px-3 py-2 rounded-lg hover:bg-gray-100 transition"
                   >
-                    <div className="h-8 w-8 rounded-full bg-gray-200 text-gray-700 flex items-center justify-center text-sm font-semibold">
-                      {(user.firstName?.[0] || 'U').toUpperCase()}
+                    <div className="h-8 w-8 rounded-full bg-gray-200 text-gray-700 flex items-center justify-center text-sm font-semibold overflow-hidden">
+                      {profilePhoto ? (
+                        <img
+                          src={profilePhoto}
+                          alt="Profile"
+                          className="h-full w-full object-cover"
+                          onError={() => setProfilePhoto('')}
+                        />
+                      ) : (
+                        (user.firstName?.[0] || 'U').toUpperCase()
+                      )}
                     </div>
                     <span className="text-sm font-medium">
                       {user.firstName} {user.lastName}

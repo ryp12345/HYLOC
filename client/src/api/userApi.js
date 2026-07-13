@@ -17,10 +17,20 @@ export const getUsersByDepartment = async (departmentId) => {
 };
 
 export const createUser = async (data) => {
+  if (data instanceof FormData) {
+    return await axios.post('/users', data, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  }
   return await axios.post('/users', data);
 };
 
 export const updateUser = async (id, data) => {
+  if (data instanceof FormData) {
+    return await axios.put(`/users/${id}`, data, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  }
   return await axios.put(`/users/${id}`, data);
 };
 

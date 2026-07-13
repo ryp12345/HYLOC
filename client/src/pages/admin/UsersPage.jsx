@@ -3,6 +3,27 @@ import Notification from '../../components/common/Notification';
 import { getUsers, createUser, updateUser, deleteUser } from '../../api/userApi';
 import { getDepartments } from '../../api/departmentApi';
 import { getDesignations } from '../../api/designationApi';
+import { API_URL } from '../../api/axios';
+
+// Resolve a stored upload path (e.g. /api/uploads/users/EMP001.jpg) to an absolute URL
+const getPhotoUrl = (path) => {
+  if (!path) return '';
+  if (/^https?:\/\//i.test(path)) return path;
+  if (path.startsWith('/api/uploads/') || path.startsWith('/uploads/')) {
+    try {
+      const appOrigin = API_URL.startsWith('http') ? new URL(API_URL).origin : window.location.origin;
+      return `${appOrigin}${path}`;
+    } catch {
+      return path;
+    }
+  }
+  try {
+    const appOrigin = API_URL.startsWith('http') ? new URL(API_URL).origin : window.location.origin;
+    return `${appOrigin}/api/uploads/users/${String(path).replace(/^\/+/, '')}`;
+  } catch {
+    return path;
+  }
+};
 
 const initialForm = { 
   firstName: '', 
@@ -15,6 +36,7 @@ const initialForm = {
   bloodGroup: '',
   departmentId: '',
   designationId: '',
+  staffPhoto: '',
   password: 'Password@123', 
   confirmPassword: 'Password@123',
   role: 'employee', 
@@ -34,6 +56,8 @@ export default function UsersPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [departments, setDepartments] = useState([]);
   const [designations, setDesignations] = useState([]);
+  const [photoFile, setPhotoFile] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState('');
   const [notification, setNotification] = useState({ show: false, message: '', type: '' });
 
   const load = async () => {
@@ -61,7 +85,7 @@ export default function UsersPage() {
     loadDesignations();
   }, []);
 
-  const onClose = () => { setIsModalOpen(false); setEditingId(null); setForm(initialForm); setError(''); setShowPassword(false); setShowConfirmPassword(false); };
+  const onClose = () => { setIsModalOpen(false); setEditingId(null); setForm(initialForm); setError(''); setShowPassword(false); setShowConfirmPassword(false); setPhotoFile(null); setPhotoPreview(''); };
   const openCreate = () => { onClose(); setIsModalOpen(true); };
   const openEdit = (row) => {
     setEditingId(row.id);
@@ -76,11 +100,14 @@ export default function UsersPage() {
       bloodGroup: row.bloodgroup || '',
       departmentId: row.department_id || '',
       designationId: row.designation_id || '',
+      staffPhoto: row.staff_photo || '',
       password: 'Password@123',
       confirmPassword: 'Password@123',
       role: row.role || 'employee',
       status: row.status || 'active',
     });
+    setPhotoFile(null);
+    setPhotoPreview(getPhotoUrl(row.staff_photo));
     setIsModalOpen(true);
   };
 
@@ -102,9 +129,23 @@ export default function UsersPage() {
       if (!payload.bloodGroup) payload.bloodGroup = null;
       if (!payload.departmentId) payload.departmentId = null;
       if (!payload.designationId) payload.designationId = null;
+      if (!payload.staffPhoto) payload.staffPhoto = null;
+
+      // Use multipart/form-data when a new photo file is selected
+      let requestData = payload;
+      if (photoFile) {
+        const fd = new FormData();
+        Object.entries(payload).forEach(([key, value]) => {
+          if (value !== null && value !== undefined) fd.append(key, value);
+        });
+        fd.append('staffPhoto', photoFile);
+        requestData = fd;
+      }
+
+      const newStaffPhoto = photoFile ? photoPreview : (form.staffPhoto || null);
 
       if (editingId) {
-        await updateUser(editingId, payload);
+        await updateUser(editingId, requestData);
         // Optimistically update UI in case list refresh is delayed
         const departmentName = departments.find(d => String(d.id) === String(payload.departmentId))?.department_name || '--N/A--';
         const designationName = designations.find(d => String(d.id) === String(payload.designationId))?.designation_name || '--N/A--';
@@ -122,6 +163,7 @@ export default function UsersPage() {
                 bloodgroup: payload.bloodGroup || null,
                 department_id: payload.departmentId || null,
                 designation_id: payload.designationId || null,
+                staff_photo: newStaffPhoto,
                 department_name: payload.departmentId ? departmentName : '--N/A--',
                 designation_name: payload.designationId ? designationName : '--N/A--',
                 status: form.status || r.status,
@@ -130,7 +172,7 @@ export default function UsersPage() {
         )));
         showNotification('User updated successfully!', 'success');
       } else {
-        await createUser(payload);
+        await createUser(requestData);
         showNotification('User created successfully!', 'success');
       }
       await load();
@@ -465,13 +507,14 @@ export default function UsersPage() {
                       <span className="text-[10px]">{sortConfig[0]?.key === 'designation' ? (sortConfig[0].direction === 'asc' ? '▲' : '▼') : '↕'}</span>
                     </button>
                   </th>
+                  <th className="px-6 py-4 text-center text-xs font-medium text-white uppercase tracking-wider">Photo</th>
                   <th className="px-6 py-4 text-center text-xs font-medium text-white uppercase tracking-wider">Status</th>
                   <th className="px-6 py-4 text-center text-xs font-medium text-white uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {filtered.length === 0 ? (
-                  <tr><td colSpan="8" className="px-6 py-12 text-center text-gray-500">No users found</td></tr>
+                  <tr><td colSpan="9" className="px-6 py-12 text-center text-gray-500">No users found</td></tr>
                 ) : (
                   paginated.map((u, idx) => (
                     <tr key={u.id} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-colors duration-150`}>
@@ -480,8 +523,15 @@ export default function UsersPage() {
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{u.firstname} {u.middlename || ''} {u.lastname}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{u.email}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{u.department_name || '--N/A--'}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{u.designation_name || '--N/A--'}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{u.designation_name || '--N/A--'}</td>
+                       <td className="px-6 py-4 whitespace-nowrap text-center">
+                         {u.staff_photo ? (
+                           <img src={getPhotoUrl(u.staff_photo)} alt="Staff" className="object-cover w-10 h-10 rounded-full border border-gray-300" />
+                         ) : (
+                           <span className="text-sm text-gray-400">--</span>
+                         )}
+                       </td>
+                       <td className="px-6 py-4 whitespace-nowrap text-center">
                         <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
                           u.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                         }`}>
@@ -616,6 +666,22 @@ export default function UsersPage() {
                             <option key={desig.id} value={desig.id}>{desig.designation_name}</option>
                           ))}
                         </select>
+                      </div>
+                      <div>
+                        <label className="block mb-2 text-sm font-medium text-gray-700">Staff Photo</label>
+                        {photoPreview && (
+                          <img src={photoPreview} alt="Staff preview" className="object-cover w-20 h-20 mb-2 rounded-full border border-gray-300" />
+                        )}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0] || null;
+                            setPhotoFile(file);
+                            setPhotoPreview(file ? URL.createObjectURL(file) : (form.staffPhoto || ''));
+                          }}
+                          className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        />
                       </div>
                       {!editingId && (
                         <>

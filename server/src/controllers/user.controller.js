@@ -1,6 +1,110 @@
 const userModel = require('../models/user.model');
 const { hashPassword } = require('../utils/hash');
 const { sendSuccess, sendError } = require('../utils/response');
+const fs = require('fs');
+const path = require('path');
+
+const STAFF_PHOTO_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+const UPLOADS_USERS_DIR = path.join(__dirname, '../../public/uploads/users');
+
+const deletePhotoVariants = (photoPath) => {
+  if (!photoPath) return;
+
+  const normalized = String(photoPath).replace(/^https?:\/\/[^/]+/i, '');
+  const relative = normalized.startsWith('/api/uploads/users/')
+    ? normalized.replace('/api/uploads/users/', '')
+    : normalized.startsWith('/uploads/users/')
+      ? normalized.replace('/uploads/users/', '')
+      : normalized.replace(/^\/+/, '');
+
+  const baseName = path.parse(relative).name || relative;
+  const extension = path.parse(relative).ext;
+
+  const candidates = new Set();
+  if (relative) candidates.add(relative);
+  if (baseName && extension) candidates.add(`${baseName}${extension}`);
+  STAFF_PHOTO_EXTENSIONS.forEach((ext) => candidates.add(`${baseName}.${ext}`));
+
+  candidates.forEach((candidate) => {
+    const filePath = path.join(UPLOADS_USERS_DIR, candidate);
+    if (fs.existsSync(filePath)) {
+      try {
+        fs.unlinkSync(filePath);
+      } catch (error) {
+        console.error('Failed to remove old staff photo:', error.message);
+      }
+    }
+  });
+};
+
+const buildStaffPhotoCandidates = (user) => {
+  const candidates = [];
+  const appOrigin = process.env.APP_URL || '';
+  const baseUrl = appOrigin ? appOrigin.replace(/\/$/, '') : '';
+  const toAbsoluteUrl = (value) => {
+    if (baseUrl) return `${baseUrl}${value}`;
+    return value;
+  };
+
+  const findExistingUpload = (fileName) => {
+    if (!fileName) return '';
+    const normalized = String(fileName).replace(/^\/+/, '');
+    const directPath = path.join(UPLOADS_USERS_DIR, normalized);
+    if (fs.existsSync(directPath)) {
+      return `/api/uploads/users/${normalized}`;
+    }
+
+    const baseName = path.parse(normalized).name || normalized;
+    const extension = path.parse(normalized).ext;
+
+    if (extension) {
+      const normalizedWithExt = path.join(UPLOADS_USERS_DIR, `${baseName}${extension}`);
+      if (fs.existsSync(normalizedWithExt)) {
+        return `/api/uploads/users/${baseName}${extension}`;
+      }
+    }
+
+    const matchedFile = STAFF_PHOTO_EXTENSIONS
+      .map((ext) => `${baseName}.${ext}`)
+      .find((candidate) => fs.existsSync(path.join(UPLOADS_USERS_DIR, candidate)));
+
+    return matchedFile ? `/api/uploads/users/${matchedFile}` : '';
+  };
+
+  const addCandidate = (value) => {
+    if (!value) return;
+    if (/^https?:\/\//i.test(value)) {
+      candidates.push(value);
+      return;
+    }
+    if (value.startsWith('/api/uploads/') || value.startsWith('/uploads/')) {
+      candidates.push(toAbsoluteUrl(value));
+      return;
+    }
+    const existingUpload = findExistingUpload(value);
+    candidates.push(existingUpload ? toAbsoluteUrl(existingUpload) : toAbsoluteUrl(`/api/uploads/users/${String(value).replace(/^\/+/, '')}`));
+  };
+
+  addCandidate(user?.staff_photo);
+
+  const empid = String(user?.empid || '').trim();
+  if (empid) {
+    addCandidate(empid);
+    STAFF_PHOTO_EXTENSIONS.forEach((ext) => addCandidate(`${empid}.${ext}`));
+  }
+
+  return [...new Set(candidates)];
+};
+
+const attachStaffPhotoUrl = (user) => {
+  if (!user) return user;
+  const photoCandidates = buildStaffPhotoCandidates(user);
+  return {
+    ...user,
+    staff_photo_url: photoCandidates[0] || '',
+    staff_photo_candidates: photoCandidates,
+  };
+};
 
 // Get all users
 exports.getAllUsers = async (req, res) => {
@@ -35,7 +139,7 @@ exports.getUserById = async (req, res) => {
       return sendError(res, 'User not found', 404);
     }
     
-    return sendSuccess(res, user, 'User retrieved successfully');
+    return sendSuccess(res, attachStaffPhotoUrl(user), 'User retrieved successfully');
   } catch (error) {
     console.error('Get user by ID error:', error);
     return sendError(res, 'Failed to retrieve user', 500);
@@ -46,6 +150,9 @@ exports.getUserById = async (req, res) => {
 exports.createUser = async (req, res) => {
   try {
     const { email, password, firstName, middleName, lastName, empid, phone, address, bloodGroup, departmentId, designationId, role = 'employee', status = 'active' } = req.body;
+
+    // Build staff photo URL from uploaded file if present
+    const staffPhoto = req.file ? `/api/uploads/users/${req.file.filename}` : (req.body.staffPhoto || null);
 
     // Validate required fields
     if (!email || !password || !firstName || !lastName) {
@@ -79,6 +186,7 @@ exports.createUser = async (req, res) => {
       bloodGroup,
       departmentId,
       designationId,
+      staffPhoto,
       role,
       status
     });
@@ -128,6 +236,11 @@ exports.updateUser = async (req, res) => {
     if (req.body.bloodGroup !== undefined) updates.bloodgroup = req.body.bloodGroup;
     if (req.body.departmentId !== undefined) updates.department_id = req.body.departmentId;
     if (req.body.designationId !== undefined) updates.designation_id = req.body.designationId;
+    if (req.file) {
+      updates.staff_photo = `/api/uploads/users/${req.file.filename}`;
+    } else if (req.body.staffPhoto !== undefined) {
+      updates.staff_photo = req.body.staffPhoto;
+    }
     if (req.body.email !== undefined) {
       // Check if email is already taken by another user
       const emailExists = await userModel.findUserByEmail(req.body.email);
@@ -149,6 +262,10 @@ exports.updateUser = async (req, res) => {
     }
 
     const updatedUser = await userModel.updateUser(id, updates);
+
+    if (req.file && existingUser?.staff_photo && existingUser.staff_photo !== updates.staff_photo) {
+      deletePhotoVariants(existingUser.staff_photo);
+    }
     
     return sendSuccess(res, updatedUser, 'User updated successfully');
   } catch (error) {
@@ -186,7 +303,7 @@ exports.deleteUser = async (req, res) => {
 exports.getMyProfile = async (req, res) => {
   try {
     const user = await userModel.findUserById(req.user.userId);
-    return sendSuccess(res, user, 'Profile retrieved successfully');
+    return sendSuccess(res, attachStaffPhotoUrl(user), 'Profile retrieved successfully');
   } catch (error) {
     console.error('Get profile error:', error);
     return sendError(res, 'Failed to retrieve profile', 500);
@@ -198,6 +315,11 @@ exports.updateMyProfile = async (req, res) => {
   try {
     const userId = req.user.userId;
     const { firstName, middleName, lastName, email, phone, address, bloodGroup, departmentId, designationId } = req.body;
+    const existingUser = await userModel.findUserById(userId);
+
+    if (!existingUser) {
+      return sendError(res, 'User not found', 404);
+    }
 
     // Validate required fields
     if (!firstName || !lastName || !email) {
@@ -225,7 +347,18 @@ exports.updateMyProfile = async (req, res) => {
       designation_id: designationId || null
     };
 
+    // Store uploaded staff photo if provided
+    if (req.file) {
+      updateData.staff_photo = `/api/uploads/users/${req.file.filename}`;
+    } else if (req.body.staffPhoto !== undefined) {
+      updateData.staff_photo = req.body.staffPhoto;
+    }
+
     const updatedUser = await userModel.updateUser(userId, updateData);
+
+    if (req.file && existingUser?.staff_photo && existingUser.staff_photo !== updateData.staff_photo) {
+      deletePhotoVariants(existingUser.staff_photo);
+    }
     
     return sendSuccess(res, updatedUser, 'Profile updated successfully');
   } catch (error) {

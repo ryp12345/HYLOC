@@ -5,7 +5,48 @@ import axios from '../../api/axios';
 import { getDepartments } from '../../api/departmentApi';
 import { getDesignations } from '../../api/designationApi';
 import { getUserById } from '../../api/userApi';
+import { API_URL } from '../../api/axios';
 import Notification from '../../components/common/Notification';
+
+// Resolve a stored upload path (e.g. /api/uploads/users/EMP001.jpg) to an absolute URL
+const getPhotoUrl = (path) => {
+  if (!path) return '';
+  if (/^https?:\/\//i.test(path)) return path;
+  if (path.startsWith('/api/uploads/') || path.startsWith('/uploads/')) {
+    try {
+      const appOrigin = API_URL.startsWith('http') ? new URL(API_URL).origin : window.location.origin;
+      return `${appOrigin}${path}`;
+    } catch {
+      return path;
+    }
+  }
+  try {
+    const appOrigin = API_URL.startsWith('http') ? new URL(API_URL).origin : window.location.origin;
+    return `${appOrigin}/api/uploads/users/${String(path).replace(/^\/+/, '')}`;
+  } catch {
+    return path;
+  }
+};
+
+const getPhotoCandidates = (staffPhoto, empid) => {
+  const candidates = [];
+  const addCandidate = (value) => {
+    const url = getPhotoUrl(value);
+    if (url && !candidates.includes(url)) candidates.push(url);
+  };
+
+  addCandidate(staffPhoto);
+
+  if (empid) {
+    const normalizedEmpid = String(empid).trim();
+    addCandidate(`/api/uploads/users/${normalizedEmpid}`);
+    ['jpg', 'jpeg', 'png', 'webp', 'gif'].forEach((ext) => {
+      addCandidate(`/api/uploads/users/${normalizedEmpid}.${ext}`);
+    });
+  }
+
+  return candidates;
+};
 
 export default function ProfilePage() {
   const { user: authUser, updateUserContext } = useAuth();
@@ -16,6 +57,9 @@ export default function ProfilePage() {
   const [departments, setDepartments] = useState([]);
   const [designations, setDesignations] = useState([]);
   const [notification, setNotification] = useState({ show: false, message: '', type: '' });
+  const [photoFile, setPhotoFile] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState('');
+  const [photoCandidates, setPhotoCandidates] = useState([]);
   
   const [form, setForm] = useState({
     firstName: '',
@@ -46,6 +90,9 @@ export default function ProfilePage() {
       const response = await axios.get('/users/me');
       const data = response.data.data;
       setUserData(data);
+      const candidates = getPhotoCandidates(data.staff_photo_url || data.staff_photo, data.empid);
+      setPhotoCandidates(candidates);
+      setPhotoPreview(candidates[0] || '');
       setForm({
         firstName: data.firstname || '',
         middleName: data.middlename || '',
@@ -127,8 +174,22 @@ export default function ProfilePage() {
         designationId: form.designationId || null,
       };
 
+      // Use multipart/form-data when a new photo file is selected
+      let requestData = updateData;
+      if (photoFile) {
+        const fd = new FormData();
+        Object.entries(updateData).forEach(([key, value]) => {
+          if (value !== null && value !== undefined) fd.append(key, value);
+        });
+        if (form.empid) fd.append('empid', form.empid);
+        fd.append('staffPhoto', photoFile);
+        requestData = fd;
+      }
+
       // Use /users/me endpoint for self-update
-      await axios.put('/users/me', updateData);
+      await axios.put('/users/me', requestData,
+        photoFile ? { headers: { 'Content-Type': 'multipart/form-data' } } : undefined
+      );
       
       // Update auth context if name changed
       if (updateUserContext) {
@@ -185,8 +246,23 @@ export default function ProfilePage() {
         {/* Header */}
         <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-8">
           <div className="flex items-center space-x-4">
-            <div className="h-20 w-20 rounded-full bg-white text-blue-600 flex items-center justify-center text-3xl font-bold shadow-lg">
-              {(userData?.firstname?.[0] || 'U').toUpperCase()}
+            <div className="h-20 w-20 rounded-full bg-white text-blue-600 flex items-center justify-center text-3xl font-bold shadow-lg overflow-hidden">
+              {photoPreview ? (
+                <img
+                  src={photoPreview}
+                  alt="Profile"
+                  className="h-full w-full object-cover"
+                  onError={() => {
+                    setPhotoCandidates((current) => {
+                      const next = current.slice(1);
+                      setPhotoPreview(next[0] || '');
+                      return next;
+                    });
+                  }}
+                />
+              ) : (
+                (userData?.firstname?.[0] || 'U').toUpperCase()
+              )}
             </div>
             <div className="text-white">
               <h1 className="text-3xl font-bold">
@@ -312,6 +388,25 @@ export default function ProfilePage() {
                   value={form.address}
                   onChange={(e) => setForm({ ...form, address: e.target.value })}
                   rows="3"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Profile Photo
+                </label>
+                {photoPreview && (
+                  <img src={photoPreview} alt="Profile preview" className="object-cover w-16 h-16 mb-2 rounded-full border border-gray-300" />
+                )}
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] || null;
+                    setPhotoFile(file);
+                    setPhotoPreview(file ? URL.createObjectURL(file) : getPhotoUrl(userData?.staff_photo));
+                  }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
