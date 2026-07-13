@@ -131,18 +131,18 @@ export default function UserRolePage() {
   };
 
   const exportToExcel = () => {
-    if (!filtered.length) {
+    if (!merged.length) {
       showNotification('No user roles available to export', 'error');
       return;
     }
 
-    const headers = ['S.NO', 'User', 'Role', 'Status', 'Assigned At'];
-    const rowsToExport = filtered.map((row, index) => [
+    const headers = ['S.NO', 'User', 'Roles', 'Status', 'Assigned At'];
+    const rowsToExport = merged.map((row, index) => [
       index + 1,
-      `"${String(`${row.firstname || ''} ${row.lastname || ''} (${row.email || ''})`).replace(/"/g, '""')}"`,
-      `"${String(row.role_name || '').replace(/"/g, '""')}"`,
-      `"${String(row.status || 'active').replace(/"/g, '""')}"`,
-      `"${String(new Date(row.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })).replace(/"/g, '""')}"`,
+      `"${String(`${row.firstname || ''} ${row.middlename || ''} ${row.lastname || ''} (${row.email || ''})`.trim()).replace(/"/g, '""')}"`,
+      `"${String(row.roles.map(r => r.role_name).join(', ')).replace(/"/g, '""')}"`,
+      `"${String(row.roles.map(r => r.status || 'active').join(', ')).replace(/"/g, '""')}"`,
+      `"${String(row.createdAt ? new Date(row.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '').replace(/"/g, '""')}"`,
     ]);
 
     const csvContent = [headers.join(','), ...rowsToExport.map((row) => row.join(','))].join('\n');
@@ -177,10 +177,35 @@ export default function UserRolePage() {
     ));
   }, [rows, search]);
 
+  // Merge role assignments that belong to the same user into a single row
+  const merged = useMemo(() => {
+    const map = new Map();
+    for (const r of filtered) {
+      const key = r.email || r.user_id || r.id;
+      if (!map.has(key)) {
+        map.set(key, {
+          key,
+          firstname: r.firstname,
+          middlename: r.middlename,
+          lastname: r.lastname,
+          email: r.email,
+          roles: [],
+          createdAt: r.created_at,
+        });
+      }
+      const entry = map.get(key);
+      entry.roles.push(r);
+      if (r.created_at && (!entry.createdAt || new Date(r.created_at) < new Date(entry.createdAt))) {
+        entry.createdAt = r.created_at;
+      }
+    }
+    return [...map.values()];
+  }, [filtered]);
+
   const paginated = useMemo(() => {
     const start = (page - 1) * PAGE_SIZE;
-    return filtered.slice(start, start + PAGE_SIZE);
-  }, [filtered, page]);
+    return merged.slice(start, start + PAGE_SIZE);
+  }, [merged, page]);
 
   useEffect(() => { setPage(1); }, [search, rows]);
 
@@ -224,42 +249,68 @@ export default function UserRolePage() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filtered.length === 0 ? (
+                {merged.length === 0 ? (
                   <tr><td colSpan="6" className="px-6 py-12 text-center text-gray-500">No user roles found</td></tr>
                 ) : (
                   paginated.map((row, idx) => (
-                    <tr key={row.id} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-colors duration-150`}>
+                    <tr key={row.key} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-colors duration-150`}>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{(page - 1) * PAGE_SIZE + idx + 1}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{row.firstname} {row.lastname} ({row.email})</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{row.role_name}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-center">
-                        <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          row.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                        }`}>
-                          {row.status || 'active'}
-                        </span>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                        {`${row.firstname || ''} ${row.middlename || ''} ${row.lastname || ''}`.trim()} ({row.email})
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{new Date(row.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
-                        <div className="flex items-center justify-center space-x-2">
-                          <button
-                            onClick={() => openEdit(row)}
-                            className="p-2 text-white transition-colors duration-200 bg-blue-600 rounded-lg hover:bg-blue-700"
-                            title="Edit User Role"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                            </svg>
-                          </button>
-                          <button
-                            onClick={() => remove(row.id)}
-                            className="p-2 text-white transition-colors duration-200 bg-red-600 rounded-lg hover:bg-red-700"
-                            title="Delete User Role"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                          </button>
+                      <td className="px-6 py-4 text-sm text-gray-600">
+                        <div className="flex flex-col gap-2 items-start">
+                          {row.roles.map((role) => (
+                            <span key={role.id} className="px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800 whitespace-nowrap">
+                              {role.role_name}
+                            </span>
+                          ))}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex flex-col items-center gap-2">
+                          {row.roles.map((role) => (
+                            <span key={role.id} className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full whitespace-nowrap ${
+                              role.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                            }`}>
+                              {role.status || 'active'}
+                            </span>
+                          ))}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-600">
+                        <div className="flex flex-col gap-2">
+                          {row.roles.map((role) => (
+                            <span key={role.id} className="whitespace-nowrap">
+                              {role.created_at ? new Date(role.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '--'}
+                            </span>
+                          ))}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-center text-sm font-medium">
+                        <div className="flex flex-col items-center gap-2">
+                          {row.roles.map((role) => (
+                            <div key={role.id} className="flex items-center justify-center space-x-2">
+                              <button
+                                onClick={() => openEdit(role)}
+                                className="p-2 text-white transition-colors duration-200 bg-blue-600 rounded-lg hover:bg-blue-700"
+                                title={`Edit ${role.role_name} Role`}
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                </svg>
+                              </button>
+                              <button
+                                onClick={() => remove(role.id)}
+                                className="p-2 text-white transition-colors duration-200 bg-red-600 rounded-lg hover:bg-red-700"
+                                title={`Delete ${role.role_name} Role`}
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                              </button>
+                            </div>
+                          ))}
                         </div>
                       </td>
                     </tr>
@@ -269,7 +320,7 @@ export default function UserRolePage() {
             </table>
           </div>
           {/* Pagination Controls */}
-          {filtered.length > PAGE_SIZE && (
+          {merged.length > PAGE_SIZE && (
             <div className="flex justify-end items-center gap-2 px-6 pb-6">
               <button
                 className="px-3 py-1 rounded border border-gray-300 bg-white text-gray-700 disabled:opacity-50"
@@ -279,12 +330,12 @@ export default function UserRolePage() {
                 Prev
               </button>
               <span className="text-sm text-gray-700">
-                Page {page} of {Math.ceil(filtered.length / PAGE_SIZE)}
+                 Page {page} of {Math.ceil(merged.length / PAGE_SIZE)}
               </span>
               <button
                 className="px-3 py-1 rounded border border-gray-300 bg-white text-gray-700 disabled:opacity-50"
-                onClick={() => setPage(p => Math.min(Math.ceil(filtered.length / PAGE_SIZE), p + 1))}
-                disabled={page === Math.ceil(filtered.length / PAGE_SIZE)}
+                onClick={() => setPage(p => Math.min(Math.ceil(merged.length / PAGE_SIZE), p + 1))}
+                disabled={page === Math.ceil(merged.length / PAGE_SIZE)}
               >
                 Next
               </button>

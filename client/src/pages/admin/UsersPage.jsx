@@ -26,11 +26,11 @@ const getPhotoUrl = (path) => {
   }
 };
 
-const initialForm = { 
-  firstName: '', 
+const initialForm = {
+  firstName: '',
   middleName: '',
-  lastName: '', 
-  email: '', 
+  lastName: '',
+  email: '',
   empid: '',
   phone: '',
   address: '',
@@ -38,10 +38,10 @@ const initialForm = {
   departmentId: '',
   designationId: '',
   staffPhoto: '',
-  password: 'Password@123', 
+  password: 'Password@123',
   confirmPassword: 'Password@123',
-  role: 'employee', 
-  status: 'active' 
+  role: 'employee',
+  status: 'active'
 };
 
 export default function UsersPage() {
@@ -61,29 +61,33 @@ export default function UsersPage() {
   const [photoFile, setPhotoFile] = useState(null);
   const [photoPreview, setPhotoPreview] = useState('');
   const [notification, setNotification] = useState({ show: false, message: '', type: '' });
+  const [isResetOpen, setIsResetOpen] = useState(false);
+  const [resetTarget, setResetTarget] = useState(null);
+  const [resetError, setResetError] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
   const isManagementView = String(user?.role?.name || user?.role || '').toLowerCase() === 'management';
 
   const load = async () => {
     try { const res = await getUsers(); setRows(res.data?.data || []); }
     catch { setRows([]); }
   };
-  
+
   const loadDepartments = async () => {
-    try { 
+    try {
       const depts = (await getDepartments()).data?.data || [];
       const sorted = [...depts].sort((a, b) => (a.department_name || '').localeCompare(b.department_name || ''));
-      setDepartments(sorted); 
+      setDepartments(sorted);
     }
     catch { setDepartments([]); }
   };
-  
+
   const loadDesignations = async () => {
     try { const res = await getDesignations(); setDesignations(res.data?.data || []); }
     catch { setDesignations([]); }
   };
-  
-  useEffect(() => { 
-    load(); 
+
+  useEffect(() => {
+    load();
     loadDepartments();
     loadDesignations();
   }, []);
@@ -117,7 +121,7 @@ export default function UsersPage() {
   const submit = async (e) => {
     e.preventDefault(); setError('');
     try {
-      const payload = { 
+      const payload = {
         ...form,
       };
       // Don't send password fields on edit
@@ -155,22 +159,22 @@ export default function UsersPage() {
         setRows(prev => prev.map(r => (
           r.id === editingId
             ? {
-                ...r,
-                firstname: form.firstName,
-                middlename: form.middleName,
-                lastname: form.lastName,
-                email: form.email,
-                empid: payload.empid || null,
-                phone: payload.phone || null,
-                address: payload.address || null,
-                bloodgroup: payload.bloodGroup || null,
-                department_id: payload.departmentId || null,
-                designation_id: payload.designationId || null,
-                staff_photo: newStaffPhoto,
-                department_name: payload.departmentId ? departmentName : '--N/A--',
-                designation_name: payload.designationId ? designationName : '--N/A--',
-                status: form.status || r.status,
-              }
+              ...r,
+              firstname: form.firstName,
+              middlename: form.middleName,
+              lastname: form.lastName,
+              email: form.email,
+              empid: payload.empid || null,
+              phone: payload.phone || null,
+              address: payload.address || null,
+              bloodgroup: payload.bloodGroup || null,
+              department_id: payload.departmentId || null,
+              designation_id: payload.designationId || null,
+              staff_photo: newStaffPhoto,
+              department_name: payload.departmentId ? departmentName : '--N/A--',
+              designation_name: payload.designationId ? designationName : '--N/A--',
+              status: form.status || r.status,
+            }
             : r
         )));
         showNotification('User updated successfully!', 'success');
@@ -189,23 +193,38 @@ export default function UsersPage() {
 
   const remove = async (id) => {
     if (!confirm('Delete this user?')) return;
-    try { 
+    try {
       await deleteUser(id);
-      load(); 
+      load();
       showNotification('User deleted successfully!', 'success');
-    } catch {}
+    } catch { }
   };
 
-  const resetPassword = async (row) => {
-    const nextPassword = window.prompt(`Reset password for ${row.firstname || row.empid || 'user'}`, 'Password@123');
-    if (!nextPassword) return;
+  const openReset = (row) => {
+    setResetTarget(row);
+    setResetError('');
+    setIsResetOpen(true);
+  };
 
+  const closeReset = () => {
+    setIsResetOpen(false);
+    setResetTarget(null);
+    setResetError('');
+    setResetLoading(false);
+  };
+
+  const submitReset = async (e) => {
+    e.preventDefault();
+    setResetError('');
+    setResetLoading(true);
     try {
-      await resetUserPassword(row.id, nextPassword);
+      await resetUserPassword(resetTarget.id, 'Password@123');
       showNotification('Password reset successfully!', 'success');
-    } catch (e) {
-      const msg = e.response?.data?.message || 'Failed to reset password';
-      showNotification(msg, 'error');
+      closeReset();
+    } catch (err) {
+      const msg = err.response?.data?.message || 'Failed to reset password';
+      setResetError(msg);
+      setResetLoading(false);
     }
   };
 
@@ -542,21 +561,20 @@ export default function UsersPage() {
                     <tr key={u.id} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-colors duration-150`}>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{(page - 1) * PAGE_SIZE + idx + 1}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{u.empid || '--N/A--'}</td>
-                       <td className="px-6 py-4 whitespace-nowrap text-center">
-                         {u.staff_photo ? (
-                           <img src={getPhotoUrl(u.staff_photo)} alt="Staff" className="object-cover w-10 h-10 rounded-full border border-gray-300" />
-                         ) : (
-                           <span className="text-sm text-gray-400">--</span>
-                         )}
-                       </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        {u.staff_photo ? (
+                          <img src={getPhotoUrl(u.staff_photo)} alt="Staff" className="object-cover w-10 h-10 rounded-full border border-gray-300" />
+                        ) : (
+                          <span className="text-sm text-gray-400">--</span>
+                        )}
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{u.firstname} {u.middlename || ''} {u.lastname}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{u.email}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{u.department_name || '--N/A--'}</td>
-                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{u.designation_name || '--N/A--'}</td>
-                       <td className="px-6 py-4 whitespace-nowrap text-center">
-                        <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          u.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                        }`}>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{u.designation_name || '--N/A--'}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${u.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                          }`}>
                           {u.status || 'active'}
                         </span>
                       </td>
@@ -564,8 +582,8 @@ export default function UsersPage() {
                         <div className="flex items-center justify-center space-x-2">
                           {isManagementView ? (
                             <button
-                              onClick={() => resetPassword(u)}
-                              className="px-3 py-2 text-xs font-semibold text-white transition-colors duration-200 bg-indigo-600 rounded-lg hover:bg-indigo-700"
+                              onClick={() => openReset(u)}
+                              className="px-3 py-2 text-xs font-semibold text-white transition-colors duration-200 bg-blue-600 rounded-lg hover:bg-blue-700"
                               title="Reset Password"
                             >
                               Reset Password
@@ -586,7 +604,7 @@ export default function UsersPage() {
                                 className="p-2 text-white transition-colors duration-200 bg-red-600 rounded-lg hover:bg-red-700"
                                 title="Deactivate User"
                               >
-                               <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                 </svg>
                               </button>
@@ -643,31 +661,31 @@ export default function UsersPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                       <div>
                         <label className="block mb-2 text-sm font-medium text-gray-700">Employee ID<span className='text-red-500'>*</span></label>
-                        <input value={form.empid} onChange={e=>setForm({ ...form, empid: e.target.value })} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="EMP-001" />
+                        <input value={form.empid} onChange={e => setForm({ ...form, empid: e.target.value })} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="EMP-001" />
                       </div>
                       <div>
                         <label className="block mb-2 text-sm font-medium text-gray-700">First Name<span className='text-red-500'>*</span></label>
-                        <input value={form.firstName} onChange={e=>setForm({ ...form, firstName: e.target.value })} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="John" required />
+                        <input value={form.firstName} onChange={e => setForm({ ...form, firstName: e.target.value })} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="John" required />
                       </div>
                       <div>
                         <label className="block mb-2 text-sm font-medium text-gray-700">Middle Name<span className='text-red-500'>*</span></label>
-                        <input value={form.middleName} onChange={e=>setForm({ ...form, middleName: e.target.value })} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="James" />
+                        <input value={form.middleName} onChange={e => setForm({ ...form, middleName: e.target.value })} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="James" />
                       </div>
                       <div>
                         <label className="block mb-2 text-sm font-medium text-gray-700">Last Name<span className='text-red-500'>*</span></label>
-                        <input value={form.lastName} onChange={e=>setForm({ ...form, lastName: e.target.value })} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Doe" required />
+                        <input value={form.lastName} onChange={e => setForm({ ...form, lastName: e.target.value })} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Doe" required />
                       </div>
                       <div className="md:col-span-2">
                         <label className="block mb-2 text-sm font-medium text-gray-700">Email<span className='text-red-500'>*</span></label>
-                        <input type="email" value={form.email} onChange={e=>setForm({ ...form, email: e.target.value })} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="john@example.com" required />
+                        <input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="john@example.com" required />
                       </div>
                       <div>
                         <label className="block mb-2 text-sm font-medium text-gray-700">Phone</label>
-                        <input value={form.phone} onChange={e=>setForm({ ...form, phone: e.target.value })} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="91+ 1234567890" />
+                        <input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="91+ 1234567890" />
                       </div>
                       <div>
                         <label className="block mb-2 text-sm font-medium text-gray-700">Blood Group</label>
-                        <select value={form.bloodGroup} onChange={e=>setForm({ ...form, bloodGroup: e.target.value })} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        <select value={form.bloodGroup} onChange={e => setForm({ ...form, bloodGroup: e.target.value })} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                           <option value="">Select Blood Group</option>
                           <option value="A+">A+</option>
                           <option value="A-">A-</option>
@@ -681,11 +699,11 @@ export default function UsersPage() {
                       </div>
                       <div className="md:col-span-2">
                         <label className="block mb-2 text-sm font-medium text-gray-700">Address</label>
-                        <textarea value={form.address} onChange={e=>setForm({ ...form, address: e.target.value })} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="123 Main Street, City" rows="2" />
+                        <textarea value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="123 Main Street, City" rows="2" />
                       </div>
                       <div>
                         <label className="block mb-2 text-sm font-medium text-gray-700">Department<span className='text-red-500'>*</span></label>
-                        <select value={form.departmentId} onChange={e=>setForm({ ...form, departmentId: e.target.value })} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        <select value={form.departmentId} onChange={e => setForm({ ...form, departmentId: e.target.value })} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                           <option value="">Select Department</option>
                           {departments.map(dept => (
                             <option key={dept.id} value={dept.id}>{dept.department_name}</option>
@@ -694,7 +712,7 @@ export default function UsersPage() {
                       </div>
                       <div>
                         <label className="block mb-2 text-sm font-medium text-gray-700">Designation<span className='text-red-500'>*</span></label>
-                        <select value={form.designationId} onChange={e=>setForm({ ...form, designationId: e.target.value })} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        <select value={form.designationId} onChange={e => setForm({ ...form, designationId: e.target.value })} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                           <option value="">Select Designation</option>
                           {designations.map(desig => (
                             <option key={desig.id} value={desig.id}>{desig.designation_name}</option>
@@ -722,7 +740,7 @@ export default function UsersPage() {
                           <div>
                             <label className="block mb-2 text-sm font-medium text-gray-700">Password<span className='text-red-500'>*</span></label>
                             <div className="relative">
-                              <input type={showPassword ? 'text' : 'password'} value={form.password} onChange={e=>setForm({ ...form, password: e.target.value })} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="••••••••" />
+                              <input type={showPassword ? 'text' : 'password'} value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="••••••••" />
                               <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-3 text-gray-500 hover:text-gray-700">
                                 {showPassword ? (
                                   <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-4.803m5.596-3.856a3.375 3.375 0 11-4.753 4.753m4.753-4.753L9.172 9.172M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
@@ -735,7 +753,7 @@ export default function UsersPage() {
                           <div>
                             <label className="block mb-2 text-sm font-medium text-gray-700">Confirm Password<span className='text-red-500'>*</span></label>
                             <div className="relative">
-                              <input type={showConfirmPassword ? 'text' : 'password'} value={form.confirmPassword} onChange={e=>setForm({ ...form, confirmPassword: e.target.value })} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="••••••••" />
+                              <input type={showConfirmPassword ? 'text' : 'password'} value={form.confirmPassword} onChange={e => setForm({ ...form, confirmPassword: e.target.value })} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="••••••••" />
                               <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-3 text-gray-500 hover:text-gray-700">
                                 {showConfirmPassword ? (
                                   <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-4.803m5.596-3.856a3.375 3.375 0 11-4.753 4.753m4.753-4.753L9.172 9.172M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
@@ -750,7 +768,7 @@ export default function UsersPage() {
                       {editingId && (
                         <div>
                           <label className="block mb-2 text-sm font-medium text-gray-700">Status</label>
-                          <select value={form.status} onChange={e=>setForm({ ...form, status: e.target.value })} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                          <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                             <option value="active">Active</option>
                             <option value="inactive">Inactive</option>
                           </select>
@@ -760,9 +778,49 @@ export default function UsersPage() {
 
                     <div className="flex justify-end space-x-4 pt-4">
                       <button type="button" onClick={onClose} className="inline-flex justify-center px-6 py-3 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">Cancel</button>
-                      <button type="submit" className="inline-flex justify-center px-6 py-3 text-sm font-medium text-white border border-transparent rounded-lg shadow-sm bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">{editingId? 'Update User':'Create User'}</button>
+                      <button type="submit" className="inline-flex justify-center px-6 py-3 text-sm font-medium text-white border border-transparent rounded-lg shadow-sm bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">{editingId ? 'Update User' : 'Create User'}</button>
                     </div>
                   </form>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {isResetOpen && (
+          <div className="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true">
+            <div className="flex items-end justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+              <div className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" onClick={closeReset} />
+              <div className="inline-block overflow-hidden text-left align-bottom transition-all transform bg-white rounded-lg shadow-xl sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                <div className="px-6 py-4 bg-blue-600">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-medium leading-6 text-white">
+                      Reset Password :-{' '}
+                      <span className="font-semibold">
+                        {resetTarget ? `${resetTarget.firstname || ''} ${resetTarget.middlename || ''} ${resetTarget.lastname || ''}`.trim() || resetTarget.empid : ''}
+                      </span>
+                    </h3>
+                    <button className="text-white hover:text-gray-200" onClick={closeReset}>
+                      <svg className="w-6 h-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                  </div>
+                </div>
+                <div className="px-6 py-5 bg-white">
+                  {resetError && <div className="mb-4 p-3 rounded border border-red-200 text-red-700 bg-red-50 text-sm">{resetError}</div>}
+                  <p className="text-sm text-gray-600">
+                    This will reset the password for{' '}
+                    <span className="font-semibold text-gray-900">
+                      {resetTarget ? `${resetTarget.firstname || ''} ${resetTarget.middlename || ''} ${resetTarget.lastname || ''}`.trim() || resetTarget.empid : ''}
+                    </span>{' '}
+                    to the default <span className="font-mono font-semibold text-gray-900">Password@123</span>.
+                  </p>
+
+                  <div className="flex justify-end space-x-4 pt-6">
+                    <button type="button" onClick={closeReset} className="inline-flex justify-center px-6 py-3 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">Cancel</button>
+                    <button type="button" onClick={submitReset} disabled={resetLoading} className="inline-flex justify-center px-6 py-3 text-sm font-medium text-white border border-transparent rounded-lg shadow-sm bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50">
+                      {resetLoading ? 'Resetting...' : 'Reset Password'}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
