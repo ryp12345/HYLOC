@@ -75,7 +75,7 @@ const RoleSwitchModal = ({ isOpen, onClose, roles: rolesProp }) => {
       <div className="flex items-end justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
         <div className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" onClick={handleClose} />
         <div className="inline-block overflow-hidden text-left align-bottom transition-all transform bg-white rounded-lg shadow-xl sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-          <div className="px-6 py-4 bg-indigo-600">
+          <div className="px-6 py-4 bg-blue-600">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-medium leading-6 text-white">Switch Role</h3>
               <button className="text-white hover:text-gray-200" onClick={handleClose}>
@@ -106,7 +106,7 @@ const RoleSwitchModal = ({ isOpen, onClose, roles: rolesProp }) => {
                   <select
                     value={pendingRole}
                     onChange={(e) => setPendingRole(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 capitalize"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 capitalize"
                   >
                     {roles.map((r) => (
                       <option key={r} value={r} className="capitalize">{r}</option>
@@ -124,7 +124,7 @@ const RoleSwitchModal = ({ isOpen, onClose, roles: rolesProp }) => {
                   <button
                     type="submit"
                     disabled={switching || pendingRole === currentRole}
-                    className="inline-flex justify-center px-6 py-3 text-sm font-medium text-white border border-transparent rounded-lg shadow-sm bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+                    className="inline-flex justify-center px-6 py-3 text-sm font-medium text-white border border-transparent rounded-lg shadow-sm bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
                   >
                     {switching ? 'Switching...' : 'Switch'}
                   </button>

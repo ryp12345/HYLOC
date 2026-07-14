@@ -6,6 +6,8 @@ import { AuthProvider } from '../context/AuthContext';
 import Login from '../pages/auth/Login';
 import Register from '../pages/auth/Register';
 import AdminDashboard from '../pages/admin/Dashboard';
+import HRDashboard from '../pages/HR/Dashboard';
+import HRLeavesPage from '../pages/HR/leaves/LeavesPage';
 import ManagementDashboard from '../pages/management/ManagementDashboard';
 import KPIDetailPage from '../pages/management/KPIDetailPage';
 import PlantEfficiency from '../pages/management/PlantEfficiency';
@@ -147,6 +149,10 @@ const DashboardRedirect = () => {
     return <Navigate to="/admin/dashboard" replace />;
   }
 
+  if (userRole === 'hr') {
+    return <Navigate to="/hr/dashboard" replace />;
+  }
+
   if (userRole === 'management') {
     return <Navigate to="/management/dashboard" replace />;
   }
@@ -213,6 +219,17 @@ const AppRoutes = () => {
               <ProtectedRoute>
                 <DashboardLayout>
                   <AdminDashboard />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/hr/dashboard"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <HRDashboard />
                 </DashboardLayout>
               </ProtectedRoute>
             }
@@ -355,6 +372,17 @@ const AppRoutes = () => {
               <ProtectedRoute>
                 <DashboardLayout>
                   <MgtKmiDetail />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/hr/leaves"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <HRLeavesPage />
                 </DashboardLayout>
               </ProtectedRoute>
             }

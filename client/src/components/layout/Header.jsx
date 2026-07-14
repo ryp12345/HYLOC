@@ -423,7 +423,7 @@ const Navbar = () => {
             {roles.length > 1 && (
               <button
                 onClick={() => { setIsRoleSwitchOpen(true); setIsMenuOpen(false); }}
-                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition duration-200 text-sm font-semibold"
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition duration-200 text-sm font-semibold"
               >
                 Switch Role
               </button>

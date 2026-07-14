@@ -13,6 +13,8 @@ const Sidebar = () => {
     const roleValue = (user?.role?.name || user?.role || '').toString().toLowerCase();
     if (roleValue === 'admin') {
       return '/admin/dashboard';
+    } else if (roleValue === 'hr') {
+      return '/hr/dashboard';
     } else if (roleValue === 'management') {
       return '/management/dashboard';
     } else if (roleValue === 'manager') {
@@ -68,6 +70,12 @@ const Sidebar = () => {
     { name: 'Ticket Dashboard', path: '/tickets', icon: '🎫' },
   ];
 
+  const hrLinks = [
+    { name: 'Dashboard', path: getDashboardPath(), icon: '📊' },
+    { name: 'Calendar', path: '/hr/leaves', icon: '📅' },
+    { name: 'Tickets', path: '/tickets', icon: '🎫' },
+  ];
+
 
 
   const managerLinks = [
@@ -99,10 +107,11 @@ const Sidebar = () => {
     (user?.email || '').toLowerCase() === 'admin@hyloc.co.in' ||
     (user?.empid || '').toString() === '10000';
 
+  const isHr = roleValue === 'hr';
   const isManagement = roleValue === 'management';
   const isManager = roleValue === 'manager';
 
-  const links = isAdmin ? adminLinks : isManagement ? managementLinks : isManager ? managerLinks : employeeLinks;
+  const links = isAdmin ? adminLinks : isHr ? hrLinks : isManagement ? managementLinks : isManager ? managerLinks : employeeLinks;
 
   // Check if we need to expand the sidebar when a submenu is open on minimized sidebar
   const shouldExpandForSubmenu = !isOpen && expandedMenu;
