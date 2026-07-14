@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import ChangePasswordModal from '../../pages/auth/ChangePassword';
+import RoleSwitchModal from '../common/RoleSwitchModal';
 import ViewAllNotification from '../common/ViewAllNotification';
 import NotificationDetail from '../common/NotificationDetail';
 import { getNotifications, markNotificationAsRead } from '../../api/notificationApi';
@@ -33,6 +34,8 @@ const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isChangePwdOpen, setIsChangePwdOpen] = useState(false);
+  const [isRoleSwitchOpen, setIsRoleSwitchOpen] = useState(false);
+  const [roles, setRoles] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showAllNotifications, setShowAllNotifications] = useState(false);
@@ -93,11 +96,12 @@ const Navbar = () => {
         setProfilePhoto(initialPhoto);
       }
 
-      try {
+       try {
         const response = await axios.get('/users/me');
         const data = response.data?.data;
         if (!cancelled && data) {
           setProfilePhoto(getPhotoUrl(data.staff_photo_url || data.staff_photo));
+          if (Array.isArray(data.roles)) setRoles([...new Set(data.roles)]);
         }
       } catch {
         if (!cancelled) {
@@ -336,6 +340,18 @@ const Navbar = () => {
                         Change Password
                       </button>
 
+                      {roles.length > 1 && (
+                        <button
+                          onClick={() => { setIsRoleSwitchOpen(true); setIsProfileOpen(false); }}
+                          className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                          </svg>
+                          Switch Role
+                        </button>
+                      )}
+
                       <button
                         onClick={handleLogout}
                         className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
@@ -404,6 +420,15 @@ const Navbar = () => {
               Change Password
             </button>
 
+            {roles.length > 1 && (
+              <button
+                onClick={() => { setIsRoleSwitchOpen(true); setIsMenuOpen(false); }}
+                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition duration-200 text-sm font-semibold"
+              >
+                Switch Role
+              </button>
+            )}
+
             <button
               onClick={handleLogout}
               className="w-full bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition duration-200 text-sm font-semibold"
@@ -415,6 +440,7 @@ const Navbar = () => {
 
         {/* Change Password Modal */}
         <ChangePasswordModal isOpen={isChangePwdOpen} onClose={() => setIsChangePwdOpen(false)} />
+        <RoleSwitchModal isOpen={isRoleSwitchOpen} onClose={() => setIsRoleSwitchOpen(false)} roles={roles} />
         <NotificationDetail show={showNotificationDetail} notification={selectedNotification} onClose={() => { setShowNotificationDetail(false); setSelectedNotification(null); }} />
       </div>
     </nav>
