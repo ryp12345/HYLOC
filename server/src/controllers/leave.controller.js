@@ -192,7 +192,7 @@ exports.applyLeave = async (req, res, next) => {
       });
     }
     
-    if (error.message.includes('paid days')) {
+    if (error.message.includes('leave balance')) {
       return res.status(400).json({
         success: false,
         message: error.message

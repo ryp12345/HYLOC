@@ -12,7 +12,7 @@ import {
   getDepartmentLeaves
 } from '../../../api/leaveApi';
 
-const ManagerCalendar = ({ joinDate }) => {
+const ManagerCalendar = ({ joinDate, title = 'Manager Leave Calendar' }) => {
   const { user } = useAuth();
   const userRole = (user?.role?.name || user?.role || '').toString().toLowerCase();
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -339,7 +339,7 @@ const ManagerCalendar = ({ joinDate }) => {
         const response = await applyLeave(leaveForm);
         if (response?.data?.data?.split) {
           const count = response?.data?.data?.records?.length || 2;
-          window.alert(`Your leave was split into ${count} separate requests (Paid/Unpaid).`);
+          window.alert(`Your leave was split into ${count} separate requests (Earned Leave / Leave without pay).`);
         }
       }
       
@@ -514,11 +514,11 @@ const ManagerCalendar = ({ joinDate }) => {
     }
   };
 
-  // Detect unpaid leaves robustly (handles case/format variations)
-  const isUnpaidLeave = (leave) => {
+  // Detect leave without pay robustly (handles case/format variations)
+  const isLeaveWithoutPay = (leave) => {
     if (!leave) return false;
     const t = String(leave.leave_type || leave.type || '').toLowerCase();
-    return t.includes('unpaid') || t.includes('un-paid') || t.includes('un paid');
+    return t.includes('leave without pay');
   };
 
   // Map stored identifier (usually EMPID) to a readable colleague label
@@ -624,8 +624,8 @@ const ManagerCalendar = ({ joinDate }) => {
   const weekDays = getWeekDays(currentDate);
   const entitlementTotal = parseFloat(leaveBalance?.leave_entitled ?? 0) + parseFloat(leaveBalance?.leaves_accumulated ?? 0);
   const availedTotal = parseFloat(leaveBalance?.leaves_availed ?? 0);
-  const unpaidLeaveDays = leaves
-    .filter(l => isUnpaidLeave(l) && l.status !== 'Rejected' && l.status !== 'Cancelled')
+  const leaveWithoutPayDays = leaves
+    .filter(l => isLeaveWithoutPay(l) && l.status !== 'Rejected' && l.status !== 'Cancelled')
     .reduce((sum, l) => sum + parseFloat(l.credited_days || 0), 0);
 
   // (Removed unused filter/search state and department options per request)
@@ -670,8 +670,8 @@ const ManagerCalendar = ({ joinDate }) => {
               <p className="text-3xl font-bold">{Math.max(parseFloat(leaveBalance.leave_balance ?? 0), 0)}</p>
             </div>
             <div className="bg-gradient-to-r from-red-700 to-red-800 rounded-lg shadow-lg p-6 text-white">
-              <p className="text-sm opacity-90 mb-2">UnPaid</p>
-              <p className="text-3xl font-bold">{Number(unpaidLeaveDays.toFixed(1))}</p>
+              <p className="text-sm opacity-90 mb-2">Leave without pay</p>
+              <p className="text-3xl font-bold">{Number(leaveWithoutPayDays.toFixed(1))}</p>
             </div>
           </div>
         </div>
@@ -683,7 +683,7 @@ const ManagerCalendar = ({ joinDate }) => {
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-2xl font-bold text-gray-800">Manager Leave Calendar</h2>
+            <h2 className="text-2xl font-bold text-gray-800">{title}</h2>
           </div>
           
           {/* View Mode Toggle */}
@@ -786,7 +786,7 @@ const ManagerCalendar = ({ joinDate }) => {
                               {leave && (
                                 <div className="mt-1">
                                   <button
-                                    className={`inline-flex items-center gap-2 text-white text-xs font-semibold px-2 py-0.5 rounded-full shadow-sm focus:outline-none ${leave.leave_type === 'Unpaid' ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'}`}
+                                    className={`inline-flex items-center gap-2 text-white text-xs font-semibold px-2 py-0.5 rounded-full shadow-sm focus:outline-none ${String(leave.leave_type || '').toLowerCase().includes('leave without pay') ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'}`}
                                     title="Click to view/edit my leave"
                                     aria-label="View my leave"
                                     onClick={(e) => { e.stopPropagation(); handleDateClick(date); }}
@@ -800,12 +800,12 @@ const ManagerCalendar = ({ joinDate }) => {
                                 </div>
                               )}
                               {otherLeaves.length > 0 && (() => {
-                                const unpaidCount = (otherLeaves || []).filter(l => l.leave_type === 'Unpaid').length;
-                                const paidCount = (otherLeaves || []).length - unpaidCount;
+                                const leaveWithoutPayCount = (otherLeaves || []).filter(l => String(l.leave_type || '').toLowerCase().includes('leave without pay')).length;
+                                const earnedLeaveCount = (otherLeaves || []).length - leaveWithoutPayCount;
                                 const total = otherLeaves.length;
-                                const paidPct = total > 0 ? Math.round((paidCount / total) * 100) : 50;
-                                const deptBadgeStyle = (paidCount > 0 && unpaidCount > 0) ? { background: `linear-gradient(to right, #3b82f6 ${paidPct}%, #ef4444 ${paidPct}%)` } : null;
-                                const deptBadgeClass = (paidCount > 0 && unpaidCount === 0) ? 'bg-blue-600 hover:bg-blue-700' : (unpaidCount > 0 && paidCount === 0) ? 'bg-red-600 hover:bg-red-700' : 'bg-purple-600 hover:bg-purple-700';
+                                const earnedPct = total > 0 ? Math.round((earnedLeaveCount / total) * 100) : 50;
+                                const deptBadgeStyle = (earnedLeaveCount > 0 && leaveWithoutPayCount > 0) ? { background: `linear-gradient(to right, #3b82f6 ${earnedPct}%, #ef4444 ${earnedPct}%)` } : null;
+                                const deptBadgeClass = (earnedLeaveCount > 0 && leaveWithoutPayCount === 0) ? 'bg-blue-600 hover:bg-blue-700' : (leaveWithoutPayCount > 0 && earnedLeaveCount === 0) ? 'bg-red-600 hover:bg-red-700' : 'bg-purple-600 hover:bg-purple-700';
                                 return (
                                 <div className="mt-2">
                                   <button
@@ -879,12 +879,12 @@ const ManagerCalendar = ({ joinDate }) => {
             {weekDays.map((date) => {
               const dayCalendarLeaves = getCalendarLeavesForDate(date);
               const otherLeaves = (dayCalendarLeaves || []).filter(l => !isLeaveByCurrentUser(l));
-              const unpaidCountWeek = (otherLeaves || []).filter(l => l.leave_type === 'Unpaid').length;
-              const paidCountWeek = (otherLeaves || []).length - unpaidCountWeek;
+              const leaveWithoutPayCountWeek = (otherLeaves || []).filter(l => String(l.leave_type || '').toLowerCase().includes('leave without pay')).length;
+              const earnedLeaveCountWeek = (otherLeaves || []).length - leaveWithoutPayCountWeek;
               const totalWeek = otherLeaves.length;
-              const paidPctWeek = totalWeek > 0 ? Math.round((paidCountWeek / totalWeek) * 100) : 50;
-              const deptBadgeStyleWeek = (paidCountWeek > 0 && unpaidCountWeek > 0) ? { background: `linear-gradient(to right, #3b82f6 ${paidPctWeek}%, #ef4444 ${paidPctWeek}%)` } : null;
-              const deptBadgeClassWeek = (paidCountWeek > 0 && unpaidCountWeek === 0) ? 'bg-blue-600 hover:bg-blue-700' : (unpaidCountWeek > 0 && paidCountWeek === 0) ? 'bg-red-600 hover:bg-red-700' : 'bg-purple-600 hover:bg-purple-700';
+              const earnedPctWeek = totalWeek > 0 ? Math.round((earnedLeaveCountWeek / totalWeek) * 100) : 50;
+              const deptBadgeStyleWeek = (earnedLeaveCountWeek > 0 && leaveWithoutPayCountWeek > 0) ? { background: `linear-gradient(to right, #3b82f6 ${earnedPctWeek}%, #ef4444 ${earnedPctWeek}%)` } : null;
+              const deptBadgeClassWeek = (earnedLeaveCountWeek > 0 && leaveWithoutPayCountWeek === 0) ? 'bg-blue-600 hover:bg-blue-700' : (leaveWithoutPayCountWeek > 0 && earnedLeaveCountWeek === 0) ? 'bg-red-600 hover:bg-red-700' : 'bg-purple-600 hover:bg-purple-700';
               return (
               <div
                 key={date.toISOString()}
@@ -1059,7 +1059,7 @@ const ManagerCalendar = ({ joinDate }) => {
                   </thead>
                   <tbody>
                     {selectedCalendarLeaves.map((leave) => (
-                      <tr key={leave.id} className={`border-t ${isUnpaidLeave(leave) ? 'bg-red-50 border-l-4 border-red-600' : ''}`}>
+                      <tr key={leave.id} className={`border-t ${isLeaveWithoutPay(leave) ? 'bg-red-50 border-l-4 border-red-600' : ''}`}>
                         <td className="px-4 py-2 border">{leave.user_name}</td>
                         <td className="px-4 py-2 border">{leave.user_role || '—'}</td>
                         <td className="px-4 py-2 border">{formatFullDate(parseDateOnly(leave.from_date))}</td>
@@ -1067,7 +1067,7 @@ const ManagerCalendar = ({ joinDate }) => {
                         <td className="px-4 py-2 border">{leave.leave_reason || '—'}</td>
                         <td className="px-4 py-2 border">{formatAlternate(leave)}</td>
                         <td className="px-4 py-2 border">
-                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold text-white ${isUnpaidLeave(leave) ? 'bg-red-600' : 'bg-blue-600'}`}>
+                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold text-white ${isLeaveWithoutPay(leave) ? 'bg-red-600' : 'bg-blue-600'}`}>
                             {leave.leave_type || '—'}
                           </span>
                         </td>
@@ -1166,7 +1166,7 @@ const ManagerCalendar = ({ joinDate }) => {
                         <td className="py-2 px-4">{formatFullDate(parseDateOnly(leave.to_date))}</td>
                         <td className="py-2 px-4">{leave.leave_duration || ''} ({leave.duration ?? leave.credited_days} day{(leave.duration ?? leave.credited_days) === 1 ? '' : 's'})</td>
                         <td className="py-2 px-4">{leave.leave_reason || '-'}</td>
-                        <td className="py-2 px-4">{leave.leave_type ?? leave.type ?? (isUnpaidLeave(leave) ? 'Unpaid' : '—')}</td>
+                        <td className="py-2 px-4">{leave.leave_type ?? leave.type ?? (isLeaveWithoutPay(leave) ? 'Leave without pay' : '—')}</td>
                         <td className="py-2 px-4 text-center">
                           <div className="flex justify-center gap-2">
                             <button

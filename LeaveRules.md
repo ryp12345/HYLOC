@@ -18,12 +18,16 @@ Front-end UI features (implemented)
 - The Management approval page filters visible records client-side so that Management views Manager leaves (any duration) and Employee leaves with duration > 2 days (this logic is implemented in the page's `loadLeaves` function).
 - The Manager approval page filters visible leaves by department (manager's department) and shows Employee leaves for that department (implemented in the page's load/filter logic).
 
+Leave type values
+- The canonical leave type values in the application are now `Earned Leave` and `Leave without pay`.
+- The `leaves.leave_type` column default in the database should be updated to match the new canonical value, and any application-level validation or CHECK constraint should allow the new values.
+
 Notifications and feedback
 - The frontend uses a `Notification` component to show success/error messages for actions performed in the UI (approve/reject/update/load errors).
 
 Notes and exclusions
 - This document intentionally omits features that are not present in the repository or not visible in the client code. Examples of omitted/uncertain items:
-  - Any automatic splitting of a leave into paid/unpaid segments is not documented here unless there is server-side confirmation; client code does not perform splitting logic.
+  - Any automatic splitting of a leave into Earned Leave and Leave without pay segments is not documented here unless there is server-side confirmation; client code does not perform splitting logic.
   - Policy-level automatic escalations or SLA timers are not implemented in the frontend code and are therefore not documented here.
   - Any behavior about attachment enforcement, encryption, or retention is not derived from the client code and is omitted.
 

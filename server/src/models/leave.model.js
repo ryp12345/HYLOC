@@ -23,7 +23,7 @@ exports.createLeave = async (leaveData) => {
     leaveData.leave_duration || 'Full Day',
     leaveData.credited_days,
     leaveData.leave_reason,
-    leaveData.leave_type || 'Paid',
+    leaveData.leave_type || 'Earned Leave',
     leaveData.alternate_person || null,
     leaveData.additional_alternate || null,
     leaveData.available_on_phone !== undefined ? leaveData.available_on_phone : true,

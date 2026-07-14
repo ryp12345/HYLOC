@@ -52,6 +52,7 @@ const EmployeeCalendar = ({ joinDate }) => {
     to_date: '',
     leave_duration: 'Full Day',
     day_type: 'full',
+    leave_type: 'Earned Leave',
     leave_reason: '',
     duration: 1,
     alternate_person: '',
@@ -231,6 +232,7 @@ const EmployeeCalendar = ({ joinDate }) => {
       from_date: formattedDate,
       to_date: formattedDate,
       leave_duration: 'Full Day',
+      leave_type: 'Earned Leave',
       leave_reason: '',
       duration: 1,
       alternate_person: '',
@@ -278,6 +280,7 @@ const EmployeeCalendar = ({ joinDate }) => {
       from_date: formattedFrom,
       to_date: formattedTo,
       leave_duration: leave.leave_duration,
+      leave_type: leave.leave_type || leave.type || 'Earned Leave',
       leave_reason: leave.leave_reason,
       duration,
       alternate_person: leave.alternate_person || '',
@@ -309,6 +312,7 @@ const EmployeeCalendar = ({ joinDate }) => {
         from_date: formatDateForInput(date),
         to_date: formatDateForInput(date),
         leave_duration: 'Full Day',
+        leave_type: 'Earned Leave',
         leave_reason: '',
         duration: 1,
         alternate_person: '',
@@ -342,7 +346,7 @@ const EmployeeCalendar = ({ joinDate }) => {
         const response = await applyLeave(leaveForm);
         if (response?.data?.data?.split) {
           const count = response?.data?.data?.records?.length || 2;
-          window.alert(`Your leave was split into ${count} separate requests (Paid/Unpaid).`);
+          window.alert(`Your leave was split into ${count} separate requests (Earned Leave / Leave without pay).`);
         }
         showNotification('Leave request sent!', 'success');
       }
@@ -511,11 +515,11 @@ const EmployeeCalendar = ({ joinDate }) => {
     }
   };
 
-  // Detect unpaid leaves robustly (handles case/format variations)
-  const isUnpaidLeave = (leave) => {
+  // Detect leave without pay robustly (handles case/format variations)
+  const isLeaveWithoutPay = (leave) => {
     if (!leave) return false;
     const t = String(leave.leave_type || leave.type || '').toLowerCase();
-    return t.includes('unpaid') || t.includes('un-paid') || t.includes('un paid');
+    return t.includes('leave without pay');
   };
 
   // Get team leaves for a specific date (Employee calendar - return empty array for now)
@@ -632,8 +636,8 @@ const EmployeeCalendar = ({ joinDate }) => {
   const weekDays = getWeekDays(currentDate);
   const entitlementTotal = parseFloat(leaveBalance?.leave_entitled ?? 0) + parseFloat(leaveBalance?.leaves_accumulated ?? 0);
   const availedTotal = parseFloat(leaveBalance?.leaves_availed ?? 0);
-  const unpaidLeaveDays = leaves
-    .filter(l => isUnpaidLeave(l) && l.status !== 'Rejected' && l.status !== 'Cancelled')
+  const leaveWithoutPayDays = leaves
+    .filter(l => isLeaveWithoutPay(l) && l.status !== 'Rejected' && l.status !== 'Cancelled')
     .reduce((sum, l) => sum + parseFloat(l.credited_days || 0), 0);
 
   return (
@@ -674,8 +678,8 @@ const EmployeeCalendar = ({ joinDate }) => {
               <p className="text-3xl font-bold">{Math.max(parseFloat(leaveBalance.leave_balance ?? 0), 0)}</p>
             </div>
             <div className="bg-gradient-to-r from-red-700 to-red-800 rounded-lg shadow-lg p-6 text-white">
-              <p className="text-sm opacity-90 mb-2">UnPaid</p>
-              <p className="text-3xl font-bold">{Number(unpaidLeaveDays.toFixed(1))}</p>
+              <p className="text-sm opacity-90 mb-2">Leave without pay</p>
+              <p className="text-3xl font-bold">{Number(leaveWithoutPayDays.toFixed(1))}</p>
             </div>
           </div>
         </div>
@@ -790,7 +794,7 @@ const EmployeeCalendar = ({ joinDate }) => {
                       {leave && (
                         <div className="mt-1">
                               <button
-                                className={`inline-flex items-center gap-2 text-white text-xs font-semibold px-2 py-0.5 rounded-full shadow-sm focus:outline-none ${leave.leave_type === 'Unpaid' ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'}`}
+                                className={`inline-flex items-center gap-2 text-white text-xs font-semibold px-2 py-0.5 rounded-full shadow-sm focus:outline-none ${String(leave.leave_type || '').toLowerCase().includes('leave without pay') ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'}`}
                                 title="Click to view/edit my leave"
                                 aria-label="View my leave"
                                 onClick={(e) => { e.stopPropagation(); setSelectedMyLeave(leave); setShowMyLeaveModal(true); }}
@@ -804,12 +808,12 @@ const EmployeeCalendar = ({ joinDate }) => {
                         </div>
                       )}
                       {otherLeaves.length > 0 && (() => {
-                        const unpaidCount = (otherLeaves || []).filter(l => isUnpaidLeave(l)).length;
-                        const paidCount = (otherLeaves || []).length - unpaidCount;
+                        const leaveWithoutPayCount = (otherLeaves || []).filter(l => isLeaveWithoutPay(l)).length;
+                        const earnedLeaveCount = (otherLeaves || []).length - leaveWithoutPayCount;
                         const total = otherLeaves.length;
-                        const paidPct = total > 0 ? Math.round((paidCount / total) * 100) : 50;
-                        const deptBadgeStyle = (paidCount > 0 && unpaidCount > 0) ? { background: `linear-gradient(to right, #3b82f6 ${paidPct}%, #ef4444 ${paidPct}%)` } : null;
-                        const deptBadgeClass = (paidCount > 0 && unpaidCount === 0) ? 'bg-blue-600 hover:bg-blue-700' : (unpaidCount > 0 && paidCount === 0) ? 'bg-red-600 hover:bg-red-700' : 'bg-purple-600 hover:bg-purple-700';
+                        const earnedPct = total > 0 ? Math.round((earnedLeaveCount / total) * 100) : 50;
+                        const deptBadgeStyle = (earnedLeaveCount > 0 && leaveWithoutPayCount > 0) ? { background: `linear-gradient(to right, #3b82f6 ${earnedPct}%, #ef4444 ${earnedPct}%)` } : null;
+                        const deptBadgeClass = (earnedLeaveCount > 0 && leaveWithoutPayCount === 0) ? 'bg-blue-600 hover:bg-blue-700' : (leaveWithoutPayCount > 0 && earnedLeaveCount === 0) ? 'bg-red-600 hover:bg-red-700' : 'bg-purple-600 hover:bg-purple-700';
                         return (
                           <div className="mt-2">
                             <button
@@ -877,7 +881,7 @@ const EmployeeCalendar = ({ joinDate }) => {
                               <td className="py-2 px-4">{formatFullDate(parseDateOnly(selectedMyLeave.to_date))}</td>
                               <td className="py-2 px-4">{selectedMyLeave.leave_duration || ''} ({selectedMyLeave.duration ?? selectedMyLeave.credited_days} day{(selectedMyLeave.duration ?? selectedMyLeave.credited_days) === 1 ? '' : 's'})</td>
                               <td className="py-2 px-4">{selectedMyLeave.leave_reason || '-'}</td>
-                              <td className="py-2 px-4">{selectedMyLeave.leave_type ?? selectedMyLeave.type ?? (isUnpaidLeave(selectedMyLeave) ? 'Unpaid' : '—')}</td>
+                              <td className="py-2 px-4">{selectedMyLeave.leave_type ?? selectedMyLeave.type ?? (isLeaveWithoutPay(selectedMyLeave) ? 'Leave without pay' : '—')}</td>
                               <td className="py-2 px-4 text-center">
                                 <div className="flex justify-center gap-2">
                                   <button
@@ -989,13 +993,13 @@ const EmployeeCalendar = ({ joinDate }) => {
                                   </thead>
                                   <tbody>
                                     {selectedCalendarLeaves.map(l => (
-                                              <tr key={l.id} className={`border-t ${isUnpaidLeave(l) ? 'bg-red-50 border-l-4 border-red-600' : ''}`}>
+                                              <tr key={l.id} className={`border-t ${isLeaveWithoutPay(l) ? 'bg-red-50 border-l-4 border-red-600' : ''}`}>
                                               <td className="py-2 px-4">{l.user_name}</td>
                                               <td className="py-2 px-4">{l.user_role}</td>
                                               <td className="py-2 px-4">{formatFullDate(parseDateOnly(l.from_date))}</td>
                                               <td className="py-2 px-4">{formatFullDate(parseDateOnly(l.to_date))}</td>
                                               <td className="py-2 px-4">
-                                                <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold text-white ${isUnpaidLeave(l) ? 'bg-red-600' : 'bg-blue-600'}`}>
+                                                <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold text-white ${isLeaveWithoutPay(l) ? 'bg-red-600' : 'bg-blue-600'}`}>
                                                   {l.leave_type || '—'}
                                                 </span>
                                               </td>
@@ -1061,12 +1065,12 @@ const EmployeeCalendar = ({ joinDate }) => {
                 )}
                 {otherLeaves.length > 0 && (
                   (() => {
-                    const unpaidCount = (otherLeaves || []).filter(l => isUnpaidLeave(l)).length;
-                    const paidCount = (otherLeaves || []).length - unpaidCount;
+                    const leaveWithoutPayCount = (otherLeaves || []).filter(l => isLeaveWithoutPay(l)).length;
+                    const earnedLeaveCount = (otherLeaves || []).length - leaveWithoutPayCount;
                     const total = otherLeaves.length;
-                    const paidPct = total > 0 ? Math.round((paidCount / total) * 100) : 50;
-                    const deptBadgeStyle = (paidCount > 0 && unpaidCount > 0) ? { background: `linear-gradient(to right, #3b82f6 ${paidPct}%, #ef4444 ${paidPct}%)` } : null;
-                    const deptBadgeClass = (paidCount > 0 && unpaidCount === 0) ? 'bg-blue-600 hover:bg-blue-700' : (unpaidCount > 0 && paidCount === 0) ? 'bg-red-600 hover:bg-red-700' : 'bg-purple-600 hover:bg-purple-700';
+                    const earnedPct = total > 0 ? Math.round((earnedLeaveCount / total) * 100) : 50;
+                    const deptBadgeStyle = (earnedLeaveCount > 0 && leaveWithoutPayCount > 0) ? { background: `linear-gradient(to right, #3b82f6 ${earnedPct}%, #ef4444 ${earnedPct}%)` } : null;
+                    const deptBadgeClass = (earnedLeaveCount > 0 && leaveWithoutPayCount === 0) ? 'bg-blue-600 hover:bg-blue-700' : (leaveWithoutPayCount > 0 && earnedLeaveCount === 0) ? 'bg-red-600 hover:bg-red-700' : 'bg-purple-600 hover:bg-purple-700';
                     return (
                       <div className="mt-2">
                         <button
@@ -1376,6 +1380,34 @@ const EmployeeCalendar = ({ joinDate }) => {
               <p className="text-xs text-gray-500">
                 Note: Half-day leaves are limited to a single day
               </p>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Leave Type *</label>
+                <div className="flex flex-wrap gap-4">
+                  <label className="inline-flex items-center gap-2">
+                    <input
+                      type="radio"
+                      name="leave_type"
+                      value="Earned Leave"
+                      checked={leaveForm.leave_type === 'Earned Leave'}
+                      onChange={handleFormChange}
+                      className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                    />
+                    <span className="text-sm text-gray-700">Earned Leave</span>
+                  </label>
+                  <label className="inline-flex items-center gap-2">
+                    <input
+                      type="radio"
+                      name="leave_type"
+                      value="Duty Leave"
+                      checked={leaveForm.leave_type === 'Duty Leave'}
+                      onChange={handleFormChange}
+                      className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                    />
+                    <span className="text-sm text-gray-700">Duty Leave</span>
+                  </label>
+                </div>
+              </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Reason for Leave *</label>

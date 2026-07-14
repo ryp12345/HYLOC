@@ -2,6 +2,24 @@ const db = require('../config/db');
 const leaveModel = require('../models/leave.model');
 const entitlementModel = require('../models/leaveEntitlement.model');
 
+const EARNED_LEAVE_TYPES = new Set(['earned leave']);
+const LWP_LEAVE_TYPES = new Set(['leave without pay']);
+const DUTY_LEAVE_TYPES = new Set(['duty leave']);
+const isEarnedLeaveType = (leaveType) => {
+  const normalized = String(leaveType || '').trim().toLowerCase();
+  return EARNED_LEAVE_TYPES.has(normalized);
+};
+
+const isLeaveWithoutPayType = (leaveType) => {
+  const normalized = String(leaveType || '').trim().toLowerCase();
+  return LWP_LEAVE_TYPES.has(normalized);
+};
+
+const isDutyLeaveType = (leaveType) => {
+  const normalized = String(leaveType || '').trim().toLowerCase();
+  return DUTY_LEAVE_TYPES.has(normalized);
+};
+
 /**
  * Check if user is eligible to apply for leave
  * Based on Rule 1: Only Employee, Manager, and Management roles can apply
@@ -133,7 +151,22 @@ exports.applyLeave = async (userId, leaveData, userRole) => {
     // 4. Get current year
     const year = new Date(leaveData.from_date).getFullYear();
 
-    // 5. Determine paid/unpaid based on balance
+    const requestedLeaveType = String(leaveData.leave_type || '').trim();
+
+    if (isDutyLeaveType(requestedLeaveType)) {
+      const dutyLeaveRecord = await createLeaveSegment({
+        from_date: leaveData.from_date,
+        to_date: normalizedToDate,
+        leave_duration: leaveData.leave_duration || 'Full Day',
+        credited_days: creditedDays,
+        leave_type: 'Duty Leave'
+      });
+
+      await client.query('COMMIT');
+      return dutyLeaveRecord;
+    }
+
+    // 5. Determine earned/LWP based on balance
     const balanceInfo = await entitlementModel.getLeaveBalance(userId, year);
     const availableBalance = parseFloat(balanceInfo.leave_balance || 0);
 
@@ -178,7 +211,7 @@ exports.applyLeave = async (userId, leaveData, userRole) => {
 
     if (!isFullDay) {
       // Half-day leave: no split across multiple records
-      const leaveType = availableBalance >= creditedDays ? 'Paid' : 'Unpaid';
+      const leaveType = availableBalance >= creditedDays ? 'Earned Leave' : 'Leave without pay';
       leaveRecord = await createLeaveSegment({
         from_date: leaveData.from_date,
         to_date: normalizedToDate,
@@ -187,61 +220,61 @@ exports.applyLeave = async (userId, leaveData, userRole) => {
         leave_type: leaveType
       });
 
-      if (leaveType === 'Paid') {
+      if (isEarnedLeaveType(leaveType)) {
         await entitlementModel.updateLeavesAvailed(userId, year, creditedDays, client);
       }
     } else if (availableBalance >= creditedDays) {
-      // All paid
+      // All earned leave
       leaveRecord = await createLeaveSegment({
         from_date: leaveData.from_date,
         to_date: normalizedToDate,
         leave_duration: leaveDuration,
         credited_days: creditedDays,
-        leave_type: 'Paid'
+        leave_type: 'Earned Leave'
       });
 
       await entitlementModel.updateLeavesAvailed(userId, year, creditedDays, client);
     } else if (availableBalance <= 0) {
-      // All unpaid
+      // All leave without pay
       leaveRecord = await createLeaveSegment({
         from_date: leaveData.from_date,
         to_date: normalizedToDate,
         leave_duration: leaveDuration,
         credited_days: creditedDays,
-        leave_type: 'Unpaid'
+        leave_type: 'Leave without pay'
       });
     } else {
-      // Split into two requests (paid + unpaid), integer full days only
-      const paidDays = Math.min(Math.floor(availableBalance), Math.floor(creditedDays));
-      const unpaidDays = creditedDays - paidDays;
+      // Split into two requests (earned leave + LWP), integer full days only
+      const earnedLeaveDays = Math.min(Math.floor(availableBalance), Math.floor(creditedDays));
+      const leaveWithoutPayDays = creditedDays - earnedLeaveDays;
 
       const records = [];
       let currentDate = leaveData.from_date;
 
-      if (paidDays > 0) {
-        const paidTo = addDays(currentDate, paidDays - 1);
+      if (earnedLeaveDays > 0) {
+        const earnedLeaveTo = addDays(currentDate, earnedLeaveDays - 1);
         records.push(await createLeaveSegment({
           from_date: currentDate,
-          to_date: paidTo,
+          to_date: earnedLeaveTo,
           leave_duration: leaveDuration,
-          credited_days: paidDays,
-          leave_type: 'Paid'
+          credited_days: earnedLeaveDays,
+          leave_type: 'Earned Leave'
         }));
-        currentDate = addDays(paidTo, 1);
+        currentDate = addDays(earnedLeaveTo, 1);
       }
 
-      if (unpaidDays > 0) {
+      if (leaveWithoutPayDays > 0) {
         records.push(await createLeaveSegment({
           from_date: currentDate,
           to_date: normalizedToDate,
           leave_duration: leaveDuration,
-          credited_days: unpaidDays,
-          leave_type: 'Unpaid'
+          credited_days: leaveWithoutPayDays,
+          leave_type: 'Leave without pay'
         }));
       }
 
-      if (paidDays > 0) {
-        await entitlementModel.updateLeavesAvailed(userId, year, paidDays, client);
+      if (earnedLeaveDays > 0) {
+        await entitlementModel.updateLeavesAvailed(userId, year, earnedLeaveDays, client);
       }
       leaveRecord = records.length === 1 ? records[0] : { split: true, records };
     }
@@ -334,7 +367,7 @@ exports.updatePendingLeave = async (leaveId, userId, updateData, userRole) => {
       const oldCreditedDays = parseFloat(existingLeave.credited_days);
       const difference = newCreditedDays - oldCreditedDays;
       if (difference !== 0) {
-        if (existingLeave.leave_type === 'Paid') {
+        if (isEarnedLeaveType(existingLeave.leave_type)) {
           const year = new Date(existingLeave.from_date).getFullYear();
           if (difference > 0) {
             const balanceInfo = await entitlementModel.getLeaveBalance(userId, year);
@@ -384,7 +417,7 @@ exports.cancelLeave = async (leaveId, userId, userRole) => {
     const fromDate = new Date(existingLeave.from_date);
     const year = fromDate.getFullYear();
     
-    if (existingLeave.leave_type === 'Paid') {
+    if (isEarnedLeaveType(existingLeave.leave_type)) {
       await entitlementModel.updateLeavesAvailed(
         userId,
         year,

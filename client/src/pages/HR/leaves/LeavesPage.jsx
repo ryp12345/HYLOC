@@ -1,5 +1,5 @@
 import React from 'react';
-import ManagerCalendar from '../../manager/leaves/ManagerCalendar';
+import HRCalendar from './HRCalendar';
 
 const LeavesPage = () => {
   return (
@@ -11,7 +11,7 @@ const LeavesPage = () => {
         </div>
       </div>
 
-      <ManagerCalendar />
+      <HRCalendar />
     </div>
   );
 };
