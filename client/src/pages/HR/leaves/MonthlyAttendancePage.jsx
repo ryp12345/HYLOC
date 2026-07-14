@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
-import { getMonthlyWorkingDaysStaff, importMonthlyWorkingDays } from "../../../api/leaveEntitlementApi";
+import { getMonthlyWorkingDaysStaff, importMonthlyWorkingDays } from '../../../api/leaveEntitlementApi';
 
 const MONTH_NAMES = [
   'January','February','March','April','May','June','July','August','September','October','November','December'
@@ -134,7 +134,6 @@ const MonthlyAttendancePage = ({ token: propToken }) => {
   const PAGE_SIZE = 10;
   const [search, setSearch] = useState('');
 
-  // Helper: get display name for a staff member
   const getDisplayName = (staff) => {
     const fullName = `${staff.firstname || ''} ${staff.lastname || ''}`.trim();
     if (fullName) return fullName;
@@ -142,16 +141,13 @@ const MonthlyAttendancePage = ({ token: propToken }) => {
     return staff.empid ? `ID:${staff.empid}` : '';
   };
 
-  // Filtered + Sorted data (A to Z by name)
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
-    // Step 1: filter based on search
     const filteredData = monthlyStaff.filter(s => {
       const name = getDisplayName(s).toLowerCase();
       const emp = (s.empid || '').toString().toLowerCase();
       return name.includes(q) || emp.includes(q) || (s.user_name || '').toLowerCase().includes(q);
     });
-    // Step 2: sort alphabetically by display name (A to Z)
     return filteredData.sort((a, b) => {
       const nameA = getDisplayName(a);
       const nameB = getDisplayName(b);
@@ -222,9 +218,7 @@ const MonthlyAttendancePage = ({ token: propToken }) => {
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{(page - 1) * PAGE_SIZE + idx + 1}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{name}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{s.empid || '-'}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                            {Number.isInteger(Number(noOfDays)) ? Number(noOfDays) : noOfDays}
-                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{Number.isInteger(Number(noOfDays)) ? Number(noOfDays) : noOfDays}</td>
                       </tr>
                     );
                   })
@@ -232,7 +226,6 @@ const MonthlyAttendancePage = ({ token: propToken }) => {
               </tbody>
             </table>
           </div>
-          {/* Pagination Controls */}
           {filtered.length > PAGE_SIZE && (
             <div className="flex justify-end items-center gap-2 px-6 pb-6">
               <button className="px-3 py-1 rounded border border-gray-300 bg-white text-gray-700 disabled:opacity-50" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>Prev</button>

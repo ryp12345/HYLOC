@@ -8,6 +8,8 @@ import Register from '../pages/auth/Register';
 import AdminDashboard from '../pages/admin/Dashboard';
 import HRDashboard from '../pages/HR/Dashboard';
 import HRLeavesPage from '../pages/HR/leaves/LeavesPage';
+import HRMonthlyAttendancePage from '../pages/HR/leaves/MonthlyAttendancePage';
+import HRLeaveEntitlementPage from '../pages/HR/leaves/LeaveEntitlementPage';
 import ManagementDashboard from '../pages/management/ManagementDashboard';
 import KPIDetailPage from '../pages/management/KPIDetailPage';
 import PlantEfficiency from '../pages/management/PlantEfficiency';
@@ -27,8 +29,6 @@ import ManagerDashboard from '../pages/manager/ManagerDashboard';
 
 
 import UsersPage from '../pages/admin/UsersPage';
-import LeaveEntitlementPage from '../pages/admin/leaves/LeaveEntitlementPage';
-import MonthlyAttendancePage from '../pages/admin/leaves/MonthlyAttendancePage';
 import UserRolePage from '../pages/admin/UserRolePage';
 import DepartmentsPage from '../pages/admin/DepartmentsPage';
 import DesignationsPage from '../pages/admin/DesignationsPage';
@@ -346,26 +346,6 @@ const AppRoutes = () => {
             }
           />
 
-            <Route
-              path="/admin/leaves/leave-entitlement"
-              element={
-                <ProtectedRoute>
-                  <DashboardLayout>
-                    <LeaveEntitlementPage />
-                  </DashboardLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/leaves/monthly-attendance"
-              element={
-                <ProtectedRoute>
-                  <DashboardLayout>
-                    <MonthlyAttendancePage />
-                  </DashboardLayout>
-                </ProtectedRoute>
-              }
-            />
           <Route
             path="/management/kmis/:id"
             element={
@@ -383,6 +363,28 @@ const AppRoutes = () => {
               <ProtectedRoute>
                 <DashboardLayout>
                   <HRLeavesPage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/hr/leaves/monthly-attendance"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <HRMonthlyAttendancePage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/hr/leaves/leave-entitlement"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <HRLeaveEntitlementPage />
                 </DashboardLayout>
               </ProtectedRoute>
             }

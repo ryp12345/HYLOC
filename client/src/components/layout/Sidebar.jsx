@@ -45,9 +45,6 @@ const Sidebar = () => {
         { name: 'User-Roles', path: '/admin/user-roles', icon: '🧩' },
       ],
     },
-    
-    { name: 'Monthly Attendance', path: '/admin/leaves/monthly-attendance', icon: '🗓️' },
-    { name: 'Leave Entitlement', path: '/admin/leaves/leave-entitlement', icon: '📋' },
     { name: 'Tickets', path: '/tickets', icon: '🎫' },
   ];
 
@@ -73,6 +70,14 @@ const Sidebar = () => {
   const hrLinks = [
     { name: 'Dashboard', path: getDashboardPath(), icon: '📊' },
     { name: 'Calendar', path: '/hr/leaves', icon: '📅' },
+    {
+      name: 'Leave Control',
+      icon: '🗂️',
+      submenu: [
+        { name: 'Monthly Attendance', path: '/hr/leaves/monthly-attendance', icon: '🗓️' },
+        { name: 'Leave Entitlement', path: '/hr/leaves/leave-entitlement', icon: '📋' },
+      ],
+    },
     { name: 'Tickets', path: '/tickets', icon: '🎫' },
   ];
 
