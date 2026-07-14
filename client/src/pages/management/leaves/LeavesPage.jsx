@@ -6,10 +6,11 @@ const LeavesPage = () => {
 		<div className="space-y-6">
 			<div className="flex items-center justify-between">
 				<div>
-					<h1 className="text-2xl font-bold text-gray-800">Calendar</h1>
+					<h1 className="text-2xl font-bold text-gray-800">Management Calendar</h1>
+					<p className="text-sm text-gray-600">Track organization leaves and manage your own leave schedule</p>
 				</div>
 			</div>
-			<ManagementCalendar />
+			<ManagementCalendar title="Management Calendar" />
 		</div>
 	);
 };

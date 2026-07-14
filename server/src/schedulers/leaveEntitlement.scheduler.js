@@ -5,7 +5,9 @@ const { grantAnnualEntitlementsForYear } = require('../services/leaveEntitlement
 //const CRON_EXPRESSION = '00 00 00 01 01 *';    1 Jan at 00:00 (start of new year)
 //const CRON_EXPRESSION = '02 12 12 5 *'; // Feb 4th at 12:01 PM (min hr dom mon dow)
 
-const CRON_EXPRESSION = '02 11 3 6 *';  // June 2nd at 10:36 AM
+// const CRON_EXPRESSION = '02 11 3 6 *';  // June 2nd at 10:36 AM
+
+const CRON_EXPRESSION = '19 15 * * *'; // Runs at 3:18 PM
 
 const startAnnualLeaveScheduler = () => {
   cron.schedule(CRON_EXPRESSION, async () => {

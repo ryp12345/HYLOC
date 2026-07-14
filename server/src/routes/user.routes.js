@@ -42,8 +42,8 @@ router.put('/me', seedExistingEmpidForUpload, uploadUser.single('staffPhoto'), u
 // Minimal list of assignable users (any authenticated user)
 router.get('/assignable', userController.getAssignableUsers);
 
-// Super admin and management routes
-router.get('/', authorize('admin', 'management'), userController.getAllUsers);
+// Super admin, management and HR routes
+router.get('/', authorize('admin', 'management', 'HR'), userController.getAllUsers);
 router.get('/department/:id', authorize('admin', 'management', 'manager'), userController.getUsersByDepartment);
 router.get('/:id', userController.getUserById);
 router.post('/', authorize('admin'), uploadUser.single('staffPhoto'), userController.createUser);

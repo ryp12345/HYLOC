@@ -13,7 +13,7 @@ import { getMyTickets, getAllTickets } from '../../../api/ticketApi';
 import { getUsers } from '../../../api/userApi';
 import { useAuth } from '../../../context/AuthContext';
 
-const ManagementCalendar = () => {
+const ManagementCalendar = ({ title = 'Management Calendar' }) => {
 	const { user } = useAuth();
 	const [currentDate, setCurrentDate] = useState(new Date());
 	const [viewMode, setViewMode] = useState('month'); // 'month', 'week', 'list'
@@ -42,6 +42,7 @@ const ManagementCalendar = () => {
 		to_date: '',
 		leave_duration: 'Full Day',
 		day_type: 'full',
+		leave_type: 'Earned Leave',
 		leave_reason: '',
 		duration: 1,
 		alternate_person: '',
@@ -394,6 +395,13 @@ const ManagementCalendar = () => {
 		return t.includes('leave without pay');
 	};
 
+	// Detect duty leave robustly (handles case/format variations)
+	const isDutyLeave = (leave) => {
+		if (!leave) return false;
+		const t = String(leave.leave_type || leave.type || '').toLowerCase();
+		return t.includes('duty leave');
+	};
+
 	// Map stored identifier (usually EMPID) to a readable colleague label
 	const getAlternateDisplay = (identifier) => {
 		if (!identifier) return '';
@@ -494,6 +502,7 @@ const ManagementCalendar = () => {
 			to_date: formattedDate,
 			leave_duration: 'Full Day',
 			day_type: 'full',
+			leave_type: 'Earned Leave',
 			leave_reason: '',
 			duration: 1,
 			alternate_person: '',
@@ -541,6 +550,7 @@ const ManagementCalendar = () => {
 			from_date: formattedFrom,
 			to_date: formattedTo,
 			leave_duration: leave.leave_duration,
+			leave_type: leave.leave_type || leave.type || 'Earned Leave',
 			leave_reason: leave.leave_reason,
 			duration,
 			alternate_person: leave.alternate_person || '',
@@ -566,6 +576,7 @@ const ManagementCalendar = () => {
 				to_date: formatDateForInput(date),
 				leave_duration: 'Full Day',
 				day_type: 'full',
+				leave_type: 'Earned Leave',
 				leave_reason: '',
 				duration: 1,
 				alternate_person: '',
@@ -733,6 +744,9 @@ const ManagementCalendar = () => {
 	const leaveWithoutPayDays = myLeaves
 		.filter(l => isLeaveWithoutPay(l) && l.status !== 'Rejected' && l.status !== 'Cancelled')
 		.reduce((sum, l) => sum + parseFloat(l.credited_days || 0), 0);
+	const dutyLeaveDays = myLeaves
+		.filter(l => isDutyLeave(l) && l.status !== 'Rejected' && l.status !== 'Cancelled')
+		.reduce((sum, l) => sum + parseFloat(l.credited_days || l.duration || 0), 0);
 
 	const monthLeaves = useMemo(() => {
 		return leaves.filter(overlapsMonth);
@@ -751,28 +765,32 @@ const ManagementCalendar = () => {
 			{leaveBalance && (
 				<div>
 					<h3 className="text-lg font-semibold text-gray-800 mb-4">My Leave Details - {currentYear}</h3>
-					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-						<div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg shadow-lg p-6 text-white">
-							<p className="text-sm opacity-90 mb-2">Entitled</p>
-							<p className="text-3xl font-bold">{leaveBalance.leave_entitled}</p>
-						</div>
-						<div className="bg-gradient-to-r from-green-500 to-green-600 rounded-lg shadow-lg p-6 text-white">
-							<p className="text-sm opacity-90 mb-2">Accumulated</p>
-							<p className="text-3xl font-bold">{leaveBalance.leaves_accumulated}</p>
-						</div>
-						<div className="bg-gradient-to-r from-yellow-500 to-yellow-600 rounded-lg shadow-lg p-6 text-white">
-							<p className="text-sm opacity-90 mb-2">Availed</p>
-							<p className="text-3xl font-bold">{leaveBalance.leaves_availed}</p>
-						</div>
-						<div className="bg-gradient-to-r from-red-500 to-red-600 rounded-lg shadow-lg p-6 text-white">
-							<p className="text-sm opacity-90 mb-2">Balance</p>
-							<p className="text-3xl font-bold">{Math.max(parseFloat(leaveBalance.leave_balance ?? 0), 0)}</p>
-						</div>
-						<div className="bg-gradient-to-r from-red-700 to-red-800 rounded-lg shadow-lg p-6 text-white">
-							<p className="text-sm opacity-90 mb-2">Leave without pay</p>
-							<p className="text-3xl font-bold">{Number(leaveWithoutPayDays.toFixed(1))}</p>
-						</div>
+				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
+					<div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg shadow-lg p-6 text-white">
+						<p className="text-sm opacity-90 mb-2">Entitled</p>
+						<p className="text-3xl font-bold">{leaveBalance.leave_entitled}</p>
 					</div>
+					<div className="bg-gradient-to-r from-green-500 to-green-600 rounded-lg shadow-lg p-6 text-white">
+						<p className="text-sm opacity-90 mb-2">Accumulated</p>
+						<p className="text-3xl font-bold">{leaveBalance.leaves_accumulated}</p>
+					</div>
+					<div className="bg-gradient-to-r from-yellow-500 to-yellow-600 rounded-lg shadow-lg p-6 text-white">
+						<p className="text-sm opacity-90 mb-2">Availed</p>
+						<p className="text-3xl font-bold">{leaveBalance.leaves_availed}</p>
+					</div>
+					<div className="bg-gradient-to-r from-red-500 to-red-600 rounded-lg shadow-lg p-6 text-white">
+						<p className="text-sm opacity-90 mb-2">Balance</p>
+						<p className="text-3xl font-bold">{Math.max(parseFloat(leaveBalance.leave_balance ?? 0), 0)}</p>
+					</div>
+					<div className="bg-gradient-to-r from-red-700 to-red-800 rounded-lg shadow-lg p-6 text-white">
+						<p className="text-sm opacity-90 mb-2">Leave without pay</p>
+						<p className="text-3xl font-bold">{Number(leaveWithoutPayDays.toFixed(1))}</p>
+					</div>
+					<div className="bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-lg shadow-lg p-6 text-white">
+						<p className="text-sm opacity-90 mb-2">Duty leave</p>
+						<p className="text-3xl font-bold">{Number(dutyLeaveDays.toFixed(1))}</p>
+					</div>
+				</div>
 				</div>
 			)}
 
@@ -957,7 +975,7 @@ const ManagementCalendar = () => {
 			<div className="bg-white rounded-lg shadow-lg p-6">
 				<div className="flex items-center justify-between mb-6">
 					<div>
-						<h2 className="text-2xl font-bold text-gray-800">Management View</h2>
+						<h2 className="text-2xl font-bold text-gray-800">{title}</h2>
 						{/* <p className="text-sm text-gray-600">Pending leaves from Employees (&gt;2 days) and Managers</p> */}
 					</div>
 
@@ -1512,12 +1530,40 @@ const ManagementCalendar = () => {
 									/>
 								</div>
 							</div>
-							<p className="text-xs text-gray-500">
-								Note: Half-day leaves are limited to a single day
-							</p>
+						<p className="text-xs text-gray-500">
+							Note: Half-day leaves are limited to a single day
+						</p>
 
-							<div>
-								<label className="block text-sm font-medium text-gray-700 mb-1">Reason for Leave *</label>
+						<div>
+							<label className="block text-sm font-medium text-gray-700 mb-2">Leave Type *</label>
+							<div className="flex flex-wrap gap-4">
+								<label className="inline-flex items-center gap-2">
+									<input
+										type="radio"
+										name="leave_type"
+										value="Earned Leave"
+										checked={leaveForm.leave_type === 'Earned Leave'}
+										onChange={handleFormChange}
+										className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+									/>
+									<span className="text-sm text-gray-700">Earned Leave</span>
+								</label>
+								<label className="inline-flex items-center gap-2">
+									<input
+										type="radio"
+										name="leave_type"
+										value="Duty Leave"
+										checked={leaveForm.leave_type === 'Duty Leave'}
+										onChange={handleFormChange}
+										className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+									/>
+									<span className="text-sm text-gray-700">Duty Leave</span>
+								</label>
+							</div>
+						</div>
+
+						<div>
+							<label className="block text-sm font-medium text-gray-700 mb-1">Reason for Leave *</label>
 								<textarea
 									name="leave_reason"
 									value={leaveForm.leave_reason}

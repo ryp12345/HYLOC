@@ -25,8 +25,8 @@ router.get('/pending', authorize('Manager', 'Management'), leaveController.getPe
 router.post('/:id/approve', authorize('Manager', 'Management'), leaveController.approveLeave);
 router.post('/:id/reject', authorize('Manager', 'Management'), leaveController.rejectLeave);
 
-// Management and Manager routes (view all)
-router.get('/all', authorize('Management', 'Manager'), leaveController.getAllLeaves);
+// Management, Manager and HR routes (view all)
+router.get('/all', authorize('Management', 'Manager', 'HR'), leaveController.getAllLeaves);
 
 // Common route (view specific leave - with permission check in controller)
 router.get('/:id', leaveController.getLeaveById);

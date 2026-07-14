@@ -38,8 +38,20 @@ exports.checkEligibility = async (req, res, next) => {
  */
 exports.applyLeave = async (req, res, next) => {
   try {
-    const userId = req.user.userId;
     const userRole = req.user.role;
+    const requesterId = req.user.userId;
+    const requestedUserId = Number(req.body.user_id);
+    const canApplyForStaff = String(userRole || '').toLowerCase() === 'hr';
+    const userId = canApplyForStaff && Number.isInteger(requestedUserId) && requestedUserId > 0
+      ? requestedUserId
+      : requesterId;
+
+    if (requestedUserId && userId !== requestedUserId && !canApplyForStaff) {
+      return res.status(403).json({
+        success: false,
+        message: 'Only HR can apply leave for staff members'
+      });
+    }
     
     // Validate required fields 
     if (!req.body.from_date || !req.body.leave_reason) {
@@ -48,8 +60,32 @@ exports.applyLeave = async (req, res, next) => {
         message: 'Missing required fields: from_date, leave_reason'
       });
     }
+
+    let effectiveRole = userRole;
+    if (canApplyForStaff && userId !== requesterId) {
+      const targetUser = await userModel.findUserById(userId);
+      if (!targetUser) {
+        return res.status(404).json({
+          success: false,
+          message: 'Selected staff member not found'
+        });
+      }
+
+      const targetRole = await db.query(
+        `
+          SELECT r.role_name
+          FROM user_roles ur
+          JOIN roles r ON r.id = ur.role_id
+          WHERE ur.user_id = $1 AND ur.status = 'active'
+          ORDER BY ur.id ASC
+          LIMIT 1
+        `,
+        [userId]
+      );
+      effectiveRole = targetRole.rows[0]?.role_name || 'Employee';
+    }
     
-    const leaveRecord = await leaveService.applyLeave(userId, req.body, userRole);
+    const leaveRecord = await leaveService.applyLeave(userId, req.body, effectiveRole);
 
     // Send notification to department managers when an Employee applies for leave
     try {
@@ -645,11 +681,11 @@ exports.getAllLeaves = async (req, res, next) => {
   try {
     const userRole = req.user.role;
     
-    // Only Management and Manager can view all leaves
-    if (!['Management', 'Manager'].includes(userRole)) {
+    // Only Management, Manager and HR can view all leaves
+    if (!['Management', 'Manager', 'HR'].includes(userRole)) {
       return res.status(403).json({
         success: false,
-        message: 'Forbidden: Only Management and Manager can view all leaves'
+        message: 'Forbidden: Only Management, Manager and HR can view all leaves'
       });
     }
     

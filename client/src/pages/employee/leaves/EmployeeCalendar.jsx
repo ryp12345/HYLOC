@@ -522,6 +522,13 @@ const EmployeeCalendar = ({ joinDate }) => {
     return t.includes('leave without pay');
   };
 
+  // Detect duty leave robustly (handles case/format variations)
+  const isDutyLeave = (leave) => {
+    if (!leave) return false;
+    const t = String(leave.leave_type || leave.type || '').toLowerCase();
+    return t.includes('duty leave');
+  };
+
   // Get team leaves for a specific date (Employee calendar - return empty array for now)
   const getTeamLeavesForDate = (date) => {
     if (!date) return [];
@@ -639,6 +646,9 @@ const EmployeeCalendar = ({ joinDate }) => {
   const leaveWithoutPayDays = leaves
     .filter(l => isLeaveWithoutPay(l) && l.status !== 'Rejected' && l.status !== 'Cancelled')
     .reduce((sum, l) => sum + parseFloat(l.credited_days || 0), 0);
+  const dutyLeaveDays = leaves
+    .filter(l => isDutyLeave(l) && l.status !== 'Rejected' && l.status !== 'Cancelled')
+    .reduce((sum, l) => sum + parseFloat(l.credited_days || l.duration || 0), 0);
 
   return (
     <div className="w-full space-y-6">
@@ -660,7 +670,7 @@ const EmployeeCalendar = ({ joinDate }) => {
       {leaveBalance && (
         <div>
           <h3 className="text-lg font-semibold text-gray-800 mb-4">Leave Details - {currentDate.getFullYear()}</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
             <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg shadow-lg p-6 text-white">
               <p className="text-sm opacity-90 mb-2">Entitled</p>
               <p className="text-3xl font-bold">{leaveBalance.leave_entitled}</p>
@@ -680,6 +690,10 @@ const EmployeeCalendar = ({ joinDate }) => {
             <div className="bg-gradient-to-r from-red-700 to-red-800 rounded-lg shadow-lg p-6 text-white">
               <p className="text-sm opacity-90 mb-2">Leave without pay</p>
               <p className="text-3xl font-bold">{Number(leaveWithoutPayDays.toFixed(1))}</p>
+            </div>
+            <div className="bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-lg shadow-lg p-6 text-white">
+              <p className="text-sm opacity-90 mb-2">Duty leave</p>
+              <p className="text-3xl font-bold">{Number(dutyLeaveDays.toFixed(1))}</p>
             </div>
           </div>
         </div>
