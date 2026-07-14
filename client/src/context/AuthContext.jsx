@@ -36,7 +36,7 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const refreshAccessToken = async () => {
+  const refreshAccessToken = async (selectedRole) => {
     if (refreshInFlightRef.current) {
       return refreshInFlightRef.current;
     }
@@ -47,8 +47,10 @@ export const AuthProvider = ({ children }) => {
       return null;
     }
 
+    const payload = { refreshToken, ...(selectedRole ? { selectedRole } : {}) };
+
     refreshInFlightRef.current = axios
-      .post(`${API_URL}/auth/refresh-token`, { refreshToken })
+      .post(`${API_URL}/auth/refresh-token`, payload)
       .then((response) => {
         const { accessToken } = response.data.data;
         localStorage.setItem('accessToken', accessToken);
@@ -78,7 +80,8 @@ export const AuthProvider = ({ children }) => {
     const delay = Math.max(refreshAt - now, 0);
 
     refreshTimeoutRef.current = setTimeout(() => {
-      refreshAccessToken();
+      const selectedRole = localStorage.getItem('selectedRole') || undefined;
+      refreshAccessToken(selectedRole);
     }, delay);
   };
 
@@ -102,8 +105,9 @@ export const AuthProvider = ({ children }) => {
         const payload = parseJwt(accessToken);
         const isExpired = payload?.exp ? payload.exp * 1000 <= Date.now() : true;
         if (isExpired) {
+          const selectedRole = localStorage.getItem('selectedRole') || undefined;
           try {
-            await refreshAccessToken();
+            await refreshAccessToken(selectedRole);
           } catch {
             // refreshAccessToken handles logout
           }
@@ -156,6 +160,7 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem('accessToken', accessToken);
       localStorage.setItem('refreshToken', refreshToken);
       localStorage.setItem('user', JSON.stringify(user));
+      localStorage.setItem('selectedRole', user.role || '');
 
       scheduleTokenRefresh(accessToken);
 
@@ -180,6 +185,7 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem('accessToken', accessToken);
       localStorage.setItem('refreshToken', refreshToken);
       localStorage.setItem('user', JSON.stringify(user));
+      localStorage.setItem('selectedRole', user.role || '');
 
       scheduleTokenRefresh(accessToken);
 
@@ -194,11 +200,34 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const switchRole = async (role) => {
+    try {
+      const response = await authAPI.switchRole(role);
+      const { accessToken } = response.data.data;
+
+      localStorage.setItem('accessToken', accessToken);
+      localStorage.setItem('selectedRole', role);
+
+      scheduleTokenRefresh(accessToken);
+
+      const updatedUser = { ...user, role };
+      setUser(updatedUser);
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+
+      return response.data;
+    } catch (err) {
+      const errorMessage = err.response?.data?.message || 'Failed to switch role';
+      setError(errorMessage);
+      throw err;
+    }
+  };
+
   const logout = () => {
     clearRefreshTimeout();
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('user');
+    localStorage.removeItem('selectedRole');
     setUser(null);
     setError(null);
   };
@@ -216,6 +245,7 @@ export const AuthProvider = ({ children }) => {
     login,
     register,
     logout,
+    switchRole,
     refreshAccessToken,
     updateUserContext,
     isAuthenticated: !!user

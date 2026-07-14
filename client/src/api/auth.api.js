@@ -7,8 +7,11 @@ export const authAPI = {
   login: (empid, password) =>
     axiosInstance.post('/auth/login', { empid, password }),
 
-  refreshToken: (refreshToken) =>
-    axiosInstance.post('/auth/refresh-token', { refreshToken }),
+  refreshToken: (refreshToken, selectedRole) =>
+    axiosInstance.post('/auth/refresh-token', { refreshToken, ...(selectedRole ? { selectedRole } : {}) }),
+
+  switchRole: (role) =>
+    axiosInstance.post('/auth/switch-role', { role }),
 
   getProfile: () =>
     axiosInstance.get('/auth/profile')

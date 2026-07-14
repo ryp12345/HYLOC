@@ -49,7 +49,7 @@ const getPhotoCandidates = (staffPhoto, empid) => {
 };
 
 export default function ProfilePage() {
-  const { user: authUser, updateUserContext } = useAuth();
+  const { user: authUser, updateUserContext, switchRole } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(true);
@@ -60,7 +60,11 @@ export default function ProfilePage() {
   const [photoFile, setPhotoFile] = useState(null);
   const [photoPreview, setPhotoPreview] = useState('');
   const [photoCandidates, setPhotoCandidates] = useState([]);
-  
+  const [roles, setRoles] = useState([]);
+  const [currentRole, setCurrentRole] = useState('');
+  const [pendingRole, setPendingRole] = useState('');
+  const [switchingRole, setSwitchingRole] = useState(false);
+
   const [form, setForm] = useState({
     firstName: '',
     middleName: '',
@@ -93,6 +97,11 @@ export default function ProfilePage() {
       const candidates = getPhotoCandidates(data.staff_photo_url || data.staff_photo, data.empid);
       setPhotoCandidates(candidates);
       setPhotoPreview(candidates[0] || '');
+      const fetchedRoles = Array.isArray(data.roles) ? [...new Set(data.roles)] : [];
+      setRoles(fetchedRoles);
+      const initialRole = authUser?.role || data.current_role || fetchedRoles[0] || '';
+      setCurrentRole(initialRole);
+      setPendingRole(initialRole);
       setForm({
         firstName: data.firstname || '',
         middleName: data.middlename || '',
@@ -216,6 +225,34 @@ export default function ProfilePage() {
     }
   };
 
+  const handleSwitchRole = async (e) => {
+    e.preventDefault();
+    if (!switchRole) return;
+    const targetRole = pendingRole;
+    if (!targetRole || targetRole === currentRole) return;
+
+    try {
+      setSwitchingRole(true);
+      await switchRole(targetRole);
+      setCurrentRole(targetRole);
+      setPendingRole(targetRole);
+      setNotification({
+        show: true,
+        message: `Switched to ${targetRole} view`,
+        type: 'success'
+      });
+      setTimeout(() => navigate('/dashboard'), 800);
+    } catch (error) {
+      setNotification({
+        show: true,
+        message: error.response?.data?.message || 'Failed to switch role',
+        type: 'error'
+      });
+    } finally {
+      setSwitchingRole(false);
+    }
+  };
+
   const getDepartmentName = (id) => {
     const dept = departments.find(d => d.id === id);
     return dept ? dept.department_name : 'N/A';
@@ -275,6 +312,41 @@ export default function ProfilePage() {
 
         {/* Content */}
         <div className="p-6">
+          {/* Role switcher - only shown when the user has more than one role */}
+          {roles.length > 1 && (
+            <div className="mb-6 p-4 rounded-lg border border-indigo-200 bg-indigo-50">
+              <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+                <div>
+                  <h3 className="text-sm font-semibold text-indigo-700 uppercase tracking-wide">Active Role</h3>
+                  <p className="mt-1 text-lg font-semibold text-gray-900 capitalize">{currentRole || 'N/A'}</p>
+                  <p className="text-sm text-gray-500">You have access to multiple roles. Switch to view the app as a different role.</p>
+                </div>
+                <form onSubmit={handleSwitchRole} className="flex items-end gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Switch Role</label>
+                    <select
+                      name="roleSelect"
+                      value={pendingRole}
+                      onChange={(e) => setPendingRole(e.target.value)}
+                      className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white capitalize"
+                    >
+                      {roles.map((r) => (
+                        <option key={r} value={r} className="capitalize">{r}</option>
+                      ))}
+                    </select>
+                  </div>
+                    <button
+                      type="submit"
+                      disabled={switchingRole}
+                      className="px-5 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition font-medium disabled:opacity-50"
+                    >
+                    {switchingRole ? 'Switching...' : 'Switch'}
+                  </button>
+                </form>
+              </div>
+            </div>
+          )}
+
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold text-gray-800">Profile Information</h2>
           </div>

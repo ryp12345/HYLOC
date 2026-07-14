@@ -71,8 +71,10 @@ axiosInstance.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    // Handle both 401 and 403 errors (token expiration) - but NOT for auth endpoints
-    if ((error.response?.status === 401 || error.response?.status === 403) && !originalRequest?._retry) {
+    // Only refresh on 401 (expired/invalid token). A 403 means insufficient
+    // permissions for the current role and must NOT trigger a token refresh,
+    // otherwise switching roles would be silently reverted to the primary role.
+    if (error.response?.status === 401 && !originalRequest?._retry) {
       originalRequest._retry = true;
 
       try {
@@ -85,8 +87,10 @@ axiosInstance.interceptors.response.use(
           return Promise.reject(error);
         }
 
+        const selectedRole = localStorage.getItem('selectedRole') || undefined;
         const response = await axiosInstance.post('/auth/refresh-token', {
-          refreshToken
+          refreshToken,
+          ...(selectedRole ? { selectedRole } : {})
         });
 
         const { accessToken } = response.data.data;

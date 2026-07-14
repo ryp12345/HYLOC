@@ -329,7 +329,13 @@ exports.deleteUser = async (req, res) => {
 exports.getMyProfile = async (req, res) => {
   try {
     const user = await userModel.findUserById(req.user.userId);
-    return sendSuccess(res, attachStaffPhotoUrl(user), 'Profile retrieved successfully');
+    const roles = await userModel.getActiveRoles(req.user.userId);
+    const data = attachStaffPhotoUrl({
+      ...user,
+      roles,
+      current_role: roles[0] || 'employee',
+    });
+    return sendSuccess(res, data, 'Profile retrieved successfully');
   } catch (error) {
     console.error('Get profile error:', error);
     return sendError(res, 'Failed to retrieve profile', 500);

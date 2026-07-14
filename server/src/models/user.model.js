@@ -296,6 +296,23 @@ exports.getUsersByDepartmentMinimal = async (departmentId) => {
   return result.rows;
 };
 
+/**
+ * Get all active role names assigned to a user
+ * @param {number} userId - User ID
+ * @returns {Promise<string[]>} Array of active role names
+ */
+exports.getActiveRoles = async (userId) => {
+  const query = `
+    SELECT DISTINCT r.role_name
+    FROM user_roles ur
+    JOIN roles r ON r.id = ur.role_id
+    WHERE ur.user_id = $1 AND ur.status = 'active'
+    ORDER BY r.role_name ASC
+  `;
+  const result = await db.query(query, [userId]);
+  return result.rows.map((row) => row.role_name);
+};
+
 exports.getAssignableUsers = async () => {
   // Use DISTINCT ON to ensure each user appears only once even if multiple
   // active role rows exist (defensive against inconsistent user_roles data).

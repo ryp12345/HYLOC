@@ -49,13 +49,13 @@ exports.login = async (req, res) => {
 
 exports.refreshToken = async (req, res) => {
   try {
-    const { refreshToken } = req.body;
+    const { refreshToken, selectedRole } = req.body;
 
     if (!refreshToken) {
       return sendError(res, 'Refresh token is required', 400);
     }
 
-    const result = await authService.refreshAccessToken(refreshToken);
+    const result = await authService.refreshAccessToken(refreshToken, selectedRole);
     
     return sendSuccess(res, result, 'Token refreshed successfully', 200);
   } catch (error) {
@@ -85,6 +85,23 @@ exports.getProfile = async (req, res) => {
   } catch (error) {
     console.error('Get profile error:', error.message);
     return sendError(res, error.message || 'Failed to get profile', 400);
+  }
+};
+
+exports.switchRole = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { role } = req.body;
+
+    if (!role) {
+      return sendError(res, 'Role is required', 400);
+    }
+
+    const result = await authService.switchRole(userId, role);
+    return sendSuccess(res, result, 'Role switched successfully', 200);
+  } catch (error) {
+    console.error('Switch role error:', error.message);
+    return sendError(res, error.message || 'Failed to switch role', 400);
   }
 };
 
