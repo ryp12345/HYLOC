@@ -31,6 +31,7 @@ const Sidebar = () => {
 
   const adminLinks = [
     { name: 'Dashboard', path: getDashboardPath(), icon: '📊' },
+    { name: 'KMI/Global Objectives', path: '/admin/global-objectives', icon: '📊' },
     {
       name: 'Master',
       icon: '🧰',

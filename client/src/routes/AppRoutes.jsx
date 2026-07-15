@@ -224,6 +224,18 @@ const AppRoutes = () => {
             }
           />
 
+          {/* Admin KMI / Global Objectives (full Management Dashboard functionality) */}
+          <Route
+            path="/admin/global-objectives"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <ManagementDashboard />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+
           <Route
             path="/hr/dashboard"
             element={
