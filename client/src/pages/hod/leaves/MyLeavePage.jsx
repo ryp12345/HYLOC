@@ -30,7 +30,7 @@ const MyLeavePage = () => {
     try {
       const response = await getAllLeaves({});
       const allLeaves = response.data.data || [];
-      // Only show leaves for the logged-in management member
+      // Only show leaves for the logged-in hod member
       const myLeaves = allLeaves.filter(leave => leave.user_id === user?.id);
       setLeaves(myLeaves);
     } catch (err) {

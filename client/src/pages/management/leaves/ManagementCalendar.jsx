@@ -93,7 +93,7 @@ const ManagementCalendar = ({ title = 'Management Calendar' }) => {
 				const duration = parseFloat(leave.credited_days);
 				return (
 					leave.status === 'Pending' &&
-					(role === 'Manager' || (role === 'Employee' && duration > 2))
+					(role === 'HOD' || (role === 'Employee' && duration > 2))
 				);
 			});
 
@@ -976,7 +976,7 @@ const ManagementCalendar = ({ title = 'Management Calendar' }) => {
 				<div className="flex items-center justify-between mb-6">
 					<div>
 						<h2 className="text-2xl font-bold text-gray-800">{title}</h2>
-						{/* <p className="text-sm text-gray-600">Pending leaves from Employees (&gt;2 days) and Managers</p> */}
+						{/* <p className="text-sm text-gray-600">Pending leaves from Employees (&gt;2 days) and HODs</p> */}
 					</div>
 
 					<div className="flex items-center gap-4">
@@ -1288,25 +1288,21 @@ const ManagementCalendar = ({ title = 'Management Calendar' }) => {
 													<tr className="bg-blue-100 text-blue-800">
 														<th className="py-2 px-4 text-center">Status</th>
 														<th className="py-2 px-4 text-center">Duration</th>
-														<th className="py-2 px-4 text-center">Reason</th>
-														<th className="py-2 px-4 text-center">Alternate</th>
-														<th className="py-2 px-4 text-center">Action</th>
+													<th className="py-2 px-4 text-center">Reason</th>
+													<th className="py-2 px-4 text-center">Action</th>
 													</tr>
 												</thead>
 												<tbody>
 													{myLeaves.map((leave) => (
 														<tr key={leave.id} className="border-b hover:bg-blue-50">
 															<td className="py-2 px-4 text-center">
-																<span className={`px-3 py-1 rounded text-white text-sm ${getLeaveBadgeColor(leave.status)}`}>{leave.status}</span>
+																<span className={`px-3 py-1 rounded-full text-white text-sm ${getLeaveBadgeColor(leave.status)}`}>{leave.status}</span>
 															</td>
 															<td className="py-2 px-4 text-center">
 																{leave.leave_duration} ({leave.duration || leave.credited_days} day{(leave.duration || leave.credited_days) === 1 ? '' : 's'})
 															</td>
 															<td className="py-2 px-4 text-center">
 																{leave.leave_reason}
-															</td>
-															<td className="py-2 px-4 text-center">
-																{formatAlternate(leave)}
 															</td>
 															<td className="py-2 px-4 text-center">
 																<div className="flex justify-center gap-2">
@@ -1400,7 +1396,7 @@ const ManagementCalendar = ({ title = 'Management Calendar' }) => {
 								<div className="overflow-x-auto">
 									<table className="min-w-full bg-white border rounded-lg">
 										<thead>
-											<tr className="bg-gray-100 text-gray-700">
+											<tr className="bg-blue-600 text-white">
 												<th className="py-2 px-4 text-left">From</th>
 												<th className="py-2 px-4 text-left">To</th>
 												<th className="py-2 px-4 text-left">Duration</th>
@@ -1639,35 +1635,33 @@ const ManagementCalendar = ({ title = 'Management Calendar' }) => {
 							<div className="text-center text-gray-500 py-8">No leaves for this date</div>
 						) : (
 							<div className="overflow-x-auto">
-								<table className="min-w-full text-sm border">
-									<thead className="bg-gray-100 text-gray-700">
-										<tr>
-											<th className="text-left px-4 py-2 border">User Name</th>
-											<th className="text-left px-4 py-2 border">Role</th>
-											<th className="text-left px-4 py-2 border">From Date</th>
-											<th className="text-left px-4 py-2 border">To Date</th>
-											<th className="text-left px-4 py-2 border">Leave Reason</th>
-											<th className="text-left px-4 py-2 border">Alternate</th>
-											<th className="text-left px-4 py-2 border">Type</th>
-											<th className="text-left px-4 py-2 border">Status</th>
-										</tr>
-									</thead>
-									<tbody>
-										{selectedDateLeaves.map((leave) => (
-												<tr key={leave.id} className={`border-t ${isLeaveWithoutPay(leave) ? 'bg-red-50 border-l-4 border-red-600' : ''}`}>
-												<td className="px-4 py-2 border">{leave.user_name}</td>
-												<td className="px-4 py-2 border">{leave.user_role || '—'}</td>
-												<td className="px-4 py-2 border">{formatFullDate(parseDateOnly(leave.from_date))}</td>
-												<td className="px-4 py-2 border">{formatFullDate(parseDateOnly(leave.to_date))}</td>
-												<td className="px-4 py-2 border">{leave.leave_reason || '—'}</td>
-												<td className="px-4 py-2 border">{formatAlternate(leave)}</td>
-												<td className="px-4 py-2 border">
+									<table className="min-w-full text-sm border">
+										<thead className="bg-blue-600 text-white">
+												<tr>
+													<th className="text-left px-4 py-2 border">User Name</th>
+													<th className="text-left px-4 py-2 border">Role</th>
+													<th className="text-left px-4 py-2 border">From Date</th>
+													<th className="text-left px-4 py-2 border">To Date</th>
+													<th className="text-left px-4 py-2 border">Leave Reason</th>
+													<th className="text-left px-4 py-2 border">Type</th>
+													<th className="text-left px-4 py-2 border">Status</th>
+												</tr>
+											</thead>
+											<tbody>
+												{selectedDateLeaves.map((leave) => (
+													<tr key={leave.id} className={`border-t ${isLeaveWithoutPay(leave) ? 'bg-red-50 border-l-4 border-red-600' : ''}`}>
+													<td className="px-4 py-2 border">{leave.user_name}</td>
+													<td className="px-4 py-2 border">{leave.user_role || '—'}</td>
+													<td className="px-4 py-2 border">{formatFullDate(parseDateOnly(leave.from_date))}</td>
+													<td className="px-4 py-2 border">{formatFullDate(parseDateOnly(leave.to_date))}</td>
+													<td className="px-4 py-2 border">{leave.leave_reason || '—'}</td>
+													<td className="px-4 py-2 border">
 													<span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold text-white ${isLeaveWithoutPay(leave) ? 'bg-red-600' : 'bg-blue-600'}`}>
 														{leave.leave_type || '—'}
 													</span>
 												</td>
 												<td className="px-4 py-2 border">
-													<span className={`px-2 py-1 rounded text-xs font-semibold ${getLeaveBadgeColor(leave.status)}`}>
+													<span className={`px-2 py-1 rounded-full text-white text-xs font-semibold ${getLeaveBadgeColor(leave.status)}`}>
 														{leave.status}
 													</span>
 												</td>

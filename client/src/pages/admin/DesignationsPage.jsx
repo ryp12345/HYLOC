@@ -283,7 +283,7 @@ export default function DesignationsPage() {
                           value={form.designationName} 
                           onChange={e=>setForm({ ...form, designationName: e.target.value })} 
                           className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
-                          placeholder="Manager" 
+                          placeholder="HOD" 
                           required 
                         />
                       </div>

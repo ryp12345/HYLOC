@@ -19,12 +19,12 @@ import MgtKmiPage from '../pages/management/MgtKmiPage';
 import MgtKmiDetail from '../pages/management/MgtKmiDetail';
 import DepartmentDetailPage from '../pages/management/DepartmentDetailPage';
 import ManagementMyLeavePage from '../pages/management/leaves/MyLeavePage';
-import ManagerMyLeavePage from '../pages/manager/leaves/MyLeavePage';
+import HODMyLeavePage from '../pages/hod/leaves/MyLeavePage';
 import ManagementLeavesPage from '../pages/management/leaves/LeavesPage';
 import EmployeeDashboard from '../pages/employee/EmployeeDashboard';
 import EmpKpiKaiPage from '../pages/employee/EmpKpiKaiPage';
-import ManagerDashboard from '../pages/manager/ManagerDashboard';
-// import MyLeavePage from '../pages/manager/leaves/MyLeavePage';
+import HODDashboard from '../pages/hod/HODDashboard';
+// import MyLeavePage from '../pages/hod/leaves/MyLeavePage';
 
 
 
@@ -39,8 +39,8 @@ import KmisPage from '../pages/admin/KmisPage';
 import KmiDetail from '../pages/admin/KmiDetail';
 import UnitMaster from '../pages/admin/UnitMaster';
 import EmployeeLeavesPage from '../pages/employee/leaves/LeavesPage';
-import ManagerLeavesPage from '../pages/manager/leaves/LeavesPage';
-import ManagerLeaveApprovalPage from '../pages/manager/leaves/LeaveApprovalPage';
+import HODLeavesPage from '../pages/hod/leaves/LeavesPage';
+import HODLeaveApprovalPage from '../pages/hod/leaves/LeaveApprovalPage';
 import ManagementLeaveApprovalPage from '../pages/management/leaves/LeaveApprovalPage';
 import ForgotPasswordPage from '../pages/auth/ForgotPasswordPage';
 import ProfilePage from '../pages/auth/ProfilePage';
@@ -157,8 +157,8 @@ const DashboardRedirect = () => {
     return <Navigate to="/management/dashboard" replace />;
   }
 
-  if (userRole === 'manager') {
-    return <Navigate to="/manager/dashboard" replace />;
+  if (userRole === 'hod') {
+    return <Navigate to="/hod/dashboard" replace />;
   }
 
   // Employee or any other role defaults to employee dashboard
@@ -485,13 +485,13 @@ const AppRoutes = () => {
               }
             />
 
-          {/* Manager Dashboard */}
+          {/* HOD Dashboard */}
           <Route
-            path="/manager/dashboard"
+            path="/hod/dashboard"
             element={
               <ProtectedRoute>
                 <DashboardLayout>
-                  <ManagerDashboard />
+                  <HODDashboard />
                 </DashboardLayout>
               </ProtectedRoute>
             }
@@ -581,13 +581,13 @@ const AppRoutes = () => {
             }
           />
 
-          {/* Manager Leaves */}
+          {/* HOD Leaves */}
           <Route
-            path="/manager/leaves"
+            path="/hod/leaves"
             element={
               <ProtectedRoute>
                 <DashboardLayout>
-                  <ManagerLeavesPage />
+                  <HODLeavesPage />
                 </DashboardLayout>
               </ProtectedRoute>
             }
@@ -595,23 +595,23 @@ const AppRoutes = () => {
 
            {/* Management My Leave */}
           <Route
-            path="/manager/my-leave"
+            path="/hod/my-leave"
             element={
               <ProtectedRoute>
                 <DashboardLayout>
-                  <ManagerMyLeavePage />
+                  <HODMyLeavePage />
                 </DashboardLayout>
               </ProtectedRoute>
             }
           />
 
-          {/* Manager Leave Approval */}
+          {/* HOD Leave Approval */}
           <Route
-            path="/manager/leave-approval"
+            path="/hod/leave-approval"
             element={
               <ProtectedRoute>
                 <DashboardLayout>
-                  <ManagerLeaveApprovalPage />
+                  <HODLeaveApprovalPage />
                 </DashboardLayout>
               </ProtectedRoute>
             }

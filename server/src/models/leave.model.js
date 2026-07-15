@@ -126,23 +126,28 @@ exports.getAllLeaves = async (filters = {}) => {
     SELECT l.*, 
            u.firstname || ' ' || u.lastname as user_name,
            u.empid,
-           u.department_id,
-           d.department_name,
-           COALESCE(user_role.role_name, 'Employee') as user_role,
-           approver.firstname || ' ' || approver.lastname as approver_name
-    FROM leaves l
-    LEFT JOIN users u ON l.user_id = u.id
-    LEFT JOIN departments d ON u.department_id = d.id
-    LEFT JOIN LATERAL (
-      SELECT r.role_name
-      FROM user_roles ur
-      JOIN roles r ON ur.role_id = r.id
-      WHERE ur.user_id = u.id
-      ORDER BY ur.id ASC
-      LIMIT 1
-    ) user_role ON TRUE
-    LEFT JOIN users approver ON l.approved_by = approver.id
-    WHERE 1=1
+            u.department_id,
+            d.department_name,
+            COALESCE(user_role.role_name, 'Employee') as user_role,
+            approver.firstname || ' ' || approver.lastname as approver_name,
+            EXISTS (
+              SELECT 1 FROM user_roles ur_hod
+              JOIN roles r_hod ON ur_hod.role_id = r_hod.id
+              WHERE ur_hod.user_id = u.id AND LOWER(r_hod.role_name) = 'hod'
+            ) as is_hod_holder
+     FROM leaves l
+     LEFT JOIN users u ON l.user_id = u.id
+     LEFT JOIN departments d ON u.department_id = d.id
+     LEFT JOIN LATERAL (
+       SELECT r.role_name
+       FROM user_roles ur
+       JOIN roles r ON ur.role_id = r.id
+       WHERE ur.user_id = u.id
+       ORDER BY ur.id ASC
+       LIMIT 1
+     ) user_role ON TRUE
+     LEFT JOIN users approver ON l.approved_by = approver.id
+     WHERE 1=1
   `;
   
   const values = [];
@@ -255,7 +260,7 @@ exports.getLeaveHistoryByYear = async (userId, year) => {
 };
 
 /**
- * Get pending leaves for approval (Manager/Management use)
+  * Get pending leaves for approval (HOD/Management use)
  * @param {Object} filters - Filters like min_duration
  * @returns {Promise<Array>} Array of pending leave records
  */
@@ -301,11 +306,11 @@ exports.getPendingLeaves = async (filters = {}) => {
 };
 
 /**
- * Get department leaves for Manager (Employee leaves only)
+  * Get department leaves for HOD (Employee leaves only)
  * @param {Object} filters - Filters like department_id, status
  * @returns {Promise<Array>} Array of leave records
  */
-exports.getDepartmentLeavesForManager = async (filters = {}) => {
+exports.getDepartmentLeavesForHOD = async (filters = {}) => {
   let query = `
     SELECT l.*, 
            u.firstname || ' ' || u.lastname as user_name,

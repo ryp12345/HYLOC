@@ -236,11 +236,11 @@ exports.getAllUsers = async () => {
 };
 
 /**
- * Get managers by department ID
+ * Get hods by department ID
  * @param {number} departmentId - Department ID
- * @returns {Promise<Array>} Array of manager users
+ * @returns {Promise<Array>} Array of hod users
  */
-exports.getManagersByDepartment = async (departmentId) => {
+exports.getHODByDepartment = async (departmentId) => {
   const query = `
     SELECT u.id, u.email, u.firstname, u.middlename, u.lastname, u.empid,
            u.phone, u.address, u.bloodgroup, u.department_id, u.designation_id,
@@ -250,11 +250,11 @@ exports.getManagersByDepartment = async (departmentId) => {
     JOIN roles r ON r.id = ur.role_id
     WHERE u.department_id = $1
       AND u.status = 'active'
-      AND LOWER(r.role_name) = 'manager'
+      AND LOWER(r.role_name) = 'hod'
     ORDER BY u.firstname, u.lastname
   `;
 
-  const result = await db.query(query, [departmentId]);
+  const result = await client.query(query, [departmentId]);
   return result.rows;
 };
 

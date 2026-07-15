@@ -9,6 +9,7 @@ import {
 	checkLeaveEligibility,
 	getDepartmentColleagues
 } from '../../../api/leaveApi';
+import { getEntitlements } from '../../../api/leaveEntitlementApi';
 import { getMyTickets, getAllTickets } from '../../../api/ticketApi';
 import { getUsers } from '../../../api/userApi';
 import { useAuth } from '../../../context/AuthContext';
@@ -24,6 +25,7 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 	// Management's own leave management state
 	const [myLeaves, setMyLeaves] = useState([]);
 	const [leaveBalance, setLeaveBalance] = useState(null);
+	const [selectedStaffBalance, setSelectedStaffBalance] = useState(null);
 	const [eligibility, setEligibility] = useState(null);
 	const [colleagues, setColleagues] = useState([]);
 	
@@ -47,6 +49,7 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 		duration: 1,
 		alternate_person: '',
 		additional_alternate: '',
+		user_id: '',
 		available_on_phone: true
 	});
 
@@ -96,7 +99,7 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 				const role = leave.user_role;
 				const duration = parseFloat(leave.credited_days);
 				return (
-					(role === 'Manager' || (role === 'Employee' && duration > 2))
+					(role === 'HOD' || (role === 'Employee' && duration > 2))
 				);
 			});
 
@@ -120,6 +123,7 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 			try {
 				const balanceResponse = await getMyLeaveBalance(year);
 				setLeaveBalance(balanceResponse.data.data);
+				setSelectedStaffBalance(null);
 			} catch (err) {
 				console.error('Error loading balance:', err);
 			}
@@ -488,6 +492,28 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 			}
 		}
 		setLeaveForm(updatedForm);
+		if (name === 'user_id') {
+			loadSelectedStaffBalance(value);
+		}
+	};
+
+	const loadSelectedStaffBalance = async (userId) => {
+		const resolvedUserId = Number(userId);
+		if (!Number.isFinite(resolvedUserId) || resolvedUserId <= 0) {
+			setSelectedStaffBalance(null);
+			return;
+		}
+
+		try {
+			const year = filter.year || currentYear;
+			const response = await getEntitlements(year);
+			const balances = response.data || [];
+			const match = balances.find((balance) => Number(balance.user_id) === resolvedUserId) || null;
+			setSelectedStaffBalance(match);
+		} catch (err) {
+			console.error('Error loading selected staff balance:', err);
+			setSelectedStaffBalance(null);
+		}
 	};
 
 	// Format date as YYYY-MM-DD in local timezone (not UTC)
@@ -514,6 +540,7 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 			duration: 1,
 			alternate_person: '',
 			additional_alternate: '',
+			user_id: '',
 			available_on_phone: true
 		};
 		// Calculate duration for initial values
@@ -562,9 +589,11 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 			duration,
 			alternate_person: leave.alternate_person || '',
 			additional_alternate: leave.additional_alternate || '',
+			user_id: leave.user_id ?? '',
 			available_on_phone: leave.available_on_phone !== false
 		});
 		setEditingLeave(leave);
+		loadSelectedStaffBalance(leave.user_id);
 		setShowLeaveForm(true);
 	};
 
@@ -588,6 +617,7 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 				duration: 1,
 				alternate_person: '',
 				additional_alternate: '',
+				user_id: '',
 				available_on_phone: true
 			};
 			const from = new Date(initialForm.from_date);
@@ -597,6 +627,8 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 			}
 			setLeaveForm(initialForm);
 			setEditingLeave(null);
+							setSelectedStaffBalance(null);
+					setSelectedStaffBalance(null);
 			setShowLeaveForm(true);
 		}
 	};
@@ -904,13 +936,14 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 									<th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Duration</th>
 									<th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Reason</th>
 									<th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Status</th>
+									<th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Action</th>
 								</tr>
 							</thead>
 							<tbody className="bg-white divide-y divide-gray-200">
 								{loading ? (
-									<tr><td colSpan="8" className="p-8 text-center text-gray-500">Loading...</td></tr>
+									<tr><td colSpan="9" className="p-8 text-center text-gray-500">Loading...</td></tr>
 								) : paginatedOrgLeaves.length === 0 ? (
-									<tr><td colSpan="8" className="p-8 text-center text-gray-500">No leaves found matching the filters</td></tr>
+									<tr><td colSpan="9" className="p-8 text-center text-gray-500">No leaves found matching the filters</td></tr>
 								) : (
 									paginatedOrgLeaves.map((leave, idx) => (
 										<tr key={leave.id} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-colors duration-150`}>
@@ -922,13 +955,32 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 											<td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{leave.credited_days} day(s)</td>
 											<td className="px-6 py-4 text-sm text-gray-900">{leave.leave_reason || '-'}</td>
 											<td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-												<span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-													leave.status === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
-													leave.status === 'Approved' ? 'bg-green-100 text-green-800' :
-													'bg-red-100 text-red-800'
-												}`}>
+												<span className={`px-3 py-1 rounded-full text-white text-xs font-semibold ${getLeaveBadgeColor(leave.status)}`}>
 													{leave.status}
 												</span>
+											</td>
+											<td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
+												<div className="flex justify-center gap-2">
+													<button
+														onClick={() => openEditForm(leave)}
+														className="p-2 text-white rounded-lg bg-blue-500 hover:bg-blue-600"
+														title="Edit leave"
+													>
+														<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+															<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536M9 13l6.536-6.536a2 2 0 112.828 2.828L11.828 15.828a2 2 0 01-2.828 0L9 13z" />
+														</svg>
+													</button>
+													<button
+														onClick={() => { if (leave.status !== 'Approved' && leave.status !== 'Rejected') { if (window.confirm('Are you sure you want to cancel this leave?')) { handleCancelLeave(leave.id); } } }}
+														className={`p-2 text-white rounded-lg ${leave.status === 'Approved' || leave.status === 'Rejected' ? 'bg-gray-400 cursor-not-allowed' : 'bg-red-500 hover:bg-red-600'}`}
+														disabled={leave.status === 'Approved' || leave.status === 'Rejected'}
+														title="Delete leave"
+													>
+														<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+															<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+														</svg>
+													</button>
+												</div>
 											</td>
 										</tr>
 									))
@@ -961,7 +1013,7 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 				<div className="flex items-center justify-between mb-6">
 					<div>
 						<h2 className="text-2xl font-bold text-gray-800">{title}</h2>
-						{/* <p className="text-sm text-gray-600">Pending leaves from Employees (&gt;2 days) and Managers</p> */}
+						{/* <p className="text-sm text-gray-600">Pending leaves from Employees (&gt;2 days) and HODs</p> */}
 					</div>
 
 					<div className="flex items-center gap-4">
@@ -1273,25 +1325,21 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 													<tr className="bg-blue-100 text-blue-800">
 														<th className="py-2 px-4 text-center">Status</th>
 														<th className="py-2 px-4 text-center">Duration</th>
-														<th className="py-2 px-4 text-center">Reason</th>
-														<th className="py-2 px-4 text-center">Alternate</th>
-														<th className="py-2 px-4 text-center">Action</th>
+													<th className="py-2 px-4 text-center">Reason</th>
+													<th className="py-2 px-4 text-center">Action</th>
 													</tr>
 												</thead>
 												<tbody>
 													{myLeaves.map((leave) => (
 														<tr key={leave.id} className="border-b hover:bg-blue-50">
 															<td className="py-2 px-4 text-center">
-																<span className={`px-3 py-1 rounded text-white text-sm ${getLeaveBadgeColor(leave.status)}`}>{leave.status}</span>
+																<span className={`px-3 py-1 rounded-full text-white text-sm ${getLeaveBadgeColor(leave.status)}`}>{leave.status}</span>
 															</td>
 															<td className="py-2 px-4 text-center">
 																{leave.leave_duration} ({leave.duration || leave.credited_days} day{(leave.duration || leave.credited_days) === 1 ? '' : 's'})
 															</td>
 															<td className="py-2 px-4 text-center">
 																{leave.leave_reason}
-															</td>
-															<td className="py-2 px-4 text-center">
-																{formatAlternate(leave)}
 															</td>
 															<td className="py-2 px-4 text-center">
 																<div className="flex justify-center gap-2">
@@ -1338,7 +1386,7 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 													<div className="font-semibold text-gray-800">
 														{leave.user_name} ({leave.user_role})
 													</div>
-													<span className="text-xs px-2 py-1 rounded bg-yellow-100 text-yellow-800">
+													<span className={`px-2 py-1 rounded-full text-white text-xs font-semibold ${getLeaveBadgeColor('Pending')}`}>
 														Pending
 													</span>
 												</div>
@@ -1385,7 +1433,7 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 								<div className="overflow-x-auto">
 									<table className="min-w-full bg-white border rounded-lg">
 										<thead>
-											<tr className="bg-gray-100 text-gray-700">
+											<tr className="bg-blue-600 text-white">
 												<th className="py-2 px-4 text-left">From</th>
 												<th className="py-2 px-4 text-left">To</th>
 												<th className="py-2 px-4 text-left">Duration</th>
@@ -1593,13 +1641,11 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 									</label>
 								</div>
 
-								{leaveBalance && (
-									<div className="bg-blue-50 p-3 rounded-lg">
-										<p className="text-sm text-gray-700">
-											<strong>Available Balance:</strong> {leaveBalance.leave_balance} day(s)
-										</p>
-									</div>
-								)}
+								<div className="bg-blue-50 p-3 rounded-lg">
+									<p className="text-sm text-gray-700">
+										<strong>Available Balance:</strong> {(selectedStaffBalance?.leave_balance ?? leaveBalance?.leave_balance) ?? 'N/A'} day(s)
+									</p>
+								</div>
 							</div>
 							<div className="flex justify-end gap-3 pt-4">
 								<button
@@ -1644,16 +1690,16 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 						) : (
 							<div className="overflow-x-auto">
 								<table className="min-w-full text-sm border">
-									<thead className="bg-gray-100 text-gray-700">
+									<thead className="bg-blue-600 text-white">
 										<tr>
 											<th className="text-left px-4 py-2 border">User Name</th>
 											<th className="text-left px-4 py-2 border">Role</th>
 											<th className="text-left px-4 py-2 border">From Date</th>
 											<th className="text-left px-4 py-2 border">To Date</th>
 											<th className="text-left px-4 py-2 border">Leave Reason</th>
-											<th className="text-left px-4 py-2 border">Alternate</th>
 											<th className="text-left px-4 py-2 border">Type</th>
 											<th className="text-left px-4 py-2 border">Status</th>
+											<th className="text-left px-4 py-2 border">Action</th>
 										</tr>
 									</thead>
 									<tbody>
@@ -1664,16 +1710,38 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 												<td className="px-4 py-2 border">{formatFullDate(parseDateOnly(leave.from_date))}</td>
 												<td className="px-4 py-2 border">{formatFullDate(parseDateOnly(leave.to_date))}</td>
 												<td className="px-4 py-2 border">{leave.leave_reason || '—'}</td>
-												<td className="px-4 py-2 border">{formatAlternate(leave)}</td>
 												<td className="px-4 py-2 border">
 													<span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold text-white ${isLeaveWithoutPay(leave) ? 'bg-red-600' : 'bg-blue-600'}`}>
 														{leave.leave_type || '—'}
 													</span>
 												</td>
 												<td className="px-4 py-2 border">
-													<span className={`px-2 py-1 rounded text-xs font-semibold ${getLeaveBadgeColor(leave.status)}`}>
+													<span className={`px-2 py-1 rounded-full text-white text-xs font-semibold ${getLeaveBadgeColor(leave.status)}`}>
 														{leave.status}
 													</span>
+												</td>
+												<td className="px-4 py-2 border">
+													<div className="flex justify-center gap-2">
+														<button
+															onClick={() => { openEditForm(leave); closeLeaveModal(); }}
+															className="p-2 text-white rounded-lg bg-blue-500 hover:bg-blue-600"
+															title="Edit leave"
+														>
+															<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+																<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536M9 13l6.536-6.536a2 2 0 112.828 2.828L11.828 15.828a2 2 0 01-2.828 0L9 13z" />
+															</svg>
+														</button>
+														<button
+															onClick={() => { if (leave.status !== 'Approved' && leave.status !== 'Rejected') { if (window.confirm('Are you sure you want to cancel this leave?')) { handleCancelLeave(leave.id); } } }}
+															className={`p-2 text-white rounded-lg ${leave.status === 'Approved' || leave.status === 'Rejected' ? 'bg-gray-400 cursor-not-allowed' : 'bg-red-500 hover:bg-red-600'}`}
+															disabled={leave.status === 'Approved' || leave.status === 'Rejected'}
+															title="Delete leave"
+														>
+															<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+																<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+															</svg>
+														</button>
+													</div>
 												</td>
 											</tr>
 										))}

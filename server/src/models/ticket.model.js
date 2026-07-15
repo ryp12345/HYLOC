@@ -50,7 +50,7 @@ exports.getAllTickets = async () => {
 
 // Get tickets visible to a specific user based on role:
 // - Management: all tickets
-// - Employee / Manager: only tickets they created OR are assigned to
+// - Employee / HOD: only tickets they created OR are assigned to
 exports.getTicketsForUser = async (userId, role) => {
   const roleNorm = role && typeof role === 'string' ? role.toLowerCase() : (role && role.name ? String(role.name).toLowerCase() : '');
   if (roleNorm === 'management') {
@@ -58,8 +58,8 @@ exports.getTicketsForUser = async (userId, role) => {
     return result.rows;
   }
 
-  // For Managers, include tickets created by Employees in the same department
-  if (roleNorm === 'manager') {
+  // For HODs, include tickets created by Employees in the same department
+  if (roleNorm === 'hod') {
     try {
       const deptRes = await pool.query('SELECT department_id FROM users WHERE id = $1', [userId]);
       const deptId = deptRes.rows && deptRes.rows[0] ? deptRes.rows[0].department_id : null;
@@ -84,7 +84,7 @@ exports.getTicketsForUser = async (userId, role) => {
       return result.rows;
     } catch (e) {
       // On error, fallback to minimal visibility
-      console.error('getTicketsForUser (manager) error:', e);
+      console.error('getTicketsForUser (hod) error:', e);
       const fallback = await pool.query('SELECT * FROM tickets WHERE user_id = $1 OR assigned_to = $1 ORDER BY created_at DESC', [userId]);
       return fallback.rows;
     }

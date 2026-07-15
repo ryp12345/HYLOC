@@ -378,7 +378,7 @@ A: The formula depends on other KPI values. Make sure all those dependent KPIs h
 A: Click **Edit**, correct the value, and click **Save**. The system will update the record.
 
 **Q: Who can see my entered data?**
-A: Your manager, management users, and admins can view the data you enter for performance tracking.
+A: Your HOD, management users, and admins can view the data you enter for performance tracking.
 
 ---
 
@@ -502,7 +502,7 @@ If you are unsure about:
 **For Admins:**
 - **Formulas:** Check the formula help icon in the KPI Value form.
 - **Categories:** Contact your system administrator.
-- **Data Entry assignments:** Check with your assigned Data Operator or Manager.
+- **Data Entry assignments:** Check with your assigned Data Operator or HOD.
 
 ---
 

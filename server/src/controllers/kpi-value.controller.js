@@ -8,7 +8,7 @@ exports.getAllKPIValues = async (req, res) => {
     const userId = req.user?.userId || req.user?.id;
     
     if (kpi_id) {
-      if (userRole === 'employee' || userRole === 'manager') {
+      if (userRole === 'employee' || userRole === 'hod') {
         try {
           // Get user's empid first
           const userResult = await pool.query('SELECT empid FROM users WHERE id = $1', [userId]);
@@ -39,7 +39,7 @@ exports.getAllKPIValues = async (req, res) => {
             data: result.rows
           });
         } catch (queryError) {
-          console.error('Error retrieving KPI values for employee/manager:', queryError.message);
+          console.error('Error retrieving KPI values for employee/hod:', queryError.message);
           throw queryError;
         }
       }
@@ -55,7 +55,7 @@ exports.getAllKPIValues = async (req, res) => {
     // Get all KPI values based on role
     let values;
     
-    if (userRole === 'employee' || userRole === 'manager') {
+    if (userRole === 'employee' || userRole === 'hod') {
       try {
         // Get user's empid first
         const userResult = await pool.query('SELECT empid FROM users WHERE id = $1', [userId]);
@@ -76,7 +76,7 @@ exports.getAllKPIValues = async (req, res) => {
           values = result.rows;
         }
       } catch (err) {
-        console.error('[KPI Values] Error querying employee/manager values:', err.message);
+        console.error('[KPI Values] Error querying employee/hod values:', err.message);
         throw err;
       }
     } else {
@@ -110,7 +110,7 @@ exports.getKPIValuesByKPI = async (req, res) => {
 
     const values = await kpiValueModel.getKPIValuesByKPI(kpiId);
 
-    if (userRole === 'employee' || userRole === 'manager') {
+    if (userRole === 'employee' || userRole === 'hod') {
       const userResult = await pool.query('SELECT empid FROM users WHERE id = $1', [userId]);
       if (userResult.rows.length === 0) {
         return res.status(200).json({
@@ -150,7 +150,7 @@ exports.getKPIValuesByPillar = async (req, res) => {
 
     const values = await kpiValueModel.getKPIValuesByPillar(pillerId);
 
-    if (userRole === 'employee' || userRole === 'manager') {
+    if (userRole === 'employee' || userRole === 'hod') {
       const userResult = await pool.query('SELECT empid FROM users WHERE id = $1', [userId]);
       if (userResult.rows.length === 0) {
         return res.status(200).json({
@@ -197,7 +197,7 @@ exports.getKPIValueById = async (req, res) => {
       });
     }
 
-    if (userRole === 'employee' || userRole === 'manager') {
+    if (userRole === 'employee' || userRole === 'hod') {
       const userResult = await pool.query('SELECT empid FROM users WHERE id = $1', [userId]);
       if (userResult.rows.length === 0) {
         return res.status(403).json({

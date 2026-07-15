@@ -117,7 +117,7 @@ exports.getAllUsers = async (req, res) => {
   }
 };
 
-// Get users by department (manager-safe)
+      // Get users by department (hod-safe)
 exports.getUsersByDepartment = async (req, res) => {
   try {
     const { id } = req.params;

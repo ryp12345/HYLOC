@@ -271,7 +271,7 @@ export default function RolesPage() {
                         value={form.roleName} 
                         onChange={e=>setForm({ ...form, roleName: e.target.value })} 
                         className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
-                        placeholder="e.g., Manager, Admin, Developer" 
+                        placeholder="e.g., HOD, Admin, Developer" 
                         required 
                       />
                     </div>

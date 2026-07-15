@@ -15,7 +15,7 @@ export const getDepartmentColleagues = async () => {
 };
 
 /**
- * Get department colleague leaves (for Employee/Manager calendar view)
+  * Get department colleague leaves (for Employee/HOD calendar view)
  */
 export const getDepartmentLeaves = async (filters = {}) => {
   const params = new URLSearchParams();
@@ -90,7 +90,7 @@ export const getLeaveHistory = async (year) => {
 };
 
 /**
- * Get pending leaves (for Manager/Management approval)
+  * Get pending leaves (for HOD/Management approval)
  */
 export const getPendingLeaves = async (filters = {}) => {
   const params = new URLSearchParams();
@@ -101,7 +101,7 @@ export const getPendingLeaves = async (filters = {}) => {
 };
 
 /**
- * Get all leaves (for Management and Manager)
+  * Get all leaves (for Management and HOD)
  */
 export const getAllLeaves = async (filters = {}) => {
   const params = new URLSearchParams();
@@ -115,14 +115,14 @@ export const getAllLeaves = async (filters = {}) => {
 };
 
 /**
- * Approve leave (Manager/Management)
+  * Approve leave (HOD/Management)
  */
 export const approveLeave = async (id) => {
   return await axios.post(`/leaves/${id}/approve`, {});
 };
 
 /**
- * Reject leave (Manager/Management)
+  * Reject leave (HOD/Management)
  */
 export const rejectLeave = async (id) => {
   return await axios.post(`/leaves/${id}/reject`, {});

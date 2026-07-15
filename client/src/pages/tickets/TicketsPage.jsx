@@ -973,7 +973,7 @@ export default function TicketsPage() {
                               <option value="">Select user</option>
                                 {(() => {
                                   const roleNorm = (user?.role || '').toLowerCase();
-                                  const hideManagement = roleNorm === 'employee' || roleNorm === 'manager';
+                                  const hideManagement = roleNorm === 'employee' || roleNorm === 'hod';
                                   return users
                                     .slice()
                                     .sort((a, b) => String((a.firstname || a.name || a.full_name || '')).localeCompare(String((b.firstname || b.name || b.full_name || ''))))

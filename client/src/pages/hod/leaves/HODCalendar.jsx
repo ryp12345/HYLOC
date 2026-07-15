@@ -12,10 +12,10 @@ import {
   getDepartmentLeaves
 } from '../../../api/leaveApi';
 
-const ManagerCalendar = ({ joinDate, title = 'Manager Leave Calendar' }) => {
+const HODCalendar = ({ joinDate, title = 'HOD Leave Calendar' }) => {
   const { user } = useAuth();
   const userRole = (user?.role?.name || user?.role || '').toString().toLowerCase();
-  const isElevatedRole = ['manager', 'management', 'hr'].includes(userRole);
+  const isElevatedRole = ['hod', 'management', 'hr'].includes(userRole);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState('month'); // 'month', 'week', 'list'
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -65,17 +65,27 @@ const ManagerCalendar = ({ joinDate, title = 'Manager Leave Calendar' }) => {
   // Load tickets for the user
   const loadTickets = async () => {
     try {
-      // Managers should see all tickets.
-      // Non-managers should see tickets they created OR tickets assigned to them.
+      const dedupeTickets = (items = []) => {
+        const seen = new Set();
+        return items.filter((ticket) => {
+          const key = ticket?.id ?? `${ticket?.title || ''}|${ticket?.created_at || ''}|${ticket?.user_id || ''}`;
+          if (seen.has(String(key))) return false;
+          seen.add(String(key));
+          return true;
+        });
+      };
+
+      // HODs should see all tickets.
+      // Non-HODs should see tickets they created OR tickets assigned to them.
       if (isElevatedRole) {
         const res = await getAllTickets();
-        setTickets(res.data.data || []);
+        setTickets(dedupeTickets(res.data.data || []));
       } else {
         const res = await getAllTickets();
         const all = res.data.data || [];
         // DEBUG: inspect tickets shape to ensure assigned_to/user_id fields exist
         try {
-          console.groupCollapsed('[ManagerCalendar] fetched tickets sample');
+          console.groupCollapsed('[HODCalendar] fetched tickets sample');
           console.log('total fetched:', all.length);
           console.log('sample tickets (first 10):', all.slice(0, 10).map(t => ({ id: t.id, user_id: t.user_id, created_at: t.created_at, assigned_to: t.assigned_to })));
           console.groupEnd();
@@ -94,7 +104,7 @@ const ManagerCalendar = ({ joinDate, title = 'Manager Leave Calendar' }) => {
 
           return (!isNaN(creatorId) && creatorId === uid) || (!isNaN(assignedId) && assignedId === uid);
         });
-        setTickets(filtered);
+        setTickets(dedupeTickets(filtered));
       }
     } catch (err) {
       // optionally handle error
@@ -305,27 +315,6 @@ const ManagerCalendar = ({ joinDate, title = 'Manager Leave Calendar' }) => {
     if (leave) {
       // If leave exists, show detail modal
       setShowDateDetail(true);
-    } else {
-      // If no leave, directly open the form with this date
-      const initialForm = {
-        from_date: formatDateForInput(date),
-        to_date: formatDateForInput(date),
-        leave_duration: 'Full Day',
-        leave_type: 'Earned Leave',
-        leave_reason: '',
-        duration: 1,
-        alternate_person: '',
-        additional_alternate: '',
-        available_on_phone: true
-      };
-      const from = new Date(initialForm.from_date);
-      const to = new Date(initialForm.to_date);
-      if (from && to && !isNaN(from) && !isNaN(to)) {
-        initialForm.duration = Math.round((to - from) / (1000 * 60 * 60 * 24)) + 1;
-      }
-      setLeaveForm(initialForm);
-      setEditingLeave(null);
-      setShowLeaveForm(true);
     }
   };
 
@@ -435,7 +424,7 @@ const ManagerCalendar = ({ joinDate, title = 'Manager Leave Calendar' }) => {
       return checkTime >= fromDate.getTime() && checkTime <= toDate.getTime();
     });
 
-    if (userRole === 'manager' || userRole === 'hr') {
+    if (userRole === 'hod' || userRole === 'hr') {
       return matchingLeaves.filter((leave) => leave.user_role === 'Employee');
     }
 
@@ -488,10 +477,11 @@ const ManagerCalendar = ({ joinDate, title = 'Manager Leave Calendar' }) => {
   const getTicketsForDate = (date) => {
     if (!date) return [];
     const checkDate = toLocalDateOnly(date).toDateString();
-    return tickets.filter(ticket => {
+    const matched = tickets.filter(ticket => {
       const createdDate = new Date(ticket.created_at).toDateString();
       return createdDate === checkDate;
     });
+    return matched.filter((ticket, index, arr) => arr.findIndex((item) => String(item.id) === String(ticket.id)) === index);
   };
 
   const openTicketModal = (date) => {
@@ -806,7 +796,7 @@ const ManagerCalendar = ({ joinDate, title = 'Manager Leave Calendar' }) => {
                                 <div className="mt-1">
                                   <button
                                     className={`inline-flex items-center gap-2 text-white text-xs font-semibold px-2 py-0.5 rounded-full shadow-sm focus:outline-none ${String(leave.leave_type || '').toLowerCase().includes('leave without pay') ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'}`}
-                                    title="Click to view/edit my leave"
+                                    title="Click to view my leave"
                                     aria-label="View my leave"
                                     onClick={(e) => { e.stopPropagation(); handleDateClick(date); }}
                                     onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); handleDateClick(date); } }}
@@ -980,54 +970,19 @@ const ManagerCalendar = ({ joinDate, title = 'Manager Leave Calendar' }) => {
                     <th className="py-2 px-4 text-center">Status</th>
                     <th className="py-2 px-4 text-center">Duration</th>
                     <th className="py-2 px-4 text-center">Reason</th>
-                    <th className="py-2 px-4 text-center">Alternate</th>
-                    <th className="py-2 px-4 text-center">Action</th>
                   </tr>
                 </thead>
                 <tbody>
                   {leaves.map((leave) => (
                     <tr key={leave.id} className="border-b hover:bg-purple-50">
                       <td className="py-2 px-4 text-center">
-                        <span className={`px-3 py-1 rounded text-white text-sm ${getLeaveBadgeColor(leave.status)}`}>{leave.status}</span>
+                        <span className={`px-3 py-1 rounded-full text-white text-sm ${getLeaveBadgeColor(leave.status)}`}>{leave.status}</span>
                       </td>
                       <td className="py-2 px-4 text-center">
                         {leave.leave_duration} ({leave.duration || leave.credited_days} day{(leave.duration || leave.credited_days) === 1 ? '' : 's'})
                       </td>
                       <td className="py-2 px-4 text-center">
                         {leave.leave_reason}
-                      </td>
-                      <td className="py-2 px-4 text-center">
-                        {formatAlternate(leave)}
-                      </td>
-                      <td className="py-2 px-4 text-center">
-                        <div className="flex justify-center gap-2">
-                          <button
-                            onClick={() => {
-                              if (leave.status !== 'Approved' && leave.status !== 'Rejected') openEditForm(leave);
-                            }}
-                            className={`p-2 rounded ${(leave.status === 'Approved' || leave.status === 'Rejected') ? 'bg-gray-400 text-gray-200 cursor-not-allowed' : 'bg-purple-500 text-white hover:bg-purple-600'}`}
-                            disabled={leave.status === 'Approved' || leave.status === 'Rejected'}
-                            title={(leave.status === 'Approved' || leave.status === 'Rejected') ? 'Cannot edit approved or rejected leave' : 'Edit leave'}
-                          >
-                            {/* Pencil SVG */}
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536M9 13l6.536-6.536a2 2 0 112.828 2.828L11.828 15.828a2 2 0 01-2.828 0L9 13z" />
-                            </svg>
-                          </button>
-                          <button
-                            onClick={() => {
-                              if (leave.status !== 'Approved' && leave.status !== 'Rejected') handleCancelLeave(leave.id);
-                            }}
-                            className={`p-2 rounded ${(leave.status === 'Approved' || leave.status === 'Rejected') ? 'bg-gray-400 text-gray-200 cursor-not-allowed' : 'bg-red-500 text-white hover:bg-red-600'}`}
-                            disabled={leave.status === 'Approved' || leave.status === 'Rejected'}
-                            title={(leave.status === 'Approved' || leave.status === 'Rejected') ? 'Cannot cancel approved or rejected leave' : 'Cancel leave'}
-                          >
-                            {/* Cross SVG */}
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                          </button>
-                        </div>
                       </td>
                     </tr>
                   ))}
@@ -1071,7 +1026,6 @@ const ManagerCalendar = ({ joinDate, title = 'Manager Leave Calendar' }) => {
                       <th className="text-left px-4 py-2 border">From Date</th>
                       <th className="text-left px-4 py-2 border">To Date</th>
                       <th className="text-left px-4 py-2 border">Leave Reason</th>
-                      <th className="text-left px-4 py-2 border">Alternate</th>
                       <th className="text-left px-4 py-2 border">Type</th>
                       <th className="text-left px-4 py-2 border">Status</th>
                     </tr>
@@ -1084,7 +1038,6 @@ const ManagerCalendar = ({ joinDate, title = 'Manager Leave Calendar' }) => {
                         <td className="px-4 py-2 border">{formatFullDate(parseDateOnly(leave.from_date))}</td>
                         <td className="px-4 py-2 border">{formatFullDate(parseDateOnly(leave.to_date))}</td>
                         <td className="px-4 py-2 border">{leave.leave_reason || '—'}</td>
-                        <td className="px-4 py-2 border">{formatAlternate(leave)}</td>
                         <td className="px-4 py-2 border">
                           <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold text-white ${isLeaveWithoutPay(leave) ? 'bg-red-600' : 'bg-blue-600'}`}>
                             {leave.leave_type || '—'}
@@ -1150,12 +1103,12 @@ const ManagerCalendar = ({ joinDate, title = 'Manager Leave Calendar' }) => {
     {/* Date Detail Modal */}
     {showDateDetail && selectedDate && (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+        <div className="bg-white rounded-lg shadow-xl w-full max-w-5xl max-h-[90vh] overflow-y-auto">
           <div className="p-6">
-            <div className="flex justify-between items-center mb-4">
-              <div>
-                <h3 className="text-lg font-semibold mb-1">My Leave</h3>
-              </div>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-gray-800">
+                Leave Details - {formatFullDate(selectedDate)}
+              </h3>
               <button
                 onClick={handleCloseDateDetail}
                 className="text-gray-500 hover:text-gray-700 text-2xl"
@@ -1166,55 +1119,49 @@ const ManagerCalendar = ({ joinDate, title = 'Manager Leave Calendar' }) => {
 
             {(() => {
               const leave = getLeaveForDate(selectedDate);
+              const userName = leave?.user_name
+                || (user ? `${user.firstname || ''} ${user.lastname || ''}`.trim() : '')
+                || '—';
+              const userRoleLabel = leave?.user_role
+                || (user?.role?.name || user?.role || '—');
               return leave ? (
-                <div className="overflow-x-auto">
-                  <table className="min-w-full bg-white border rounded-lg">
-                    <thead>
-                      <tr className="bg-gray-100 text-gray-700">
-                        <th className="py-2 px-4 text-left">From</th>
-                        <th className="py-2 px-4 text-left">To</th>
-                        <th className="py-2 px-4 text-left">Duration</th>
-                        <th className="py-2 px-4 text-left">Reason</th>
-                        <th className="py-2 px-4 text-left">Leave Type</th>
-                        <th className="py-2 px-4 text-center">Action</th>
+                <div className="overflow-x-auto overflow-hidden rounded-t-lg">
+                  <table className="min-w-full text-sm border">
+                    <thead className="bg-blue-600 text-white">
+                      <tr>
+                        <th className="text-left px-4 py-2 border">User Name</th>
+                        <th className="text-left px-4 py-2 border">Role</th>
+                        <th className="text-left px-4 py-2 border">From Date</th>
+                        <th className="text-left px-4 py-2 border">To Date</th>
+                        <th className="text-left px-4 py-2 border">Leave Reason</th>
+                        <th className="text-left px-4 py-2 border">Type</th>
+                        <th className="text-left px-4 py-2 border">Status</th>
                       </tr>
                     </thead>
                     <tbody>
-                      <tr className="border-b hover:bg-gray-50">
-                        <td className="py-2 px-4">{formatFullDate(parseDateOnly(leave.from_date))}</td>
-                        <td className="py-2 px-4">{formatFullDate(parseDateOnly(leave.to_date))}</td>
-                        <td className="py-2 px-4">{leave.leave_duration || ''} ({leave.duration ?? leave.credited_days} day{(leave.duration ?? leave.credited_days) === 1 ? '' : 's'})</td>
-                        <td className="py-2 px-4">{leave.leave_reason || '-'}</td>
-                        <td className="py-2 px-4">{leave.leave_type ?? leave.type ?? (isLeaveWithoutPay(leave) ? 'Leave without pay' : '—')}</td>
-                        <td className="py-2 px-4 text-center">
-                          <div className="flex justify-center gap-2">
-                            <button
-                              onClick={() => { if (leave.status !== 'Approved' && leave.status !== 'Rejected') { openEditForm(leave); handleCloseDateDetail(); } }}
-                              className={`p-2 text-white transition-colors duration-200 ${leave.status === 'Approved' || leave.status === 'Rejected' ? 'bg-gray-400 cursor-not-allowed rounded-lg' : 'bg-blue-600 rounded-lg hover:bg-blue-700'}`}
-                              disabled={leave.status === 'Approved' || leave.status === 'Rejected'}
-                              title="Edit Leave"
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                              </svg>
-                            </button>
-                            <button
-                              onClick={() => { if (leave.status !== 'Approved' && leave.status !== 'Rejected') { if (window.confirm('Are you sure you want to cancel this leave?')) { handleCancelLeave(leave.id); handleCloseDateDetail(); } } }}
-                              className={`p-2 text-white transition-colors duration-200 ${leave.status === 'Approved' || leave.status === 'Rejected' ? 'bg-gray-400 cursor-not-allowed rounded-lg' : 'bg-red-500 rounded-lg hover:bg-red-600'}`}
-                              disabled={leave.status === 'Approved' || leave.status === 'Rejected'}
-                              title="Cancel Leave"
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                              </svg>
-                            </button>
-                          </div>
+                      <tr key={leave.id} className={`border-t ${isLeaveWithoutPay(leave) ? 'bg-red-50 border-l-4 border-red-600' : ''}`}>
+                        <td className="px-4 py-2 border">{userName}</td>
+                        <td className="px-4 py-2 border">{userRoleLabel}</td>
+                        <td className="px-4 py-2 border">{formatFullDate(parseDateOnly(leave.from_date))}</td>
+                        <td className="px-4 py-2 border">{formatFullDate(parseDateOnly(leave.to_date))}</td>
+                        <td className="px-4 py-2 border">{leave.leave_reason || '—'}</td>
+                        <td className="px-4 py-2 border">
+                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold text-white ${isLeaveWithoutPay(leave) ? 'bg-red-600' : 'bg-blue-600'}`}>
+                            {leave.leave_type || leave.type || (isLeaveWithoutPay(leave) ? 'Leave without pay' : '—')}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2 border">
+                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold text-white ${getLeaveBadgeColor(leave.status)}`}>
+                            {leave.status || '—'}
+                          </span>
                         </td>
                       </tr>
                     </tbody>
                   </table>
                 </div>
-              ) : null;
+              ) : (
+                <div className="text-center text-gray-500 py-8">No leaves for this date</div>
+              );
             })()}
           </div>
         </div>
@@ -1386,4 +1333,4 @@ const ManagerCalendar = ({ joinDate, title = 'Manager Leave Calendar' }) => {
   );
 };
 
-export default ManagerCalendar;
+export default HODCalendar;

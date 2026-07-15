@@ -55,16 +55,19 @@ const LeaveApprovalPage = () => {
     setError(null);
     try {
       // Management sees:
-      // - All Manager leaves (any duration)
+      // - All HOD leaves (any duration)
       // - Employee leaves > 2 days
       const response = await getAllLeaves(filters);
       const allLeaves = response.data.data || [];
       const filtered = allLeaves.filter(leave => {
         const role = leave.user_role;
         const duration = parseFloat(leave.credited_days);
-        const isManager = role === 'Manager';
-        const isEmployee = role === 'Employee' && duration > 2;
-        return isManager || isEmployee;
+        const isHod = role === 'HOD';
+        const isEmployee = role === 'Employee';
+        // Employees who also hold the HOD role cannot self-approve,
+        // so their leaves are routed to Management regardless of duration.
+        const ownerIsHod = !!leave.is_hod_holder;
+        return isHod || (isEmployee && (duration > 2 || ownerIsHod));
       });
       setLeaves(filtered);
     } catch (err) {

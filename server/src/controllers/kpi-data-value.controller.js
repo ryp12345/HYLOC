@@ -6,7 +6,7 @@ exports.getAllKPIDataValues = async (req, res) => {
     const userRole = req.user?.role ? req.user.role.toLowerCase() : '';
     const userId = req.user?.userId || req.user?.id;
     
-    if (userRole === 'employee' || userRole === 'manager') {
+    if (userRole === 'employee' || userRole === 'hod') {
       const result = await pool.query(
         `SELECT kdv.id, kdv.kpi_value_id, kdv.value, kdv.value_type, kdv.month, kdv.year, 
                 kdv.created_at, kdv.updated_at
@@ -73,7 +73,7 @@ exports.getMonthlyDataByKPIValue = async (req, res) => {
     const userRole = req.user?.role ? req.user.role.toLowerCase() : '';
     const userId = req.user?.userId || req.user?.id;
     
-    if (userRole === 'employee' || userRole === 'manager') {
+    if (userRole === 'employee' || userRole === 'hod') {
       const checkResult = await pool.query(
         `SELECT kv.id 
          FROM kpi_values kv

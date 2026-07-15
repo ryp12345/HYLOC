@@ -71,14 +71,14 @@ const LeaveApprovalPage = () => {
     setLoading(true);
     setError(null);
     try {
-      // Manager sees ALL Employee leaves from same department (any duration)
+      // HOD sees ALL Employee leaves from same department (any duration)
       const response = await getAllLeaves({ year: filter.year });
       const allLeaves = response.data.data || [];
-      const managerDepartmentId = user?.departmentId || user?.department_id;
+      const hodDepartmentId = user?.departmentId || user?.department_id;
       const filtered = allLeaves.filter(leave => {
         const role = leave.user_role;
         const leaveDepartmentId = leave.department_id;
-        return role === 'Employee' && leaveDepartmentId === managerDepartmentId;
+        return role === 'Employee' && leaveDepartmentId === hodDepartmentId;
       });
       setEmployeeLeaves(filtered);
     } catch (err) {
@@ -266,7 +266,7 @@ const LeaveApprovalPage = () => {
           onClose={() => setNotification({ show: false, message: '', type: '' })}
         />
         <div className="mb-12 text-center">
-          <h1 className="text-3xl font-bold text-gray-800">Leave Approval (Manager)</h1>
+          <h1 className="text-3xl font-bold text-gray-800">Leave Approval (HOD)</h1>
           <p className="text-sm text-gray-600">Approve or reject employee leave requests</p>
         </div>
 
@@ -449,68 +449,89 @@ const LeaveApprovalPage = () => {
                           <div className="text-xs text-gray-400 mt-1">by: {leave.approver_name}</div>
                         )}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
-                        {leave.status === 'Pending' && (
-                          <div className="flex gap-2 justify-center">
-                            {parseFloat(leave.credited_days) > 2 ? (
-                              <>
-                                <button
-                                  disabled
-                                  className="p-2 text-white bg-gray-400 rounded-lg cursor-not-allowed"
-                                  title="Only Management can approve/reject leaves > 2 days"
-                                >
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                  </svg>
-                                </button>
-                                <button
-                                  disabled
-                                  className="p-2 text-white bg-gray-400 rounded-lg cursor-not-allowed"
-                                  title="Only Management can approve/reject leaves > 2 days"
-                                >
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                  </svg>
-                                </button>
-                              </>
-                            ) : (
-                              <>
-                                <button
-                                  onClick={() => handleApprove(leave.id)}
-                                  disabled={loading}
-                                  className="p-2 text-white transition-colors duration-200 bg-green-600 rounded-lg hover:bg-green-700 disabled:bg-gray-400"
-                                  title="Approve"
-                                >
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                  </svg>
-                                </button>
-                                <button
-                                  onClick={() => handleReject(leave.id)}
-                                  disabled={loading}
-                                  className="p-2 text-white transition-colors duration-200 bg-red-600 rounded-lg hover:bg-red-700 disabled:bg-gray-400"
-                                  title="Reject"
-                                >
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                  </svg>
-                                </button>
-                              </>
-                            )}
-                          </div>
-                        )}
-                        {['Approved', 'Rejected'].includes(leave.status) && (
-                          <button
-                            onClick={() => handleEditClick(leave)}
-                            className="p-2 text-blue-600 hover:text-blue-800 rounded-lg"
-                            title="Edit Status"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                            </svg>
-                          </button>
-                        )}
-                      </td>
+                       <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
+                         {(() => {
+                           const isOwn = leave.user_id != null && user?.id != null
+                             && Number(leave.user_id) === Number(user.id);
+                           const ownerIsHod = !!leave.is_hod_holder;
+                           const actionDisabled = isOwn || ownerIsHod;
+                           if (leave.status === 'Pending') {
+                             return (
+                               <div className="flex gap-2 justify-center">
+                                  {(parseFloat(leave.credited_days) > 2 || actionDisabled) ? (
+                                    <div className="relative group inline-flex">
+                                      <div className="flex gap-2">
+                                        <button
+                                          disabled
+                                          className="p-2 text-white bg-gray-400 rounded-lg cursor-not-allowed"
+                                        >
+                                          <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                          </svg>
+                                        </button>
+                                        <button
+                                          disabled
+                                          className="p-2 text-white bg-gray-400 rounded-lg cursor-not-allowed"
+                                        >
+                                          <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                          </svg>
+                                        </button>
+                                      </div>
+                                      <span className="pointer-events-none absolute -top-9 left-1/2 -translate-x-1/2 z-10 whitespace-nowrap rounded-md bg-gray-900 px-2 py-1 text-xs font-medium text-white opacity-0 shadow-md transition-opacity duration-150 group-hover:opacity-100">
+                                        {actionDisabled ? 'Approval available in Management login' : 'Only Management can approve/reject leaves > 2 days'}
+                                      </span>
+                                    </div>
+                                  ) : (
+                                   <>
+                                     <button
+                                       onClick={() => handleApprove(leave.id)}
+                                       disabled={loading}
+                                       className="p-2 text-white transition-colors duration-200 bg-green-600 rounded-lg hover:bg-green-700 disabled:bg-gray-400"
+                                       title="Approve"
+                                     >
+                                       <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                       </svg>
+                                     </button>
+                                     <button
+                                       onClick={() => handleReject(leave.id)}
+                                       disabled={loading}
+                                       className="p-2 text-white transition-colors duration-200 bg-red-600 rounded-lg hover:bg-red-700 disabled:bg-gray-400"
+                                       title="Reject"
+                                     >
+                                       <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                       </svg>
+                                     </button>
+                                   </>
+                                 )}
+                               </div>
+                             );
+                           }
+                            if (['Approved', 'Rejected'].includes(leave.status)) {
+                              return (
+                                <div className="relative group inline-flex">
+                                  <button
+                                    onClick={() => handleEditClick(leave)}
+                                    disabled={actionDisabled}
+                                    className={`p-2 rounded-lg ${actionDisabled ? 'text-gray-400 cursor-not-allowed' : 'text-blue-600 hover:text-blue-800'}`}
+                                  >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                    </svg>
+                                  </button>
+                                  {actionDisabled && (
+                                    <span className="pointer-events-none absolute -top-9 left-1/2 -translate-x-1/2 z-10 whitespace-nowrap rounded-md bg-gray-900 px-2 py-1 text-xs font-medium text-white opacity-0 shadow-md transition-opacity duration-150 group-hover:opacity-100">
+                                      Edit available in Management login
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            }
+                           return null;
+                         })()}
+                       </td>
                     </tr>
                   ))
                 )}

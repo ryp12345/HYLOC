@@ -22,11 +22,11 @@ const isDutyLeaveType = (leaveType) => {
 
 /**
  * Check if user is eligible to apply for leave
- * Based on Rule 1: Only Employee, Manager, and Management roles can apply
+ * Based on Rule 1: Only Employee, HOD, and Management roles can apply
  */
 exports.checkLeaveEligibility = async (userId, userRole) => {
-  // Check if user has Employee, Manager, or Management role
-  const canApplyForLeave = ['Employee', 'Manager', 'Management'].includes(userRole);
+  // Check if user has Employee, HOD, or Management role
+  const canApplyForLeave = ['Employee', 'HOD', 'Management'].includes(userRole);
   
   // Get user status from database
   const userQuery = 'SELECT status FROM users WHERE id = $1';
@@ -50,8 +50,8 @@ exports.checkLeaveEligibility = async (userId, userRole) => {
     isEmployeeRole: canApplyForLeave,
     isActive: isActive,
     currentRole: userRole,
-    reason: !canApplyForLeave 
-      ? 'Only Employee, Manager, and Management roles can apply for leave'
+      reason: !canApplyForLeave 
+        ? 'Only Employee, HOD, and Management roles can apply for leave'
       : !isActive 
       ? 'User account is not active'
       : null
@@ -308,7 +308,9 @@ exports.updatePendingLeave = async (leaveId, userId, updateData, userRole) => {
     // 2. Check permissions (case-insensitive, robust)
     const isOwner = existingLeave.user_id === userId;
     const normalizedRole = (userRole || '').trim().toLowerCase();
-    const isManagerOrMgmt = ["manager", "management"].includes(normalizedRole);
+    const isHodOrMgmt = ["hod", "management"].includes(normalizedRole);
+    const isHr = normalizedRole === 'hr';
+    const canManageAnyLeave = isHodOrMgmt || isHr;
 
     // Debug log for troubleshooting
     console.log('[Leave Update] User:', userId, 'Role:', userRole, 'Normalized:', normalizedRole, 'LeaveId:', leaveId, 'Owner:', existingLeave.user_id);
@@ -317,26 +319,42 @@ exports.updatePendingLeave = async (leaveId, userId, updateData, userRole) => {
     let newCreditedDays = existingLeave.credited_days;
 
     if (!isOwner) {
-      // Only allow status and approved_by to be updated by Manager/Management
-      if (!isManagerOrMgmt) {
+      // Allow HR, HOD, and Management to edit staff leaves
+      if (!canManageAnyLeave) {
         throw new Error('Forbidden: You can only update your own leaves');
       }
-      // Only allow status and approved_by fields
-      updatedFields = {};
-      if (typeof updateData.status !== 'undefined') updatedFields.status = updateData.status;
-      if (typeof updateData.approved_by !== 'undefined') updatedFields.approved_by = updateData.approved_by;
-      if (Object.keys(updatedFields).length === 0) {
-        throw new Error('No permitted fields to update');
-      }
-      // Management can update status for any leave
-      if (normalizedRole === 'manager') {
-        // Manager can only update Employee leaves
+      if (normalizedRole === 'hod') {
+        // HOD can only update Employee leaves
         const applicantRole = (existingLeave.user_role || '').toLowerCase();
         if (applicantRole !== 'employee') {
-          throw new Error('Manager can only update leaves of Employees.');
+          throw new Error('HOD can only update leaves of Employees.');
         }
       }
     } else {
+      // Owner can update all fields as before
+    }
+
+    // HR, HOD, and Management can update all fields for leaves they manage.
+    // Keep the original owner's balance in sync when credited days change.
+    if (!isOwner && canManageAnyLeave) {
+      if (updateData.from_date || updateData.to_date || updateData.leave_duration) {
+        const fromDate = updateData.from_date || existingLeave.from_date;
+        const toDate = updateData.to_date || existingLeave.to_date;
+        const duration = updateData.leave_duration || existingLeave.leave_duration;
+        const dateValidation = exports.validateLeaveDates(fromDate, toDate);
+        if (!dateValidation.valid) {
+          throw new Error(dateValidation.error);
+        }
+        const { creditedDays, normalizedToDate } = exports.calculateCreditedDays(
+          fromDate,
+          dateValidation.normalizedToDate,
+          duration
+        );
+        newCreditedDays = creditedDays;
+        updatedFields.to_date = normalizedToDate;
+        updatedFields.credited_days = creditedDays;
+      }
+    } else if (isOwner) {
       // Owner can update all fields as before
       if (updateData.from_date || updateData.to_date || updateData.leave_duration) {
         const fromDate = updateData.from_date || existingLeave.from_date;
@@ -363,20 +381,20 @@ exports.updatePendingLeave = async (leaveId, userId, updateData, userRole) => {
     const updatedLeave = await leaveModel.updateLeave(leaveId, updatedFields);
 
     // 6. Adjust balance if credited_days changed (only for owner)
-    if (isOwner) {
+    if (isOwner || canManageAnyLeave) {
       const oldCreditedDays = parseFloat(existingLeave.credited_days);
       const difference = newCreditedDays - oldCreditedDays;
       if (difference !== 0) {
         if (isEarnedLeaveType(existingLeave.leave_type)) {
           const year = new Date(existingLeave.from_date).getFullYear();
           if (difference > 0) {
-            const balanceInfo = await entitlementModel.getLeaveBalance(userId, year);
+            const balanceInfo = await entitlementModel.getLeaveBalance(existingLeave.user_id, year);
             const availableBalance = parseFloat(balanceInfo.leave_balance || 0);
             if (availableBalance < difference) {
               throw new Error('Insufficient leave balance for update');
             }
           }
-          await entitlementModel.updateLeavesAvailed(userId, year, difference, client);
+          await entitlementModel.updateLeavesAvailed(existingLeave.user_id, year, difference, client);
         }
       }
     }
@@ -408,7 +426,10 @@ exports.cancelLeave = async (leaveId, userId, userRole) => {
     }
     
     // 2. Check ownership
-    if (existingLeave.user_id !== userId) {
+    const normalizedRole = (userRole || '').trim().toLowerCase();
+    const canManageAnyLeave = ['hr', 'hod', 'management'].includes(normalizedRole);
+
+    if (existingLeave.user_id !== userId && !canManageAnyLeave) {
       throw new Error('Forbidden: You can only cancel your own leaves');
     }
     

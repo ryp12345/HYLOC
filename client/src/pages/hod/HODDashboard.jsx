@@ -4,7 +4,7 @@ import { getUsersByDepartment } from '../../api/userApi';
 import { getDepartmentLeaves } from '../../api/leaveApi';
 import api from '../../api/axios';
 
-function ManagerDashboard() {
+function HODDashboard() {
 	const { user } = useAuth();
 	const [loading, setLoading] = useState(true);
 	const [teamStats, setTeamStats] = useState({
@@ -38,15 +38,15 @@ function ManagerDashboard() {
 
 	const fetchTeamStatistics = async () => {
 		try {
-			const managerDepartmentId = user?.departmentId || user?.department_id;
+			const hodDepartmentId = user?.departmentId || user?.department_id;
 			
-			if (!managerDepartmentId) {
-				console.warn('Manager has no department assigned');
+			if (!hodDepartmentId) {
+				console.warn('HOD has no department assigned');
 				return;
 			}
 
-			// Get users in manager's department
-			const usersResponse = await getUsersByDepartment(managerDepartmentId);
+			// Get users in hod's department
+			const usersResponse = await getUsersByDepartment(hodDepartmentId);
 			const departmentEmployees = (usersResponse.data?.data || []).filter(
 			u => u.id !== user.id
 			);
@@ -79,14 +79,14 @@ function ManagerDashboard() {
 
 	const fetchKPIStatistics = async () => {
 		try {
-			const managerDepartmentId = user?.departmentId || user?.department_id;
+			const hodDepartmentId = user?.departmentId || user?.department_id;
 			
-			if (!managerDepartmentId) {
+			if (!hodDepartmentId) {
 				return;
 			}
 
-			// Get users in manager's department
-			const usersResponse = await getUsersByDepartment(managerDepartmentId);
+			// Get users in hod's department
+			const usersResponse = await getUsersByDepartment(hodDepartmentId);
 			const departmentEmployees = (usersResponse.data?.data || []).filter(
 			u => u.id !== user.id
 			);
@@ -157,7 +157,7 @@ function ManagerDashboard() {
 			{/* Header */}
 			<div className="mb-8">
 				<h1 className="text-4xl font-bold text-gray-800 mb-2">
-					Manager Dashboard
+					HOD Dashboard
 				</h1>
 				<p className="text-gray-600">
 					Welcome, {user?.firstName} {user?.lastName}
@@ -207,4 +207,4 @@ function ManagerDashboard() {
 	);
 }
 
-export default ManagerDashboard;
+export default HODDashboard;

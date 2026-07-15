@@ -3,10 +3,10 @@
 This document lists the behaviors and rules that are actually implemented in this codebase (frontend + client API). It includes only items that are present in the repository and visible from the client code and API client (`client/src/api/leaveApi.js`).
 
 Roles
-- Management, Manager, and Employee roles exist and are referenced in the UI and API client.
+- Management, HOD, and Employee roles exist and are referenced in the UI and API client.
 
 Front-end UI features (implemented)
-- Leave approval pages for Manager and Management are present under `client/src/pages/*/leaves`.
+- Leave approval pages for HOD and Management are present under `client/src/pages/*/leaves`.
 - Both approval pages provide status tabs (`Pending`, `Approved`, `Rejected`).
 - Both pages include date and field filters: From date, To date, Year, Department, Username, and Search/Reset controls. Department options are loaded from the departments API.
 - Table columns implemented: `S.No`, `Name`, `Date Range`, `No. of Days`, `Details`, `Status`, `Actions`.
@@ -15,8 +15,8 @@ Front-end UI features (implemented)
 - Details modal shows `Name`, `Duration` (using computed days), `Date Range`, `Reason`, and `Status`. The `Duration` label uses the same text color as other labels in the modal.
 - Approve/Reject actions in the UI call the corresponding API client functions (`approveLeave`, `rejectLeave`) and confirm with the user before sending.
 - Editing status in the Details modal updates via the client `updateLeave` function (`updateLeave`).
-- The Management approval page filters visible records client-side so that Management views Manager leaves (any duration) and Employee leaves with duration > 2 days (this logic is implemented in the page's `loadLeaves` function).
-- The Manager approval page filters visible leaves by department (manager's department) and shows Employee leaves for that department (implemented in the page's load/filter logic).
+- The Management approval page filters visible records client-side so that Management views HOD leaves (any duration) and Employee leaves with duration > 2 days (this logic is implemented in the page's `loadLeaves` function).
+- The HOD approval page filters visible leaves by department (hod's department) and shows Employee leaves for that department (implemented in the page's load/filter logic).
 
 Leave type values
 - The canonical leave type values in the application are now `Earned Leave` and `Leave without pay`.

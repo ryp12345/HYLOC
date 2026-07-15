@@ -44,7 +44,7 @@ router.get('/assignable', userController.getAssignableUsers);
 
 // Super admin, management and HR routes
 router.get('/', authorize('admin', 'management', 'HR'), userController.getAllUsers);
-router.get('/department/:id', authorize('admin', 'management', 'manager'), userController.getUsersByDepartment);
+router.get('/department/:id', authorize('admin', 'management', 'hod'), userController.getUsersByDepartment);
 router.get('/:id', userController.getUserById);
 router.post('/', authorize('admin'), uploadUser.single('staffPhoto'), userController.createUser);
 router.patch('/:id/reset-password', authorize('admin', 'management'), userController.resetUserPassword);

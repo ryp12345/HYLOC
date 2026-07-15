@@ -1,6 +1,6 @@
 // Get tickets visible to the logged-in user:
 // - Management: all tickets
-// - Employee / Manager: tickets they created OR are assigned to
+// - Employee / HOD: tickets they created OR are assigned to
 exports.getMyTickets = async (req, res) => {
   try {
     const userId = req.user?.userId;
@@ -113,10 +113,10 @@ exports.createTicket = async (req, res) => {
       attachment: attachmentUrl || null,
     };
 
-    // enforce: Employees or Managers cannot assign tickets to Management users
+    // enforce: Employees or HODs cannot assign tickets to Management users
     try {
       const requesterRole = req.user && req.user.role ? String(req.user.role).toLowerCase() : '';
-      if (ticketData.assigned_to && (requesterRole === 'employee' || requesterRole === 'manager')) {
+      if (ticketData.assigned_to && (requesterRole === 'employee' || requesterRole === 'hod')) {
         const tgtRes = await pool.query('SELECT r.role_name FROM users u JOIN user_roles ur ON ur.user_id = u.id JOIN roles r ON ur.role_id = r.id WHERE u.id = $1 AND ur.status = $2', [ticketData.assigned_to, 'active']);
         const tgtRole = tgtRes && tgtRes.rows && tgtRes.rows[0] ? String(tgtRes.rows[0].role_name).toLowerCase() : '';
         if (tgtRole === 'management') {
@@ -178,21 +178,21 @@ exports.getTicketById = async (req, res) => {
     const isCreator = String(ticket.user_id) === String(requesterId);
     const isAssignee = ticket.assigned_to && String(ticket.assigned_to) === String(requesterId);
 
-    // Allow viewing if Management, creator, assignee, or Manager of same department as creator
+    // Allow viewing if Management, creator, assignee, or HOD of same department as creator
     if (!isManagement && !isCreator && !isAssignee) {
       try {
         const reqRoleNorm = requesterRole ? String(requesterRole).toLowerCase() : '';
-        let isManagerSameDept = false;
-        if (reqRoleNorm === 'manager') {
+        let isHodSameDept = false;
+        if (reqRoleNorm === 'hod') {
           const deptRes = await pool.query('SELECT id, department_id FROM users WHERE id = ANY($1)', [[requesterId, ticket.user_id]]);
           const rowsById = (deptRes.rows || []).reduce((acc, r) => ({ ...acc, [String(r.id)]: r }), {});
           const requesterDept = rowsById[String(requesterId)] ? rowsById[String(requesterId)].department_id : null;
           const creatorDept = rowsById[String(ticket.user_id)] ? rowsById[String(ticket.user_id)].department_id : null;
           if (requesterDept && creatorDept && String(requesterDept) === String(creatorDept)) {
-            isManagerSameDept = true;
+            isHodSameDept = true;
           }
         }
-        if (!isManagerSameDept) {
+        if (!isHodSameDept) {
           return res.status(403).json({ success: false, message: 'You are not authorized to view this ticket' });
         }
       } catch (e) {
@@ -256,10 +256,10 @@ exports.updateTicket = async (req, res) => {
 
 
     // Only Management or creator can edit due_date
-    // (Manager role is NOT allowed unless also creator)
+    // (HOD role is NOT allowed unless also creator)
     const isManagement = requesterRole && requesterRole.toLowerCase() === 'management';
     const isCreator = String(existing.user_id) === String(requesterId);
-    const isManager = requesterRole && requesterRole.toLowerCase() === 'manager';
+    const isHod = requesterRole && requesterRole.toLowerCase() === 'hod';
 
     // Normalize date-only strings for robust comparison (DB may include time)
     const formatDateOnly = (val) => {
@@ -281,7 +281,7 @@ exports.updateTicket = async (req, res) => {
     // Only enforce due_date permission when the date actually changes
     if (payloadDue !== undefined && payloadDue !== existingDue) {
       if (!isManagement && !isCreator) {
-        // Explicitly block Manager role and all others
+        // Explicitly block HOD role and all others
         return res.status(403).json({ success: false, message: 'Only Management or the ticket creator can edit due_date' });
       }
     }
@@ -312,10 +312,10 @@ exports.updateTicket = async (req, res) => {
 
     const payloadAssignedRaw = payload.assigned_to !== undefined && payload.assigned_to !== null ? String(payload.assigned_to) : null;
     const existingAssignedRaw = existing.assigned_to !== undefined && existing.assigned_to !== null ? String(existing.assigned_to) : null;
-    // New rule: if requester is Employee or Manager, they cannot set assigned_to to a Management user
+    // New rule: if requester is Employee or HOD, they cannot set assigned_to to a Management user
     try {
       const reqRoleNorm = requesterRole ? String(requesterRole).toLowerCase() : '';
-      if (payloadAssignedRaw && (reqRoleNorm === 'employee' || reqRoleNorm === 'manager')) {
+      if (payloadAssignedRaw && (reqRoleNorm === 'employee' || reqRoleNorm === 'hod')) {
         const tgtRes = await pool.query('SELECT r.role_name FROM users u JOIN user_roles ur ON ur.user_id = u.id JOIN roles r ON ur.role_id = r.id WHERE u.id = $1 AND ur.status = $2', [payloadAssignedRaw, 'active']);
         const tgtRole = tgtRes && tgtRes.rows && tgtRes.rows[0] ? String(tgtRes.rows[0].role_name).toLowerCase() : '';
         if (tgtRole === 'management') {
@@ -326,19 +326,19 @@ exports.updateTicket = async (req, res) => {
       console.error('Role-check error on updateTicket:', e);
       // don't block on DB error
     }
-    // On any status change, notify creator and all Managers (no assignee notification)
+    // On any status change, notify creator and all HODs (no assignee notification)
     let sentStatusNotification = false;
     if (payload.status && payload.status !== existing.status) {
       try {
         const pool = require('../config/db');
-        // Find all users with Manager role
-        const mgrRes = await pool.query(`
+        // Find all users with HOD role
+        const hodRes = await pool.query(`
           SELECT u.id FROM users u
           JOIN user_roles ur ON ur.user_id = u.id
-          JOIN roles r ON ur.role_id = r.id
-          WHERE r.role_name = 'Manager' AND ur.status = 'active'
+          JOIN roles r ON r.id = ur.role_id
+          WHERE r.role_name = 'HOD' AND ur.status = 'active'
         `);
-        const managerIds = mgrRes.rows.map(r => r.id).filter(id => id !== existing.user_id);
+        const hodIds = hodRes.rows.map(r => r.id).filter(id => id !== existing.user_id);
         
         // Special handling for 'Rejected' status: only Management may reject.
         if (payload.status === 'Rejected') {
@@ -365,7 +365,7 @@ exports.updateTicket = async (req, res) => {
           }
         } else {
           // For other status changes, send standard format to all recipients (kept commented intentionally)
-          /* const recipients = new Set([existing.user_id, ...managerIds]);
+          /* const recipients = new Set([existing.user_id, ...hodIds]);
           for (const recipientId of recipients) {
             const message = `Ticket #${existing.id} ('${existing.title}') status changed to ${payload.status} by user #${requesterId}`;
             await notificationModel.createNotification({ created_by: requesterId, assigned_to: recipientId, message, type: 'ticket_status' });

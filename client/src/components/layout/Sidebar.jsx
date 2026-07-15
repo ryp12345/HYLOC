@@ -17,8 +17,8 @@ const Sidebar = () => {
       return '/hr/dashboard';
     } else if (roleValue === 'management') {
       return '/management/dashboard';
-    } else if (roleValue === 'manager') {
-      return '/manager/dashboard';
+    } else if (roleValue === 'hod') {
+      return '/hod/dashboard';
     } else {
       return '/employee/dashboard';
     }
@@ -83,16 +83,15 @@ const Sidebar = () => {
 
 
 
-  const managerLinks = [
+  const hodLinks = [
     { name: 'Dashboard', path: getDashboardPath(), icon: '📊' },
-    { name: 'Calendar', path: '/manager/leaves', icon: '📅' },
-    // { name: 'Leave Approval', path: '/manager/leave-approval', icon: '✅' },
+    { name: 'Calendar', path: '/hod/leaves', icon: '📅' },
+    // { name: 'Leave Approval', path: '/hod/leave-approval', icon: '✅' },
     {
       name: 'Leave List',
       icon: '🗂️',
       submenu: [
-        { name: 'My Leave', path: '/manager/my-leave' },
-        { name: 'Leave Approval', path: '/manager/leave-approval' },
+        { name: 'Leave Approval', path: '/hod/leave-approval' },
       ],
     },
     { name: 'Tickets', path: '/tickets', icon: '🎫' },
@@ -114,9 +113,9 @@ const Sidebar = () => {
 
   const isHr = roleValue === 'hr';
   const isManagement = roleValue === 'management';
-  const isManager = roleValue === 'manager';
+  const isHod = roleValue === 'hod';
 
-  const links = isAdmin ? adminLinks : isHr ? hrLinks : isManagement ? managementLinks : isManager ? managerLinks : employeeLinks;
+  const links = isAdmin ? adminLinks : isHr ? hrLinks : isManagement ? managementLinks : isHod ? hodLinks : employeeLinks;
 
   // Check if we need to expand the sidebar when a submenu is open on minimized sidebar
   const shouldExpandForSubmenu = !isOpen && expandedMenu;

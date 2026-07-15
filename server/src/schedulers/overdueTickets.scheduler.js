@@ -2,7 +2,7 @@ const cron = require('node-cron');
 const pool = require('../config/db');
 const notificationModel = require('../models/notification.model');
 
-// Find overdue tickets and send one-off notifications to assigned user and management/manager roles.
+// Find overdue tickets and send one-off notifications to assigned user and management/hod roles.
 const findOverdueTickets = async () => {
   const query = `SELECT * FROM tickets WHERE due_date < CURRENT_DATE AND status != 'Closed'`;
   const result = await pool.query(query);

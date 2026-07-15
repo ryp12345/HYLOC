@@ -87,15 +87,15 @@ exports.applyLeave = async (req, res, next) => {
     
     const leaveRecord = await leaveService.applyLeave(userId, req.body, effectiveRole);
 
-    // Send notification to department managers when an Employee applies for leave
+    // Send notification to department hods when an Employee applies for leave
     try {
       const normalizedRole = (userRole || '').toLowerCase();
       if (normalizedRole === 'employee') {
         const notificationModel = require('../models/notification.model');
         const applicant = await userModel.findUserById(userId);
         if (applicant && applicant.department_id) {
-          const managers = await userModel.getManagersByDepartment(applicant.department_id);
-          if (managers && managers.length > 0) {
+          const hods = await userModel.getHODByDepartment(applicant.department_id);
+          if (hods && hods.length > 0) {
             const applicantName = [applicant.firstname, applicant.lastname].filter(Boolean).join(' ');
             const fromDate = req.body.from_date;
             const toDate = req.body.to_date;
@@ -104,12 +104,12 @@ exports.applyLeave = async (req, res, next) => {
             if (toDate && fromDate !== toDate) {
               dateText = `${fromDate} to ${toDate}`;
             }
-            // Deduplicate manager IDs in case of duplicate rows
-            const uniqueManagerIds = Array.from(new Set((managers || []).map(m => m && m.id).filter(Boolean)));
-            for (const managerId of uniqueManagerIds) {
+            // Deduplicate hod IDs in case of duplicate rows
+            const uniqueHodIds = Array.from(new Set((hods || []).map(m => m && m.id).filter(Boolean)));
+            for (const hodId of uniqueHodIds) {
               await notificationModel.createNotification({
-                created_by: userId,
-                assigned_to: managerId,
+              created_by: userId,
+              assigned_to: hodId,
                 message: `${applicantName} from your department has applied for ${leaveType}  from ${dateText}.`,
                 type: 'leave',
                 is_read: false
@@ -120,7 +120,7 @@ exports.applyLeave = async (req, res, next) => {
       }
     } catch (notifyErr) {
       // Log error but don't block leave application
-      console.error('Manager notification error:', notifyErr);
+      console.error('HOD notification error:', notifyErr);
     }
 
     // Send notification to alternate person if present//////////////////////
@@ -173,7 +173,7 @@ exports.applyLeave = async (req, res, next) => {
             `
           );
 
-          const managers = mgmtResult.rows || [];
+          const mgmtUsers = mgmtResult.rows || [];
           const applicant = await userModel.findUserById(userId);
           const applicantName = [applicant?.firstname, applicant?.lastname].filter(Boolean).join(' ') || 'Employee';
           const fromDate = req.body.from_date;
@@ -185,7 +185,7 @@ exports.applyLeave = async (req, res, next) => {
           }
 
           // Deduplicate management recipient IDs before creating notifications
-          const uniqueMgmtIds = Array.from(new Set((managers || []).map(m => m && m.id).filter(Boolean)));
+          const uniqueMgmtIds = Array.from(new Set((mgmtUsers || []).map(m => m && m.id).filter(Boolean)));
           for (const mgmtId of uniqueMgmtIds) {
             await notificationModel.createNotification({
               created_by: userId,
@@ -286,9 +286,11 @@ exports.getLeaveById = async (req, res, next) => {
       });
     }
     
+    const userRole = (req.user.role || '').toUpperCase();
+    
     // Check if user can view this leave
-    // Employee/Manager can only view their own
-    if (['Employee', 'Manager'].includes(req.user.role) && leave.user_id !== req.user.userId) {
+    // Employee/HOD can only view their own
+    if (['EMPLOYEE', 'HOD'].includes(userRole) && leave.user_id !== req.user.userId) {
       return res.status(403).json({
         success: false,
         message: 'Forbidden: You can only view your own leaves'
@@ -330,7 +332,7 @@ exports.updateLeave = async (req, res, next) => {
     );
 
     const normalizedRole = String(userRole || '').toLowerCase();
-    const isApprover = normalizedRole === 'manager' || normalizedRole === 'management';
+    const isApprover = normalizedRole === 'hod' || normalizedRole === 'management';
     const movedBackToPending = ['Approved', 'Rejected'].includes(previousLeave.status) && updatedLeave?.status === 'Pending';
     const updatedByApprover = isApprover && previousLeave.user_id !== userId;
 
@@ -475,8 +477,8 @@ exports.requestLeaveChange = async (req, res, next) => {
       );
       recipients = mgmtResult.rows || [];
     } else {
-      const managers = await userModel.getManagersByDepartment(applicant?.department_id);
-      recipients = managers || [];
+      const hods = await userModel.getHODByDepartment(applicant?.department_id);
+      recipients = hods || [];
     }
 
     const uniqueRecipientIds = Array.from(new Set((recipients || []).map(r => Number(r.id)).filter(Boolean)));
@@ -634,30 +636,30 @@ exports.getLeaveHistory = async (req, res, next) => {
 };
 
 /**
- * Get all pending leaves (for Manager/Management approval)
+  * Get all pending leaves (for HOD/Management approval)
  * GET /api/leaves/pending
  */
 exports.getPendingLeaves = async (req, res, next) => {
   try {
-    const userRole = req.user.role;
+    const userRole = (req.user.role || '').toUpperCase();
     
-    // Only Manager and Management can view pending approvals
-    if (!['Manager', 'Management'].includes(userRole)) {
+    // Only HOD and Management can view pending approvals
+    if (!['HOD', 'MANAGEMENT'].includes(userRole)) {
       return res.status(403).json({
         success: false,
-        message: 'Forbidden: Only Manager and Management can view pending approvals'
+        message: 'Forbidden: Only HOD and Management can view pending approvals'
       });
     }
     
     const filters = {};
     
     // Management sees leaves > 2 days only
-    if (userRole === 'Management') {
+    if (userRole === 'MANAGEMENT') {
       filters.min_duration = 2;
     }
     
-    // Manager sees leaves from their department (if applicable)
-    if (userRole === 'Manager' && req.query.department_id) {
+    // HOD sees leaves from their department (if applicable)
+    if (userRole === 'HOD' && req.query.department_id) {
       filters.department_id = parseInt(req.query.department_id);
     }
     
@@ -679,13 +681,13 @@ exports.getPendingLeaves = async (req, res, next) => {
  */
 exports.getAllLeaves = async (req, res, next) => {
   try {
-    const userRole = req.user.role;
+    const userRole = (req.user.role || '').toUpperCase();
     
-    // Only Management, Manager and HR can view all leaves
-    if (!['Management', 'Manager', 'HR'].includes(userRole)) {
+    // Only Management, HOD and HR can view all leaves
+    if (!['MANAGEMENT', 'HOD', 'HR'].includes(userRole)) {
       return res.status(403).json({
         success: false,
-        message: 'Forbidden: Only Management, Manager and HR can view all leaves'
+        message: 'Forbidden: Only Management, HOD and HR can view all leaves'
       });
     }
     
@@ -714,20 +716,20 @@ exports.getAllLeaves = async (req, res, next) => {
 };
 
 /**
- * Approve leave (for Manager/Management)
+  * Approve leave (for HOD/Management)
  * POST /api/leaves/:id/approve
  */
 exports.approveLeave = async (req, res, next) => {
   try {
     const leaveId = parseInt(req.params.id);
     const approverId = req.user.userId;
-    const userRole = req.user.role;
+    const userRole = (req.user.role || '').toUpperCase();
     
-    // Only Manager and Management can approve
-    if (!['Manager', 'Management'].includes(userRole)) {
+    // Only HOD and Management can approve
+    if (!['HOD', 'MANAGEMENT'].includes(userRole)) {
       return res.status(403).json({
         success: false,
-        message: 'Forbidden: Only Manager and Management can approve leaves'
+        message: 'Forbidden: Only HOD and Management can approve leaves'
       });
     }
     
@@ -747,26 +749,41 @@ exports.approveLeave = async (req, res, next) => {
         message: 'Leave is not in pending status'
       });
     }
-    
-    // Get leave applicant's role
+
+    // Prevent self-approval
+    if (leave.user_id === approverId) {
+      return res.status(403).json({
+        success: false,
+        message: 'You cannot approve your own leave request.'
+      });
+    }
+
+    // Get leave applicant's role (must match the role used when listing leaves:
+    // first role by id, defaulting to 'Employee' when no user_roles row exists).
     const roleQuery = `
-      SELECT r.role_name 
-      FROM user_roles ur
-      JOIN roles r ON ur.role_id = r.id
-      WHERE ur.user_id = $1
+      SELECT COALESCE(
+        (
+          SELECT r.role_name
+          FROM user_roles ur
+          JOIN roles r ON ur.role_id = r.id
+          WHERE ur.user_id = $1
+          ORDER BY ur.id ASC
+          LIMIT 1
+        ), 'Employee'
+      ) as role_name
     `;
     const roleResult = await db.query(roleQuery, [leave.user_id]);
     const applicantRole = roleResult.rows[0]?.role_name;
     
-    // Management can approve any leave (Manager or Employee)
-    if (userRole === 'Management') {
+    // Management can approve any leave (HOD or Employee)
+    if (userRole === 'MANAGEMENT') {
       // proceed
-    } else if (userRole === 'Manager') {
-      // Manager can only approve Employee leaves
-      if (applicantRole !== 'Employee') {
+    } else if (userRole === 'HOD') {
+      // HOD can only approve Employee leaves
+      if ((applicantRole || '').toUpperCase() !== 'EMPLOYEE') {
         return res.status(403).json({
           success: false,
-          message: 'Manager can only approve leaves of Employees.'
+          message: 'HOD can only approve leaves of Employees.'
         });
       }
       // proceed
@@ -805,20 +822,20 @@ exports.approveLeave = async (req, res, next) => {
 };
 
 /**
- * Reject leave (for Manager/Management)
+  * Reject leave (for HOD/Management)
  * POST /api/leaves/:id/reject
  */
 exports.rejectLeave = async (req, res, next) => {
   try {
     const leaveId = parseInt(req.params.id);
     const rejectorId = req.user.userId;
-    const userRole = req.user.role;
+    const userRole = (req.user.role || '').toUpperCase();
     
-    // Only Manager and Management can reject
-    if (!['Manager', 'Management'].includes(userRole)) {
+    // Only HOD and Management can reject
+    if (!['HOD', 'MANAGEMENT'].includes(userRole)) {
       return res.status(403).json({
         success: false,
-        message: 'Forbidden: Only Manager and Management can reject leaves'
+        message: 'Forbidden: Only HOD and Management can reject leaves'
       });
     }
     
@@ -838,26 +855,40 @@ exports.rejectLeave = async (req, res, next) => {
         message: 'Leave is not in pending status'
       });
     }
-    
-    // Get leave applicant's role
+
+    // Prevent self-rejection
+    if (leave.user_id === rejectorId) {
+      return res.status(403).json({
+        success: false,
+        message: 'You cannot reject your own leave request.'
+      });
+    }
+
+    // Get leave applicant's role (consistent with listing: first role by id, default Employee)
     const roleQuery = `
-      SELECT r.role_name 
-      FROM user_roles ur
-      JOIN roles r ON ur.role_id = r.id
-      WHERE ur.user_id = $1
+      SELECT COALESCE(
+        (
+          SELECT r.role_name
+          FROM user_roles ur
+          JOIN roles r ON ur.role_id = r.id
+          WHERE ur.user_id = $1
+          ORDER BY ur.id ASC
+          LIMIT 1
+        ), 'Employee'
+      ) as role_name
     `;
     const roleResult = await db.query(roleQuery, [leave.user_id]);
     const applicantRole = roleResult.rows[0]?.role_name;
     
-    // Management can reject any leave (Manager or Employee)
-    if (userRole === 'Management') {
+    // Management can reject any leave (HOD or Employee)
+    if (userRole === 'MANAGEMENT') {
       // proceed
-    } else if (userRole === 'Manager') {
-      // Manager can only reject Employee leaves
-      if (applicantRole !== 'Employee') {
+    } else if (userRole === 'HOD') {
+      // HOD can only reject Employee leaves
+      if ((applicantRole || '').toUpperCase() !== 'EMPLOYEE') {
         return res.status(403).json({
           success: false,
-          message: 'Manager can only reject leaves of Employees.'
+          message: 'HOD can only reject leaves of Employees.'
         });
       }
       // proceed
@@ -903,7 +934,7 @@ exports.rejectLeave = async (req, res, next) => {
 exports.getDepartmentLeaves = async (req, res, next) => {
   try {
     const userId = req.user.userId;
-    const userRole = req.user.role;
+    const userRole = (req.user.role || '').toUpperCase();
     
     // Get user's department
     const user = await userModel.findUserById(userId);
@@ -922,20 +953,21 @@ exports.getDepartmentLeaves = async (req, res, next) => {
     };
     
     // Employee: Only see other Employees in same department
-    // Manager: See Employees in same department + Managers from other departments
+    // HOD: See Employees in their department + HODs from other departments
     const allLeaves = await leaveModel.getAllLeaves(filters);
     
     let filteredLeaves;
-    if (userRole === 'Employee') {
+    if (userRole === 'EMPLOYEE') {
       // Employees see only other Employees in their department
-      filteredLeaves = allLeaves.filter(leave => leave.user_role === 'Employee');
-    } else if (userRole === 'Manager') {
-      // Managers see Employees in their department + all other Managers
+      filteredLeaves = allLeaves.filter(leave => (leave.user_role || '').toUpperCase() === 'EMPLOYEE');
+    } else if (userRole === 'HOD') {
+      // HODs see Employees in their department + all other HODs
       filteredLeaves = allLeaves.filter(leave => {
-        if (leave.user_role === 'Employee') {
+        const role = (leave.user_role || '').toUpperCase();
+        if (role === 'EMPLOYEE') {
           return leave.department_id === user.department_id;
         }
-        if (leave.user_role === 'Manager') {
+        if (role === 'HOD') {
           return leave.department_id !== user.department_id;
         }
         return false;
