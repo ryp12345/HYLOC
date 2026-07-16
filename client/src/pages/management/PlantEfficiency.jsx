@@ -92,27 +92,22 @@ const getChartType = (title) => {
   return 'LINE';
 };
 
-const SpeedometerGauge = ({ value, showLabel = false, showValue = true }) => {
+const SpeedometerGauge = ({ value, showLabel = false, showValue = true, isExpanded = false }) => {
   const efficiency = Number(value) || 0;
   const radius = 80;
   const circumference = 2 * Math.PI * radius;
 
-  // Calculate angle: -180 to 0 degrees (left to right semicircle)
-  // 0-60 red, 61-80 yellow, >80 green
   const angle = -180 + (Math.min(Math.max(efficiency, 0), 100) / 100) * 180;
 
-  let color = '#ef4444'; // red
-  let status = 'Critical';
-  if (efficiency > 80) {
-    color = '#22c55e'; // green
-    status = 'Excellent';
-  } else if (efficiency > 60) {
-    color = '#eab308'; // yellow
-    status = 'Good';
+  let color = '#ef4444';
+  if (efficiency > 75) {
+    color = '#22c55e';
+  } else if (efficiency > 50) {
+    color = '#eab308';
   }
 
   return (
-    <div className={`flex flex-col items-center justify-center h-full min-h-0 relative z-10`}>
+    <div className={`flex flex-col items-center justify-center h-full min-h-0 relative z-10`} style={{ overflow: 'hidden' }}>
       <svg
         viewBox="0 0 300 220"
         className="w-full h-auto flex-1 min-h-0"
@@ -120,6 +115,9 @@ const SpeedometerGauge = ({ value, showLabel = false, showValue = true }) => {
           width: "600px",
           height: "400px",
           maxWidth: "100%",
+          maxHeight: "100%",
+          transform: isExpanded ? 'scale(1.35)' : 'scale(1)',
+          transformOrigin: 'center center',
         }}
       >
         {/* Background Arc */}
@@ -133,7 +131,7 @@ const SpeedometerGauge = ({ value, showLabel = false, showValue = true }) => {
 
         {/* Red Zone */}
         <path
-          d="M 12 180 A 138 138 0 0 1 106 49"
+          d="M 12 180 A 138 138 0 0 1 150 42"
           fill="none"
           stroke="#ef4444"
           strokeWidth="24"
@@ -142,7 +140,7 @@ const SpeedometerGauge = ({ value, showLabel = false, showValue = true }) => {
 
         {/* Yellow Zone */}
         <path
-          d="M 106 49 A 138 138 0 0 1 194 49"
+          d="M 150 42 A 138 138 0 0 1 247 82"
           fill="none"
           stroke="#eab308"
           strokeWidth="24"
@@ -151,7 +149,7 @@ const SpeedometerGauge = ({ value, showLabel = false, showValue = true }) => {
 
         {/* Green Zone */}
         <path
-          d="M 194 49 A 138 138 0 0 1 288 180"
+          d="M 247 82 A 138 138 0 0 1 288 180"
           fill="none"
           stroke="#22c55e"
           strokeWidth="24"
@@ -160,9 +158,8 @@ const SpeedometerGauge = ({ value, showLabel = false, showValue = true }) => {
 
         {/* Tick Marks */}
         <line x1="18" y1="180" x2="32" y2="180" stroke="#374151" strokeWidth="3" />
-        <line x1="66" y1="84" x2="78" y2="92" stroke="#374151" strokeWidth="3" />
         <line x1="150" y1="42" x2="150" y2="58" stroke="#374151" strokeWidth="3" />
-        <line x1="234" y1="84" x2="222" y2="92" stroke="#374151" strokeWidth="3" />
+        <line x1="247" y1="82" x2="235" y2="90" stroke="#374151" strokeWidth="3" />
         <line x1="282" y1="180" x2="268" y2="180" stroke="#374151" strokeWidth="3" />
 
         {/* Needle */}
@@ -205,17 +202,13 @@ const SpeedometerGauge = ({ value, showLabel = false, showValue = true }) => {
 
         {/* Labels */}
         <text x="8" y="204" fontSize="14" fontWeight="700" fill="#4b5563" textAnchor="start">0</text>
-        <text x="62" y="80" fontSize="14" fontWeight="700" fill="#4b5563" textAnchor="middle">25</text>
         <text x="150" y="28" fontSize="14" fontWeight="700" fill="#4b5563" textAnchor="middle">50</text>
-        <text x="238" y="80" fontSize="14" fontWeight="700" fill="#4b5563" textAnchor="middle">75</text>
+        <text x="247" y="76" fontSize="14" fontWeight="700" fill="#4b5563" textAnchor="middle">75</text>
         <text x="292" y="204" fontSize="14" fontWeight="700" fill="#4b5563" textAnchor="end">100</text>
       </svg>
       {showValue && (
         <div className="text-center mt-0.5">
           <div className="font-extrabold text-gray-800 text-base sm:text-lg">{efficiency.toFixed(1)}%</div>
-          <div className={`text-xs font-semibold mt-0.5 px-2 py-0.5 rounded-full inline-block ${status === 'Excellent' ? 'bg-green-100 text-green-700' : status === 'Good' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>
-            {status}
-          </div>
           {showLabel && <div className="text-sm text-gray-500 mt-1">Overall Equipment Efficiency</div>}
         </div>
       )}
@@ -619,8 +612,7 @@ const PlantEfficiency = () => {
                 const currentLabel = selectedMonthLabel || latestRow?.label || 'N/A';
                 const selectedRow = rows.find((r) => r.label === selectedMonthLabel) || latestRow;
                 const val = Number(selectedRow?.actual ?? selectedRow?.target ?? 0);
-                const severity = val < 65 ? 'Critical' : val < 85 ? 'Warning' : 'Good';
-                const badgeClass = val < 65 ? 'bg-red-100 text-red-700' : val < 85 ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700';
+                const badgeClass = val <= 50 ? 'bg-red-100 text-red-700' : val <= 75 ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700';
 
                 return (
                   <>
@@ -652,9 +644,6 @@ const PlantEfficiency = () => {
 
                     <div className="text-center mt-3">
                       <div className="text-3xl font-extrabold text-gray-900">{val.toFixed(1)}%</div>
-                      <div className={`inline-block mt-2 rounded-full px-3 py-1 text-sm font-medium ${badgeClass.includes('red') ? 'bg-red-100 text-red-700' : badgeClass.includes('green') ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-800'}`}>
-                        {severity}
-                      </div>
                     </div>
                   </>
                 );

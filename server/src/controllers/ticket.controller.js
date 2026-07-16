@@ -113,21 +113,6 @@ exports.createTicket = async (req, res) => {
       attachment: attachmentUrl || null,
     };
 
-    // enforce: Employees or HODs cannot assign tickets to Management users
-    try {
-      const requesterRole = req.user && req.user.role ? String(req.user.role).toLowerCase() : '';
-      if (ticketData.assigned_to && (requesterRole === 'employee' || requesterRole === 'hod')) {
-        const tgtRes = await pool.query('SELECT r.role_name FROM users u JOIN user_roles ur ON ur.user_id = u.id JOIN roles r ON ur.role_id = r.id WHERE u.id = $1 AND ur.status = $2', [ticketData.assigned_to, 'active']);
-        const tgtRole = tgtRes && tgtRes.rows && tgtRes.rows[0] ? String(tgtRes.rows[0].role_name).toLowerCase() : '';
-        if (tgtRole === 'management') {
-          return res.status(403).json({ success: false, message: 'You are not allowed to assign tickets to Management users' });
-        }
-      }
-    } catch (e) {
-      console.error('Role-check error on createTicket:', e);
-      // fallthrough - don't block creation on role-check DB error, but log
-    }
-
     const created = await ticketModel.createTicket(ticketData);
 
     // Create in-app notification for assignee (if any). Fail silently on error.

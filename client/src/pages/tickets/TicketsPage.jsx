@@ -971,17 +971,12 @@ export default function TicketsPage() {
                           ) : (
                             <>
                               <option value="">Select user</option>
-                                {(() => {
-                                  const roleNorm = (user?.role || '').toLowerCase();
-                                  const hideManagement = roleNorm === 'employee' || roleNorm === 'hod';
-                                  return users
-                                    .slice()
-                                    .sort((a, b) => String((a.firstname || a.name || a.full_name || '')).localeCompare(String((b.firstname || b.name || b.full_name || ''))))
-                                    .filter(u => !(hideManagement && String((u.role || '').toLowerCase()) === 'management'))
-                                    .map(u => (
-                                      <option key={u.id} value={u.id}>{`${u.firstname || u.name || u.full_name || u.email}${u.lastname ? ' ' + u.lastname : ''}`}</option>
-                                    ));
-                                })()}
+                                {users
+                                  .slice()
+                                  .sort((a, b) => String((a.firstname || a.name || a.full_name || '')).localeCompare(String((b.firstname || b.name || b.full_name || ''))))
+                                  .map(u => (
+                                    <option key={u.id} value={u.id}>{`${u.firstname || u.name || u.full_name || u.email}${u.lastname ? ' ' + u.lastname : ''}`}</option>
+                                  ))}
                             </>
                           )}
                         </select>
