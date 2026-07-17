@@ -232,7 +232,7 @@ const EmployeeCalendar = ({ joinDate }) => {
       from_date: formattedDate,
       to_date: formattedDate,
       leave_duration: 'Full Day',
-      leave_type: 'Earned Leave',
+      leave_type: hasLeaveBalance ? 'Earned Leave' : 'Leave without pay',
       leave_reason: '',
       duration: 1,
       alternate_person: '',
@@ -312,7 +312,7 @@ const EmployeeCalendar = ({ joinDate }) => {
         from_date: formatDateForInput(date),
         to_date: formatDateForInput(date),
         leave_duration: 'Full Day',
-        leave_type: 'Earned Leave',
+        leave_type: hasLeaveBalance ? 'Earned Leave' : 'Leave without pay',
         leave_reason: '',
         duration: 1,
         alternate_person: '',
@@ -649,6 +649,7 @@ const EmployeeCalendar = ({ joinDate }) => {
   const dutyLeaveDays = leaves
     .filter(l => isDutyLeave(l) && l.status !== 'Rejected' && l.status !== 'Cancelled')
     .reduce((sum, l) => sum + parseFloat(l.credited_days || l.duration || 0), 0);
+  const hasLeaveBalance = leaveBalance && (parseFloat(leaveBalance.leave_balance || 0) > 0 || parseFloat(leaveBalance.leave_entitled || 0) > 0 || parseFloat(leaveBalance.leaves_accumulated || 0) > 0);
 
   return (
     <div className="w-full space-y-6">
@@ -1397,13 +1398,14 @@ const EmployeeCalendar = ({ joinDate }) => {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Leave Type *</label>
                   <div className="flex flex-wrap gap-4">
-                    <label className="inline-flex items-center gap-2">
+                    <label className={`inline-flex items-center gap-2 ${!hasLeaveBalance ? 'opacity-50 cursor-not-allowed' : ''}`}>
                       <input
                         type="radio"
                         name="leave_type"
                         value="Earned Leave"
                         checked={leaveForm.leave_type === 'Earned Leave'}
                         onChange={handleFormChange}
+                        disabled={!hasLeaveBalance}
                         className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
                       />
                       <span className="text-sm text-gray-700">Earned Leave</span>
@@ -1419,6 +1421,19 @@ const EmployeeCalendar = ({ joinDate }) => {
                       />
                       <span className="text-sm text-gray-700">Duty Leave</span>
                     </label>
+                    {!hasLeaveBalance && (
+                      <label className="inline-flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="leave_type"
+                          value="Leave without pay"
+                          checked={leaveForm.leave_type === 'Leave without pay'}
+                          onChange={handleFormChange}
+                          className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                        />
+                        <span className="text-sm text-gray-700">Leave without pay</span>
+                      </label>
+                    )}
                   </div>
                 </div>
 

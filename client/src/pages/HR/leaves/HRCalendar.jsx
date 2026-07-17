@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { 
+import {
 	getAllLeaves,
 	applyLeave,
 	getMyLeaves,
@@ -21,20 +21,20 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 	const [selectedDate, setSelectedDate] = useState(new Date());
 	const [leaves, setLeaves] = useState([]);
 	const [allOrgLeaves, setAllOrgLeaves] = useState([]);
-	
+
 	// Management's own leave management state
 	const [myLeaves, setMyLeaves] = useState([]);
 	const [leaveBalance, setLeaveBalance] = useState(null);
 	const [selectedStaffBalance, setSelectedStaffBalance] = useState(null);
 	const [eligibility, setEligibility] = useState(null);
 	const [colleagues, setColleagues] = useState([]);
-	
+
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState(null);
 	const [showLeaveModal, setShowLeaveModal] = useState(false);
 	const [selectedLeaveDate, setSelectedLeaveDate] = useState(null);
 	const [selectedDateLeaves, setSelectedDateLeaves] = useState([]);
-	
+
 	// Form state for applying/editing own leaves
 	const [showLeaveForm, setShowLeaveForm] = useState(false);
 	const [editingLeave, setEditingLeave] = useState(null);
@@ -110,7 +110,7 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 				return fromDate && fromDate.getFullYear() === year;
 			});
 			setAllOrgLeaves(currentYearLeaves);
-			
+
 			// Load management's own leaves
 			try {
 				const myLeavesResponse = await getMyLeaves({ year });
@@ -118,7 +118,7 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 			} catch (err) {
 				console.error('Error loading my leaves:', err);
 			}
-			
+
 			// Load leave balance
 			try {
 				const balanceResponse = await getMyLeaveBalance(year);
@@ -127,7 +127,7 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 			} catch (err) {
 				console.error('Error loading balance:', err);
 			}
-			
+
 			// Check eligibility
 			try {
 				const eligibilityResponse = await checkLeaveEligibility();
@@ -135,7 +135,7 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 			} catch (err) {
 				console.error('Error checking eligibility:', err);
 			}
-			
+
 			// Load department colleagues
 			try {
 				const colleaguesResponse = await getDepartmentColleagues();
@@ -350,7 +350,7 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 		return false;
 	};
 
-	const openLeaveModal = (date) => {  
+	const openLeaveModal = (date) => {
 		const dayLeaves = getTeamLeavesForDate(date);
 		const otherLeaves = (dayLeaves || []).filter(l => !isLeaveByCurrentUser(l));
 		setSelectedLeaveDate(date);
@@ -526,16 +526,16 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 
 	// Open leave form for new application
 	const openLeaveForm = (date = null) => {
-		const formattedDate = date 
+		const formattedDate = date
 			? formatDateForInput(date)
 			: formatDateForInput(selectedDate);
-		
+
 		const initialForm = {
 			from_date: formattedDate,
 			to_date: formattedDate,
 			leave_duration: 'Full Day',
 			day_type: 'full',
-			leave_type: 'Earned Leave',
+			leave_type: hasLeaveBalance ? 'Earned Leave' : 'Leave without pay',
 			leave_reason: '',
 			duration: 1,
 			alternate_person: '',
@@ -601,7 +601,7 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 	const handleDateClick = (date) => {
 		setSelectedDate(date);
 		const leave = getMyLeaveForDate(date);
-		
+
 		if (leave) {
 			// If leave exists, show detail modal
 			setShowDateDetail(true);
@@ -612,7 +612,7 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 				to_date: formatDateForInput(date),
 				leave_duration: 'Full Day',
 				day_type: 'full',
-				leave_type: 'Earned Leave',
+				leave_type: hasLeaveBalance ? 'Earned Leave' : 'Leave without pay',
 				leave_reason: '',
 				duration: 1,
 				alternate_person: '',
@@ -627,8 +627,8 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 			}
 			setLeaveForm(initialForm);
 			setEditingLeave(null);
-							setSelectedStaffBalance(null);
-					setSelectedStaffBalance(null);
+			setSelectedStaffBalance(null);
+			setSelectedStaffBalance(null);
 			setShowLeaveForm(true);
 		}
 	};
@@ -638,7 +638,7 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 		e.preventDefault();
 		setLoading(true);
 		setError(null);
-		
+
 		try {
 			if (isHrUser && !leaveForm.user_id) {
 				throw new Error('Please select a staff member');
@@ -660,7 +660,7 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 					window.alert(`Your leave was split into ${count} separate requests (Earned Leave / Leave without pay).`);
 				}
 			}
-			
+
 			handleCloseLeaveForm();
 			await loadData();
 		} catch (err) {
@@ -676,10 +676,10 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 		if (!window.confirm('Are you sure you want to cancel this leave?')) {
 			return;
 		}
-		
+
 		setLoading(true);
 		setError(null);
-		
+
 		try {
 			await cancelLeave(leaveId);
 			await loadData();
@@ -777,10 +777,10 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 
 	// Format date helper
 	const formatDateDisplay = (dateStr) => {
-		return new Date(dateStr).toLocaleDateString('en-US', { 
-			year: 'numeric', 
-			month: 'short', 
-			day: 'numeric' 
+		return new Date(dateStr).toLocaleDateString('en-US', {
+			year: 'numeric',
+			month: 'short',
+			day: 'numeric'
 		});
 	};
 
@@ -795,6 +795,8 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 	const dutyLeaveDays = myLeaves
 		.filter(l => isDutyLeave(l) && l.status !== 'Rejected' && l.status !== 'Cancelled')
 		.reduce((sum, l) => sum + parseFloat(l.credited_days || l.duration || 0), 0);
+	const effectiveBalance = (isHrUser && leaveForm.user_id) ? selectedStaffBalance : leaveBalance;
+	const hasLeaveBalance = effectiveBalance && (parseFloat(effectiveBalance.leave_balance || 0) > 0 || parseFloat(effectiveBalance.leave_entitled || 0) > 0 || parseFloat(effectiveBalance.leaves_accumulated || 0) > 0);
 
 	const monthLeaves = useMemo(() => {
 		return leaves.filter(overlapsMonth);
@@ -802,460 +804,374 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 
 	return (
 		<>
-		<div className="w-full space-y-6">
-			{error && (
-				<div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-					{error}
-				</div>
-			)}
-			
-
-
-		{/* Filter Section for All Org Leaves */}
-		<div className="bg-white rounded-lg shadow-lg p-6">
-			
-			<table className="w-full mb-4 border rounded-lg overflow-hidden">
-				<thead>
-					<tr>
-						<th colSpan="6" className="bg-blue-600 text-white text-lg font-semibold py-2 px-4 text-left">Leave Search Filter</th>
-					</tr>
-				</thead>
-				<tbody>
-					<tr>
-						<td className="py-2 px-2" colSpan="6">
-							<div className="flex flex-row items-end gap-4 w-full flex-wrap">
-								<div className="min-w-[150px] max-w-[200px] flex-1">
-									<label className="block text-xs font-semibold text-gray-600 mb-1">From Date</label>
-									<input 
-										type="date" 
-										className="border rounded px-3 py-2 w-full" 
-										value={filter.from} 
-										onChange={e => { setFilter(f => ({ ...f, from: e.target.value })); setCurrentPage(1); }}
-									/>
-								</div>
-								<div className="min-w-[150px] max-w-[200px] flex-1">
-									<label className="block text-xs font-semibold text-gray-600 mb-1">To Date</label>
-									<input 
-										type="date" 
-										className="border rounded px-3 py-2 w-full" 
-										value={filter.to} 
-										onChange={e => { setFilter(f => ({ ...f, to: e.target.value })); setCurrentPage(1); }}
-									/>
-								</div>
-								<div className="min-w-[100px] max-w-[120px] flex-1">
-									<label className="block text-xs font-semibold text-gray-600 mb-1">Year</label>
-									<select
-										className="border rounded px-3 py-2 w-full text-left"
-										value={filter.year}
-										onChange={e => { setFilter(f => ({ ...f, year: Number(e.target.value) })); setCurrentPage(1); }}
-									>
-										{[currentYear - 1, currentYear, currentYear + 1].map(y => (
-											<option key={y} value={y}>{y}</option>
-										))}
-									</select>
-								</div>
-								<div className="min-w-[160px] max-w-[200px] flex-1">
-									<label className="block text-xs font-semibold text-gray-600 mb-1">Department</label>
-									<select 
-										className="border rounded px-3 py-2 w-full" 
-										value={filter.department} 
-										onChange={e => { setFilter(f => ({ ...f, department: e.target.value })); setCurrentPage(1); }}
-									>
-										<option value="all">All Departments</option>
-										{departmentOptions.map(dept => (
-											<option key={dept} value={dept}>{dept}</option>
-										))}
-									</select>
-								</div>
-								<div className="min-w-[180px] max-w-[240px] flex-1">
-									<label className="block text-xs font-semibold text-gray-600 mb-1">Username</label>
-									<div className="relative">
-										<span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
-											<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-												<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 1110.5 3a7.5 7.5 0 016.15 13.65z" />
-											</svg>
-										</span>
-										<input 
-											type="text" 
-											className="border rounded px-3 py-2 pl-10 w-full" 
-											placeholder="Search by username" 
-											value={filter.username} 
-											onChange={e => { setFilter(f => ({ ...f, username: e.target.value })); setCurrentPage(1); }}
-										/>
-									</div>
-								</div>
-								<div className="flex flex-row items-end gap-2 ml-2">
-									<button
-										className="bg-blue-600 text-white px-6 py-2 rounded font-semibold hover:bg-blue-700 transition"
-										onClick={() => {
-											if (filter.from || filter.to || filter.department !== 'all' || filter.username) {
-												setShowFilteredTable(true);
-												setCurrentPage(1);
-											} else if (filter.department === 'all') {
-												setShowFilteredTable(true);
-												setCurrentPage(1);
-											} else {
-												setShowFilteredTable(false);
-												alert('Please fill at least one filter to search.');
-											}
-										}}
-									>
-										Search
-									</button>
-									{showFilteredTable && (
-										<button
-											className="bg-gray-200 text-gray-700 px-4 py-2 rounded font-semibold hover:bg-gray-300 transition"
-											onClick={() => {
-												setShowFilteredTable(false);
-												setFilter({ from: '', to: '', year: currentYear, department: 'all', username: '' });
-												setCurrentPage(1);
-											}}
-										>
-											Reset
-										</button>
-									)}
-								</div>
-							</div>
-						</td>
-					</tr>
-				</tbody>
-			</table>
-
-			{/* Filtered Table */}
-			{showFilteredTable && (
-				<div className="mt-6 overflow-hidden bg-white shadow-xl rounded-xl">
-										<div className="overflow-x-auto overflow-hidden rounded-t-lg">
-						<table className="min-w-full divide-y divide-gray-200">
-							<thead className="bg-blue-600">
-								<tr>
-									<th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">S.No</th>
-									<th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Name</th>
-									<th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Role</th>
-									<th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Department</th>
-									<th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Date Range</th>
-									<th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Duration</th>
-									<th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Reason</th>
-									<th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Status</th>
-									<th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Action</th>
-								</tr>
-							</thead>
-							<tbody className="bg-white divide-y divide-gray-200">
-								{loading ? (
-									<tr><td colSpan="9" className="p-8 text-center text-gray-500">Loading...</td></tr>
-								) : paginatedOrgLeaves.length === 0 ? (
-									<tr><td colSpan="9" className="p-8 text-center text-gray-500">No leaves found matching the filters</td></tr>
-								) : (
-									paginatedOrgLeaves.map((leave, idx) => (
-										<tr key={leave.id} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-colors duration-150`}>
-											<td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{(currentPage - 1) * itemsPerPage + idx + 1}</td>
-											<td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{leave.user_name || '-'}</td>
-											<td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{leave.user_role || '-'}</td>
-											<td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{leave.department_name || '-'}</td>
-											<td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{formatDateDisplay(leave.from_date)} - {formatDateDisplay(leave.to_date)}</td>
-											<td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{leave.credited_days} day(s)</td>
-											<td className="px-6 py-4 text-sm text-gray-900">{leave.leave_reason || '-'}</td>
-											<td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-												<span className={`px-3 py-1 rounded-full text-white text-xs font-semibold ${getLeaveBadgeColor(leave.status)}`}>
-													{leave.status}
-												</span>
-											</td>
-											<td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
-												<div className="flex justify-center gap-2">
-													<button
-														onClick={() => openEditForm(leave)}
-														className="p-2 text-white rounded-lg bg-blue-500 hover:bg-blue-600"
-														title="Edit leave"
-													>
-														<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-															<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536M9 13l6.536-6.536a2 2 0 112.828 2.828L11.828 15.828a2 2 0 01-2.828 0L9 13z" />
-														</svg>
-													</button>
-													<button
-														onClick={() => { if (leave.status !== 'Approved' && leave.status !== 'Rejected') { if (window.confirm('Are you sure you want to cancel this leave?')) { handleCancelLeave(leave.id); } } }}
-														className={`p-2 text-white rounded-lg ${leave.status === 'Approved' || leave.status === 'Rejected' ? 'bg-gray-400 cursor-not-allowed' : 'bg-red-500 hover:bg-red-600'}`}
-														disabled={leave.status === 'Approved' || leave.status === 'Rejected'}
-														title="Delete leave"
-													>
-														<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-															<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-														</svg>
-													</button>
-												</div>
-											</td>
-										</tr>
-									))
-								)}
-							</tbody>
-						</table>
+			<div className="w-full space-y-6">
+				{error && (
+					<div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+						{error}
 					</div>
+				)}
 
-					{/* Pagination */}
-					{totalPages > 1 && (
-						<div className="flex justify-end items-center gap-2 p-4">
-							<button
-								className="px-3 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50"
-								disabled={currentPage === 1}
-								onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-							>Prev</button>
-							<span className="text-sm">Page {currentPage} of {totalPages}</span>
-							<button
-								className="px-3 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50"
-								disabled={currentPage === totalPages}
-								onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-							>Next</button>
-						</div>
-					)}
-				</div>
-			)}
-		</div>
 
-			<div className="bg-white rounded-lg shadow-lg p-6">
-				<div className="flex items-center justify-between mb-6">
-					<div>
-						<h2 className="text-2xl font-bold text-gray-800">{title}</h2>
-						{/* <p className="text-sm text-gray-600">Pending leaves from Employees (&gt;2 days) and HODs</p> */}
-					</div>
 
-					<div className="flex items-center gap-4">
-						<div className="flex gap-2 bg-gray-100 p-1 rounded-lg">
-							<button
-								onClick={() => setViewMode('month')}
-								className={`px-4 py-2 rounded transition-colors ${
-									viewMode === 'month'
-										? 'bg-blue-600 text-white'
-										: 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-								}`}
-							>
-								Month
-							</button>
-							<button
-								onClick={() => setViewMode('week')}
-								className={`px-4 py-2 rounded transition-colors ${
-									viewMode === 'week'
-										? 'bg-blue-600 text-white'
-										: 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-								}`}
-							>
-								Week
-							</button>
-							<button
-								onClick={() => setViewMode('list')}
-								className={`px-4 py-2 rounded transition-colors ${
-									viewMode === 'list'
-										? 'bg-blue-600 text-white'
-										: 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-								}`}
-							>
-								List
-							</button>
-						</div>
-					</div>
-				</div>
+				{/* Filter Section for All Org Leaves */}
+				<div className="bg-white rounded-lg shadow-lg p-6">
 
-				{loading ? (
-					<div className="py-10 text-center text-gray-500">Loading...</div>
-				) : (
-					<>
-						{viewMode === 'month' && (
-							<div>
-								<div className="mb-6 flex items-center justify-center gap-4">
-									<button
-										onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1))}
-										className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold text-lg"
-									>
-										&lt;
-									</button>
-									<h3 className="text-xl font-semibold text-gray-800 min-w-48 text-center">
-										{formatMonthYear(currentDate)}
-									</h3>
-									<button
-										onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1))}
-										className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold text-lg"
-									>
-										&gt;
-									</button>
-								</div>
-
-								<div className="grid grid-cols-7 gap-1 mb-2">
-									{dayNames.map((day) => (
-										<div
-											key={day}
-											className="bg-blue-100 text-blue-800 font-semibold text-center py-2 rounded"
-										>
-											{day}
+					<table className="w-full mb-4 border rounded-lg overflow-hidden">
+						<thead>
+							<tr>
+								<th colSpan="6" className="bg-blue-600 text-white text-lg font-semibold py-2 px-4 text-left">Leave Search Filter</th>
+							</tr>
+						</thead>
+						<tbody>
+							<tr>
+								<td className="py-2 px-2" colSpan="6">
+									<div className="flex flex-row items-end gap-4 w-full flex-wrap">
+										<div className="min-w-[150px] max-w-[200px] flex-1">
+											<label className="block text-xs font-semibold text-gray-600 mb-1">From Date</label>
+											<input
+												type="date"
+												className="border rounded px-3 py-2 w-full"
+												value={filter.from}
+												onChange={e => { setFilter(f => ({ ...f, from: e.target.value })); setCurrentPage(1); }}
+											/>
 										</div>
-									))}
-								</div>
-					{/* Ticket Modal */}
-					{showTicketModal && (
-						<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-							<div className="bg-white rounded-lg shadow-xl w-full max-w-5xl max-h-[90vh] overflow-y-auto">
-								<div className="p-6">
-									<div className="flex items-center justify-between mb-4">
-										<h3 className="text-xl font-bold text-gray-800">Tickets</h3>
-										<button onClick={closeTicketModal} className="text-gray-500 hover:text-gray-700 text-2xl">×</button>
-									</div>
-									{selectedTickets.length === 0 ? (
-										<div className="text-center text-gray-500 py-8">No tickets for this date</div>
-									) : (
-										<div className="overflow-x-auto">
-											<table className="min-w-full text-sm border">
-												<thead className="bg-blue-600 text-white">
-													<tr>
-														<th className="text-left px-4 py-2 border">Title</th>
-														<th className="text-left px-4 py-2 border">Description</th>
-														<th className="text-left px-4 py-2 border">Category</th>
-														<th className="text-left px-4 py-2 border">Priority</th>
-														<th className="text-left px-4 py-2 border">Due Date</th>
-														{isPrivilegedUser && <th className="text-left px-4 py-2 border">Rejected By</th>}
-														{isPrivilegedUser && <th className="text-left px-4 py-2 border">Rejected Reason</th>}
-														{isPrivilegedUser && <th className="text-left px-4 py-2 border">Rejected Date</th>}
-														{isPrivilegedUser && <th className="text-left px-4 py-2 border">Closed Date</th>}
-													</tr>
-												</thead>
-												<tbody>
-													{selectedTickets.map((t) => (
-														<tr key={t.id} className="border-t">
-															<td className="px-4 py-2 border">{t.title || '-'}</td>
-															<td className="px-4 py-2 border">{t.description || '-'}</td>
-															<td className="px-4 py-2 border">{t.category || t.ticket_category || '-'}</td>
-															<td className="px-4 py-2 border">{t.priority || '-'}</td>
-															<td className="px-4 py-2 border">{t.due_date ? formatDateDisplay(t.due_date) : '-'}</td>
-															{isPrivilegedUser && <td className="px-4 py-2 border">{getRejectedByDisplayName(t)}</td>}
-															{isPrivilegedUser && <td className="px-4 py-2 border">{getRejectedReasonDisplay(t)}</td>}
-															{isPrivilegedUser && <td className="px-4 py-2 border">{getRejectedDateDisplay(t)}</td>}
-															{isPrivilegedUser && <td className="px-4 py-2 border">{getClosedDateDisplay(t)}</td>}
-														</tr>
-													))}
-												</tbody>
-											</table>
+										<div className="min-w-[150px] max-w-[200px] flex-1">
+											<label className="block text-xs font-semibold text-gray-600 mb-1">To Date</label>
+											<input
+												type="date"
+												className="border rounded px-3 py-2 w-full"
+												value={filter.to}
+												onChange={e => { setFilter(f => ({ ...f, to: e.target.value })); setCurrentPage(1); }}
+											/>
 										</div>
-									)}
-								</div>
-							</div>
-						</div>
-					)}
-
-								<div className="grid grid-cols-7 gap-1">
-									{monthDays.map((date, index) => {
-										const teamLeaves = getTeamLeavesForDate(date);
-										const otherLeaves = (teamLeaves || []).filter(l => !isLeaveByCurrentUser(l));
-										const myLeave = getMyLeaveForDate(date);
-										return (
-											<div
-												key={index}
-												className={`min-h-[110px] p-2 border rounded cursor-pointer ${
-													date ? 'bg-white' : 'bg-gray-50'
-												} ${isToday(date) ? 'border-emerald-500' : 'border-gray-200'}`}
-												onClick={() => date && handleDateClick(date)}
+										<div className="min-w-[100px] max-w-[120px] flex-1">
+											<label className="block text-xs font-semibold text-gray-600 mb-1">Year</label>
+											<select
+												className="border rounded px-3 py-2 w-full text-left"
+												value={filter.year}
+												onChange={e => { setFilter(f => ({ ...f, year: Number(e.target.value) })); setCurrentPage(1); }}
 											>
-												{date && (
-													<>
-														<div className="text-sm font-semibold text-gray-700 mb-1">
-															{date.getDate()}
-														</div>
-														{isToday(date) && (
-															<div className="text-blue-600 text-xs font-italic">Today</div>
-														)}
-														{myLeave && (
-															<div className="mt-1">
-																<button
-																	className="inline-flex items-center gap-2 bg-blue-600 text-white text-xs font-semibold px-2 py-0.5 rounded-full shadow-sm hover:bg-blue-700 focus:outline-none"
-																	title="Click to view/edit my leave"
-																	aria-label="View my leave"
-																	onClick={(e) => { e.stopPropagation(); handleDateClick(date); }}
-																	onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); handleDateClick(date); } }}
-																>
-																																		<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-																		<path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
-																	</svg>
-																	<span className="text-[10px]">Me</span>
-																</button>
-															</div>
-														)}
-													</>
-												)}
-																									{otherLeaves.length > 0 && (() => {
-																										const leaveWithoutPayCount = (otherLeaves || []).filter(l => isLeaveWithoutPay(l)).length;
-																										const earnedLeaveCount = (otherLeaves || []).length - leaveWithoutPayCount;
-																										const total = otherLeaves.length;
-																										const earnedPct = total > 0 ? Math.round((earnedLeaveCount / total) * 100) : 50;
-																										const deptBadgeStyle = (earnedLeaveCount > 0 && leaveWithoutPayCount > 0) ? { background: `linear-gradient(to right, #3b82f6 ${earnedPct}%, #ef4444 ${earnedPct}%)` } : null;
-																										const deptBadgeClass = (earnedLeaveCount > 0 && leaveWithoutPayCount === 0) ? 'bg-blue-600 hover:bg-blue-700' : (leaveWithoutPayCount > 0 && earnedLeaveCount === 0) ? 'bg-red-600 hover:bg-red-700' : 'bg-purple-600 hover:bg-purple-700';
-																										return (
-																											<div className="mt-2">
-																												<button
-																													className={`inline-flex items-center gap-2 text-white text-xs font-semibold px-2 py-0.5 rounded-full shadow-sm focus:outline-none ${deptBadgeClass}`}
-																													style={deptBadgeStyle}
-																													title="Org. leaves"
-																													aria-label={`View ${otherLeaves.length} org leave${otherLeaves.length > 1 ? 's' : ''}`}
-																													onClick={(e) => { e.stopPropagation(); openLeaveModal(date); }}
-																													onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); openLeaveModal(date); } }}
-																												>
-																													<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" className="h-6 w-6" aria-hidden="true"><path d="M2 22C2 17.5817 5.58172 14 10 14C14.4183 14 18 17.5817 18 22H16C16 18.6863 13.3137 16 10 16C6.68629 16 4 18.6863 4 22H2ZM10 13C6.685 13 4 10.315 4 7C4 3.685 6.685 1 10 1C13.315 1 16 3.685 16 7C16 10.315 13.315 13 10 13ZM10 11C12.21 11 14 9.21 14 7C14 4.79 12.21 3 10 3C7.79 3 6 4.79 6 7C6 9.21 7.79 11 10 11ZM18.2837 14.7028C21.0644 15.9561 23 18.752 23 22H21C21 19.564 19.5483 17.4671 17.4628 16.5271L18.2837 14.7028ZM17.5962 3.41321C19.5944 4.23703 21 6.20361 21 8.5C21 11.3702 18.8042 13.7252 16 13.9776V11.9646C17.6967 11.7222 19 10.264 19 8.5C19 7.11935 18.2016 5.92603 17.041 5.35635L17.5962 3.41321Z"/></svg>
-																													{otherLeaves.length >= 1 && (
-																														<span className="bg-white text-purple-700 text-[10px] font-semibold rounded-full px-1 py-0.5">{otherLeaves.length}</span>
-																													)}
-																												</button>
-																												</div>
-																												);
-																									})()}
-												{(() => {
-													const dayTickets = getTicketsForDate(date);
-													return dayTickets.length > 0 ? (
-														<div className="mt-2">
-															<button
-																className="inline-flex items-center gap-2 bg-green-600 text-white text-xs font-semibold px-2 py-0.5 rounded-full shadow-sm hover:bg-green-700 focus:outline-none"
-																title={`View ${dayTickets.length} ticket(s)`}
-																aria-label={`View ${dayTickets.length} ticket${dayTickets.length > 1 ? 's' : ''}`}
-																onClick={(e) => { e.stopPropagation(); openTicketModal(date); }}
-															>
-																	<span aria-hidden="true" className="h-6 w-6 inline-flex items-center justify-center text-[24px]">🎫</span>
-																{dayTickets.length >= 1 && (
-																	<span className="bg-white text-green-700 text-[10px] font-semibold rounded-full px-1 py-0.5">{dayTickets.length}</span>
-																)}
-															</button>
-														</div>
-													) : null;
-												})()}
+												{[currentYear - 1, currentYear, currentYear + 1].map(y => (
+													<option key={y} value={y}>{y}</option>
+												))}
+											</select>
+										</div>
+										<div className="min-w-[160px] max-w-[200px] flex-1">
+											<label className="block text-xs font-semibold text-gray-600 mb-1">Department</label>
+											<select
+												className="border rounded px-3 py-2 w-full"
+												value={filter.department}
+												onChange={e => { setFilter(f => ({ ...f, department: e.target.value })); setCurrentPage(1); }}
+											>
+												<option value="all">All Departments</option>
+												{departmentOptions.map(dept => (
+													<option key={dept} value={dept}>{dept}</option>
+												))}
+											</select>
+										</div>
+										<div className="min-w-[180px] max-w-[240px] flex-1">
+											<label className="block text-xs font-semibold text-gray-600 mb-1">Username</label>
+											<div className="relative">
+												<span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+													<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+														<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 1110.5 3a7.5 7.5 0 016.15 13.65z" />
+													</svg>
+												</span>
+												<input
+													type="text"
+													className="border rounded px-3 py-2 pl-10 w-full"
+													placeholder="Search by username"
+													value={filter.username}
+													onChange={e => { setFilter(f => ({ ...f, username: e.target.value })); setCurrentPage(1); }}
+												/>
 											</div>
-										);
-									})}
-								</div>
-							</div>
-						)}
+										</div>
+										<div className="flex flex-row items-end gap-2 ml-2">
+											<button
+												className="bg-blue-600 text-white px-6 py-2 rounded font-semibold hover:bg-blue-700 transition"
+												onClick={() => {
+													if (filter.from || filter.to || filter.department !== 'all' || filter.username) {
+														setShowFilteredTable(true);
+														setCurrentPage(1);
+													} else if (filter.department === 'all') {
+														setShowFilteredTable(true);
+														setCurrentPage(1);
+													} else {
+														setShowFilteredTable(false);
+														alert('Please fill at least one filter to search.');
+													}
+												}}
+											>
+												Search
+											</button>
+											{showFilteredTable && (
+												<button
+													className="bg-gray-200 text-gray-700 px-4 py-2 rounded font-semibold hover:bg-gray-300 transition"
+													onClick={() => {
+														setShowFilteredTable(false);
+														setFilter({ from: '', to: '', year: currentYear, department: 'all', username: '' });
+														setCurrentPage(1);
+													}}
+												>
+													Reset
+												</button>
+											)}
+										</div>
+									</div>
+								</td>
+							</tr>
+						</tbody>
+					</table>
 
-						{viewMode === 'week' && (
-							<div>
-								<div className="mb-6 text-center">
-									<h3 className="text-xl font-semibold text-gray-800">
-										{formatWeekRange(weekDays[0])}
-									</h3>
-								</div>
-								<div className="grid grid-cols-7 gap-2">
-									{weekDays.map((date, index) => {
-										const teamLeaves = getTeamLeavesForDate(date);
-										const otherLeaves = (teamLeaves || []).filter(l => !isLeaveByCurrentUser(l));
-										const myLeave = getMyLeaveForDate(date);
-										return (
-											<div key={index} className="border rounded p-3">
-												<div className="text-sm font-semibold text-gray-700 mb-2">
-													{formatDate(date)}
-												</div>
-												<div className="space-y-1">
-													{myLeave && (
-														<div>
+					{/* Filtered Table */}
+					{showFilteredTable && (
+						<div className="mt-6 overflow-hidden bg-white shadow-xl rounded-xl">
+							<div className="overflow-x-auto overflow-hidden rounded-t-lg">
+								<table className="min-w-full divide-y divide-gray-200">
+									<thead className="bg-blue-600">
+										<tr>
+											<th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">S.No</th>
+											<th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Name</th>
+											<th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Role</th>
+											<th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Department</th>
+											<th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Date Range</th>
+											<th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Duration</th>
+											<th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Reason</th>
+											<th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Status</th>
+											<th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Action</th>
+										</tr>
+									</thead>
+									<tbody className="bg-white divide-y divide-gray-200">
+										{loading ? (
+											<tr><td colSpan="9" className="p-8 text-center text-gray-500">Loading...</td></tr>
+										) : paginatedOrgLeaves.length === 0 ? (
+											<tr><td colSpan="9" className="p-8 text-center text-gray-500">No leaves found matching the filters</td></tr>
+										) : (
+											paginatedOrgLeaves.map((leave, idx) => (
+												<tr key={leave.id} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-colors duration-150`}>
+													<td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{(currentPage - 1) * itemsPerPage + idx + 1}</td>
+													<td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{leave.user_name || '-'}</td>
+													<td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{leave.user_role || '-'}</td>
+													<td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{leave.department_name || '-'}</td>
+													<td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{formatDateDisplay(leave.from_date)} - {formatDateDisplay(leave.to_date)}</td>
+													<td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{leave.credited_days} day(s)</td>
+													<td className="px-6 py-4 text-sm text-gray-900">{leave.leave_reason || '-'}</td>
+													<td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+														<span className={`px-3 py-1 rounded-full text-white text-xs font-semibold ${getLeaveBadgeColor(leave.status)}`}>
+															{leave.status}
+														</span>
+													</td>
+													<td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
+														<div className="flex justify-center gap-2">
 															<button
-																className="inline-flex items-center gap-2 bg-blue-600 text-white text-xs font-semibold px-2 py-0.5 rounded-full shadow-sm hover:bg-blue-700 focus:outline-none"
-																title="Click to view/edit my leave"
-																aria-label="View my leave"
-																onClick={(e) => { e.stopPropagation(); handleDateClick(date); }}
-																onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); handleDateClick(date); } }}
+																onClick={() => openEditForm(leave)}
+																className="p-2 text-white rounded-lg bg-blue-500 hover:bg-blue-600"
+																title="Edit leave"
 															>
-																<span className="text-sm">👤</span>
-																<span className="text-[10px]">Me</span>
+																<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+																	<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536M9 13l6.536-6.536a2 2 0 112.828 2.828L11.828 15.828a2 2 0 01-2.828 0L9 13z" />
+																</svg>
+															</button>
+															<button
+																onClick={() => { if (leave.status !== 'Approved' && leave.status !== 'Rejected') { if (window.confirm('Are you sure you want to cancel this leave?')) { handleCancelLeave(leave.id); } } }}
+																className={`p-2 text-white rounded-lg ${leave.status === 'Approved' || leave.status === 'Rejected' ? 'bg-gray-400 cursor-not-allowed' : 'bg-red-500 hover:bg-red-600'}`}
+																disabled={leave.status === 'Approved' || leave.status === 'Rejected'}
+																title="Delete leave"
+															>
+																<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+																	<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+																</svg>
 															</button>
 														</div>
+													</td>
+												</tr>
+											))
+										)}
+									</tbody>
+								</table>
+							</div>
+
+							{/* Pagination */}
+							{totalPages > 1 && (
+								<div className="flex justify-end items-center gap-2 p-4">
+									<button
+										className="px-3 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50"
+										disabled={currentPage === 1}
+										onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+									>Prev</button>
+									<span className="text-sm">Page {currentPage} of {totalPages}</span>
+									<button
+										className="px-3 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50"
+										disabled={currentPage === totalPages}
+										onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+									>Next</button>
+								</div>
+							)}
+						</div>
+					)}
+				</div>
+
+				<div className="bg-white rounded-lg shadow-lg p-6">
+					<div className="flex items-center justify-between mb-6">
+						<div>
+							<h2 className="text-2xl font-bold text-gray-800">{title}</h2>
+							{/* <p className="text-sm text-gray-600">Pending leaves from Employees (&gt;2 days) and HODs</p> */}
+						</div>
+
+						<div className="flex items-center gap-4">
+							<div className="flex gap-2 bg-gray-100 p-1 rounded-lg">
+								<button
+									onClick={() => setViewMode('month')}
+									className={`px-4 py-2 rounded transition-colors ${viewMode === 'month'
+										? 'bg-blue-600 text-white'
+										: 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+										}`}
+								>
+									Month
+								</button>
+								<button
+									onClick={() => setViewMode('week')}
+									className={`px-4 py-2 rounded transition-colors ${viewMode === 'week'
+										? 'bg-blue-600 text-white'
+										: 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+										}`}
+								>
+									Week
+								</button>
+								<button
+									onClick={() => setViewMode('list')}
+									className={`px-4 py-2 rounded transition-colors ${viewMode === 'list'
+										? 'bg-blue-600 text-white'
+										: 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+										}`}
+								>
+									List
+								</button>
+							</div>
+						</div>
+					</div>
+
+					{loading ? (
+						<div className="py-10 text-center text-gray-500">Loading...</div>
+					) : (
+						<>
+							{viewMode === 'month' && (
+								<div>
+									<div className="mb-6 flex items-center justify-center gap-4">
+										<button
+											onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1))}
+											className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold text-lg"
+										>
+											&lt;
+										</button>
+										<h3 className="text-xl font-semibold text-gray-800 min-w-48 text-center">
+											{formatMonthYear(currentDate)}
+										</h3>
+										<button
+											onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1))}
+											className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold text-lg"
+										>
+											&gt;
+										</button>
+									</div>
+
+									<div className="grid grid-cols-7 gap-1 mb-2">
+										{dayNames.map((day) => (
+											<div
+												key={day}
+												className="bg-blue-100 text-blue-800 font-semibold text-center py-2 rounded"
+											>
+												{day}
+											</div>
+										))}
+									</div>
+									{/* Ticket Modal */}
+									{showTicketModal && (
+										<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+											<div className="bg-white rounded-lg shadow-xl w-full max-w-5xl max-h-[90vh] overflow-y-auto">
+												<div className="p-6">
+													<div className="flex items-center justify-between mb-4">
+														<h3 className="text-xl font-bold text-gray-800">Tickets</h3>
+														<button onClick={closeTicketModal} className="text-gray-500 hover:text-gray-700 text-2xl">×</button>
+													</div>
+													{selectedTickets.length === 0 ? (
+														<div className="text-center text-gray-500 py-8">No tickets for this date</div>
+													) : (
+														<div className="overflow-x-auto">
+															<table className="min-w-full text-sm border">
+																<thead className="bg-blue-600 text-white">
+																	<tr>
+																		<th className="text-left px-4 py-2 border">Title</th>
+																		<th className="text-left px-4 py-2 border">Description</th>
+																		<th className="text-left px-4 py-2 border">Category</th>
+																		<th className="text-left px-4 py-2 border">Priority</th>
+																		<th className="text-left px-4 py-2 border">Due Date</th>
+																		{isPrivilegedUser && <th className="text-left px-4 py-2 border">Rejected By</th>}
+																		{isPrivilegedUser && <th className="text-left px-4 py-2 border">Rejected Reason</th>}
+																		{isPrivilegedUser && <th className="text-left px-4 py-2 border">Rejected Date</th>}
+																		{isPrivilegedUser && <th className="text-left px-4 py-2 border">Closed Date</th>}
+																	</tr>
+																</thead>
+																<tbody>
+																	{selectedTickets.map((t) => (
+																		<tr key={t.id} className="border-t">
+																			<td className="px-4 py-2 border">{t.title || '-'}</td>
+																			<td className="px-4 py-2 border">{t.description || '-'}</td>
+																			<td className="px-4 py-2 border">{t.category || t.ticket_category || '-'}</td>
+																			<td className="px-4 py-2 border">{t.priority || '-'}</td>
+																			<td className="px-4 py-2 border">{t.due_date ? formatDateDisplay(t.due_date) : '-'}</td>
+																			{isPrivilegedUser && <td className="px-4 py-2 border">{getRejectedByDisplayName(t)}</td>}
+																			{isPrivilegedUser && <td className="px-4 py-2 border">{getRejectedReasonDisplay(t)}</td>}
+																			{isPrivilegedUser && <td className="px-4 py-2 border">{getRejectedDateDisplay(t)}</td>}
+																			{isPrivilegedUser && <td className="px-4 py-2 border">{getClosedDateDisplay(t)}</td>}
+																		</tr>
+																	))}
+																</tbody>
+															</table>
+														</div>
+													)}
+												</div>
+											</div>
+										</div>
+									)}
+
+									<div className="grid grid-cols-7 gap-1">
+										{monthDays.map((date, index) => {
+											const teamLeaves = getTeamLeavesForDate(date);
+											const otherLeaves = (teamLeaves || []).filter(l => !isLeaveByCurrentUser(l));
+											const myLeave = getMyLeaveForDate(date);
+											return (
+												<div
+													key={index}
+													className={`min-h-[110px] p-2 border rounded cursor-pointer ${date ? 'bg-white' : 'bg-gray-50'
+														} ${isToday(date) ? 'border-emerald-500' : 'border-gray-200'}`}
+													onClick={() => date && handleDateClick(date)}
+												>
+													{date && (
+														<>
+															<div className="text-sm font-semibold text-gray-700 mb-1">
+																{date.getDate()}
+															</div>
+															{isToday(date) && (
+																<div className="text-blue-600 text-xs font-italic">Today</div>
+															)}
+															{myLeave && (
+																<div className="mt-1">
+																	<button
+																		className="inline-flex items-center gap-2 bg-blue-600 text-white text-xs font-semibold px-2 py-0.5 rounded-full shadow-sm hover:bg-blue-700 focus:outline-none"
+																		title="Click to view/edit my leave"
+																		aria-label="View my leave"
+																		onClick={(e) => { e.stopPropagation(); handleDateClick(date); }}
+																		onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); handleDateClick(date); } }}
+																	>
+																		<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+																			<path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+																		</svg>
+																		<span className="text-[10px]">Me</span>
+																	</button>
+																</div>
+															)}
+														</>
 													)}
 													{otherLeaves.length > 0 && (() => {
 														const leaveWithoutPayCount = (otherLeaves || []).filter(l => isLeaveWithoutPay(l)).length;
@@ -1265,7 +1181,7 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 														const deptBadgeStyle = (earnedLeaveCount > 0 && leaveWithoutPayCount > 0) ? { background: `linear-gradient(to right, #3b82f6 ${earnedPct}%, #ef4444 ${earnedPct}%)` } : null;
 														const deptBadgeClass = (earnedLeaveCount > 0 && leaveWithoutPayCount === 0) ? 'bg-blue-600 hover:bg-blue-700' : (leaveWithoutPayCount > 0 && earnedLeaveCount === 0) ? 'bg-red-600 hover:bg-red-700' : 'bg-purple-600 hover:bg-purple-700';
 														return (
-															<div>
+															<div className="mt-2">
 																<button
 																	className={`inline-flex items-center gap-2 text-white text-xs font-semibold px-2 py-0.5 rounded-full shadow-sm focus:outline-none ${deptBadgeClass}`}
 																	style={deptBadgeStyle}
@@ -1274,7 +1190,7 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 																	onClick={(e) => { e.stopPropagation(); openLeaveModal(date); }}
 																	onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); openLeaveModal(date); } }}
 																>
-																	<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="currentColor" className="h-6 w-6" aria-hidden="true"><path d="M2 22C2 17.5817 5.58172 14 10 14C14.4183 14 18 17.5817 18 22H16C16 18.6863 13.3137 16 10 16C6.68629 16 4 18.6863 4 22H2ZM10 13C6.685 13 4 10.315 4 7C4 3.685 6.685 1 10 1C13.315 1 16 3.685 16 7C16 10.315 13.315 13 10 13ZM10 11C12.21 11 14 9.21 14 7C14 4.79 12.21 3 10 3C7.79 3 6 4.79 6 7C6 9.21 7.79 11 10 11ZM18.2837 14.7028C21.0644 15.9561 23 18.752 23 22H21C21 19.564 19.5483 17.4671 17.4628 16.5271L18.2837 14.7028ZM17.5962 3.41321C19.5944 4.23703 21 6.20361 21 8.5C21 11.3702 18.8042 13.7252 16 13.9776V11.9646C17.6967 11.7222 19 10.264 19 8.5C19 7.11935 18.2016 5.92603 17.041 5.35635L17.5962 3.41321Z"></path></svg>
+																	<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" className="h-6 w-6" aria-hidden="true"><path d="M2 22C2 17.5817 5.58172 14 10 14C14.4183 14 18 17.5817 18 22H16C16 18.6863 13.3137 16 10 16C6.68629 16 4 18.6863 4 22H2ZM10 13C6.685 13 4 10.315 4 7C4 3.685 6.685 1 10 1C13.315 1 16 3.685 16 7C16 10.315 13.315 13 10 13ZM10 11C12.21 11 14 9.21 14 7C14 4.79 12.21 3 10 3C7.79 3 6 4.79 6 7C6 9.21 7.79 11 10 11ZM18.2837 14.7028C21.0644 15.9561 23 18.752 23 22H21C21 19.564 19.5483 17.4671 17.4628 16.5271L18.2837 14.7028ZM17.5962 3.41321C19.5944 4.23703 21 6.20361 21 8.5C21 11.3702 18.8042 13.7252 16 13.9776V11.9646C17.6967 11.7222 19 10.264 19 8.5C19 7.11935 18.2016 5.92603 17.041 5.35635L17.5962 3.41321Z" /></svg>
 																	{otherLeaves.length >= 1 && (
 																		<span className="bg-white text-purple-700 text-[10px] font-semibold rounded-full px-1 py-0.5">{otherLeaves.length}</span>
 																	)}
@@ -1285,7 +1201,7 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 													{(() => {
 														const dayTickets = getTicketsForDate(date);
 														return dayTickets.length > 0 ? (
-															<div>
+															<div className="mt-2">
 																<button
 																	className="inline-flex items-center gap-2 bg-green-600 text-white text-xs font-semibold px-2 py-0.5 rounded-full shadow-sm hover:bg-green-700 focus:outline-none"
 																	title={`View ${dayTickets.length} ticket(s)`}
@@ -1301,300 +1217,357 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 														) : null;
 													})()}
 												</div>
-											</div>
-										);
-									})}
+											);
+										})}
+									</div>
 								</div>
-							</div>
-						)}
+							)}
 
-						{viewMode === 'list' && (
-							<div>
-								<div className="mb-6">
-									<h3 className="text-xl font-semibold text-gray-800 mb-4">
-										My Leaves
-									</h3>
-									{myLeaves.length === 0 ? (
-										<div className="text-center py-8 text-gray-500 bg-gray-50 rounded-lg">
-											No leaves applied yet
-										</div>
-									) : (
-										<div className="overflow-x-auto mb-8">
-											<table className="min-w-full bg-white border rounded-lg shadow">
-												<thead>
-													<tr className="bg-blue-100 text-blue-800">
-														<th className="py-2 px-4 text-center">Status</th>
-														<th className="py-2 px-4 text-center">Duration</th>
-													<th className="py-2 px-4 text-center">Reason</th>
-													<th className="py-2 px-4 text-center">Action</th>
-													</tr>
-												</thead>
-												<tbody>
-													{myLeaves.map((leave) => (
-														<tr key={leave.id} className="border-b hover:bg-blue-50">
-															<td className="py-2 px-4 text-center">
-																<span className={`px-3 py-1 rounded-full text-white text-sm ${getLeaveBadgeColor(leave.status)}`}>{leave.status}</span>
-															</td>
-															<td className="py-2 px-4 text-center">
-																{leave.leave_duration} ({leave.duration || leave.credited_days} day{(leave.duration || leave.credited_days) === 1 ? '' : 's'})
-															</td>
-															<td className="py-2 px-4 text-center">
-																{leave.leave_reason}
-															</td>
-															<td className="py-2 px-4 text-center">
-																<div className="flex justify-center gap-2">
+							{viewMode === 'week' && (
+								<div>
+									<div className="mb-6 text-center">
+										<h3 className="text-xl font-semibold text-gray-800">
+											{formatWeekRange(weekDays[0])}
+										</h3>
+									</div>
+									<div className="grid grid-cols-7 gap-2">
+										{weekDays.map((date, index) => {
+											const teamLeaves = getTeamLeavesForDate(date);
+											const otherLeaves = (teamLeaves || []).filter(l => !isLeaveByCurrentUser(l));
+											const myLeave = getMyLeaveForDate(date);
+											return (
+												<div key={index} className="border rounded p-3">
+													<div className="text-sm font-semibold text-gray-700 mb-2">
+														{formatDate(date)}
+													</div>
+													<div className="space-y-1">
+														{myLeave && (
+															<div>
+																<button
+																	className="inline-flex items-center gap-2 bg-blue-600 text-white text-xs font-semibold px-2 py-0.5 rounded-full shadow-sm hover:bg-blue-700 focus:outline-none"
+																	title="Click to view/edit my leave"
+																	aria-label="View my leave"
+																	onClick={(e) => { e.stopPropagation(); handleDateClick(date); }}
+																	onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); handleDateClick(date); } }}
+																>
+																	<span className="text-sm">👤</span>
+																	<span className="text-[10px]">Me</span>
+																</button>
+															</div>
+														)}
+														{otherLeaves.length > 0 && (() => {
+															const leaveWithoutPayCount = (otherLeaves || []).filter(l => isLeaveWithoutPay(l)).length;
+															const earnedLeaveCount = (otherLeaves || []).length - leaveWithoutPayCount;
+															const total = otherLeaves.length;
+															const earnedPct = total > 0 ? Math.round((earnedLeaveCount / total) * 100) : 50;
+															const deptBadgeStyle = (earnedLeaveCount > 0 && leaveWithoutPayCount > 0) ? { background: `linear-gradient(to right, #3b82f6 ${earnedPct}%, #ef4444 ${earnedPct}%)` } : null;
+															const deptBadgeClass = (earnedLeaveCount > 0 && leaveWithoutPayCount === 0) ? 'bg-blue-600 hover:bg-blue-700' : (leaveWithoutPayCount > 0 && earnedLeaveCount === 0) ? 'bg-red-600 hover:bg-red-700' : 'bg-purple-600 hover:bg-purple-700';
+															return (
+																<div>
 																	<button
-																		onClick={() => openEditForm(leave)}
-																		className="p-2 rounded bg-blue-500 text-white hover:bg-blue-600"
-																		title="Edit leave"
+																		className={`inline-flex items-center gap-2 text-white text-xs font-semibold px-2 py-0.5 rounded-full shadow-sm focus:outline-none ${deptBadgeClass}`}
+																		style={deptBadgeStyle}
+																		title="Org. leaves"
+																		aria-label={`View ${otherLeaves.length} org leave${otherLeaves.length > 1 ? 's' : ''}`}
+																		onClick={(e) => { e.stopPropagation(); openLeaveModal(date); }}
+																		onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); openLeaveModal(date); } }}
 																	>
-																		<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-																			<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536M9 13l6.536-6.536a2 2 0 112.828 2.828L11.828 15.828a2 2 0 01-2.828 0L9 13z" />
-																		</svg>
-																	</button>
-																	<button
-																		onClick={() => handleCancelLeave(leave.id)}
-																		className="p-2 rounded bg-red-500 text-white hover:bg-red-600"
-																		title="Cancel leave"
-																	>
-																		<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-																			<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-																		</svg>
+																		<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="currentColor" className="h-6 w-6" aria-hidden="true"><path d="M2 22C2 17.5817 5.58172 14 10 14C14.4183 14 18 17.5817 18 22H16C16 18.6863 13.3137 16 10 16C6.68629 16 4 18.6863 4 22H2ZM10 13C6.685 13 4 10.315 4 7C4 3.685 6.685 1 10 1C13.315 1 16 3.685 16 7C16 10.315 13.315 13 10 13ZM10 11C12.21 11 14 9.21 14 7C14 4.79 12.21 3 10 3C7.79 3 6 4.79 6 7C6 9.21 7.79 11 10 11ZM18.2837 14.7028C21.0644 15.9561 23 18.752 23 22H21C21 19.564 19.5483 17.4671 17.4628 16.5271L18.2837 14.7028ZM17.5962 3.41321C19.5944 4.23703 21 6.20361 21 8.5C21 11.3702 18.8042 13.7252 16 13.9776V11.9646C17.6967 11.7222 19 10.264 19 8.5C19 7.11935 18.2016 5.92603 17.041 5.35635L17.5962 3.41321Z"></path></svg>
+																		{otherLeaves.length >= 1 && (
+																			<span className="bg-white text-purple-700 text-[10px] font-semibold rounded-full px-1 py-0.5">{otherLeaves.length}</span>
+																		)}
 																	</button>
 																</div>
-															</td>
+															);
+														})()}
+														{(() => {
+															const dayTickets = getTicketsForDate(date);
+															return dayTickets.length > 0 ? (
+																<div>
+																	<button
+																		className="inline-flex items-center gap-2 bg-green-600 text-white text-xs font-semibold px-2 py-0.5 rounded-full shadow-sm hover:bg-green-700 focus:outline-none"
+																		title={`View ${dayTickets.length} ticket(s)`}
+																		aria-label={`View ${dayTickets.length} ticket${dayTickets.length > 1 ? 's' : ''}`}
+																		onClick={(e) => { e.stopPropagation(); openTicketModal(date); }}
+																	>
+																		<span aria-hidden="true" className="h-6 w-6 inline-flex items-center justify-center text-[24px]">🎫</span>
+																		{dayTickets.length >= 1 && (
+																			<span className="bg-white text-green-700 text-[10px] font-semibold rounded-full px-1 py-0.5">{dayTickets.length}</span>
+																		)}
+																	</button>
+																</div>
+															) : null;
+														})()}
+													</div>
+												</div>
+											);
+										})}
+									</div>
+								</div>
+							)}
+
+							{viewMode === 'list' && (
+								<div>
+									<div className="mb-6">
+										<h3 className="text-xl font-semibold text-gray-800 mb-4">
+											My Leaves
+										</h3>
+										{myLeaves.length === 0 ? (
+											<div className="text-center py-8 text-gray-500 bg-gray-50 rounded-lg">
+												No leaves applied yet
+											</div>
+										) : (
+											<div className="overflow-x-auto mb-8">
+												<table className="min-w-full bg-white border rounded-lg shadow">
+													<thead>
+														<tr className="bg-blue-100 text-blue-800">
+															<th className="py-2 px-4 text-center">Status</th>
+															<th className="py-2 px-4 text-center">Duration</th>
+															<th className="py-2 px-4 text-center">Reason</th>
+															<th className="py-2 px-4 text-center">Action</th>
 														</tr>
-													))}
-												</tbody>
-											</table>
+													</thead>
+													<tbody>
+														{myLeaves.map((leave) => (
+															<tr key={leave.id} className="border-b hover:bg-blue-50">
+																<td className="py-2 px-4 text-center">
+																	<span className={`px-3 py-1 rounded-full text-white text-sm ${getLeaveBadgeColor(leave.status)}`}>{leave.status}</span>
+																</td>
+																<td className="py-2 px-4 text-center">
+																	{leave.leave_duration} ({leave.duration || leave.credited_days} day{(leave.duration || leave.credited_days) === 1 ? '' : 's'})
+																</td>
+																<td className="py-2 px-4 text-center">
+																	{leave.leave_reason}
+																</td>
+																<td className="py-2 px-4 text-center">
+																	<div className="flex justify-center gap-2">
+																		<button
+																			onClick={() => openEditForm(leave)}
+																			className="p-2 rounded bg-blue-500 text-white hover:bg-blue-600"
+																			title="Edit leave"
+																		>
+																			<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+																				<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536M9 13l6.536-6.536a2 2 0 112.828 2.828L11.828 15.828a2 2 0 01-2.828 0L9 13z" />
+																			</svg>
+																		</button>
+																		<button
+																			onClick={() => handleCancelLeave(leave.id)}
+																			className="p-2 rounded bg-red-500 text-white hover:bg-red-600"
+																			title="Cancel leave"
+																		>
+																			<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+																				<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+																			</svg>
+																		</button>
+																	</div>
+																</td>
+															</tr>
+														))}
+													</tbody>
+												</table>
+											</div>
+										)}
+									</div>
+
+									<div className="mb-6 text-center">
+										<h3 className="text-xl font-semibold text-gray-800">
+											Pending Leaves in {formatMonthYear(currentDate)}
+										</h3>
+									</div>
+									{monthLeaves.length === 0 ? (
+										<div className="text-center text-gray-500">No pending leaves for this month</div>
+									) : (
+										<div className="space-y-3">
+											{monthLeaves.map((leave) => (
+												<div key={leave.id} className="border rounded p-4 bg-white">
+													<div className="flex items-center justify-between mb-2">
+														<div className="font-semibold text-gray-800">
+															{leave.user_name} ({leave.user_role})
+														</div>
+														<span className={`px-2 py-1 rounded-full text-white text-xs font-semibold ${getLeaveBadgeColor('Pending')}`}>
+															Pending
+														</span>
+													</div>
+													<div className="text-sm text-gray-600">
+														{formatFullDate(parseDateOnly(leave.from_date))} → {formatFullDate(parseDateOnly(leave.to_date))}
+													</div>
+													<div className="text-sm text-gray-600">
+														Duration: {leave.credited_days} day(s)
+													</div>
+													<div className="text-sm text-gray-600">
+														Reason: {leave.leave_reason}
+													</div>
+												</div>
+											))}
 										</div>
 									)}
 								</div>
-								
-								<div className="mb-6 text-center">
-									<h3 className="text-xl font-semibold text-gray-800">
-										Pending Leaves in {formatMonthYear(currentDate)}
-									</h3>
-								</div>
-								{monthLeaves.length === 0 ? (
-									<div className="text-center text-gray-500">No pending leaves for this month</div>
-								) : (
-									<div className="space-y-3">
-										{monthLeaves.map((leave) => (
-											<div key={leave.id} className="border rounded p-4 bg-white">
-												<div className="flex items-center justify-between mb-2">
-													<div className="font-semibold text-gray-800">
-														{leave.user_name} ({leave.user_role})
-													</div>
-													<span className={`px-2 py-1 rounded-full text-white text-xs font-semibold ${getLeaveBadgeColor('Pending')}`}>
-														Pending
-													</span>
-												</div>
-												<div className="text-sm text-gray-600">
-													{formatFullDate(parseDateOnly(leave.from_date))} → {formatFullDate(parseDateOnly(leave.to_date))}
-												</div>
-												<div className="text-sm text-gray-600">
-													Duration: {leave.credited_days} day(s)
-												</div>
-												<div className="text-sm text-gray-600">
-													Reason: {leave.leave_reason}
-												</div>
-											</div>
-										))}
-									</div>
-								)}
-							</div>
-						)}
-					</>
-				)}
-			</div>
-
-		{/* Date Detail Modal - For viewing my leave details */}
-		{showDateDetail && selectedDate && (
-			<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-				<div className="bg-white rounded-lg shadow-xl max-w-md w-full">
-					<div className="p-6">
-						<div className="flex justify-between items-center mb-4">
-							<h3 className="text-xl font-bold text-gray-800">
-								My Leave
-							</h3>
-							<button
-								onClick={handleCloseDateDetail}
-								className="text-gray-500 hover:text-gray-700 text-2xl"
-							>
-								×
-							</button>
-						</div>
-
-						{(() => {
-							const leave = getMyLeaveForDate(selectedDate);
-							return leave ? (
-								
-								<div className="overflow-x-auto">
-									<table className="min-w-full bg-white border rounded-lg">
-										<thead>
-											<tr className="bg-blue-600 text-white">
-												<th className="py-2 px-4 text-left">From</th>
-												<th className="py-2 px-4 text-left">To</th>
-												<th className="py-2 px-4 text-left">Duration</th>
-												<th className="py-2 px-4 text-left">Reason</th>
-												<th className="py-2 px-4 text-left">Leave Type</th>
-												<th className="py-2 px-4 text-center">Action</th>
-											</tr>
-										</thead>
-										<tbody>
-											<tr className="border-b hover:bg-gray-50">
-												<td className="py-2 px-4">{formatFullDate(parseDateOnly(leave.from_date))}</td>
-												<td className="py-2 px-4">{formatFullDate(parseDateOnly(leave.to_date))}</td>
-												<td className="py-2 px-4">{leave.leave_duration || ''} ({leave.duration ?? leave.credited_days} day{(leave.duration ?? leave.credited_days) === 1 ? '' : 's'})</td>
-												<td className="py-2 px-4">{leave.leave_reason || '-'}</td>
-												<td className="py-2 px-4">{leave.leave_type ?? leave.type ?? (isLeaveWithoutPay(leave) ? 'Leave without pay' : '—')}</td>
-												<td className="py-2 px-4 text-center">
-													<div className="flex justify-center gap-2">
-														<button
-															onClick={() => { if (leave.status !== 'Approved' && leave.status !== 'Rejected') { openEditForm(leave); handleCloseDateDetail(); } }}
-															className={`p-2 text-white transition-colors duration-200 ${leave.status === 'Approved' || leave.status === 'Rejected' ? 'bg-gray-400 cursor-not-allowed rounded-lg' : 'bg-blue-600 rounded-lg hover:bg-blue-700'}`}
-															disabled={leave.status === 'Approved' || leave.status === 'Rejected'}
-															title="Edit Leave"
-														>
-															<svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-																<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-															</svg>
-														</button>
-														<button
-															onClick={() => { if (leave.status !== 'Approved' && leave.status !== 'Rejected') { if (window.confirm('Are you sure you want to cancel this leave?')) { handleCancelLeave(leave.id); handleCloseDateDetail(); } } }}
-															className={`p-2 text-white transition-colors duration-200 ${leave.status === 'Approved' || leave.status === 'Rejected' ? 'bg-gray-400 cursor-not-allowed rounded-lg' : 'bg-red-500 rounded-lg hover:bg-red-600'}`}
-															disabled={leave.status === 'Approved' || leave.status === 'Rejected'}
-															title="Cancel Leave"
-														>
-															<svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-																<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-															</svg>
-														</button>
-													</div>
-												</td>
-											</tr>
-										</tbody>
-									</table>
-								</div>
-							) : null;
-						})()}
-					</div>
+							)}
+						</>
+					)}
 				</div>
-			</div>
-		)}
 
-		{/* Leave Application Form Modal */}
-		{showLeaveForm && (
-			<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-				<div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-					<div className="p-6">
-						<div className="flex justify-between items-center mb-4">
-							<h3 className="text-xl font-bold text-gray-800">
-								{editingLeave ? 'Edit Leave Application' : 'Apply for Leave'}
-							</h3>
-							<button
-								onClick={handleCloseLeaveForm}
-								className="text-gray-500 hover:text-gray-700 text-2xl"
-							>
-								×
-							</button>
-						</div>
-
-						<form onSubmit={handleSubmitLeave} className="space-y-4">
-							<div className="grid grid-cols-12 gap-4 w-full items-start">
-								<div className="col-span-4">
-									<label className="block text-sm font-medium text-gray-700 mb-1">From Date *</label>
-									<input
-										type="date"
-										name="from_date"
-										value={leaveForm.from_date}
-										readOnly
-										required
-										className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base bg-gray-100 cursor-not-allowed"
-										style={{fontVariantNumeric:'tabular-nums', minWidth: '10.5rem', maxWidth: '13rem'}}
-									/>
-								</div>
-								<div className="col-span-4">
-									<label className="block text-sm font-medium text-gray-700 mb-1">To Date *</label>
-									<input
-										type="date"
-										name="to_date"
-										value={leaveForm.to_date}
-										onChange={handleFormChange}
-										min={leaveForm.from_date}
-										required
-										className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base"
-										style={{fontVariantNumeric:'tabular-nums', minWidth: '10.5rem', maxWidth: '13rem'}}
-									/>
-								</div>
-								<div className="col-span-2">
-									<label className="block text-sm font-medium text-gray-700 mb-1">Day Type</label>
-									<select
-										name="day_type"
-										value={leaveForm.day_type || 'full'}
-										onChange={handleFormChange}
-										required
-										className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base"
-										disabled={leaveForm.from_date !== leaveForm.to_date}
+				{/* Date Detail Modal - For viewing my leave details */}
+				{showDateDetail && selectedDate && (
+					<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+						<div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+							<div className="p-6">
+								<div className="flex justify-between items-center mb-4">
+									<h3 className="text-xl font-bold text-gray-800">
+										My Leave
+									</h3>
+									<button
+										onClick={handleCloseDateDetail}
+										className="text-gray-500 hover:text-gray-700 text-2xl"
 									>
-										<option value="full">Full day</option>
-										<option value="morning">Morning half</option>
-										<option value="afternoon">Afternoon half</option>
-									</select>
+										×
+									</button>
 								</div>
-								<div className="col-span-2">
-									<label className="block text-sm font-medium text-gray-700 mb-1">Days</label>
-									<input
-										type="text"
-										inputMode="numeric"
-										pattern="[0-9]*"
-										name="duration"
-										value={
-											leaveForm.duration === 0.5
-												? '0.5'
-												: leaveForm.duration < 10
-													? `0${leaveForm.duration}`
-													: leaveForm.duration
-										}
-										readOnly
-										className="w-20 px-2 py-2 border border-gray-300 rounded-lg bg-gray-100 focus:outline-none text-center"
-										style={{minWidth:'3.5rem',maxWidth:'4.5rem'}}
-									/>
-								</div>
-							</div>
-						<p className="text-xs text-gray-500">
-							Note: Half-day leaves are limited to a single day
-						</p>
 
-						<div>
-							<label className="block text-sm font-medium text-gray-700 mb-2">Leave Type *</label>
-							<div className="flex flex-wrap gap-4 items-end">
-								<label className="inline-flex items-center gap-2">
-									<input
-										type="radio"
-										name="leave_type"
-										value="Earned Leave"
-										checked={leaveForm.leave_type === 'Earned Leave'}
-										onChange={handleFormChange}
-										className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
-									/>
-									<span className="text-sm text-gray-700">Earned Leave</span>
-								</label>
-								<label className="inline-flex items-center gap-2">
-									<input
-										type="radio"
-										name="leave_type"
-										value="Duty Leave"
-										checked={leaveForm.leave_type === 'Duty Leave'}
-										onChange={handleFormChange}
-										className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
-									/>
-									<span className="text-sm text-gray-700">Duty Leave</span>
-								</label>
+								{(() => {
+									const leave = getMyLeaveForDate(selectedDate);
+									return leave ? (
+
+										<div className="overflow-x-auto">
+											<table className="min-w-full bg-white border rounded-lg">
+												<thead>
+													<tr className="bg-blue-600 text-white">
+														<th className="py-2 px-4 text-left">From</th>
+														<th className="py-2 px-4 text-left">To</th>
+														<th className="py-2 px-4 text-left">Duration</th>
+														<th className="py-2 px-4 text-left">Reason</th>
+														<th className="py-2 px-4 text-left">Leave Type</th>
+														<th className="py-2 px-4 text-center">Action</th>
+													</tr>
+												</thead>
+												<tbody>
+													<tr className="border-b hover:bg-gray-50">
+														<td className="py-2 px-4">{formatFullDate(parseDateOnly(leave.from_date))}</td>
+														<td className="py-2 px-4">{formatFullDate(parseDateOnly(leave.to_date))}</td>
+														<td className="py-2 px-4">{leave.leave_duration || ''} ({leave.duration ?? leave.credited_days} day{(leave.duration ?? leave.credited_days) === 1 ? '' : 's'})</td>
+														<td className="py-2 px-4">{leave.leave_reason || '-'}</td>
+														<td className="py-2 px-4">{leave.leave_type ?? leave.type ?? (isLeaveWithoutPay(leave) ? 'Leave without pay' : '—')}</td>
+														<td className="py-2 px-4 text-center">
+															<div className="flex justify-center gap-2">
+																<button
+																	onClick={() => { if (leave.status !== 'Approved' && leave.status !== 'Rejected') { openEditForm(leave); handleCloseDateDetail(); } }}
+																	className={`p-2 text-white transition-colors duration-200 ${leave.status === 'Approved' || leave.status === 'Rejected' ? 'bg-gray-400 cursor-not-allowed rounded-lg' : 'bg-blue-600 rounded-lg hover:bg-blue-700'}`}
+																	disabled={leave.status === 'Approved' || leave.status === 'Rejected'}
+																	title="Edit Leave"
+																>
+																	<svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+																		<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+																	</svg>
+																</button>
+																<button
+																	onClick={() => { if (leave.status !== 'Approved' && leave.status !== 'Rejected') { if (window.confirm('Are you sure you want to cancel this leave?')) { handleCancelLeave(leave.id); handleCloseDateDetail(); } } }}
+																	className={`p-2 text-white transition-colors duration-200 ${leave.status === 'Approved' || leave.status === 'Rejected' ? 'bg-gray-400 cursor-not-allowed rounded-lg' : 'bg-red-500 rounded-lg hover:bg-red-600'}`}
+																	disabled={leave.status === 'Approved' || leave.status === 'Rejected'}
+																	title="Cancel Leave"
+																>
+																	<svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+																		<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+																	</svg>
+																</button>
+															</div>
+														</td>
+													</tr>
+												</tbody>
+											</table>
+										</div>
+									) : null;
+								})()}
+							</div>
+						</div>
+					</div>
+				)}
+
+				{/* Leave Application Form Modal */}
+				{showLeaveForm && (
+					<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+						<div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+							<div className="p-6">
+								<div className="flex justify-between items-center mb-4">
+									<h3 className="text-xl font-bold text-gray-800">
+										{editingLeave ? 'Edit Leave Application' : 'Apply for Leave'}
+									</h3>
+									<button
+										onClick={handleCloseLeaveForm}
+										className="text-gray-500 hover:text-gray-700 text-2xl"
+									>
+										×
+									</button>
+								</div>
+
+								<form onSubmit={handleSubmitLeave} className="space-y-4">
+									<div className="grid grid-cols-12 gap-4 w-full items-start">
+										<div className="col-span-4">
+											<label className="block text-sm font-medium text-gray-700 mb-1">From Date *</label>
+											<input
+												type="date"
+												name="from_date"
+												value={leaveForm.from_date}
+												readOnly
+												required
+												className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base bg-gray-100 cursor-not-allowed"
+												style={{ fontVariantNumeric: 'tabular-nums', minWidth: '10.5rem', maxWidth: '13rem' }}
+											/>
+										</div>
+										<div className="col-span-4">
+											<label className="block text-sm font-medium text-gray-700 mb-1">To Date *</label>
+											<input
+												type="date"
+												name="to_date"
+												value={leaveForm.to_date}
+												onChange={handleFormChange}
+												min={leaveForm.from_date}
+												required
+												className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base"
+												style={{ fontVariantNumeric: 'tabular-nums', minWidth: '10.5rem', maxWidth: '13rem' }}
+											/>
+										</div>
+										<div className="col-span-2">
+											<label className="block text-sm font-medium text-gray-700 mb-1">Day Type</label>
+											<select
+												name="day_type"
+												value={leaveForm.day_type || 'full'}
+												onChange={handleFormChange}
+												required
+												className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base"
+												disabled={leaveForm.from_date !== leaveForm.to_date}
+											>
+												<option value="full">Full day</option>
+												<option value="morning">Morning half</option>
+												<option value="afternoon">Afternoon half</option>
+											</select>
+										</div>
+										<div className="col-span-2">
+											<label className="block text-sm font-medium text-gray-700 mb-1">Days</label>
+											<input
+												type="text"
+												inputMode="numeric"
+												pattern="[0-9]*"
+												name="duration"
+												value={
+													leaveForm.duration === 0.5
+														? '0.5'
+														: leaveForm.duration < 10
+															? `0${leaveForm.duration}`
+															: leaveForm.duration
+												}
+												readOnly
+												className="w-20 px-2 py-2 border border-gray-300 rounded-lg bg-gray-100 focus:outline-none text-center"
+												style={{ minWidth: '3.5rem', maxWidth: '4.5rem' }}
+											/>
+										</div>
+									</div>
+									<p className="text-xs text-gray-500">
+										Note: Half-day leaves are limited to a single day
+									</p>
+
 								{isHrUser && (
-									<div className="min-w-[16rem] flex-1">
-										<label className="block text-sm font-medium text-gray-700 mb-1">Staff</label>
+									<div>
+										<label className="block text-sm font-medium text-gray-700 mb-1">Staff *</label>
 										<select
 											name="user_id"
 											value={leaveForm.user_id || ''}
@@ -1611,151 +1584,191 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 										</select>
 									</div>
 								)}
-							</div>
-						</div>
 
-						<div>
-							<label className="block text-sm font-medium text-gray-700 mb-1">Reason for Leave *</label>
-								<textarea
-									name="leave_reason"
-									value={leaveForm.leave_reason}
-									onChange={handleFormChange}
-									required
-									rows="3"
-									className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-									placeholder="Please provide a reason for your leave..."
-								/>
-							</div>
-
-							<div className="grid grid-cols-2 gap-4 items-center">
-								<div className="flex items-center">
-									<input
-										type="checkbox"
-										name="available_on_phone"
-										checked={leaveForm.available_on_phone}
-										onChange={handleFormChange}
-										className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-									/>
-									<label className="ml-2 text-sm text-gray-700">
-										Available on phone during leave
-									</label>
+								<div>
+									<label className="block text-sm font-medium text-gray-700 mb-2">Leave Type *</label>
+									<div className="flex flex-wrap gap-4 items-end">
+										<label className={`inline-flex items-center gap-2 ${!hasLeaveBalance ? 'opacity-50 cursor-not-allowed' : ''}`}>
+											<input
+												type="radio"
+												name="leave_type"
+												value="Earned Leave"
+												checked={leaveForm.leave_type === 'Earned Leave'}
+												onChange={handleFormChange}
+												disabled={!hasLeaveBalance}
+												className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+											/>
+											<span className="text-sm text-gray-700">Earned Leave</span>
+										</label>
+										<label className="inline-flex items-center gap-2">
+											<input
+												type="radio"
+												name="leave_type"
+												value="Duty Leave"
+												checked={leaveForm.leave_type === 'Duty Leave'}
+												onChange={handleFormChange}
+												className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+											/>
+											<span className="text-sm text-gray-700">Duty Leave</span>
+										</label>
+										{!hasLeaveBalance && (
+											<label className="inline-flex items-center gap-2">
+												<input
+													type="radio"
+													name="leave_type"
+													value="Leave without pay"
+													checked={leaveForm.leave_type === 'Leave without pay'}
+													onChange={handleFormChange}
+													className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+												/>
+												<span className="text-sm text-gray-700">Leave without pay</span>
+											</label>
+										)}
+									</div>
 								</div>
 
-								<div className="bg-blue-50 p-3 rounded-lg">
-									<p className="text-sm text-gray-700">
-										<strong>Available Balance:</strong> {(selectedStaffBalance?.leave_balance ?? leaveBalance?.leave_balance) ?? 'N/A'} day(s)
-									</p>
-								</div>
-							</div>
-							<div className="flex justify-end gap-3 pt-4">
-								<button
-									type="button"
-									onClick={handleCloseLeaveForm}
-									className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
-								>
-									Cancel
-								</button>
-								<button
-									type="submit"
-									disabled={loading}
-									className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-400"
-								>
-									{loading ? 'Submitting...' : editingLeave ? 'Update Leave' : 'Submit Leave'}
-								</button>
-							</div>
-						</form>
-					</div>
-				</div>
-			</div>
-		)}
+									<div>
+										<label className="block text-sm font-medium text-gray-700 mb-1">Reason for Leave *</label>
+										<textarea
+											name="leave_reason"
+											value={leaveForm.leave_reason}
+											onChange={handleFormChange}
+											required
+											rows="3"
+											className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+											placeholder="Please provide a reason for your leave..."
+										/>
+									</div>
 
-		{showLeaveModal && selectedLeaveDate && (
-			<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-				<div className="bg-white rounded-lg shadow-xl w-full max-w-5xl max-h-[90vh] overflow-y-auto">
-					<div className="p-6">
-						<div className="flex items-center justify-between mb-4">
-							<h3 className="text-xl font-bold text-gray-800">
-								Leave Details - {formatFullDate(selectedLeaveDate)}
-							</h3>
-							<button
-								onClick={closeLeaveModal}
-								className="text-gray-500 hover:text-gray-700 text-2xl"
-							>
-								×
-							</button>
+									<div className="grid grid-cols-2 gap-4 items-center">
+										<div className="flex items-center">
+											<input
+												type="checkbox"
+												name="available_on_phone"
+												checked={leaveForm.available_on_phone}
+												onChange={handleFormChange}
+												className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+											/>
+											<label className="ml-2 text-sm text-gray-700">
+												Available on phone during leave
+											</label>
+										</div>
+
+										<div className="bg-blue-50 p-3 rounded-lg">
+											<p className="text-sm text-gray-700">
+												<strong>Available Balance:</strong> {(selectedStaffBalance?.leave_balance ?? leaveBalance?.leave_balance) ?? 'N/A'} day(s)
+											</p>
+										</div>
+									</div>
+									<div className="flex justify-end gap-3 pt-4">
+										<button
+											type="button"
+											onClick={handleCloseLeaveForm}
+											className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+										>
+											Cancel
+										</button>
+										<button
+											type="submit"
+											disabled={loading}
+											className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-400"
+										>
+											{loading ? 'Submitting...' : editingLeave ? 'Update Leave' : 'Submit Leave'}
+										</button>
+									</div>
+								</form>
+							</div>
 						</div>
-
-						{selectedDateLeaves.length === 0 ? (
-							<div className="text-center text-gray-500 py-8">No leaves for this date</div>
-						) : (
-							<div className="overflow-x-auto">
-								<table className="min-w-full text-sm border">
-									<thead className="bg-blue-600 text-white">
-										<tr>
-											<th className="text-left px-4 py-2 border">User Name</th>
-											<th className="text-left px-4 py-2 border">Role</th>
-											<th className="text-left px-4 py-2 border">From Date</th>
-											<th className="text-left px-4 py-2 border">To Date</th>
-											<th className="text-left px-4 py-2 border">Leave Reason</th>
-											<th className="text-left px-4 py-2 border">Type</th>
-											<th className="text-left px-4 py-2 border">Status</th>
-											<th className="text-left px-4 py-2 border">Action</th>
-										</tr>
-									</thead>
-									<tbody>
-										{selectedDateLeaves.map((leave) => (
-												<tr key={leave.id} className={`border-t ${isLeaveWithoutPay(leave) ? 'bg-red-50 border-l-4 border-red-600' : ''}`}>
-												<td className="px-4 py-2 border">{leave.user_name}</td>
-												<td className="px-4 py-2 border">{leave.user_role || '—'}</td>
-												<td className="px-4 py-2 border">{formatFullDate(parseDateOnly(leave.from_date))}</td>
-												<td className="px-4 py-2 border">{formatFullDate(parseDateOnly(leave.to_date))}</td>
-												<td className="px-4 py-2 border">{leave.leave_reason || '—'}</td>
-												<td className="px-4 py-2 border">
-													<span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold text-white ${isLeaveWithoutPay(leave) ? 'bg-red-600' : 'bg-blue-600'}`}>
-														{leave.leave_type || '—'}
-													</span>
-												</td>
-												<td className="px-4 py-2 border">
-													<span className={`px-2 py-1 rounded-full text-white text-xs font-semibold ${getLeaveBadgeColor(leave.status)}`}>
-														{leave.status}
-													</span>
-												</td>
-												<td className="px-4 py-2 border">
-													<div className="flex justify-center gap-2">
-														<button
-															onClick={() => { openEditForm(leave); closeLeaveModal(); }}
-															className="p-2 text-white rounded-lg bg-blue-500 hover:bg-blue-600"
-															title="Edit leave"
-														>
-															<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-																<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536M9 13l6.536-6.536a2 2 0 112.828 2.828L11.828 15.828a2 2 0 01-2.828 0L9 13z" />
-															</svg>
-														</button>
-														<button
-															onClick={() => { if (leave.status !== 'Approved' && leave.status !== 'Rejected') { if (window.confirm('Are you sure you want to cancel this leave?')) { handleCancelLeave(leave.id); } } }}
-															className={`p-2 text-white rounded-lg ${leave.status === 'Approved' || leave.status === 'Rejected' ? 'bg-gray-400 cursor-not-allowed' : 'bg-red-500 hover:bg-red-600'}`}
-															disabled={leave.status === 'Approved' || leave.status === 'Rejected'}
-															title="Delete leave"
-														>
-															<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-																<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-															</svg>
-														</button>
-													</div>
-												</td>
-											</tr>
-										))}
-									</tbody>
-								</table>
-							</div>
-						)}
 					</div>
-				</div>
+				)}
+
+				{showLeaveModal && selectedLeaveDate && (
+					<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+						<div className="bg-white rounded-lg shadow-xl w-full max-w-5xl max-h-[90vh] overflow-y-auto">
+							<div className="p-6">
+								<div className="flex items-center justify-between mb-4">
+									<h3 className="text-xl font-bold text-gray-800">
+										Leave Details - {formatFullDate(selectedLeaveDate)}
+									</h3>
+									<button
+										onClick={closeLeaveModal}
+										className="text-gray-500 hover:text-gray-700 text-2xl"
+									>
+										×
+									</button>
+								</div>
+
+								{selectedDateLeaves.length === 0 ? (
+									<div className="text-center text-gray-500 py-8">No leaves for this date</div>
+								) : (
+									<div className="overflow-x-auto">
+										<table className="min-w-full text-sm border">
+											<thead className="bg-blue-600 text-white">
+												<tr>
+													<th className="text-left px-4 py-2 border">User Name</th>
+													<th className="text-left px-4 py-2 border">Role</th>
+													<th className="text-left px-4 py-2 border">From Date</th>
+													<th className="text-left px-4 py-2 border">To Date</th>
+													<th className="text-left px-4 py-2 border">Leave Reason</th>
+													<th className="text-left px-4 py-2 border">Type</th>
+													<th className="text-left px-4 py-2 border">Status</th>
+													<th className="text-left px-4 py-2 border">Action</th>
+												</tr>
+											</thead>
+											<tbody>
+												{selectedDateLeaves.map((leave) => (
+													<tr key={leave.id} className={`border-t ${isLeaveWithoutPay(leave) ? 'bg-red-50 border-l-4 border-red-600' : ''}`}>
+														<td className="px-4 py-2 border">{leave.user_name}</td>
+														<td className="px-4 py-2 border">{leave.user_role || '—'}</td>
+														<td className="px-4 py-2 border">{formatFullDate(parseDateOnly(leave.from_date))}</td>
+														<td className="px-4 py-2 border">{formatFullDate(parseDateOnly(leave.to_date))}</td>
+														<td className="px-4 py-2 border">{leave.leave_reason || '—'}</td>
+														<td className="px-4 py-2 border">
+															<span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold text-white ${isLeaveWithoutPay(leave) ? 'bg-red-600' : 'bg-blue-600'}`}>
+																{leave.leave_type || '—'}
+															</span>
+														</td>
+														<td className="px-4 py-2 border">
+															<span className={`px-2 py-1 rounded-full text-white text-xs font-semibold ${getLeaveBadgeColor(leave.status)}`}>
+																{leave.status}
+															</span>
+														</td>
+														<td className="px-4 py-2 border">
+															<div className="flex justify-center gap-2">
+																<button
+																	onClick={() => { openEditForm(leave); closeLeaveModal(); }}
+																	className="p-2 text-white rounded-lg bg-blue-500 hover:bg-blue-600"
+																	title="Edit leave"
+																>
+																	<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+																		<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536M9 13l6.536-6.536a2 2 0 112.828 2.828L11.828 15.828a2 2 0 01-2.828 0L9 13z" />
+																	</svg>
+																</button>
+																<button
+																	onClick={() => { if (leave.status !== 'Approved' && leave.status !== 'Rejected') { if (window.confirm('Are you sure you want to cancel this leave?')) { handleCancelLeave(leave.id); } } }}
+																	className={`p-2 text-white rounded-lg ${leave.status === 'Approved' || leave.status === 'Rejected' ? 'bg-gray-400 cursor-not-allowed' : 'bg-red-500 hover:bg-red-600'}`}
+																	disabled={leave.status === 'Approved' || leave.status === 'Rejected'}
+																	title="Delete leave"
+																>
+																	<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+																		<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+																	</svg>
+																</button>
+															</div>
+														</td>
+													</tr>
+												))}
+											</tbody>
+										</table>
+									</div>
+								)}
+							</div>
+						</div>
+					</div>
+				)}
 			</div>
-		)}
-	</div>
-	</>
-);
+		</>
+	);
 };
 
 export default HRCalendar;

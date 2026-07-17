@@ -177,10 +177,10 @@ export default function TicketsPage() {
       const defaultStatuses = [
         'Open',
         // 'Assigned',
-        'Pending',
+        // 'Pending',
         // 'In Progress',
         // 'Resolved',
-        'Rejected',
+        // 'Rejected',
         'Closed',
         'Overdue',
       ];
@@ -485,8 +485,11 @@ export default function TicketsPage() {
       // show current ticket status first so select can display it even if it's missing from server list
       list.unshift(form.status);
     }
-    // If current user is not Management, hide 'Rejected' from the selectable statuses
     const roleNorm = (user?.role || '').toLowerCase();
+    if (roleNorm === 'management') {
+      return list.filter(s => ['open', 'closed'].includes(String(s).toLowerCase()));
+    }
+    // If current user is not Management, hide 'Rejected' from the selectable statuses
     if (roleNorm !== 'management') {
       return list.filter(s => String(s).toLowerCase() !== 'rejected');
     }
@@ -567,7 +570,7 @@ export default function TicketsPage() {
             { name: 'Open',        color: '#3b82f6', bg: '#eff6ff', border: '#bfdbfe' },
             // { name: 'Assigned',    color: '#f59e0b', bg: '#fffbeb', border: '#fde68a' },
             // { name: 'In Progress', color: '#8b5cf6', bg: '#f5f3ff', border: '#ddd6fe' },
-            { name: 'Rejected',    color: '#ef4444', bg: '#fef2f2', border: '#fecaca' },
+            // { name: 'Rejected',    color: '#ef4444', bg: '#fef2f2', border: '#fecaca' },
             // { name: 'Resolved',    color: '#10b981', bg: '#ecfdf5', border: '#a7f3d0' },
             { name: 'Closed',      color: '#6b7280', bg: '#f9fafb', border: '#e5e7eb' },
           ];
@@ -1037,7 +1040,7 @@ export default function TicketsPage() {
                             );
                           })}
                         </select>
-                        <div className="text-xs text-gray-500 mt-1">Management can set status to Rejected. Only the assigned user can set status to Open. Only the ticket creator can set status to Closed.</div>
+                        <div className="text-xs text-gray-500 mt-1">Only the assigned user can set status to Open. Only the ticket creator can set status to Closed.</div>
                       </div>
                     </div>
                     <div className="flex gap-4">
