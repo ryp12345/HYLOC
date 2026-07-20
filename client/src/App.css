@@ -83,6 +83,7 @@ code {
     opacity: 0;
     transform: translateY(8px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -163,9 +164,17 @@ code {
 }
 
 /* Elevation levels for layered, floating arrangement */
-.glass-card.elev-1 { box-shadow: 0 6px 20px -14px rgba(15, 23, 42, 0.18), 0 2px 6px rgba(15, 23, 42, 0.04), inset 0 1px 0 rgba(255,255,255,0.8); }
-.glass-card.elev-2 { box-shadow: 0 12px 30px -14px rgba(15, 23, 42, 0.16), 0 3px 8px rgba(15, 23, 42, 0.05), inset 0 1px 0 rgba(255,255,255,0.85); }
-.glass-card.elev-3 { box-shadow: 0 20px 44px -16px rgba(15, 23, 42, 0.2), 0 4px 12px rgba(15, 23, 42, 0.07), inset 0 1px 0 rgba(255,255,255,0.9); }
+.glass-card.elev-1 {
+  box-shadow: 0 6px 20px -14px rgba(15, 23, 42, 0.18), 0 2px 6px rgba(15, 23, 42, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.glass-card.elev-2 {
+  box-shadow: 0 12px 30px -14px rgba(15, 23, 42, 0.16), 0 3px 8px rgba(15, 23, 42, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+
+.glass-card.elev-3 {
+  box-shadow: 0 20px 44px -16px rgba(15, 23, 42, 0.2), 0 4px 12px rgba(15, 23, 42, 0.07), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
 
 /* Card header: modern icon + bold title + small subtitle, no colored strip */
 .kpi-head {
@@ -254,7 +263,9 @@ code {
   padding: 1.5rem;
 }
 
-.kpi-empty { font-size: 0.8125rem; }
+.kpi-empty {
+  font-size: 0.8125rem;
+}
 
 /* Soft divider used inside grouped cards */
 .glass-divider {
@@ -330,8 +341,14 @@ code {
   transition: background 0.15s ease;
 }
 
-.fy-btn:hover:not(:disabled) { background: rgba(255, 255, 255, 0.32); }
-.fy-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.fy-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.32);
+}
+
+.fy-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
 
 /* Nav arrows (prev/next month) — soft glass circle, no hard border */
 .glass-arrow {
@@ -353,7 +370,10 @@ code {
   transform: scale(1.06);
 }
 
-.glass-arrow:disabled { opacity: 0.4; cursor: not-allowed; }
+.glass-arrow:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
 
 /* Gauge center value */
 .gauge-value {
@@ -443,7 +463,9 @@ code {
 }
 
 @media (min-width: 640px) {
-  .modal-title { min-width: 0; }
+  .modal-title {
+    min-width: 0;
+  }
 }
 
 .modal-close {
@@ -454,7 +476,10 @@ code {
   transition: color 0.15s ease, background 0.15s ease;
 }
 
-.modal-close:hover { color: var(--ink, #1e293b); background: rgba(241, 245, 249, 0.9); }
+.modal-close:hover {
+  color: var(--ink, #1e293b);
+  background: rgba(241, 245, 249, 0.9);
+}
 
 .modal-nav {
   padding: 8px 14px;
@@ -470,7 +495,9 @@ code {
   transition: background 0.15s ease;
 }
 
-.modal-nav:hover { background: rgba(37, 99, 235, 0.16); }
+.modal-nav:hover {
+  background: rgba(37, 99, 235, 0.16);
+}
 
 .modal-body {
   flex: 1;

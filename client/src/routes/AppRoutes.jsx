@@ -211,7 +211,7 @@ const AppRoutes = () => {
             }
           />
 
-         
+
           {/* Admin Dashboard */}
           <Route
             path="/admin/dashboard"
@@ -449,7 +449,7 @@ const AppRoutes = () => {
             }
           />
 
-            {/* Management Piller Page */}
+          {/* Management Piller Page */}
           <Route
             path="/management/mgtpiller"
             element={
@@ -461,41 +461,41 @@ const AppRoutes = () => {
             }
           />
 
-            {/* Management KMI Page */}
-            <Route
-              path="/management/mgtkmi"
-              element={
-                <ProtectedRoute>
-                  <DashboardLayout>
-                    <MgtKmiPage />
-                  </DashboardLayout>
-                </ProtectedRoute>
-              }
-            />
+          {/* Management KMI Page */}
+          <Route
+            path="/management/mgtkmi"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <MgtKmiPage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
 
-            {/* Management Pillar Detail Page */}
-            <Route
-              path="/management/pillar/:pillerId"
-              element={
-                <ProtectedRoute>
-                  <DashboardLayout>
-                    <PillarDetailPage />
-                  </DashboardLayout>
-                </ProtectedRoute>
-              }
-            />
+          {/* Management Pillar Detail Page */}
+          <Route
+            path="/management/pillar/:pillerId"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <PillarDetailPage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
 
-            {/* Management Department Detail Page */}
-            <Route
-              path="/management/department/:departmentId"
-              element={
-                <ProtectedRoute>
-                  <DashboardLayout>
-                    <DepartmentDetailPage />
-                  </DashboardLayout>
-                </ProtectedRoute>
-              }
-            />
+          {/* Management Department Detail Page */}
+          <Route
+            path="/management/department/:departmentId"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <DepartmentDetailPage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
 
           {/* HOD Dashboard */}
           <Route
@@ -509,7 +509,7 @@ const AppRoutes = () => {
             }
           />
 
-           {/* Management My Leave */}
+          {/* Management My Leave */}
           <Route
             path="/management/my-leave"
             element={
@@ -605,7 +605,7 @@ const AppRoutes = () => {
             }
           />
 
-           {/* Management My Leave */}
+          {/* Management My Leave */}
           <Route
             path="/hod/my-leave"
             element={
