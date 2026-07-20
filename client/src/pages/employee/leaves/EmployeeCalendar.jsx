@@ -958,7 +958,6 @@ const EmployeeCalendar = ({ joinDate }) => {
                             <tr>
                               <th className="py-2 px-4 text-center">Title</th>
                               <th className="py-2 px-4 text-center">Description</th>
-                              <th className="py-2 px-4 text-center">Category</th>
                               <th className="py-2 px-4 text-center">Priority</th>
                               <th className="py-2 px-4 text-center">Due Date</th>
                             </tr>
@@ -968,7 +967,6 @@ const EmployeeCalendar = ({ joinDate }) => {
                               <tr key={ticket.id} className="border-b hover:bg-green-50">
                                 <td className="py-2 px-4 text-center">{ticket.title}</td>
                                 <td className="py-2 px-4 text-center">{ticket.description}</td>
-                                <td className="py-2 px-4 text-center">{ticket.category}</td>
                                 <td className="py-2 px-4 text-center">{ticket.priority}</td>
                                 <td className="py-2 px-4 text-center">{ticket.due_date ? new Date(ticket.due_date).toLocaleDateString() : ''}</td>
                               </tr>

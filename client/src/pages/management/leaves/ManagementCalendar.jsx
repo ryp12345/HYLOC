@@ -1067,12 +1067,8 @@ const ManagementCalendar = ({ title = 'Management Calendar' }) => {
 													<tr>
 														<th className="text-left px-4 py-2 border">Title</th>
 														<th className="text-left px-4 py-2 border">Description</th>
-														<th className="text-left px-4 py-2 border">Category</th>
 														<th className="text-left px-4 py-2 border">Priority</th>
 														<th className="text-left px-4 py-2 border">Due Date</th>
-														{isManagementUser && <th className="text-left px-4 py-2 border">Rejected By</th>}
-														{isManagementUser && <th className="text-left px-4 py-2 border">Rejected Reason</th>}
-														{isManagementUser && <th className="text-left px-4 py-2 border">Rejected Date</th>}
 														{isManagementUser && <th className="text-left px-4 py-2 border">Closed Date</th>}
 													</tr>
 												</thead>
@@ -1081,12 +1077,8 @@ const ManagementCalendar = ({ title = 'Management Calendar' }) => {
 														<tr key={t.id} className="border-t">
 															<td className="px-4 py-2 border">{t.title || '-'}</td>
 															<td className="px-4 py-2 border">{t.description || '-'}</td>
-															<td className="px-4 py-2 border">{t.category || t.ticket_category || '-'}</td>
 															<td className="px-4 py-2 border">{t.priority || '-'}</td>
 															<td className="px-4 py-2 border">{t.due_date ? formatDateDisplay(t.due_date) : '-'}</td>
-															{isManagementUser && <td className="px-4 py-2 border">{getRejectedByDisplayName(t)}</td>}
-															{isManagementUser && <td className="px-4 py-2 border">{getRejectedReasonDisplay(t)}</td>}
-															{isManagementUser && <td className="px-4 py-2 border">{getRejectedDateDisplay(t)}</td>}
 															{isManagementUser && <td className="px-4 py-2 border">{getClosedDateDisplay(t)}</td>}
 														</tr>
 													))}

@@ -1077,7 +1077,6 @@ const HODCalendar = ({ joinDate, title = 'HOD Leave Calendar' }) => {
                     <tr>
                       <th className="text-left px-4 py-2 border">Title</th>
                       <th className="text-left px-4 py-2 border">Description</th>
-                      <th className="text-left px-4 py-2 border">Category</th>
                       <th className="text-left px-4 py-2 border">Priority</th>
                       <th className="text-left px-4 py-2 border">Due Date</th>
                     </tr>
@@ -1087,7 +1086,6 @@ const HODCalendar = ({ joinDate, title = 'HOD Leave Calendar' }) => {
                       <tr key={t.id} className="border-t">
                         <td className="px-4 py-2 border">{t.title || '-'}</td>
                         <td className="px-4 py-2 border">{t.description || '-'}</td>
-                        <td className="px-4 py-2 border">{t.category || t.ticket_category || '-'}</td>
                         <td className="px-4 py-2 border">{t.priority || '-'}</td>
                         <td className="px-4 py-2 border">{t.due_date ? formatDateDisplay(t.due_date) : '-'}</td>
                       </tr>

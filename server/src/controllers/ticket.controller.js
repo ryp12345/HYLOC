@@ -22,6 +22,82 @@ const fs = require('fs');
 const path = require('path');
 const pool = require('../config/db');
 
+const normalizeIdList = (values) => {
+  const list = Array.isArray(values)
+    ? values
+    : values === undefined || values === null || values === ''
+      ? []
+      : [values];
+
+  return [...new Set(list.map((value) => Number(value)).filter((value) => Number.isInteger(value) && value > 0))];
+};
+
+const extractAssigneeIds = (...sources) => {
+  const combined = [];
+
+  for (const source of sources) {
+    if (Array.isArray(source)) {
+      combined.push(...source);
+      continue;
+    }
+
+    if (source === undefined || source === null) {
+      continue;
+    }
+
+    if (typeof source === 'string') {
+      const trimmed = source.trim();
+      if (!trimmed) continue;
+
+      if (trimmed.startsWith('[')) {
+        try {
+          const parsed = JSON.parse(trimmed);
+          if (Array.isArray(parsed)) {
+            combined.push(...parsed);
+            continue;
+          }
+        } catch (error) {
+          // Fall back to comma-separated parsing below.
+        }
+      }
+
+      if (trimmed.includes(',')) {
+        combined.push(...trimmed.split(','));
+      } else {
+        combined.push(trimmed);
+      }
+      continue;
+    }
+
+    combined.push(source);
+  }
+
+  return normalizeIdList(combined);
+};
+
+const getTicketAssigneeIds = (ticket) => extractAssigneeIds(ticket?.assigned_to_ids, ticket?.assigned_to);
+const ticketHasAssignee = (ticket, userId) => getTicketAssigneeIds(ticket).includes(Number(userId));
+
+const syncTicketAssignees = async (db, ticketId, assigneeIds, assignedBy) => {
+  const normalizedAssigneeIds = extractAssigneeIds(assigneeIds);
+
+  await db.query('DELETE FROM ticket_assignees WHERE ticket_id = $1', [ticketId]);
+
+  for (const userId of normalizedAssigneeIds) {
+    await db.query(
+      `
+        INSERT INTO ticket_assignees (ticket_id, user_id, assigned_by, created_at, updated_at)
+        VALUES ($1, $2, $3, NOW(), NOW())
+      `,
+      [ticketId, userId, assignedBy || null]
+    );
+  }
+
+  return normalizedAssigneeIds;
+};
+
+const isManagementRole = (role) => String(role || '').toLowerCase() === 'management';
+
 const publicRoot = path.resolve(__dirname, '../../public');
 const ticketUploadsBasePath = '/api/uploads/tickets';
 
@@ -72,14 +148,39 @@ exports.getTicketStatuses = async (req, res) => {
 exports.createTicket = async (req, res) => {
   try {
     // For multipart/form-data, fields come in req.body and file in req.file
-    const { title, description, priority, status, assigned_to, due_date } = req.body;
+    const { title, description, priority, status, assigned_to, assigned_to_ids, due_date } = req.body;
     const user_id = req.user?.userId;
+    const requesterRole = req.user?.role;
+    const managementUser = isManagementRole(requesterRole);
+
+    const requestedAssigneeIds = extractAssigneeIds(assigned_to_ids, assigned_to);
+    const assigneeIds = managementUser ? requestedAssigneeIds : requestedAssigneeIds.slice(0, 1);
 
     if (!title || !user_id || !due_date) {
       return res.status(400).json({ success: false, message: 'Title, user_id (creator) and due_date are required' });
     }
-    if (!assigned_to) {
+    if (!assigneeIds.length) {
       return res.status(400).json({ success: false, message: 'Assignee is required' });
+    }
+
+    if (!managementUser) {
+      try {
+        const tgtRes = await pool.query(
+          `
+            SELECT DISTINCT LOWER(r.role_name) AS role_name
+            FROM users u
+            JOIN user_roles ur ON ur.user_id = u.id
+            JOIN roles r ON r.id = ur.role_id
+            WHERE u.id = ANY($1::int[]) AND ur.status = 'active'
+          `,
+          [assigneeIds]
+        );
+        if ((tgtRes.rows || []).some((row) => row.role_name === 'management')) {
+          return res.status(403).json({ success: false, message: 'You are not allowed to assign tickets to Management users' });
+        }
+      } catch (error) {
+        console.error('Role-check error on createTicket:', error);
+      }
     }
 
     // If a file was uploaded, build a URL path for it
@@ -98,30 +199,45 @@ exports.createTicket = async (req, res) => {
       priority: priority || null,
       status: status || null,
       user_id,
-      assigned_to: assigned_to ? Number(assigned_to) : null,
+      assigned_to: assigneeIds[0],
       due_date,
       attachment: attachmentUrl || null,
     };
 
-    const created = await ticketModel.createTicket(ticketData);
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const created = await ticketModel.createTicket(ticketData, client);
+      await syncTicketAssignees(client, created.id, assigneeIds, user_id);
+      const enrichedCreated = await ticketModel.getTicketById(created.id, client);
+      await client.query('COMMIT');
 
-    // Create in-app notification for assignee (if any). Fail silently on error.
-    (async () => {
-      try {
-        const requesterId = user_id;
-        const assigneeId = created.assigned_to;
-        if (assigneeId) {
-          const tTitle = created.title || '';
-          const tDesc = created.description || '';
-          const message = `You were assigned a ticket. \nTitle: ${tTitle}\nDescription: ${tDesc}`;
-          await notificationModel.createNotification({ created_by: requesterId, assigned_to: assigneeId, message, type: 'ticket' });
+      // Create in-app notification for all assignees. Fail silently on error.
+      (async () => {
+        try {
+          const tTitle = enrichedCreated?.title || '';
+          const tDesc = enrichedCreated?.description || '';
+          const message = `You were assigned a ticket.\nTitle: ${tTitle}\nDescription: ${tDesc}`;
+          await Promise.all(
+            assigneeIds.map((assigneeId) => notificationModel.createNotification({
+              created_by: user_id,
+              assigned_to: assigneeId,
+              message,
+              type: 'ticket',
+            }))
+          );
+        } catch (notifErr) {
+          console.error('Create ticket notification error:', notifErr);
         }
-      } catch (notifErr) {
-        console.error('Create ticket notification error:', notifErr);
-      }
-    })();
+      })();
 
-    return res.status(201).json({ success: true, data: created });
+      return res.status(201).json({ success: true, data: enrichedCreated });
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
   } catch (error) {
     console.error('Create ticket error:', error);
     return res.status(500).json({ success: false, message: 'Failed to create ticket', error: error.message });
@@ -149,9 +265,9 @@ exports.getTicketById = async (req, res) => {
     // Authorization: only Creator, Assignee, or Management may view a ticket
     const requesterId = req.user?.userId;
     const requesterRole = req.user?.role;
-    const isManagement = requesterRole && String(requesterRole).toLowerCase() === 'management';
+    const isManagement = isManagementRole(requesterRole);
     const isCreator = String(ticket.user_id) === String(requesterId);
-    const isAssignee = ticket.assigned_to && String(ticket.assigned_to) === String(requesterId);
+    const isAssignee = ticketHasAssignee(ticket, requesterId);
 
     // Allow viewing if Management, creator, assignee, or HOD of same department as creator
     if (!isManagement && !isCreator && !isAssignee) {
@@ -199,14 +315,19 @@ exports.updateTicket = async (req, res) => {
     const existing = await ticketModel.getTicketById(id);
     if (!existing) return res.status(404).json({ success: false, message: 'Ticket not found' });
 
-    // Assignee is required — either retained from existing or explicitly provided in payload
-    const incomingAssignee = payload.assigned_to !== undefined ? payload.assigned_to : existing.assigned_to;
-    if (!incomingAssignee) {
-      return res.status(400).json({ success: false, message: 'Assignee is required' });
-    }
-
     const requesterId = req.user?.userId;
     const requesterRole = req.user?.role;
+    const managementUser = isManagementRole(requesterRole);
+
+    const existingAssigneeIds = getTicketAssigneeIds(existing);
+    const requestedAssigneeIds = extractAssigneeIds(payload.assigned_to_ids, payload.assigned_to);
+    const assigneeIds = managementUser
+      ? requestedAssigneeIds
+      : (requestedAssigneeIds.length ? requestedAssigneeIds.slice(0, 1) : existingAssigneeIds);
+
+    if (!assigneeIds.length) {
+      return res.status(400).json({ success: false, message: 'Assignee is required' });
+    }
 
     // Allowed status transitions map — simplified: only Open -> Rejected or Closed allowed
     const allowedTransitions = {
@@ -232,7 +353,7 @@ exports.updateTicket = async (req, res) => {
 
     // Only Management or creator can edit due_date
     // (HOD role is NOT allowed unless also creator)
-    const isManagement = requesterRole && requesterRole.toLowerCase() === 'management';
+    const isManagement = managementUser;
     const isCreator = String(existing.user_id) === String(requesterId);
     const isHod = requesterRole && requesterRole.toLowerCase() === 'hod';
 
@@ -262,7 +383,7 @@ exports.updateTicket = async (req, res) => {
     }
 
     // Other users can only edit title and description
-    const isAssignee = String(existing.assigned_to) === String(requesterId);
+    const isAssignee = ticketHasAssignee(existing, requesterId);
     if (!isManagement && !isCreator && !isAssignee) {
       // Remove any fields except title/description
       Object.keys(payload).forEach((key) => {
@@ -285,15 +406,22 @@ exports.updateTicket = async (req, res) => {
       }
     }
 
-    const payloadAssignedRaw = payload.assigned_to !== undefined && payload.assigned_to !== null ? String(payload.assigned_to) : null;
-    const existingAssignedRaw = existing.assigned_to !== undefined && existing.assigned_to !== null ? String(existing.assigned_to) : null;
     // New rule: if requester is Employee or HOD, they cannot set assigned_to to a Management user
     try {
       const reqRoleNorm = requesterRole ? String(requesterRole).toLowerCase() : '';
-      if (payloadAssignedRaw && (reqRoleNorm === 'employee' || reqRoleNorm === 'hod')) {
-        const tgtRes = await pool.query('SELECT r.role_name FROM users u JOIN user_roles ur ON ur.user_id = u.id JOIN roles r ON ur.role_id = r.id WHERE u.id = $1 AND ur.status = $2', [payloadAssignedRaw, 'active']);
-        const tgtRole = tgtRes && tgtRes.rows && tgtRes.rows[0] ? String(tgtRes.rows[0].role_name).toLowerCase() : '';
-        if (tgtRole === 'management') {
+      if (assigneeIds.length && (reqRoleNorm === 'employee' || reqRoleNorm === 'hod')) {
+        const tgtRes = await pool.query(
+          `
+            SELECT DISTINCT LOWER(r.role_name) AS role_name
+            FROM users u
+            JOIN user_roles ur ON ur.user_id = u.id
+            JOIN roles r ON ur.role_id = r.id
+            WHERE u.id = ANY($1::int[]) AND ur.status = 'active'
+          `,
+          [assigneeIds]
+        );
+        const hasManagementAssignee = (tgtRes.rows || []).some((row) => row.role_name === 'management');
+        if (hasManagementAssignee) {
           return res.status(403).json({ success: false, message: 'You are not allowed to assign tickets to Management users' });
         }
       }
@@ -301,6 +429,10 @@ exports.updateTicket = async (req, res) => {
       console.error('Role-check error on updateTicket:', e);
       // don't block on DB error
     }
+
+    payload.assigned_to = assigneeIds[0];
+    delete payload.assigned_to_ids;
+
     // On any status change, notify creator and all HODs (no assignee notification)
     let sentStatusNotification = false;
     if (payload.status && payload.status !== existing.status) {
@@ -372,36 +504,51 @@ exports.updateTicket = async (req, res) => {
     }
 
     console.log('DEBUG: Updating ticket', { id, payload });
-    const updated = await ticketModel.updateTicket(id, payload);
+    const client = await pool.connect();
+    let updated;
+    try {
+      await client.query('BEGIN');
+      updated = await ticketModel.updateTicket(id, payload, client);
+      await syncTicketAssignees(client, id, assigneeIds, requesterId);
+      updated = await ticketModel.getTicketById(id, client);
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+
     console.log('DEBUG: Updated ticket result', updated);
     if (!updated) return res.status(404).json({ success: false, message: 'Ticket not found' });
-    // When rejected by Management, expose rejected_date (use updated_at)
-    try {
-      if (String(updated.status || '').toLowerCase() === 'rejected') {
-        updated.rejected_date = updated.updated_at;
-      }
-    } catch (e) {
-      console.error('Error attaching rejected_date to updated ticket:', e);
-    }
+
+    const newlyAssignedUserIds = assigneeIds.filter((userId) => !existingAssigneeIds.includes(userId));
 
     const replacedOrClearedAttachment = Boolean(req.file && req.file.filename) || payload.attachment === null;
     if (replacedOrClearedAttachment && existing.attachment && existing.attachment !== updated.attachment) {
       await removeLocalAttachmentIfExists(existing.attachment);
     }
 
-    // If reassigned to a different user, create an in-app notification for the new assignee.
+    // If reassigned to a different user, create an in-app notification for the new assignee(s).
     try {
-      const payloadAssigned = payloadAssignedRaw;
-      const existingAssigned = existingAssignedRaw;
-      if (payloadAssigned && payloadAssigned !== existingAssigned) {
-        const assigneeId = Number(payload.assigned_to);
+      if (newlyAssignedUserIds.length > 0) {
         const tTitle = updated.title || '';
         const tDesc = updated.description || '';
         const message = `You were assigned a ticket.\nTitle: ${tTitle}\nDescription: ${tDesc}`;
-        await notificationModel.createNotification({ created_by: requesterId, assigned_to: assigneeId, message, type: 'ticket' });
+        await Promise.all(
+          newlyAssignedUserIds.map((assigneeId) => notificationModel.createNotification({ created_by: requesterId, assigned_to: assigneeId, message, type: 'ticket' }))
+        );
       }
     } catch (notifErr) {
       console.error('Update ticket notification error:', notifErr);
+    }
+
+    try {
+      if (String(updated.status || '').toLowerCase() === 'rejected') {
+        updated.rejected_date = updated.updated_at;
+      }
+    } catch (e) {
+      console.error('Error attaching rejected_date to updated ticket:', e);
     }
 
     res.status(200).json({ success: true, data: updated });

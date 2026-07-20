@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { deleteTicket } from '../../api/ticketApi';
@@ -16,6 +16,7 @@ const initialForm = {
   rejected_by_reason: '',
   user_id: '',
   assigned_to: '',
+  assigned_to_ids: [],
   due_date: '',
   attachment: '',
 };
@@ -43,8 +44,11 @@ export default function TicketsPage() {
   const [panelOpen, setPanelOpen] = useState(false);
   const [sortBy, setSortBy] = useState('created_at');
   const [sortDir, setSortDir] = useState('desc');
+  const [assigneeDropdownOpen, setAssigneeDropdownOpen] = useState(false);
+  const assigneeDropdownRef = useRef(null);
   const location = useLocation();
   const navigate = useNavigate();
+  const isManagementUser = String(user?.role || '').toLowerCase() === 'management';
 
   // Initialize state from URL (bookmarkable)
   useEffect(() => {
@@ -190,21 +194,61 @@ export default function TicketsPage() {
     load();
   }, []);
 
+  useEffect(() => {
+    const handlePointerDown = (event) => {
+      if (assigneeDropdownRef.current && !assigneeDropdownRef.current.contains(event.target)) {
+        setAssigneeDropdownOpen(false);
+      }
+    };
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setAssigneeDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+
   const onClose = () => {
     setIsModalOpen(false);
     setEditingId(null);
     setForm(initialForm);
     setError('');
+    setAssigneeDropdownOpen(false);
   };
 
-  // Normalize assigned_to to an ID string whether the ticket has an id or an object
-  const getAssignedId = (r) => {
-    if (!r) return '';
-    const a = r.assigned_to;
-    if (a == null) return '';
-    if (typeof a === 'object') return String(a.id ?? a.user_id ?? '');
-    return String(a);
+  const normalizeAssignedIds = (ticket) => {
+    if (!ticket) return [];
+
+    const list = [];
+    const rawAssignedToIds = Array.isArray(ticket.assigned_to_ids) ? ticket.assigned_to_ids : [];
+
+    if (ticket.assigned_to !== undefined && ticket.assigned_to !== null) {
+      if (typeof ticket.assigned_to === 'object') {
+        list.push(ticket.assigned_to.id ?? ticket.assigned_to.user_id ?? '');
+      } else {
+        list.push(ticket.assigned_to);
+      }
+    }
+
+    list.push(...rawAssignedToIds);
+
+    return [...new Set(list.map((value) => Number(value)).filter((value) => Number.isInteger(value) && value > 0))];
   };
+
+  const getAssignedId = (r) => {
+    const ids = normalizeAssignedIds(r);
+    return ids.length ? String(ids[0]) : '';
+  };
+
+  const getAssignedIds = (r) => normalizeAssignedIds(r).map((value) => String(value));
 
   const getDisplayAttachmentPath = (attachmentPath) => {
     if (!attachmentPath) return '';
@@ -253,7 +297,8 @@ export default function TicketsPage() {
 
   const openCreate = () => {
     onClose();
-    setForm({ ...initialForm, user_id: user?.id ?? '' });
+    setForm({ ...initialForm, user_id: user?.id ?? '', assigned_to_ids: [] });
+    setAssigneeDropdownOpen(false);
     setIsModalOpen(true);
   };
 
@@ -261,10 +306,11 @@ export default function TicketsPage() {
     setEditingId(row.id);
     // If ticket is Open and unassigned (after rejection), clear assigned_to
     let initialStatus = row.status || 'Open';
-    let assignedTo = getAssignedId(row);
-    if (initialStatus === 'Open' && !row.assigned_to) {
+    const assignedIds = getAssignedIds(row);
+    let assignedTo = assignedIds[0] || '';
+    if (initialStatus === 'Open' && !assignedIds.length) {
       assignedTo = '';
-    } else if (row.assigned_to && (initialStatus === '' || String(initialStatus) === 'Open')) {
+    } else if (assignedIds.length && (initialStatus === '' || String(initialStatus) === 'Open')) {
       // initialStatus = 'Assigned';
     }
     setForm({
@@ -275,9 +321,11 @@ export default function TicketsPage() {
       status: initialStatus,
       user_id: row.user_id || '',
       assigned_to: assignedTo,
+      assigned_to_ids: assignedIds,
       due_date: row.due_date ? row.due_date.slice(0, 10) : '',
       attachment: row.attachment || '',
     });
+    setAssigneeDropdownOpen(false);
     setIsModalOpen(true);
   };
 
@@ -300,18 +348,28 @@ export default function TicketsPage() {
       setError('Due Date is required');
       return;
     }
-    if (!form.assigned_to) {
+    const selectedAssigneeIds = (() => {
+      const rawIds = isManagementUser
+        ? form.assigned_to_ids
+        : (editingId ? form.assigned_to_ids : [form.assigned_to]);
+
+      return [...new Set((Array.isArray(rawIds) ? rawIds : [rawIds]).map((value) => Number(value)).filter((value) => Number.isInteger(value) && value > 0))];
+    })();
+
+    if (!selectedAssigneeIds.length) {
       setError('Assign To is required');
       return;
     }
     try {
+      const primaryAssigneeId = selectedAssigneeIds[0];
       if (editingId) {
         // If ticket is Open and creator assigns it, set status to Assigned
         const payload = { ...form, status: form.status };
-        if (payload.status === 'Open' && payload.assigned_to && String(form.user_id) === String(user?.id)) {
+        if (payload.status === 'Open' && primaryAssigneeId && String(form.user_id) === String(user?.id)) {
           // payload.status = 'Assigned';
         }
-        if (payload.assigned_to !== '' && payload.assigned_to !== null) payload.assigned_to = Number(payload.assigned_to);
+        payload.assigned_to = primaryAssigneeId;
+        payload.assigned_to_ids = selectedAssigneeIds;
         if (form.attachment && form.attachment instanceof File) {
           const fd = new FormData();
           fd.append('title', payload.title);
@@ -319,7 +377,8 @@ export default function TicketsPage() {
           fd.append('priority', payload.priority);
           fd.append('status', payload.status);
           fd.append('user_id', String(payload.user_id));
-          if (payload.assigned_to !== '' && payload.assigned_to !== null) fd.append('assigned_to', String(payload.assigned_to));
+          fd.append('assigned_to', String(payload.assigned_to));
+          fd.append('assigned_to_ids', JSON.stringify(payload.assigned_to_ids));
           fd.append('due_date', payload.due_date);
           fd.append('attachment', form.attachment);
           if (payload.rejected_by_reason) fd.append('rejected_by_reason', payload.rejected_by_reason);
@@ -338,7 +397,8 @@ export default function TicketsPage() {
           // New tickets must start in Open; Rejected is an update-only workflow status.
           fd.append('status', 'Open');
           fd.append('user_id', form.user_id);
-          if (form.assigned_to !== '' && form.assigned_to !== null) fd.append('assigned_to', String(Number(form.assigned_to)));
+          fd.append('assigned_to', String(primaryAssigneeId));
+          fd.append('assigned_to_ids', JSON.stringify(selectedAssigneeIds));
           fd.append('due_date', form.due_date);
           fd.append('attachment', form.attachment);
           await createTicket(fd);
@@ -347,7 +407,8 @@ export default function TicketsPage() {
           payload.status = 'Open';
           delete payload.rejected_by_reason;
           delete payload.category;
-          if (payload.assigned_to !== '' && payload.assigned_to !== null) payload.assigned_to = Number(payload.assigned_to);
+          payload.assigned_to = primaryAssigneeId;
+          payload.assigned_to_ids = selectedAssigneeIds;
           await createTicket(payload);
         }
         showNotification('Ticket created successfully!', 'success');
@@ -374,7 +435,7 @@ export default function TicketsPage() {
   const counts = useMemo(() => {
     const today = new Date(); today.setHours(0,0,0,0);
     const allCount = rows.length;
-    const mineCount = rows.filter(r => String(getAssignedId(r)) === String(user?.id)).length;
+    const mineCount = rows.filter(r => getAssignedIds(r).includes(String(user?.id))).length;
     const overdueCount = rows.filter(r => {
       if (!r.due_date || r.status === 'Closed') return false;
       const d = new Date(r.due_date); d.setHours(0,0,0,0);
@@ -424,7 +485,7 @@ export default function TicketsPage() {
         !statusFilter &&
         !overdueOnly &&
         !search &&
-        String(getAssignedId(r)) !== String(user?.id)
+        !getAssignedIds(r).includes(String(user?.id))
       ) return false;
       if (filter === 'overdue') {
         if (!r.due_date || r.status === 'Closed') return false;
@@ -433,7 +494,7 @@ export default function TicketsPage() {
       }
 
       // new inline filters
-      if (assigneeFilter && String(getAssignedId(r)) !== String(assigneeFilter)) return false;
+      if (assigneeFilter && !getAssignedIds(r).includes(String(assigneeFilter))) return false;
       if (priorityFilter && String(r.priority) !== String(priorityFilter)) return false;
       if (statusFilter && String(r.status) !== String(statusFilter)) return false;
       if (overdueOnly) {
@@ -947,37 +1008,104 @@ export default function TicketsPage() {
                     <div className="flex gap-4">
                       <div className="flex-1">
                         <label className="block mb-2 text-sm font-medium text-gray-700">Assign To *</label>
-                        <select
-                          value={form.assigned_to}
-                          onChange={e => {
-                            const newAssigned = e.target.value;
-                            // If status is Open and assigning, set status to Assigned
-                            if (form.status === 'Open' && newAssigned) {
-                              setForm({ ...form, assigned_to: newAssigned, status: 'Open' });
-                            } else if (!newAssigned && form.status === 'Open') {
-                              // If unassigning, keep status Open
-                              setForm({ ...form, assigned_to: '', status: 'Open' });
-                            } else {
-                              setForm({ ...form, assigned_to: newAssigned });
-                            }
-                          }}
-                          className={`block w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${editingId && !form.assigned_to ? 'border-red-400 bg-red-50' : 'border-gray-300'}`}
-                          disabled={editingId && form.status === 'Open' && !form.assigned_to && String(form.user_id) !== String(user?.id)}
-                        >
-                          {users.length === 0 ? (
-                            <option value="" disabled>No users available</option>
-                          ) : (
-                            <>
-                              <option value="">Select user</option>
-                                {users
-                                  .slice()
-                                  .sort((a, b) => String((a.firstname || a.name || a.full_name || '')).localeCompare(String((b.firstname || b.name || b.full_name || ''))))
-                                  .map(u => (
-                                    <option key={u.id} value={u.id}>{`${u.firstname || u.name || u.full_name || u.email}${u.lastname ? ' ' + u.lastname : ''}`}</option>
-                                  ))}
-                            </>
-                          )}
-                        </select>
+                        {isManagementUser ? (
+                          <div ref={assigneeDropdownRef} className="relative">
+                            <button
+                              type="button"
+                              onClick={() => setAssigneeDropdownOpen((open) => !open)}
+                              className={`block w-full px-4 py-3 text-left border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${editingId && !form.assigned_to_ids.length ? 'border-red-400 bg-red-50' : 'border-gray-300'} bg-white`}
+                              disabled={editingId && form.status === 'Open' && !form.assigned_to_ids.length && String(form.user_id) !== String(user?.id)}
+                            >
+                              <div className="flex items-center justify-between gap-3">
+                                <span className={form.assigned_to_ids.length ? 'text-gray-900' : 'text-gray-500'}>
+                                  {form.assigned_to_ids.length
+                                    ? `${form.assigned_to_ids.length} user${form.assigned_to_ids.length > 1 ? 's' : ''} selected`
+                                    : 'Select users'}
+                                </span>
+                                <svg className={`w-4 h-4 text-gray-500 transition-transform ${assigneeDropdownOpen ? 'rotate-180' : ''}`} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                </svg>
+                              </div>
+                            </button>
+
+                            {assigneeDropdownOpen && (
+                              <div className="absolute z-20 w-full mt-2 bg-white border border-gray-200 rounded-lg shadow-lg max-h-64 overflow-y-auto">
+                                {users.length === 0 ? (
+                                  <div className="px-4 py-3 text-sm text-gray-500">No users available</div>
+                                ) : (
+                                  users
+                                    .slice()
+                                    .sort((a, b) => String((a.firstname || a.name || a.full_name || '')).localeCompare(String((b.firstname || b.name || b.full_name || ''))))
+                                    .map(u => {
+                                      const checked = form.assigned_to_ids.includes(String(u.id));
+                                      return (
+                                        <label
+                                          key={u.id}
+                                          className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-blue-50 cursor-pointer"
+                                        >
+                                          <input
+                                            type="checkbox"
+                                            checked={checked}
+                                            onChange={() => {
+                                              setForm((prev) => {
+                                                const currentIds = Array.isArray(prev.assigned_to_ids) ? prev.assigned_to_ids : [];
+                                                const userId = String(u.id);
+                                                const nextIds = checked
+                                                  ? currentIds.filter((id) => String(id) !== userId)
+                                                  : [...currentIds, userId];
+                                                return {
+                                                  ...prev,
+                                                  assigned_to_ids: nextIds,
+                                                  assigned_to: nextIds[0] || '',
+                                                };
+                                              });
+                                            }}
+                                            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                          />
+                                          <span>{`${u.firstname || u.name || u.full_name || u.email}${u.lastname ? ' ' + u.lastname : ''}`}</span>
+                                        </label>
+                                      );
+                                    })
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <select
+                            value={form.assigned_to}
+                            onChange={e => {
+                              const newAssigned = e.target.value;
+                              // If status is Open and assigning, keep status Open
+                              if (form.status === 'Open' && newAssigned) {
+                                setForm({ ...form, assigned_to: newAssigned, assigned_to_ids: [newAssigned], status: 'Open' });
+                              } else if (!newAssigned && form.status === 'Open') {
+                                // If unassigning, keep status Open
+                                setForm({ ...form, assigned_to: '', assigned_to_ids: [], status: 'Open' });
+                              } else {
+                                setForm({ ...form, assigned_to: newAssigned, assigned_to_ids: newAssigned ? [newAssigned] : [] });
+                              }
+                            }}
+                            className={`block w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${editingId && !form.assigned_to ? 'border-red-400 bg-red-50' : 'border-gray-300'}`}
+                            disabled={editingId && form.status === 'Open' && !form.assigned_to && String(form.user_id) !== String(user?.id)}
+                          >
+                            {users.length === 0 ? (
+                              <option value="" disabled>No users available</option>
+                            ) : (
+                              <>
+                                <option value="">Select user</option>
+                                  {users
+                                    .slice()
+                                    .sort((a, b) => String((a.firstname || a.name || a.full_name || '')).localeCompare(String((b.firstname || b.name || b.full_name || ''))))
+                                    .map(u => (
+                                      <option key={u.id} value={u.id}>{`${u.firstname || u.name || u.full_name || u.email}${u.lastname ? ' ' + u.lastname : ''}`}</option>
+                                    ))}
+                              </>
+                            )}
+                          </select>
+                        )}
+                        {isManagementUser && (
+                          <div className="text-xs text-gray-500 mt-1">Hold Ctrl on Windows or Cmd on Mac to select multiple users.</div>
+                        )}
                       </div>
                       <div className="flex-1">
                         <label className="block mb-2 text-sm font-medium text-gray-700">Status</label>
@@ -989,9 +1117,8 @@ export default function TicketsPage() {
                           <option value="">Select status</option>
                           {displayedStatuses.map(s => {
                             const isEditing = Boolean(editingId);
-                            const isAssignee = String(form.assigned_to) === String(user?.id);
+                            const isAssignee = normalizeAssignedIds(form).includes(Number(user?.id));
                             const isCreator = String(form.user_id) === String(user?.id);
-                            const isManagementUser = String(user?.role || '').toLowerCase() === 'management';
                             let disabled = false;
                             let title = '';
                             if (isEditing) {
@@ -1091,9 +1218,8 @@ export default function TicketsPage() {
                       <button type="button" onClick={onClose} className="inline-flex justify-center px-6 py-3 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">Cancel</button>
                       {(() => {
                         const isEditing = Boolean(editingId);
-                        const isAssignee = String(form.assigned_to) === String(user?.id);
+                        const isAssignee = normalizeAssignedIds(form).includes(Number(user?.id));
                         const isCreator = String(form.user_id) === String(user?.id);
-                        const isManagementUser = String(user?.role || '').toLowerCase() === 'management';
                         const disableUpdateBtn = isEditing && isAssignee && !isCreator && !isManagementUser;
 
                         return (

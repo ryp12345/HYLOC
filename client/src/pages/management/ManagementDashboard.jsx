@@ -436,33 +436,7 @@ const isFiscalYearMatch = (kpiFiscalYear, selectedFiscalYear) => {
 };
 
 const normalizeText = (value) => (value || '').toString().trim().toLowerCase();
-const DUMMY_DEPARTMENT_PERFORMANCE = [
-  { id: 'dept-dummy-1', name: 'Production Operations', value: 92 },
-  { id: 'dept-dummy-2', name: 'Quality Assurance', value: 87 },
-  { id: 'dept-dummy-3', name: 'Maintenance Engineering', value: 81 },
-  { id: 'dept-dummy-4', name: 'Supply Chain Management', value: 76 },
-  { id: 'dept-dummy-5', name: 'Human Resources', value: 69 },
-  { id: 'dept-dummy-6', name: 'Finance and Accounts', value: 73 },
-  { id: 'dept-dummy-7', name: 'Research and Development', value: 88 },
-  { id: 'dept-dummy-8', name: 'Information Technology', value: 84 },
-];
-const DUMMY_DEPARTMENT_KPI_ANALYSIS = {
-  production: 92,
-  operations: 89,
-  quality: 87,
-  maintenance: 81,
-  supply: 76,
-  chain: 76,
-  human: 69,
-  hr: 69,
-  finance: 73,
-  account: 73,
-  research: 88,
-  development: 88,
-  information: 84,
-  technology: 84,
-  it: 84,
-};
+
 const normalizeValueType = (valueType) => {
   const normalized = (valueType || '').toString().trim().toLowerCase();
   if (!normalized) return '';
@@ -529,25 +503,20 @@ function ManagementDashboard() {
   const [availableFiscalYears, setAvailableFiscalYears] = useState([]);
   const [cachedKpiValues, setCachedKpiValues] = useState([]);
   const departmentPerformanceForChart = useMemo(() => {
-    if (!departmentPerformance.length) return DUMMY_DEPARTMENT_PERFORMANCE;
+    if (!departmentPerformance.length) return [];
 
     const maxObservedValue = Math.max(
       ...departmentPerformance.map((department) => Number(department?.value) || 0),
       0
     );
 
-    return departmentPerformance.map((department, index) => {
-      const name = String(department?.name || '').toLowerCase();
-      const matchedKeyword = Object.keys(DUMMY_DEPARTMENT_KPI_ANALYSIS).find((keyword) => name.includes(keyword));
-      const fallbackByName = matchedKeyword ? DUMMY_DEPARTMENT_KPI_ANALYSIS[matchedKeyword] : null;
-      const fallbackByIndex = DUMMY_DEPARTMENT_PERFORMANCE[index % DUMMY_DEPARTMENT_PERFORMANCE.length]?.value || 5;
-      const derivedValue = fallbackByName ?? fallbackByIndex;
+    return departmentPerformance.map((department) => {
       const currentValue = Number(department?.value) || 0;
       const currentPercent = maxObservedValue > 0 ? Math.round((currentValue / maxObservedValue) * 100) : 0;
 
       return {
         ...department,
-        value: currentValue > 0 ? currentPercent : derivedValue,
+        value: currentValue > 0 ? currentPercent : 0,
       };
     });
   }, [departmentPerformance]);
