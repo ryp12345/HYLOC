@@ -33,5 +33,40 @@ Notes and exclusions
 
 If you want, I can next inspect server-side code to expand or further verify any backend behaviors before updating this document again.*** End Patch
 
+-------------------------------------------------------------------------------------
+
+Tickets Schema
+
+
+CREATE TABLE IF NOT EXISTS public.tickets
+(
+    id integer NOT NULL GENERATED ALWAYS AS IDENTITY ( INCREMENT 1 START 1 MINVALUE 1 MAXVALUE 2147483647 CACHE 1 ),
+    title character varying(255) COLLATE pg_catalog."default" NOT NULL,
+    status enum_tickets_status,
+    description text COLLATE pg_catalog."default" NOT NULL,
+    priority enum_tickets_priority NOT NULL DEFAULT 'Medium'::enum_tickets_priority,
+    user_id integer NOT NULL,
+    assigned_to integer,
+    attachment character varying(255) COLLATE pg_catalog."default",
+    due_date date,
+    rejected_by integer,
+    rejected_by_reason character varying(255) COLLATE pg_catalog."default",
+    created_at timestamp without time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp without time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT tickets_pkey PRIMARY KEY (id),
+    CONSTRAINT fk_assigned_to FOREIGN KEY (assigned_to)
+        REFERENCES public.users (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE SET NULL,
+    CONSTRAINT fk_created_by FOREIGN KEY (user_id)
+        REFERENCES public.users (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE,
+    CONSTRAINT fk_rejected_by FOREIGN KEY (rejected_by)
+        REFERENCES public.users (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE SET NULL
+)
+
 
 

@@ -1,11 +1,5 @@
 import axios from './axios';
 
-export const getTicketCategories = async (token) => {
-  return await axios.get('/tickets/categories', {
-    headers: token ? { Authorization: `Bearer ${token}` } : {}
-  });
-};
-
 export const getTicketPriorities = async (token) => {
   return await axios.get('/tickets/priorities', {
     headers: token ? { Authorization: `Bearer ${token}` } : {}

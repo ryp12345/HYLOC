@@ -4,9 +4,6 @@ const ticketController = require('../controllers/ticket.controller');
 const { authenticate } = require('../middlewares/auth.middleware');
 const upload = require('../middlewares/upload.middleware');
 
-// GET /api/tickets/categories
-router.get('/categories', authenticate, ticketController.getTicketCategories);
-
 // GET /api/tickets/priorities
 router.get('/priorities', authenticate, ticketController.getTicketPriorities);
 

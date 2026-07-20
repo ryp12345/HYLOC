@@ -4,14 +4,13 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { deleteTicket } from '../../api/ticketApi';
 import { API_URL } from '../../api/axios';
 import Notification from '../../components/common/Notification';
-import { getAllTickets, updateTicket, createTicket, getTicketCategories, getTicketPriorities, getTicketStatuses } from '../../api/ticketApi';
+import { getAllTickets, updateTicket, createTicket, getTicketPriorities, getTicketStatuses } from '../../api/ticketApi';
 import { getUsers, getAssignableUsers } from '../../api/userApi';
 import { useAuth } from '../../context/AuthContext';
 
 const initialForm = {
   title: '',
   description: '',
-  category: 'Other',
   priority: 'Medium',
   status: 'Open',
   rejected_by_reason: '',
@@ -33,7 +32,6 @@ export default function TicketsPage() {
   const [notification, setNotification] = useState({ show: false, message: '', type: '' });
   const [deleteId, setDeleteId] = useState(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [categories, setCategories] = useState([]);
   const [priorities, setPriorities] = useState([]);
   const [statuses, setStatuses] = useState([]);
   const [filter, setFilter] = useState('all');
@@ -144,15 +142,9 @@ export default function TicketsPage() {
         }
       }
 
-      // Fetch categories/priorities/statuses separately so we can capture errors per-call
-      let categoriesRes = null;
+      // Fetch priorities/statuses separately so we can capture errors per-call
       let prioritiesRes = null;
       let statusesRes = null;
-      try {
-        categoriesRes = await getTicketCategories();
-      } catch (err) {
-        console.debug('getTicketCategories error:', err?.response?.status, err?.response?.data || err?.message);
-      }
       try {
         prioritiesRes = await getTicketPriorities();
       } catch (err) {
@@ -167,11 +159,8 @@ export default function TicketsPage() {
       setRows(ticketsRes.data?.data || []);
       setUsers(usersRes.data?.data || []);
       // Use server-provided lists when available, otherwise fall back to defaults
-      const serverCategories = categoriesRes?.data?.data;
       const serverPriorities = prioritiesRes?.data?.data;
-      const defaultCategories = ['Other', 'Bug', 'Feature', 'Support'];
       const defaultPriorities = ['Low', 'Medium', 'High'];
-      setCategories((serverCategories && serverCategories.length) ? serverCategories : defaultCategories);
       setPriorities((serverPriorities && serverPriorities.length) ? serverPriorities : defaultPriorities);
       const serverStatuses = statusesRes?.data?.data;
       const defaultStatuses = [
@@ -188,7 +177,6 @@ export default function TicketsPage() {
     } catch {
       setRows([]);
       setUsers([]);
-      setCategories(['Other', 'Bug', 'Feature', 'Support']);
       setPriorities(['Low', 'Medium', 'High']);
       setStatuses([
         'Open',
@@ -250,6 +238,19 @@ export default function TicketsPage() {
     }
   };
 
+  const getClosedDateDisplay = (row) => {
+    if (String(row?.status || '').toLowerCase() !== 'closed' || !row?.updated_at) {
+      return '--NA--';
+    }
+
+    const closedAt = new Date(row.updated_at);
+    if (Number.isNaN(closedAt.getTime())) {
+      return '--NA--';
+    }
+
+    return closedAt.toLocaleDateString();
+  };
+
   const openCreate = () => {
     onClose();
     setForm({ ...initialForm, user_id: user?.id ?? '' });
@@ -269,7 +270,6 @@ export default function TicketsPage() {
     setForm({
       title: row.title || '',
       description: row.description || '',
-      category: row.category || 'Other',
       priority: row.priority || 'Medium',
       rejected_by_reason: row.rejected_by_reason || '',
       status: initialStatus,
@@ -316,7 +316,6 @@ export default function TicketsPage() {
           const fd = new FormData();
           fd.append('title', payload.title);
           fd.append('description', payload.description);
-          fd.append('category', payload.category);
           fd.append('priority', payload.priority);
           fd.append('status', payload.status);
           fd.append('user_id', String(payload.user_id));
@@ -335,7 +334,6 @@ export default function TicketsPage() {
           const fd = new FormData();
           fd.append('title', form.title);
           fd.append('description', form.description);
-          fd.append('category', form.category);
           fd.append('priority', form.priority);
           // New tickets must start in Open; Rejected is an update-only workflow status.
           fd.append('status', 'Open');
@@ -348,6 +346,7 @@ export default function TicketsPage() {
           const payload = { ...form };
           payload.status = 'Open';
           delete payload.rejected_by_reason;
+          delete payload.category;
           if (payload.assigned_to !== '' && payload.assigned_to !== null) payload.assigned_to = Number(payload.assigned_to);
           await createTicket(payload);
         }
@@ -412,7 +411,6 @@ export default function TicketsPage() {
         r.title?.toLowerCase().includes(q) ||
         r.description?.toLowerCase().includes(q) ||
         r.status?.toLowerCase().includes(q) ||
-        r.category?.toLowerCase().includes(q) ||
         r.priority?.toLowerCase().includes(q);
       if (!matchesSearch) return false;
 
@@ -778,8 +776,8 @@ export default function TicketsPage() {
                   <th onClick={()=>{ setSortBy('title'); setSortDir(sortBy==='title' ? (sortDir==='asc' ? 'desc' : 'asc') : 'asc'); }} className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider cursor-pointer">Title {sortBy==='title' ? (sortDir==='asc' ? '▲' : '▼') : ''}</th>
                   <th onClick={()=>{ setSortBy('status'); setSortDir(sortBy==='status' ? (sortDir==='asc' ? 'desc' : 'asc') : 'asc'); }} className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider cursor-pointer">Status {sortBy==='status' ? (sortDir==='asc' ? '▲' : '▼') : ''}</th>
                   <th onClick={()=>{ setSortBy('priority'); setSortDir(sortBy==='priority' ? (sortDir==='asc' ? 'desc' : 'asc') : 'asc'); }} className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider cursor-pointer">Priority {sortBy==='priority' ? (sortDir==='asc' ? '▲' : '▼') : ''}</th>
-                  <th onClick={()=>{ setSortBy('category'); setSortDir(sortBy==='category' ? (sortDir==='asc' ? 'desc' : 'asc') : 'asc'); }} className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider cursor-pointer">Category {sortBy==='category' ? (sortDir==='asc' ? '▲' : '▼') : ''}</th>
                   <th className="px-6 py-4 text-center text-xs font-medium text-white uppercase tracking-wider">Attachment</th>
+                  <th className="px-6 py-4 text-center text-xs font-medium text-white uppercase tracking-wider">Closed Date</th>
                   <th className="px-6 py-4 text-center text-xs font-medium text-white uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
@@ -799,7 +797,6 @@ export default function TicketsPage() {
                         )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{renderPriorityChip(row.priority)}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{row.category}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-center text-sm">
                         {row.attachment ? (
                           <a
@@ -819,12 +816,23 @@ export default function TicketsPage() {
                           <span className="text-gray-400">--NA--</span>
                         )}
                       </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-700">
+                        {getClosedDateDisplay(row)}
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
                         <div className="flex items-center justify-center space-x-2">
                           <button
-                            onClick={() => openEdit(row)}
-                            className="p-2 text-white transition-colors duration-200 bg-blue-600 rounded-lg hover:bg-blue-700"
-                            title="Edit Ticket"
+                            onClick={() => {
+                              if (String(row.status || '').toLowerCase() === 'closed') return;
+                              openEdit(row);
+                            }}
+                            disabled={String(row.status || '').toLowerCase() === 'closed'}
+                            className={`p-2 text-white transition-colors duration-200 rounded-lg ${
+                              String(row.status || '').toLowerCase() === 'closed'
+                                ? 'bg-blue-300 cursor-not-allowed opacity-60'
+                                : 'bg-blue-600 hover:bg-blue-700'
+                            }`}
+                            title={String(row.status || '').toLowerCase() === 'closed' ? 'Closed tickets cannot be edited' : 'Edit Ticket'}
                           >
                             <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -922,19 +930,6 @@ export default function TicketsPage() {
                       </div>
                     )}
                     <div className="flex gap-4">
-                      <div className="flex-1">
-                        <label className="block mb-2 text-sm font-medium text-gray-700">Category</label>
-                        <select
-                          value={form.category}
-                          onChange={e=>setForm({ ...form, category: e.target.value })}
-                          className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        >
-                          <option value="">Select category</option>
-                          {categories.map(cat => (
-                            <option key={cat} value={cat}>{cat}</option>
-                          ))}
-                        </select>
-                      </div>
                       <div className="flex-1">
                         <label className="block mb-2 text-sm font-medium text-gray-700">Priority</label>
                         <select

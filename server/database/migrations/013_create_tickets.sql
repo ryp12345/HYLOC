@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS public.tickets
     title varchar(255) NOT NULL,
     status enum_tickets_status,
     description text NOT NULL,
-    category enum_tickets_category DEFAULT 'Other',
+    
     priority enum_tickets_priority DEFAULT 'Medium',
     user_id integer NOT NULL,
     assigned_to integer,

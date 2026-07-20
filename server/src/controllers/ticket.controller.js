@@ -51,15 +51,6 @@ const removeLocalAttachmentIfExists = async (attachmentPath) => {
   }
 };
 
-exports.getTicketCategories = async (req, res) => {
-  try {
-    const categories = await ticketModel.getTicketCategories();
-    res.status(200).json({ success: true, data: categories });
-  } catch (error) {
-    res.status(500).json({ success: false, message: 'Failed to fetch categories', error: error.message });
-  }
-};
-
 exports.getTicketPriorities = async (req, res) => {
   try {
     const priorities = await ticketModel.getTicketPriorities();
@@ -81,7 +72,7 @@ exports.getTicketStatuses = async (req, res) => {
 exports.createTicket = async (req, res) => {
   try {
     // For multipart/form-data, fields come in req.body and file in req.file
-    const { title, description, category, priority, status, assigned_to, due_date } = req.body;
+    const { title, description, priority, status, assigned_to, due_date } = req.body;
     const user_id = req.user?.userId;
 
     if (!title || !user_id || !due_date) {
@@ -104,7 +95,6 @@ exports.createTicket = async (req, res) => {
     const ticketData = {
       title,
       description: description || '',
-      category: category || null,
       priority: priority || null,
       status: status || null,
       user_id,
