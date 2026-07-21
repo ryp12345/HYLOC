@@ -543,6 +543,8 @@ function ManagementDashboard() {
     const activeUsers = allUsers.filter(u => (u.status || '').toLowerCase() === 'active');
     return activeUsers
       .map(user => {
+        if (!Object.prototype.hasOwnProperty.call(staffPerformanceData, user.id)) return null;
+
         const performance = staffPerformanceData[user.id] || 0;
         const firstName = (user.firstname || '').trim();
         const middleName = (user.middlename || '').trim();
@@ -556,6 +558,7 @@ function ManagementDashboard() {
           performance,
         };
       })
+      .filter(Boolean)
       .sort((a, b) => b.performance - a.performance || a.name.localeCompare(b.name));
   }, [allUsers, staffPerformanceData]);
 
@@ -1015,7 +1018,9 @@ function ManagementDashboard() {
           }
         });
 
-        performanceByUserId[userId] = kpiCount > 0 ? Math.round(totalAchievement / kpiCount) : 0;
+        if (kpiCount > 0) {
+          performanceByUserId[userId] = Math.round(totalAchievement / kpiCount);
+        }
       });
 
       setStaffPerformanceData(performanceByUserId);
