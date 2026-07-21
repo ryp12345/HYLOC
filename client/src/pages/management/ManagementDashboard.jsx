@@ -2221,43 +2221,49 @@ function ManagementDashboard() {
       {/* Performance Dashboard Section End */}
 
       <div className="mt-6">
-        <div className="flex items-center gap-3 mb-4">
-          <span className="h-6 w-1.5 rounded-full bg-blue-600"></span>
-          <h2 className="text-xl font-bold text-gray-800">Department KPI Dashboard</h2>
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-700 via-blue-600 to-indigo-700 px-4 py-3 shadow-xl">
+          <div className="pointer-events-none absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(circle at 18px 18px, rgba(255,255,255,0.5) 1.5px, transparent 1.5px)', backgroundSize: '26px 26px' }}></div>
+          <h2 className="relative text-lg font-extrabold tracking-tight text-white sm:text-xl">Department KPI Dashboard</h2>
         </div>
-        <DepartmentPerformanceRadarChart
-          departments={departmentPerformanceForChart}
-          onDepartmentClick={(department) => {
-            if (department?.id) {
-              navigate(`/management/department/${department.id}`);
-            }
-          }}
-        />
+        <div className="mt-1">
+          <DepartmentPerformanceRadarChart
+            departments={departmentPerformanceForChart}
+            onDepartmentClick={(department) => {
+              if (department?.id) {
+                navigate(`/management/department/${department.id}`);
+              }
+            }}
+          />
+        </div>
       </div>
 
       {/* Staff Performance Section */}
       <div className="mt-6">
-        <div className="flex items-center gap-3 mb-4">
-          <span className="h-6 w-1.5 rounded-full bg-emerald-600"></span>
-          <h2 className="text-xl font-bold text-gray-800">Staff Performance</h2>
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-700 via-blue-600 to-indigo-700 px-4 py-3 shadow-xl">
+          <div className="pointer-events-none absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(circle at 18px 18px, rgba(255,255,255,0.5) 1.5px, transparent 1.5px)', backgroundSize: '26px 26px' }}></div>
+          <h2 className="relative text-lg font-extrabold tracking-tight text-white sm:text-xl">Staff Performance</h2>
         </div>
-        <StaffPerformanceList staffList={staffList} loading={staffPerformanceLoading} />
+        <div className="mt-1">
+          <StaffPerformanceList staffList={staffList} loading={staffPerformanceLoading} />
+        </div>
       </div>
 
       {/* Pillars Section */}
       <div className="mt-8">
-        <div className="flex items-center gap-3 mb-4">
-          <span className="h-6 w-1.5 rounded-full bg-indigo-600"></span>
-          <h2 className="text-xl font-bold text-gray-800">Pillars</h2>
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-700 via-blue-600 to-indigo-700 px-4 py-3 shadow-xl">
+          <div className="pointer-events-none absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(circle at 18px 18px, rgba(255,255,255,0.5) 1.5px, transparent 1.5px)', backgroundSize: '26px 26px' }}></div>
+          <h2 className="relative text-lg font-extrabold tracking-tight text-white sm:text-xl">Pillars</h2>
         </div>
-        <PillarRadarChart
-          pillars={[...pillerStats.pillers].sort((a, b) => (a.piller_name || '').localeCompare(b.piller_name || ''))}
-          onPillarClick={(pillar) => {
-            if (pillar?.id) {
-              navigate(`/management/pillar/${pillar.id}`);
-            }
-          }}
-        />
+        <div className="mt-1">
+          <PillarRadarChart
+            pillars={[...pillerStats.pillers].sort((a, b) => (a.piller_name || '').localeCompare(b.piller_name || ''))}
+            onPillarClick={(pillar) => {
+              if (pillar?.id) {
+                navigate(`/management/pillar/${pillar.id}`);
+              }
+            }}
+          />
+        </div>
       </div>
       {/* Pillars Section End*/}
 
