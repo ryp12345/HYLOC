@@ -86,7 +86,7 @@ CREATE TABLE IF NOT EXISTS public.ticket_assignees
         REFERENCES public.tickets(id)
         ON DELETE CASCADE,
 
-    CONSTRAINT fk_ticket_assignees_user
+    CONSTRAINT fk_ticket_assignees_use
         FOREIGN KEY (user_id)
         REFERENCES public.users(id)
         ON DELETE CASCADE,

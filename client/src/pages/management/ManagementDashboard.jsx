@@ -5,7 +5,7 @@ import { getKPIs } from '../../api/kpiApi';
 import { getPillers } from '../../api/pillerApi';
 import { getUsers } from '../../api/userApi';
 import { getDepartments } from '../../api/departmentApi';
-import api from '../../api/axios';
+import api, { API_URL } from '../../api/axios';
 import {
   ResponsiveContainer,
   LineChart,
@@ -466,6 +466,9 @@ function ManagementDashboard() {
   const [employeeStats, setEmployeeStats] = useState({
     total: 0
   });
+  const [allUsers, setAllUsers] = useState([]);
+  const [staffPerformanceData, setStaffPerformanceData] = useState({});
+  const [staffPerformanceLoading, setStaffPerformanceLoading] = useState(false);
   const [departmentStats, setDepartmentStats] = useState({
     total: 0
   });
@@ -520,6 +523,114 @@ function ManagementDashboard() {
       };
     });
   }, [departmentPerformance]);
+
+  const getPhotoUrl = (path) => {
+    if (!path) return '';
+    if (/^https?:\/\//i.test(path)) return path;
+    if (path.startsWith('/api/uploads/') || path.startsWith('/uploads/')) {
+      try {
+        const appOrigin = API_URL.startsWith('http') ? new URL(API_URL).origin : window.location.origin;
+        return `${appOrigin}${path}`;
+      } catch {
+        return path;
+      }
+    }
+    return path;
+  };
+
+  const staffList = useMemo(() => {
+    if (!allUsers.length) return [];
+    const activeUsers = allUsers.filter(u => (u.status || '').toLowerCase() === 'active');
+    return activeUsers
+      .map(user => {
+        const performance = staffPerformanceData[user.id] || 0;
+        const firstName = (user.firstname || '').trim();
+        const middleName = (user.middlename || '').trim();
+        const lastName = (user.lastname || '').trim();
+        const fullName = [firstName, middleName, lastName].filter(Boolean).join(' ').trim() || user.email || `User ${user.id}`;
+        return {
+          id: user.id,
+          name: fullName,
+          designation: user.designation_name || '',
+          photo: user.staff_photo || '',
+          performance,
+        };
+      })
+      .sort((a, b) => b.performance - a.performance || a.name.localeCompare(b.name));
+  }, [allUsers, staffPerformanceData]);
+
+  const StaffPerformanceList = ({ staffList, loading }) => {
+    if (loading) {
+      return (
+        <div className="rounded-lg border border-slate-200 bg-white p-6 text-center text-gray-500 shadow-lg">
+          Loading staff performance...
+        </div>
+      );
+    }
+
+    if (!staffList.length) {
+      return (
+        <div className="rounded-lg border border-slate-200 bg-white p-6 text-center text-gray-500 shadow-lg">
+          No staff data available
+        </div>
+      );
+    }
+
+    const best = staffList.filter(s => s.performance >= 66);
+    const medium = staffList.filter(s => s.performance >= 33 && s.performance < 66);
+    const low = staffList.filter(s => s.performance < 33);
+
+    const StaffCard = ({ staff }) => {
+      let perfColor = 'bg-red-100 text-red-700 border-red-300';
+      if (staff.performance >= 66) perfColor = 'bg-green-100 text-green-700 border-green-300';
+      else if (staff.performance >= 33) perfColor = 'bg-orange-100 text-orange-700 border-orange-300';
+
+      const photoUrl = getPhotoUrl(staff.photo);
+      return (
+        <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm flex items-center gap-3 hover:shadow-md transition-shadow">
+          <div className="flex-shrink-0">
+            {photoUrl ? (
+              <img src={photoUrl} alt={staff.name} className="h-10 w-10 rounded-full object-cover border-2 border-white shadow-sm" />
+            ) : (
+              <div className="h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 font-bold text-xs border-2 border-white shadow-sm">
+                {staff.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+              </div>
+            )}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="font-semibold text-gray-900 truncate text-sm">{staff.name}</div>
+            <div className="text-xs text-gray-500 truncate">{staff.designation || 'No designation'}</div>
+          </div>
+          <div className={`flex-shrink-0 px-2 py-0.5 rounded-full text-xs font-bold border ${perfColor}`}>
+            {staff.performance}%
+          </div>
+        </div>
+      );
+    };
+
+    const Column = ({ title, color, items }) => (
+      <div className="flex flex-col gap-2">
+        <div className={`rounded-t-lg border border-b-0 px-3 py-2 text-center font-extrabold text-sm ${color}`}>
+          {title} ({items.length})
+        </div>
+        <div className="flex-1 overflow-y-auto rounded-b-lg border border-t-0 bg-slate-50/50 p-2 space-y-2" style={{ maxHeight: '600px' }}>
+          {items.length === 0 ? (
+            <div className="text-center text-gray-400 text-xs py-4">No staff</div>
+          ) : (
+            items.map(staff => <StaffCard key={staff.id} staff={staff} />)
+          )}
+        </div>
+      </div>
+    );
+
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Column title="BEST" color="bg-green-100 text-green-800 border-green-300" items={best} />
+        <Column title="MEDIUM" color="bg-orange-100 text-orange-800 border-orange-300" items={medium} />
+        <Column title="LOW" color="bg-red-100 text-red-800 border-red-300" items={low} />
+      </div>
+    );
+  };
 
   // Computed fiscal month sequence based on selected year
   const FISCAL_MONTH_SEQUENCE = useMemo(() => getFiscalMonthSequence(selectedFiscalYear), [selectedFiscalYear]);
@@ -643,6 +754,11 @@ function ManagementDashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedFiscalYear]);
 
+  useEffect(() => {
+    loadStaffPerformance();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cachedKpiValues, allUsers, selectedFiscalYear]);
+
   const fetchStatistics = async () => {
     try {
       setLoading(true);
@@ -743,6 +859,7 @@ function ManagementDashboard() {
         setEmployeeStats({
           total: users.length
         });
+        setAllUsers(users);
       }
 
       if (departmentsResponse?.data) {
@@ -794,6 +911,119 @@ function ManagementDashboard() {
       console.error('Error fetching statistics:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadStaffPerformance = async () => {
+    if (!cachedKpiValues.length || !allUsers.length) {
+      setStaffPerformanceData({});
+      return;
+    }
+
+    setStaffPerformanceLoading(true);
+    try {
+      const kpiValuesByEmp = {};
+      const empidToUserId = {};
+
+      allUsers.forEach(user => {
+        const empid = user.empid;
+        if (!empid) return;
+        empidToUserId[empid] = user.id;
+        kpiValuesByEmp[empid] = [];
+      });
+
+      cachedKpiValues.forEach(kv => {
+        const empid = kv.data_operator;
+        if (!empid || !kpiValuesByEmp[empid]) return;
+        kpiValuesByEmp[empid].push(kv);
+      });
+
+      const allKpiValueIds = new Set();
+      Object.values(kpiValuesByEmp).forEach(kvList => {
+        kvList.forEach(kv => allKpiValueIds.add(kv.id));
+      });
+
+      if (allKpiValueIds.size === 0) {
+        setStaffPerformanceData({});
+        return;
+      }
+
+      const ids = Array.from(allKpiValueIds);
+      const year1 = selectedFiscalYear;
+      const year2 = selectedFiscalYear + 1;
+
+      const [resp1, resp2] = await Promise.allSettled([
+        api.post('/kpi-data-values/multiple', { kpiValueIds: ids, year: year1 }),
+        api.post('/kpi-data-values/multiple', { kpiValueIds: ids, year: year2 }),
+      ]);
+
+      const allDataValues = [
+        ...(resp1.status === 'fulfilled' ? (resp1.value?.data?.data || []) : []),
+        ...(resp2.status === 'fulfilled' ? (resp2.value?.data?.data || []) : []),
+      ];
+
+      const dataByKpiValueId = {};
+      allDataValues.forEach(dv => {
+        if (!dataByKpiValueId[dv.kpi_value_id]) dataByKpiValueId[dv.kpi_value_id] = [];
+        dataByKpiValueId[dv.kpi_value_id].push(dv);
+      });
+
+      const fiscalMonths = getFiscalMonthSequence(selectedFiscalYear);
+      const fiscalMonthKeys = new Set(fiscalMonths.map(m => `${m.month}_${m.year}`));
+
+      const performanceByUserId = {};
+
+      Object.entries(kpiValuesByEmp).forEach(([empid, kvList]) => {
+        const userId = empidToUserId[empid];
+        if (!userId) return;
+
+        let totalAchievement = 0;
+        let kpiCount = 0;
+
+        kvList.forEach(kv => {
+          if (kv.target_required === false || String(kv.target_required).toLowerCase() === 'false') return;
+
+          const kpiDataValues = dataByKpiValueId[kv.id] || [];
+          const fiscalData = kpiDataValues.filter(dv => fiscalMonthKeys.has(`${dv.month}_${dv.year}`));
+
+          if (fiscalData.length === 0) return;
+
+          const byMonth = {};
+          fiscalData.forEach(dv => {
+            const key = `${dv.month}_${dv.year}`;
+            if (!byMonth[key]) byMonth[key] = { actual: null, target: null };
+            byMonth[key][dv.value_type === 'actual' ? 'actual' : 'target'] = parseFloat(dv.value) || 0;
+          });
+
+          const monthlyAchievements = [];
+
+          Object.values(byMonth).forEach(m => {
+            const actual = m.actual;
+            const target = m.target;
+
+            if (actual == null || target == null || target === 0) return;
+
+            const achievement = Math.min((actual / target) * 100, 100);
+
+            monthlyAchievements.push(achievement);
+          });
+
+          if (monthlyAchievements.length > 0) {
+            const kpiAvg = monthlyAchievements.reduce((a, b) => a + b, 0) / monthlyAchievements.length;
+            totalAchievement += kpiAvg;
+            kpiCount++;
+          }
+        });
+
+        performanceByUserId[userId] = kpiCount > 0 ? Math.round(totalAchievement / kpiCount) : 0;
+      });
+
+      setStaffPerformanceData(performanceByUserId);
+    } catch (error) {
+      console.error('Error loading staff performance:', error);
+      setStaffPerformanceData({});
+    } finally {
+      setStaffPerformanceLoading(false);
     }
   };
 
@@ -1998,6 +2228,15 @@ function ManagementDashboard() {
             }
           }}
         />
+      </div>
+
+      {/* Staff Performance Section */}
+      <div className="mt-6">
+        <div className="flex items-center gap-3 mb-4">
+          <span className="h-6 w-1.5 rounded-full bg-emerald-600"></span>
+          <h2 className="text-xl font-bold text-gray-800">Staff Performance</h2>
+        </div>
+        <StaffPerformanceList staffList={staffList} loading={staffPerformanceLoading} />
       </div>
 
       {/* Pillars Section */}
