@@ -593,9 +593,9 @@ function ManagementDashboard() {
         <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm flex items-center gap-3 hover:shadow-md transition-shadow">
           <div className="flex-shrink-0">
             {photoUrl ? (
-              <img src={photoUrl} alt={staff.name} className="h-10 w-10 rounded-full object-cover border-2 border-white shadow-sm" />
+              <img src={photoUrl} alt={staff.name} className="h-12 w-12 rounded-full object-cover border-2 border-white shadow-sm" />
             ) : (
-              <div className="h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 font-bold text-xs border-2 border-white shadow-sm">
+              <div className="h-12 w-12 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 font-bold text-xs border-2 border-white shadow-sm">
                 {staff.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
               </div>
             )}

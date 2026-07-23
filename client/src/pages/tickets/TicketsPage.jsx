@@ -13,7 +13,6 @@ const initialForm = {
   description: '',
   priority: 'Medium',
   status: 'Open',
-  rejected_by_reason: '',
   user_id: '',
   assigned_to: '',
   assigned_to_ids: [],
@@ -308,6 +307,13 @@ export default function TicketsPage() {
     let initialStatus = row.status || 'Open';
     const assignedIds = getAssignedIds(row);
     let assignedTo = assignedIds[0] || '';
+    if (isManagementUser) {
+      assignedTo = assignedIds[0] || '';
+    } else {
+      const currentUserId = String(user?.id);
+      const currentUserAssigned = assignedIds.includes(currentUserId);
+      assignedTo = currentUserAssigned ? currentUserId : (assignedIds[0] || '');
+    }
     if (initialStatus === 'Open' && !assignedIds.length) {
       assignedTo = '';
     } else if (assignedIds.length && (initialStatus === '' || String(initialStatus) === 'Open')) {
@@ -317,7 +323,6 @@ export default function TicketsPage() {
       title: row.title || '',
       description: row.description || '',
       priority: row.priority || 'Medium',
-      rejected_by_reason: row.rejected_by_reason || '',
       status: initialStatus,
       user_id: row.user_id || '',
       assigned_to: assignedTo,
@@ -381,7 +386,6 @@ export default function TicketsPage() {
           fd.append('assigned_to_ids', JSON.stringify(payload.assigned_to_ids));
           fd.append('due_date', payload.due_date);
           fd.append('attachment', form.attachment);
-          if (payload.rejected_by_reason) fd.append('rejected_by_reason', payload.rejected_by_reason);
           await updateTicket(editingId, fd);
         } else {
           await updateTicket(editingId, payload);
@@ -405,8 +409,6 @@ export default function TicketsPage() {
         } else {
           const payload = { ...form };
           payload.status = 'Open';
-          delete payload.rejected_by_reason;
-          delete payload.category;
           payload.assigned_to = primaryAssigneeId;
           payload.assigned_to_ids = selectedAssigneeIds;
           await createTicket(payload);
@@ -433,12 +435,12 @@ export default function TicketsPage() {
 
   // Filtered, sorted, and paginated data
   const counts = useMemo(() => {
-    const today = new Date(); today.setHours(0,0,0,0);
+    const today = new Date(); today.setHours(0, 0, 0, 0);
     const allCount = rows.length;
     const mineCount = rows.filter(r => getAssignedIds(r).includes(String(user?.id))).length;
     const overdueCount = rows.filter(r => {
       if (!r.due_date || r.status === 'Closed') return false;
-      const d = new Date(r.due_date); d.setHours(0,0,0,0);
+      const d = new Date(r.due_date); d.setHours(0, 0, 0, 0);
       return d < today;
     }).length;
     return { allCount, mineCount, overdueCount };
@@ -446,8 +448,8 @@ export default function TicketsPage() {
 
   const isOverdue = (r) => {
     if (!r?.due_date || r?.status === 'Closed') return false;
-    const d = new Date(r.due_date); d.setHours(0,0,0,0);
-    const today = new Date(); today.setHours(0,0,0,0);
+    const d = new Date(r.due_date); d.setHours(0, 0, 0, 0);
+    const today = new Date(); today.setHours(0, 0, 0, 0);
     return d < today;
   };
 
@@ -465,7 +467,7 @@ export default function TicketsPage() {
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
-    const today = new Date(); today.setHours(0,0,0,0);
+    const today = new Date(); today.setHours(0, 0, 0, 0);
 
     let result = rows.filter(r => {
       const matchesSearch =
@@ -489,7 +491,7 @@ export default function TicketsPage() {
       ) return false;
       if (filter === 'overdue') {
         if (!r.due_date || r.status === 'Closed') return false;
-        const dueDate = new Date(r.due_date); dueDate.setHours(0,0,0,0);
+        const dueDate = new Date(r.due_date); dueDate.setHours(0, 0, 0, 0);
         if (!(dueDate < today)) return false;
       }
 
@@ -499,7 +501,7 @@ export default function TicketsPage() {
       if (statusFilter && String(r.status) !== String(statusFilter)) return false;
       if (overdueOnly) {
         if (!r.due_date || r.status === 'Closed') return false;
-        const dueDate = new Date(r.due_date); dueDate.setHours(0,0,0,0);
+        const dueDate = new Date(r.due_date); dueDate.setHours(0, 0, 0, 0);
         if (!(dueDate < today)) return false;
       }
 
@@ -507,7 +509,7 @@ export default function TicketsPage() {
     });
 
     // local sorting
-    result.sort((a,b) => {
+    result.sort((a, b) => {
       const get = (obj, key) => {
         const val = obj?.[key];
         if (!val) return '';
@@ -554,6 +556,11 @@ export default function TicketsPage() {
     }
     return list;
   }, [statuses, form.status]);
+
+  const filterStatusOptions = useMemo(() => {
+    const list = Array.isArray(statuses) ? statuses : [];
+    return list.filter((statusValue) => String(statusValue).toLowerCase() !== 'rejected');
+  }, [statuses]);
 
   const RADIAN = Math.PI / 180;
   const renderStatusPieLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
@@ -620,18 +627,18 @@ export default function TicketsPage() {
 
         {user?.role === 'Management' && (() => {
           const PRIORITY_CONFIG = [
-            { name: 'Low',      color: '#10b981', bg: '#ecfdf5', border: '#a7f3d0' },
-            { name: 'High',     color: '#ef4444', bg: '#fef2f2', border: '#fecaca' },
-            { name: 'Medium',   color: '#d97706', bg: '#fef3c7', border: '#fde68a' },
+            { name: 'Low', color: '#10b981', bg: '#ecfdf5', border: '#a7f3d0' },
+            { name: 'High', color: '#ef4444', bg: '#fef2f2', border: '#fecaca' },
+            { name: 'Medium', color: '#d97706', bg: '#fef3c7', border: '#fde68a' },
             { name: 'Critical', color: '#ef4444', bg: '#fef2f2', border: '#fecaca' },
           ];
           const STATUS_CONFIG = [
-            { name: 'Open',        color: '#3b82f6', bg: '#eff6ff', border: '#bfdbfe' },
+            { name: 'Open', color: '#3b82f6', bg: '#eff6ff', border: '#bfdbfe' },
             // { name: 'Assigned',    color: '#f59e0b', bg: '#fffbeb', border: '#fde68a' },
             // { name: 'In Progress', color: '#8b5cf6', bg: '#f5f3ff', border: '#ddd6fe' },
             // { name: 'Rejected',    color: '#ef4444', bg: '#fef2f2', border: '#fecaca' },
             // { name: 'Resolved',    color: '#10b981', bg: '#ecfdf5', border: '#a7f3d0' },
-            { name: 'Closed',      color: '#6b7280', bg: '#f9fafb', border: '#e5e7eb' },
+            { name: 'Closed', color: '#6b7280', bg: '#f9fafb', border: '#e5e7eb' },
           ];
           const priorityCounts = PRIORITY_CONFIG.map(p => ({
             ...p,
@@ -762,17 +769,17 @@ export default function TicketsPage() {
                   aria-pressed={filter === 'overdue'}
                   className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium cursor-pointer ${filter === 'overdue' ? 'bg-red-600 text-white' : 'bg-red-50 text-red-700'}`}
                 > */}
-                  {/* <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-current" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                {/* <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-current" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                     <path d="M12.9 2.3c-.4-.7-1.4-.7-1.8 0L2.6 18.4c-.4.7.1 1.6.9 1.6h18.9c.8 0 1.3-.9.9-1.6L12.9 2.3z" fill="currentColor" className="opacity-90" />
                     <rect x="11" y="8" width="2" height="6" rx="1" fill="white" />
                     <rect x="11" y="16" width="2" height="2" rx="1" fill="white" />
                   </svg> */}
-                  {/* <span>Overdue</span> */}
-                  {/* <span className={`ml-2 inline-flex items-center justify-center w-6 h-6 text-xs font-semibold rounded-full bg-white ${filter === 'overdue' ? 'text-red-600' : 'text-red-700'} ${counts.overdueCount>0 ? 'animate-pulse' : ''}`}>{counts.overdueCount}</span> */}
+                {/* <span>Overdue</span> */}
+                {/* <span className={`ml-2 inline-flex items-center justify-center w-6 h-6 text-xs font-semibold rounded-full bg-white ${filter === 'overdue' ? 'text-red-600' : 'text-red-700'} ${counts.overdueCount>0 ? 'animate-pulse' : ''}`}>{counts.overdueCount}</span> */}
                 {/* </button> */}
               </div>
             </div>
-            
+
           </div>
           {/* Bulk actions removed (selection checkboxes and toolbar) */}
 
@@ -781,30 +788,30 @@ export default function TicketsPage() {
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
                 <div>
                   <label className="block text-xs text-gray-600 mb-1">Assignee</label>
-                  <select value={assigneeFilter} onChange={e=>setAssigneeFilter(e.target.value)} className="w-full px-3 py-2 border rounded">
+                  <select value={assigneeFilter} onChange={e => setAssigneeFilter(e.target.value)} className="w-full px-3 py-2 border rounded">
                     <option value="">Any</option>
-                    {users.map(u=> <option key={u.id} value={u.id}>{`${u.firstname || u.name || u.full_name || u.email}${u.lastname ? ' ' + u.lastname : ''}`}</option>)}
+                    {users.map(u => <option key={u.id} value={u.id}>{`${u.firstname || u.name || u.full_name || u.email}${u.lastname ? ' ' + u.lastname : ''}`}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="block text-xs text-gray-600 mb-1">Priority</label>
-                  <select value={priorityFilter} onChange={e=>setPriorityFilter(e.target.value)} className="w-full px-3 py-2 border rounded">
+                  <select value={priorityFilter} onChange={e => setPriorityFilter(e.target.value)} className="w-full px-3 py-2 border rounded">
                     <option value="">Any</option>
                     {priorities.map(p => <option key={p} value={p}>{p}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="block text-xs text-gray-600 mb-1">Status</label>
-                  <select value={statusFilter} onChange={e=>setStatusFilter(e.target.value)} className="w-full px-3 py-2 border rounded">
+                  <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="w-full px-3 py-2 border rounded">
                     <option value="">Any</option>
-                    {statuses.map(s => <option key={s} value={s}>{s}</option>)}
+                    {filterStatusOptions.map(s => <option key={s} value={s}>{s}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="block text-xs text-gray-600 mb-1">Options</label>
                   <div className="flex items-center gap-3">
                     <label className="inline-flex items-center px-2 py-1 text-xs rounded-full bg-red-600 text-white">
-                      <input type="checkbox" className="mr-2" checked={overdueOnly} onChange={e=>setOverdueOnly(e.target.checked)} />
+                      <input type="checkbox" className="mr-2" checked={overdueOnly} onChange={e => setOverdueOnly(e.target.checked)} />
                       <span>Only overdue</span>
                     </label>
                     <button onClick={() => { setAssigneeFilter(''); setPriorityFilter(''); setStatusFilter(''); setOverdueOnly(false); setSearch(''); setFilter('all'); }} className="bg-gray-200 text-gray-700 px-4 py-2 rounded font-semibold hover:bg-gray-300 transition">Clear</button>
@@ -817,7 +824,7 @@ export default function TicketsPage() {
 
         <div className="flex flex-col items-start justify-between gap-4 mb-6 sm:flex-row sm:items-center">
           <div className="relative w-full sm:w-72">
-            <input value={search} onChange={(e)=>setSearch(e.target.value)} placeholder="Search tickets..." className="w-full py-2 pl-10 pr-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search tickets..." className="w-full py-2 pl-10 pr-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400 absolute left-3 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
           </div>
           <button onClick={openCreate} className="flex items-center justify-center w-full px-6 py-3 font-medium text-white transition-all duration-300 transform rounded-lg shadow-lg bg-blue-600 hover:bg-blue-700 hover:-translate-y-1 hover:scale-105 sm:w-auto">
@@ -826,17 +833,17 @@ export default function TicketsPage() {
           </button>
         </div>
 
-        
+
 
         <div className="mb-10 overflow-hidden bg-white shadow-xl rounded-xl">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-blue-600">
                 <tr>
-                  <th onClick={()=>{ setSortBy('id'); setSortDir(sortBy==='id' ? (sortDir==='asc' ? 'desc' : 'asc') : 'desc'); }} className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider cursor-pointer">S.NO {sortBy==='id' ? (sortDir==='asc' ? '▲' : '▼') : ''}</th>
-                  <th onClick={()=>{ setSortBy('title'); setSortDir(sortBy==='title' ? (sortDir==='asc' ? 'desc' : 'asc') : 'asc'); }} className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider cursor-pointer">Title {sortBy==='title' ? (sortDir==='asc' ? '▲' : '▼') : ''}</th>
-                  <th onClick={()=>{ setSortBy('status'); setSortDir(sortBy==='status' ? (sortDir==='asc' ? 'desc' : 'asc') : 'asc'); }} className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider cursor-pointer">Status {sortBy==='status' ? (sortDir==='asc' ? '▲' : '▼') : ''}</th>
-                  <th onClick={()=>{ setSortBy('priority'); setSortDir(sortBy==='priority' ? (sortDir==='asc' ? 'desc' : 'asc') : 'asc'); }} className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider cursor-pointer">Priority {sortBy==='priority' ? (sortDir==='asc' ? '▲' : '▼') : ''}</th>
+                  <th onClick={() => { setSortBy('id'); setSortDir(sortBy === 'id' ? (sortDir === 'asc' ? 'desc' : 'asc') : 'desc'); }} className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider cursor-pointer">S.NO {sortBy === 'id' ? (sortDir === 'asc' ? '▲' : '▼') : ''}</th>
+                  <th onClick={() => { setSortBy('title'); setSortDir(sortBy === 'title' ? (sortDir === 'asc' ? 'desc' : 'asc') : 'asc'); }} className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider cursor-pointer">Title {sortBy === 'title' ? (sortDir === 'asc' ? '▲' : '▼') : ''}</th>
+                  <th onClick={() => { setSortBy('status'); setSortDir(sortBy === 'status' ? (sortDir === 'asc' ? 'desc' : 'asc') : 'asc'); }} className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider cursor-pointer">Status {sortBy === 'status' ? (sortDir === 'asc' ? '▲' : '▼') : ''}</th>
+                  <th onClick={() => { setSortBy('priority'); setSortDir(sortBy === 'priority' ? (sortDir === 'asc' ? 'desc' : 'asc') : 'asc'); }} className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider cursor-pointer">Priority {sortBy === 'priority' ? (sortDir === 'asc' ? '▲' : '▼') : ''}</th>
                   <th className="px-6 py-4 text-center text-xs font-medium text-white uppercase tracking-wider">Attachment</th>
                   <th className="px-6 py-4 text-center text-xs font-medium text-white uppercase tracking-wider">Closed Date</th>
                   <th className="px-6 py-4 text-center text-xs font-medium text-white uppercase tracking-wider">Actions</th>
@@ -888,11 +895,10 @@ export default function TicketsPage() {
                               openEdit(row);
                             }}
                             disabled={String(row.status || '').toLowerCase() === 'closed'}
-                            className={`p-2 text-white transition-colors duration-200 rounded-lg ${
-                              String(row.status || '').toLowerCase() === 'closed'
-                                ? 'bg-blue-300 cursor-not-allowed opacity-60'
-                                : 'bg-blue-600 hover:bg-blue-700'
-                            }`}
+                            className={`p-2 text-white transition-colors duration-200 rounded-lg ${String(row.status || '').toLowerCase() === 'closed'
+                              ? 'bg-blue-300 cursor-not-allowed opacity-60'
+                              : 'bg-blue-600 hover:bg-blue-700'
+                              }`}
                             title={String(row.status || '').toLowerCase() === 'closed' ? 'Closed tickets cannot be edited' : 'Edit Ticket'}
                           >
                             <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -963,7 +969,7 @@ export default function TicketsPage() {
                       <input
                         type="text"
                         value={form.title}
-                        onChange={e=>setForm({ ...form, title: e.target.value })}
+                        onChange={e => setForm({ ...form, title: e.target.value })}
                         className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         placeholder="Ticket title"
                         required
@@ -973,29 +979,18 @@ export default function TicketsPage() {
                       <label className="block mb-2 text-sm font-medium text-gray-700">Description *</label>
                       <textarea
                         value={form.description}
-                        onChange={e=>setForm({ ...form, description: e.target.value })}
+                        onChange={e => setForm({ ...form, description: e.target.value })}
                         className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         placeholder="Ticket description"
                         required
                       />
                     </div>
-                    {user && user.role && user.role.toLowerCase() === 'management' && form.status === 'Rejected' && (
-                      <div>
-                        <label className="block mb-2 text-sm font-medium text-gray-700">Rejected By Reason</label>
-                        <textarea
-                          value={form.rejected_by_reason}
-                          onChange={e => setForm({ ...form, rejected_by_reason: e.target.value })}
-                          className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          placeholder="Reason for rejection"
-                        />
-                      </div>
-                    )}
                     <div className="flex gap-4">
                       <div className="flex-1">
                         <label className="block mb-2 text-sm font-medium text-gray-700">Priority</label>
                         <select
                           value={form.priority}
-                          onChange={e=>setForm({ ...form, priority: e.target.value })}
+                          onChange={e => setForm({ ...form, priority: e.target.value })}
                           className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         >
                           <option value="">Select priority</option>
@@ -1093,19 +1088,17 @@ export default function TicketsPage() {
                             ) : (
                               <>
                                 <option value="">Select user</option>
-                                  {users
-                                    .slice()
-                                    .sort((a, b) => String((a.firstname || a.name || a.full_name || '')).localeCompare(String((b.firstname || b.name || b.full_name || ''))))
-                                    .map(u => (
-                                      <option key={u.id} value={u.id}>{`${u.firstname || u.name || u.full_name || u.email}${u.lastname ? ' ' + u.lastname : ''}`}</option>
-                                    ))}
+                                {users
+                                  .slice()
+                                  .sort((a, b) => String((a.firstname || a.name || a.full_name || '')).localeCompare(String((b.firstname || b.name || b.full_name || ''))))
+                                  .map(u => (
+                                    <option key={u.id} value={u.id}>{`${u.firstname || u.name || u.full_name || u.email}${u.lastname ? ' ' + u.lastname : ''}`}</option>
+                                  ))}
                               </>
                             )}
                           </select>
                         )}
-                        {isManagementUser && (
-                          <div className="text-xs text-gray-500 mt-1">Hold Ctrl on Windows or Cmd on Mac to select multiple users.</div>
-                        )}
+
                       </div>
                       <div className="flex-1">
                         <label className="block mb-2 text-sm font-medium text-gray-700">Status</label>
@@ -1162,7 +1155,6 @@ export default function TicketsPage() {
                             );
                           })}
                         </select>
-                        <div className="text-xs text-gray-500 mt-1">Only the assigned user can set status to Open. Only the ticket creator can set status to Closed.</div>
                       </div>
                     </div>
                     <div className="flex gap-4">
@@ -1171,7 +1163,7 @@ export default function TicketsPage() {
                         <input
                           type="date"
                           value={form.due_date}
-                          onChange={e=>setForm({ ...form, due_date: e.target.value })}
+                          onChange={e => setForm({ ...form, due_date: e.target.value })}
                           className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                           required
                         />
@@ -1227,11 +1219,10 @@ export default function TicketsPage() {
                             type="submit"
                             disabled={disableUpdateBtn}
                             title={disableUpdateBtn ? "Assignees are not allowed to update the ticket directly" : undefined}
-                            className={`inline-flex justify-center px-6 py-3 text-sm font-medium text-white border border-transparent rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
-                              disableUpdateBtn 
-                                ? 'bg-blue-400 opacity-50 cursor-not-allowed' 
-                                : 'bg-blue-600 hover:bg-blue-700'
-                            }`}
+                            className={`inline-flex justify-center px-6 py-3 text-sm font-medium text-white border border-transparent rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${disableUpdateBtn
+                              ? 'bg-blue-400 opacity-50 cursor-not-allowed'
+                              : 'bg-blue-600 hover:bg-blue-700'
+                              }`}
                           >
                             {editingId ? 'Update Ticket' : 'Create Ticket'}
                           </button>

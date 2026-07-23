@@ -563,7 +563,7 @@ export default function UsersPage() {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{u.empid || '--N/A--'}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-center">
                         {u.staff_photo ? (
-                          <img src={getPhotoUrl(u.staff_photo)} alt="Staff" className="object-cover w-10 h-10 rounded-full border border-gray-300" />
+                           <img src={getPhotoUrl(u.staff_photo)} alt="Staff" className="object-cover w-12 h-12 rounded-full border border-gray-300" />
                         ) : (
                           <span className="text-sm text-gray-400">--</span>
                         )}

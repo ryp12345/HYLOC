@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { getMyTickets, getAllTickets } from '../../../api/ticketApi';
+import { getUsers, getAssignableUsers } from '../../../api/userApi';
 import { useAuth } from '../../../context/AuthContext';
 import { 
   applyLeave, 
@@ -59,6 +60,7 @@ const HODCalendar = ({ joinDate, title = 'HOD Leave Calendar' }) => {
   // Note: loadData uses currentYear
   // Ticket state
   const [tickets, setTickets] = useState([]);
+  const [usersById, setUsersById] = useState({});
   const [showTicketModal, setShowTicketModal] = useState(false);
   const [selectedTickets, setSelectedTickets] = useState([]);
 
@@ -75,19 +77,38 @@ const HODCalendar = ({ joinDate, title = 'HOD Leave Calendar' }) => {
         });
       };
 
+      const ticketsData = await (async () => {
+        try {
+          const [ticketsRes, usersRes] = await Promise.all([
+            getAllTickets(),
+            getUsers().catch(() => getAssignableUsers()),
+          ]);
+          const users = usersRes?.data?.data || [];
+          const map = {};
+          users.forEach((u) => {
+            if (!u || u.id === undefined || u.id === null) return;
+            const name = `${u.firstname || ''} ${u.lastname || ''}`.trim() || u.name || u.full_name || u.email || `User #${u.id}`;
+            map[String(u.id)] = name;
+          });
+          setUsersById(map);
+          return ticketsRes.data.data || [];
+        } catch (err) {
+          const ticketsRes = await getAllTickets();
+          return ticketsRes.data.data || [];
+        }
+      })();
+
       // HODs should see all tickets.
       // Non-HODs should see tickets they created OR tickets assigned to them.
       if (isElevatedRole) {
-        const res = await getAllTickets();
-        setTickets(dedupeTickets(res.data.data || []));
+        setTickets(dedupeTickets(ticketsData));
       } else {
-        const res = await getAllTickets();
-        const all = res.data.data || [];
-        // DEBUG: inspect tickets shape to ensure assigned_to/user_id fields exist
+        const all = ticketsData;
+        // DEBUG: inspect tickets shape to ensure assigned_to_ids/user_id fields exist
         try {
           console.groupCollapsed('[HODCalendar] fetched tickets sample');
           console.log('total fetched:', all.length);
-          console.log('sample tickets (first 10):', all.slice(0, 10).map(t => ({ id: t.id, user_id: t.user_id, created_at: t.created_at, assigned_to: t.assigned_to })));
+          console.log('sample tickets (first 10):', all.slice(0, 10).map(t => ({ id: t.id, user_id: t.user_id, created_at: t.created_at, assigned_to_ids: t.assigned_to_ids })));
           console.groupEnd();
         } catch (e) {
           console.debug('Error while logging tickets sample', e);
@@ -95,14 +116,10 @@ const HODCalendar = ({ joinDate, title = 'HOD Leave Calendar' }) => {
         const uid = Number(user?.id);
         const filtered = all.filter((ticket) => {
           const creatorId = Number(ticket.user_id ?? ticket.user?.id ?? ticket.userId ?? ticket.created_by ?? ticket.createdBy ?? NaN);
-          const a = ticket.assigned_to;
-          let assignedId = NaN;
-          if (a != null) {
-            if (typeof a === 'object') assignedId = Number(a.id ?? a.user_id ?? a.userId ?? NaN);
-            else assignedId = Number(a);
-          }
+          const assignedIds = Array.isArray(ticket.assigned_to_ids) ? ticket.assigned_to_ids : [];
+          const isAssigned = assignedIds.includes(uid);
 
-          return (!isNaN(creatorId) && creatorId === uid) || (!isNaN(assignedId) && assignedId === uid);
+          return (!isNaN(creatorId) && creatorId === uid) || isAssigned;
         });
         setTickets(dedupeTickets(filtered));
       }
@@ -611,12 +628,17 @@ const HODCalendar = ({ joinDate, title = 'HOD Leave Calendar' }) => {
 
   // Format full date
   const formatFullDate = (date) => {
-    return date.toLocaleDateString('en-US', { 
-      weekday: 'long', 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
     });
+  };
+
+  const getAssigneeDisplay = (ticket) => {
+    const ids = Array.isArray(ticket.assigned_to_ids) ? ticket.assigned_to_ids : [];
+    if (!ids.length) return '-';
+    return ids.map(id => usersById[String(id)] || `User #${id}`).join(', ');
   };
 
   // Day names for headers
@@ -967,14 +989,16 @@ const HODCalendar = ({ joinDate, title = 'HOD Leave Calendar' }) => {
               <table className="min-w-full bg-white border rounded-lg shadow">
                 <thead>
                   <tr className="bg-blue-100 text-blue-800">
+                    <th className="py-2 px-4 text-center">S.No</th>
                     <th className="py-2 px-4 text-center">Status</th>
                     <th className="py-2 px-4 text-center">Duration</th>
                     <th className="py-2 px-4 text-center">Reason</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {leaves.map((leave) => (
+                  {leaves.map((leave, idx) => (
                     <tr key={leave.id} className="border-b hover:bg-purple-50">
+                      <td className="py-2 px-4 text-center">{idx + 1}</td>
                       <td className="py-2 px-4 text-center">
                         <span className={`px-3 py-1 rounded-full text-white text-sm ${getLeaveBadgeColor(leave.status)}`}>{leave.status}</span>
                       </td>
@@ -1075,18 +1099,22 @@ const HODCalendar = ({ joinDate, title = 'HOD Leave Calendar' }) => {
                 <table className="min-w-full text-sm border rounded-t-lg overflow-hidden">
                   <thead className="bg-blue-600 text-white rounded-t-lg">
                     <tr>
+                      <th className="text-left px-4 py-2 border">S.No</th>
                       <th className="text-left px-4 py-2 border">Title</th>
                       <th className="text-left px-4 py-2 border">Description</th>
                       <th className="text-left px-4 py-2 border">Priority</th>
+                      <th className="text-left px-4 py-2 border">Assigned To</th>
                       <th className="text-left px-4 py-2 border">Due Date</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {selectedTickets.map((t) => (
+                    {selectedTickets.map((t, idx) => (
                       <tr key={t.id} className="border-t">
+                        <td className="px-4 py-2 border">{idx + 1}</td>
                         <td className="px-4 py-2 border">{t.title || '-'}</td>
                         <td className="px-4 py-2 border">{t.description || '-'}</td>
                         <td className="px-4 py-2 border">{t.priority || '-'}</td>
+                        <td className="px-4 py-2 border">{getAssigneeDisplay(t)}</td>
                         <td className="px-4 py-2 border">{t.due_date ? formatDateDisplay(t.due_date) : '-'}</td>
                       </tr>
                     ))}
@@ -1123,22 +1151,24 @@ const HODCalendar = ({ joinDate, title = 'HOD Leave Calendar' }) => {
               const userRoleLabel = leave?.user_role
                 || (user?.role?.name || user?.role || '—');
               return leave ? (
-                <div className="overflow-x-auto overflow-hidden rounded-t-lg">
-                  <table className="min-w-full text-sm border">
-                    <thead className="bg-blue-600 text-white">
-                      <tr>
-                        <th className="text-left px-4 py-2 border">User Name</th>
-                        <th className="text-left px-4 py-2 border">Role</th>
-                        <th className="text-left px-4 py-2 border">From Date</th>
-                        <th className="text-left px-4 py-2 border">To Date</th>
-                        <th className="text-left px-4 py-2 border">Leave Reason</th>
-                        <th className="text-left px-4 py-2 border">Type</th>
-                        <th className="text-left px-4 py-2 border">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr key={leave.id} className={`border-t ${isLeaveWithoutPay(leave) ? 'bg-red-50 border-l-4 border-red-600' : ''}`}>
-                        <td className="px-4 py-2 border">{userName}</td>
+                 <div className="overflow-x-auto overflow-hidden rounded-t-lg">
+                   <table className="min-w-full text-sm border">
+                     <thead className="bg-blue-600 text-white">
+                       <tr>
+                         <th className="text-left px-4 py-2 border">S.No</th>
+                         <th className="text-left px-4 py-2 border">User Name</th>
+                         <th className="text-left px-4 py-2 border">Role</th>
+                         <th className="text-left px-4 py-2 border">From Date</th>
+                         <th className="text-left px-4 py-2 border">To Date</th>
+                         <th className="text-left px-4 py-2 border">Leave Reason</th>
+                         <th className="text-left px-4 py-2 border">Type</th>
+                         <th className="text-left px-4 py-2 border">Status</th>
+                       </tr>
+                     </thead>
+                     <tbody>
+                       <tr key={leave.id} className={`border-t ${isLeaveWithoutPay(leave) ? 'bg-red-50 border-l-4 border-red-600' : ''}`}>
+                         <td className="px-4 py-2 border">1</td>
+                         <td className="px-4 py-2 border">{userName}</td>
                         <td className="px-4 py-2 border">{userRoleLabel}</td>
                         <td className="px-4 py-2 border">{formatFullDate(parseDateOnly(leave.from_date))}</td>
                         <td className="px-4 py-2 border">{formatFullDate(parseDateOnly(leave.to_date))}</td>

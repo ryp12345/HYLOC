@@ -17,12 +17,12 @@ const attachTicketAssignees = async (tickets, db = pool) => {
   const ticketIds = rows.map((ticket) => Number(ticket.id)).filter((ticketId) => Number.isInteger(ticketId) && ticketId > 0);
   if (ticketIds.length === 0) return rows.map((ticket) => ({
     ...ticket,
-    assigned_to_ids: normalizeIdList([ticket.assigned_to]),
+    assigned_to_ids: normalizeIdList(ticket.assigned_to_ids),
   }));
 
   const assigneeResult = await db.query(
     `
-      SELECT ticket_id, array_agg(user_id ORDER BY created_at ASC) AS assignee_ids
+      SELECT ticket_id, array_agg(assigned_to ORDER BY created_at ASC) AS assignee_ids
       FROM ticket_assignees
       WHERE ticket_id = ANY($1::int[])
       GROUP BY ticket_id
@@ -37,10 +37,9 @@ const attachTicketAssignees = async (tickets, db = pool) => {
 
   return rows.map((ticket) => {
     const assigneeIds = assigneesByTicketId.get(String(ticket.id)) || [];
-    const combined = normalizeIdList([ticket.assigned_to, ...assigneeIds]);
     return {
       ...ticket,
-      assigned_to_ids: combined,
+      assigned_to_ids: [...assigneeIds],
     };
   });
 };
@@ -53,7 +52,7 @@ const replaceTicketAssignees = async (db, ticketId, assigneeIds, assignedBy) => 
   for (const userId of normalizedAssigneeIds) {
     await db.query(
       `
-        INSERT INTO ticket_assignees (ticket_id, user_id, assigned_by, created_at, updated_at)
+        INSERT INTO ticket_assignees (ticket_id, assigned_to, assigned_by, created_at, updated_at)
         VALUES ($1, $2, $3, NOW(), NOW())
       `,
       [ticketId, userId, assignedBy || null]
@@ -74,8 +73,8 @@ exports.getTicketPriorities = async () => {
 // Create a ticket in the tickets table
 exports.createTicket = async (data, db = pool) => {
   const query = `
-    INSERT INTO tickets (title, description, priority, status, user_id, assigned_to, due_date, attachment, created_at, updated_at)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
+    INSERT INTO tickets (title, description, priority, status, user_id, due_date, attachment, created_at, updated_at)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
     RETURNING *
   `;
   const values = [
@@ -84,7 +83,6 @@ exports.createTicket = async (data, db = pool) => {
     data.priority || 'Medium',
     data.status || 'Open',
     data.user_id,
-    data.assigned_to || null,
     data.due_date || null,
     data.attachment || null,
   ];
@@ -125,11 +123,10 @@ exports.getTicketsForUser = async (userId, role, db = pool) => {
           `
             SELECT * FROM tickets
             WHERE user_id = $1
-              OR assigned_to = $1
               OR EXISTS (
                 SELECT 1
                 FROM ticket_assignees ta
-                WHERE ta.ticket_id = tickets.id AND ta.user_id = $1
+                WHERE ta.ticket_id = tickets.id AND ta.assigned_to = $1
               )
             ORDER BY created_at DESC
           `,
@@ -145,11 +142,10 @@ exports.getTicketsForUser = async (userId, role, db = pool) => {
         LEFT JOIN user_roles ur ON ur.user_id = u.id AND ur.status = 'active'
         LEFT JOIN roles r ON r.id = ur.role_id
         WHERE t.user_id = $1
-          OR t.assigned_to = $1
           OR EXISTS (
             SELECT 1
             FROM ticket_assignees ta
-            WHERE ta.ticket_id = t.id AND ta.user_id = $1
+            WHERE ta.ticket_id = t.id AND ta.assigned_to = $1
           )
           OR (u.department_id = $2 AND LOWER(r.role_name) = 'employee')
         ORDER BY t.created_at DESC
@@ -163,11 +159,10 @@ exports.getTicketsForUser = async (userId, role, db = pool) => {
         `
           SELECT * FROM tickets
           WHERE user_id = $1
-            OR assigned_to = $1
             OR EXISTS (
               SELECT 1
               FROM ticket_assignees ta
-              WHERE ta.ticket_id = tickets.id AND ta.user_id = $1
+              WHERE ta.ticket_id = tickets.id AND ta.assigned_to = $1
             )
           ORDER BY created_at DESC
         `,
@@ -182,11 +177,10 @@ exports.getTicketsForUser = async (userId, role, db = pool) => {
     `
       SELECT * FROM tickets
       WHERE user_id = $1
-        OR assigned_to = $1
         OR EXISTS (
           SELECT 1
           FROM ticket_assignees ta
-          WHERE ta.ticket_id = tickets.id AND ta.user_id = $1
+          WHERE ta.ticket_id = tickets.id AND ta.assigned_to = $1
         )
       ORDER BY created_at DESC
     `,
@@ -208,11 +202,10 @@ exports.getTicketsByUserId = async (userId, db = pool) => {
     `
       SELECT * FROM tickets
       WHERE user_id = $1
-        OR assigned_to = $1
         OR EXISTS (
           SELECT 1
           FROM ticket_assignees ta
-          WHERE ta.ticket_id = tickets.id AND ta.user_id = $1
+          WHERE ta.ticket_id = tickets.id AND ta.assigned_to = $1
         )
       ORDER BY created_at DESC
     `,
@@ -235,12 +228,9 @@ exports.updateTicket = async (id, data, db = pool) => {
   if (data.description !== undefined) { fields.push(`description = $${idx++}`); values.push(data.description); }
   if (data.priority !== undefined) { fields.push(`priority = $${idx++}`); values.push(data.priority); }
   if (data.user_id !== undefined) { fields.push(`user_id = $${idx++}`); values.push(data.user_id); }
-  if (data.assigned_to !== undefined) { fields.push(`assigned_to = $${idx++}`); values.push(data.assigned_to); }
   if (data.due_date !== undefined) { fields.push(`due_date = $${idx++}`); values.push(data.due_date); }
   if (data.attachment !== undefined) { fields.push(`attachment = $${idx++}`); values.push(data.attachment); }
   if (data.status !== undefined) { fields.push(`status = $${idx++}`); values.push(data.status); }
-  if (data.rejected_by !== undefined) { fields.push(`rejected_by = $${idx++}`); values.push(data.rejected_by); }
-  if (data.rejected_by_reason !== undefined) { fields.push(`rejected_by_reason = $${idx++}`); values.push(data.rejected_by_reason); }
 
   if (fields.length === 0) return await exports.getTicketById(id, db);
 

@@ -25,6 +25,7 @@ const { errorHandler, notFoundHandler } = require('./middlewares/error.middlewar
 const notificationRoutes = require('./routes/notification.routes');
 
 const app = express();
+const fs = require('fs');
 
 // Middlewares
 app.use(express.json());
@@ -36,6 +37,44 @@ const path = require('path');
 const uploadsPath = path.join(__dirname, '../public/uploads');
 app.use('/uploads', express.static(uploadsPath));
 app.use('/api/uploads', express.static(uploadsPath));
+
+const userUploadsPath = path.join(uploadsPath, 'users');
+const userPhotoExtensions = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+
+app.get('/api/uploads/users/:fileName', (req, res, next) => {
+  const requestedName = String(req.params.fileName || '').trim();
+  if (!requestedName) {
+    return next();
+  }
+
+  const normalizedName = requestedName.replace(/^\/+/, '');
+  const directFilePath = path.join(userUploadsPath, normalizedName);
+
+  if (fs.existsSync(directFilePath) && fs.statSync(directFilePath).isFile()) {
+    return res.sendFile(directFilePath);
+  }
+
+  const baseName = path.parse(normalizedName).name || normalizedName;
+  const extension = path.parse(normalizedName).ext;
+  const candidateNames = new Set();
+
+  if (extension) {
+    candidateNames.add(`${baseName}${extension}`);
+  }
+
+  userPhotoExtensions.forEach((ext) => {
+    candidateNames.add(`${baseName}.${ext}`);
+  });
+
+  for (const candidateName of candidateNames) {
+    const candidatePath = path.join(userUploadsPath, candidateName);
+    if (fs.existsSync(candidatePath) && fs.statSync(candidatePath).isFile()) {
+      return res.sendFile(candidatePath);
+    }
+  }
+
+  return next();
+});
 
 // Request logging middleware
 app.use((req, res, next) => {

@@ -168,11 +168,6 @@ const ManagementCalendar = ({ title = 'Management Calendar' }) => {
 	const roleNorm = String(user?.role || '').toLowerCase();
 	const isManagementUser = roleNorm === 'management';
 
-	const getRejectedByDisplayName = (ticket) => {
-		if (!ticket || ticket.rejected_by === null || ticket.rejected_by === undefined || ticket.rejected_by === '') return '-';
-		return usersById[String(ticket.rejected_by)] || `User #${ticket.rejected_by}`;
-	};
-
 	const getDateOnlyDisplayFromTimestamp = (value) => {
 		if (!value) return '-';
 		const d = new Date(value);
@@ -182,68 +177,52 @@ const ManagementCalendar = ({ title = 'Management Calendar' }) => {
 			month: 'short',
 			day: 'numeric',
 		});
-	};
+ 	};
 
-	const getRejectedDateDisplay = (ticket) => {
-		if (!ticket) return '-';
-		const hasRejectionData = Boolean(ticket.rejected_by || ticket.rejected_by_reason || String(ticket.status || '').toLowerCase() === 'rejected');
-		if (!hasRejectionData) return '-';
-		// Prefer explicit rejected_date (from server) or updated_at when status is Rejected
-		if (ticket.rejected_date) return getDateOnlyDisplayFromTimestamp(ticket.rejected_date);
-		if (String(ticket.status || '').toLowerCase() === 'rejected') return getDateOnlyDisplayFromTimestamp(ticket.updated_at);
-		const closedDate = getClosedDateDisplay(ticket);
-		if (closedDate !== '-') return closedDate;
-		return '-';
-	};
+ 	const getClosedDateDisplay = (ticket) => {
+ 		if (!ticket) return '-';
+ 		const st = String(ticket.status || '').toLowerCase();
+ 		if (st === 'rejected') return '-NA-';
+ 		if (st !== 'closed') return '-';
+ 		return getDateOnlyDisplayFromTimestamp(ticket.updated_at);
+ 	};
 
-	const getClosedDateDisplay = (ticket) => {
-		if (!ticket) return '-';
-		const st = String(ticket.status || '').toLowerCase();
-		if (st === 'rejected') return '-NA-';
-		if (st !== 'closed') return '-';
-		return getDateOnlyDisplayFromTimestamp(ticket.updated_at);
-	};
+ 	const getAssigneeDisplay = (ticket) => {
+ 		const ids = Array.isArray(ticket.assigned_to_ids) ? ticket.assigned_to_ids : [];
+ 		if (!ids.length) return '-';
+ 		return ids.map(id => usersById[String(id)] || `User #${id}`).join(', ');
+ 	};
 
-	const getRejectedReasonDisplay = (ticket) => {
-		if (!ticket) return '-';
-		const reason = ticket.rejected_by_reason !== undefined && ticket.rejected_by_reason !== null
-			? String(ticket.rejected_by_reason).trim()
-			: '';
-		if (reason) return reason;
-		if (ticket.rejected_by) return 'None Specified';
-		return '-';
-	};
+ 	const getMonthDays = (date) => {
+ 		const year = date.getFullYear();
+ 		const month = date.getMonth();
+ 		const firstDay = new Date(year, month, 1);
+ 		const lastDay = new Date(year, month + 1, 0);
+ 		const daysInMonth = lastDay.getDate();
+ 		const startingDayOfWeek = firstDay.getDay();
 
-	const getMonthDays = (date) => {
-		const year = date.getFullYear();
-		const month = date.getMonth();
-		const firstDay = new Date(year, month, 1);
-		const lastDay = new Date(year, month + 1, 0);
-		const daysInMonth = lastDay.getDate();
-		const startingDayOfWeek = firstDay.getDay();
+ 		const days = [];
+ 		for (let i = 0; i < startingDayOfWeek; i++) {
+ 			days.push(null);
+ 		}
+ 		for (let day = 1; day <= daysInMonth; day++) {
+ 			days.push(new Date(year, month, day));
+ 		}
 
-		const days = [];
-		for (let i = 0; i < startingDayOfWeek; i++) {
-			days.push(null);
-		}
-		for (let day = 1; day <= daysInMonth; day++) {
-			days.push(new Date(year, month, day));
-		}
+ 		return days;
+ 	};
 
-		return days;
-	};
+ 	const getWeekDays = (date) => {
+ 		const curr = new Date(date);
+ 		const first = curr.getDate() - curr.getDay();
+ 		const weekDays = [];
+ 		for (let i = 0; i < 7; i++) {
+ 			weekDays.push(new Date(curr.setDate(first + i)));
+ 		}
+ 		return weekDays;
+ 	};
 
-	const getWeekDays = (date) => {
-		const curr = new Date(date);
-		const first = curr.getDate() - curr.getDay();
-		const weekDays = [];
-		for (let i = 0; i < 7; i++) {
-			weekDays.push(new Date(curr.setDate(first + i)));
-		}
-		return weekDays;
-	};
-
-	const formatMonthYear = (date) => {
+ 	const formatMonthYear = (date) => {
 		return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 	};
 
@@ -259,9 +238,8 @@ const ManagementCalendar = ({ title = 'Management Calendar' }) => {
 
 	const formatFullDate = (date) => {
 		return date.toLocaleDateString('en-US', {
-			weekday: 'long',
 			year: 'numeric',
-			month: 'long',
+			month: 'short',
 			day: 'numeric'
 		});
 	};
@@ -298,35 +276,42 @@ const ManagementCalendar = ({ title = 'Management Calendar' }) => {
 		return d;
 	};
 
-	const toLocalDateOnly = (date) => {
-		const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-		d.setHours(0, 0, 0, 0);
-		return d;
-	};
+ 	const toLocalDateOnly = (date) => {
+ 		if (date instanceof Date) {
+ 			return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+ 		}
+ 		const d = new Date(date);
+ 		if (Number.isNaN(d.getTime())) return null;
+ 		return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+ 	};
 
-	const getLeavesForDate = (date) => {
-		if (!date) return [];
-		const checkTime = toLocalDateOnly(date).getTime();
-		return leaves.filter((leave) => {
-			const fromDate = parseDateOnly(leave.from_date);
-			const toDate = parseDateOnly(leave.to_date);
-			if (!fromDate || !toDate) return false;
+ 	const getLeavesForDate = (date) => {
+ 		if (!date) return [];
+ 		const localDate = toLocalDateOnly(date);
+ 		if (!localDate) return [];
+ 		const checkTime = localDate.getTime();
+ 		return leaves.filter((leave) => {
+ 			const fromDate = parseDateOnly(leave.from_date);
+ 			const toDate = parseDateOnly(leave.to_date);
+ 			if (!fromDate || !toDate) return false;
 
-			return checkTime >= fromDate.getTime() && checkTime <= toDate.getTime();
-		});
-	};
+ 			return checkTime >= fromDate.getTime() && checkTime <= toDate.getTime();
+ 		});
+ 	};
 
-	const getTeamLeavesForDate = (date) => {
-		if (!date) return [];
-		const checkTime = toLocalDateOnly(date).getTime();
-		return allOrgLeaves.filter((leave) => {
-			const fromDate = parseDateOnly(leave.from_date);
-			const toDate = parseDateOnly(leave.to_date);
-			if (!fromDate || !toDate) return false;
+ 	const getTeamLeavesForDate = (date) => {
+ 		if (!date) return [];
+ 		const localDate = toLocalDateOnly(date);
+ 		if (!localDate) return [];
+ 		const checkTime = localDate.getTime();
+ 		return allOrgLeaves.filter((leave) => {
+ 			const fromDate = parseDateOnly(leave.from_date);
+ 			const toDate = parseDateOnly(leave.to_date);
+ 			if (!fromDate || !toDate) return false;
 
-			return checkTime >= fromDate.getTime() && checkTime <= toDate.getTime();
-		});
-	};
+ 			return checkTime >= fromDate.getTime() && checkTime <= toDate.getTime();
+ 		});
+ 	};
 
 	// Check if a leave belongs to the logged-in user (robust fallback)
 	const isLeaveByCurrentUser = (leave) => {
@@ -354,15 +339,17 @@ const ManagementCalendar = ({ title = 'Management Calendar' }) => {
 	};
 
 	// Ticket helpers
-	const getTicketsForDate = (date) => {
-		if (!date) return [];
-		const checkDate = toLocalDateOnly(date).toDateString();
-		return tickets.filter(ticket => {
-			if (!ticket || !ticket.created_at) return false;
-			const createdDate = new Date(ticket.created_at).toDateString();
-			return createdDate === checkDate;
-		});
-	};
+ 	const getTicketsForDate = (date) => {
+ 		if (!date) return [];
+ 		const localDate = toLocalDateOnly(date);
+ 		if (!localDate) return [];
+ 		const checkDate = localDate.toDateString();
+ 		return tickets.filter(ticket => {
+ 			if (!ticket || !ticket.created_at) return false;
+ 			const createdDate = new Date(ticket.created_at).toDateString();
+ 			return createdDate === checkDate;
+ 		});
+ 	};
 
 	const openTicketModal = (date) => {
 		const dayTickets = getTicketsForDate(date);
@@ -644,18 +631,19 @@ const ManagementCalendar = ({ title = 'Management Calendar' }) => {
 	};
 
 	// Check if a date has my leave
-	const getMyLeaveForDate = (date) => {
-		if (!date) return null;
+ 	const getMyLeaveForDate = (date) => {
+ 		if (!date) return null;
+ 		const localDate = toLocalDateOnly(date);
+ 		if (!localDate) return null;
+ 		const checkTime = localDate.getTime();
+ 		return myLeaves.find((leave) => {
+ 			const fromDate = parseDateOnly(leave.from_date);
+ 			const toDate = parseDateOnly(leave.to_date);
+ 			if (!fromDate || !toDate) return false;
 
-		const checkTime = toLocalDateOnly(date).getTime();
-		return myLeaves.find((leave) => {
-			const fromDate = parseDateOnly(leave.from_date);
-			const toDate = parseDateOnly(leave.to_date);
-			if (!fromDate || !toDate) return false;
-
-			return checkTime >= fromDate.getTime() && checkTime <= toDate.getTime();
-		});
-	};
+ 			return checkTime >= fromDate.getTime() && checkTime <= toDate.getTime();
+ 		});
+ 	};
 
 	const handleCloseLeaveForm = () => {
 		setShowLeaveForm(false);
@@ -1065,19 +1053,23 @@ const ManagementCalendar = ({ title = 'Management Calendar' }) => {
 											<table className="min-w-full text-sm border">
 												<thead className="bg-blue-600 text-white">
 													<tr>
+														<th className="text-left px-4 py-2 border">S.No</th>
 														<th className="text-left px-4 py-2 border">Title</th>
 														<th className="text-left px-4 py-2 border">Description</th>
 														<th className="text-left px-4 py-2 border">Priority</th>
+														<th className="text-left px-4 py-2 border">Assigned To</th>
 														<th className="text-left px-4 py-2 border">Due Date</th>
 														{isManagementUser && <th className="text-left px-4 py-2 border">Closed Date</th>}
 													</tr>
 												</thead>
 												<tbody>
-													{selectedTickets.map((t) => (
+													{selectedTickets.map((t, idx) => (
 														<tr key={t.id} className="border-t">
+															<td className="px-4 py-2 border">{idx + 1}</td>
 															<td className="px-4 py-2 border">{t.title || '-'}</td>
 															<td className="px-4 py-2 border">{t.description || '-'}</td>
 															<td className="px-4 py-2 border">{t.priority || '-'}</td>
+															<td className="px-4 py-2 border">{getAssigneeDisplay(t)}</td>
 															<td className="px-4 py-2 border">{t.due_date ? formatDateDisplay(t.due_date) : '-'}</td>
 															{isManagementUser && <td className="px-4 py-2 border">{getClosedDateDisplay(t)}</td>}
 														</tr>
@@ -1278,15 +1270,17 @@ const ManagementCalendar = ({ title = 'Management Calendar' }) => {
 											<table className="min-w-full bg-white border rounded-lg shadow">
 												<thead>
 													<tr className="bg-blue-100 text-blue-800">
+														<th className="py-2 px-4 text-center">S.No</th>
 														<th className="py-2 px-4 text-center">Status</th>
 														<th className="py-2 px-4 text-center">Duration</th>
-													<th className="py-2 px-4 text-center">Reason</th>
-													<th className="py-2 px-4 text-center">Action</th>
+														<th className="py-2 px-4 text-center">Reason</th>
+														<th className="py-2 px-4 text-center">Action</th>
 													</tr>
 												</thead>
 												<tbody>
-													{myLeaves.map((leave) => (
+													{myLeaves.map((leave, idx) => (
 														<tr key={leave.id} className="border-b hover:bg-blue-50">
+															<td className="py-2 px-4 text-center">{idx + 1}</td>
 															<td className="py-2 px-4 text-center">
 																<span className={`px-3 py-1 rounded-full text-white text-sm ${getLeaveBadgeColor(leave.status)}`}>{leave.status}</span>
 															</td>
@@ -1389,6 +1383,7 @@ const ManagementCalendar = ({ title = 'Management Calendar' }) => {
 									<table className="min-w-full bg-white border rounded-lg">
 										<thead>
 											<tr className="bg-blue-600 text-white">
+												<th className="py-2 px-4 text-left">S.No</th>
 												<th className="py-2 px-4 text-left">From</th>
 												<th className="py-2 px-4 text-left">To</th>
 												<th className="py-2 px-4 text-left">Duration</th>
@@ -1399,6 +1394,7 @@ const ManagementCalendar = ({ title = 'Management Calendar' }) => {
 										</thead>
 										<tbody>
 											<tr className="border-b hover:bg-gray-50">
+												<td className="py-2 px-4">1</td>
 												<td className="py-2 px-4">{formatFullDate(parseDateOnly(leave.from_date))}</td>
 												<td className="py-2 px-4">{formatFullDate(parseDateOnly(leave.to_date))}</td>
 												<td className="py-2 px-4">{leave.leave_duration || ''} ({leave.duration ?? leave.credited_days} day{(leave.duration ?? leave.credited_days) === 1 ? '' : 's'})</td>
@@ -1630,6 +1626,7 @@ const ManagementCalendar = ({ title = 'Management Calendar' }) => {
 									<table className="min-w-full text-sm border">
 										<thead className="bg-blue-600 text-white">
 												<tr>
+													<th className="text-left px-4 py-2 border">S.No</th>
 													<th className="text-left px-4 py-2 border">User Name</th>
 													<th className="text-left px-4 py-2 border">Role</th>
 													<th className="text-left px-4 py-2 border">From Date</th>
@@ -1640,8 +1637,9 @@ const ManagementCalendar = ({ title = 'Management Calendar' }) => {
 												</tr>
 											</thead>
 											<tbody>
-												{selectedDateLeaves.map((leave) => (
+												{selectedDateLeaves.map((leave, idx) => (
 													<tr key={leave.id} className={`border-t ${isLeaveWithoutPay(leave) ? 'bg-red-50 border-l-4 border-red-600' : ''}`}>
+													<td className="px-4 py-2 border">{idx + 1}</td>
 													<td className="px-4 py-2 border">{leave.user_name}</td>
 													<td className="px-4 py-2 border">{leave.user_role || '—'}</td>
 													<td className="px-4 py-2 border">{formatFullDate(parseDateOnly(leave.from_date))}</td>

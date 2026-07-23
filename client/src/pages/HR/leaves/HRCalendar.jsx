@@ -179,11 +179,6 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 	const isHrUser = roleNorm === 'hr';
 	const isPrivilegedUser = isManagementUser || isHrUser;
 
-	const getRejectedByDisplayName = (ticket) => {
-		if (!ticket || ticket.rejected_by === null || ticket.rejected_by === undefined || ticket.rejected_by === '') return '-';
-		return usersById[String(ticket.rejected_by)] || `User #${ticket.rejected_by}`;
-	};
-
 	const getDateOnlyDisplayFromTimestamp = (value) => {
 		if (!value) return '-';
 		const d = new Date(value);
@@ -193,39 +188,23 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 			month: 'short',
 			day: 'numeric',
 		});
-	};
+ 	};
 
-	const getRejectedDateDisplay = (ticket) => {
-		if (!ticket) return '-';
-		const hasRejectionData = Boolean(ticket.rejected_by || ticket.rejected_by_reason || String(ticket.status || '').toLowerCase() === 'rejected');
-		if (!hasRejectionData) return '-';
-		// Prefer explicit rejected_date (from server) or updated_at when status is Rejected
-		if (ticket.rejected_date) return getDateOnlyDisplayFromTimestamp(ticket.rejected_date);
-		if (String(ticket.status || '').toLowerCase() === 'rejected') return getDateOnlyDisplayFromTimestamp(ticket.updated_at);
-		const closedDate = getClosedDateDisplay(ticket);
-		if (closedDate !== '-') return closedDate;
-		return '-';
-	};
+ 	const getClosedDateDisplay = (ticket) => {
+ 		if (!ticket) return '-';
+ 		const st = String(ticket.status || '').toLowerCase();
+ 		if (st === 'rejected') return '-NA-';
+ 		if (st !== 'closed') return '-';
+ 		return getDateOnlyDisplayFromTimestamp(ticket.updated_at);
+ 	};
 
-	const getClosedDateDisplay = (ticket) => {
-		if (!ticket) return '-';
-		const st = String(ticket.status || '').toLowerCase();
-		if (st === 'rejected') return '-NA-';
-		if (st !== 'closed') return '-';
-		return getDateOnlyDisplayFromTimestamp(ticket.updated_at);
-	};
+ 	const getAssigneeDisplay = (ticket) => {
+ 		const ids = Array.isArray(ticket.assigned_to_ids) ? ticket.assigned_to_ids : [];
+ 		if (!ids.length) return '-';
+ 		return ids.map(id => usersById[String(id)] || `User #${id}`).join(', ');
+ 	};
 
-	const getRejectedReasonDisplay = (ticket) => {
-		if (!ticket) return '-';
-		const reason = ticket.rejected_by_reason !== undefined && ticket.rejected_by_reason !== null
-			? String(ticket.rejected_by_reason).trim()
-			: '';
-		if (reason) return reason;
-		if (ticket.rejected_by) return 'None Specified';
-		return '-';
-	};
-
-	const getMonthDays = (date) => {
+ 	const getMonthDays = (date) => {
 		const year = date.getFullYear();
 		const month = date.getMonth();
 		const firstDay = new Date(year, month, 1);
@@ -268,14 +247,13 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 		return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 	};
 
-	const formatFullDate = (date) => {
-		return date.toLocaleDateString('en-US', {
-			weekday: 'long',
-			year: 'numeric',
-			month: 'long',
-			day: 'numeric'
-		});
-	};
+ 	const formatFullDate = (date) => {
+ 		return date.toLocaleDateString('en-US', {
+ 			year: 'numeric',
+ 			month: 'short',
+ 			day: 'numeric'
+ 		});
+ 	};
 
 	const isToday = (date) => {
 		const today = new Date();
@@ -1101,19 +1079,23 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 															<table className="min-w-full text-sm border">
 																<thead className="bg-blue-600 text-white">
 																	<tr>
+																		<th className="text-left px-4 py-2 border">S.No</th>
 																		<th className="text-left px-4 py-2 border">Title</th>
 																		<th className="text-left px-4 py-2 border">Description</th>
 																		<th className="text-left px-4 py-2 border">Priority</th>
+																		<th className="text-left px-4 py-2 border">Assigned To</th>
 																		<th className="text-left px-4 py-2 border">Due Date</th>
 																		{isPrivilegedUser && <th className="text-left px-4 py-2 border">Closed Date</th>}
 																	</tr>
 																</thead>
 																<tbody>
-																	{selectedTickets.map((t) => (
+																	{selectedTickets.map((t, idx) => (
 																		<tr key={t.id} className="border-t">
+																			<td className="px-4 py-2 border">{idx + 1}</td>
 																			<td className="px-4 py-2 border">{t.title || '-'}</td>
 																			<td className="px-4 py-2 border">{t.description || '-'}</td>
 																			<td className="px-4 py-2 border">{t.priority || '-'}</td>
+																			<td className="px-4 py-2 border">{getAssigneeDisplay(t)}</td>
 																			<td className="px-4 py-2 border">{t.due_date ? formatDateDisplay(t.due_date) : '-'}</td>
 																			{isPrivilegedUser && <td className="px-4 py-2 border">{getClosedDateDisplay(t)}</td>}
 																		</tr>
@@ -1313,6 +1295,7 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 												<table className="min-w-full bg-white border rounded-lg shadow">
 													<thead>
 														<tr className="bg-blue-100 text-blue-800">
+															<th className="py-2 px-4 text-center">S.No</th>
 															<th className="py-2 px-4 text-center">Status</th>
 															<th className="py-2 px-4 text-center">Duration</th>
 															<th className="py-2 px-4 text-center">Reason</th>
@@ -1320,8 +1303,9 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 														</tr>
 													</thead>
 													<tbody>
-														{myLeaves.map((leave) => (
+														{myLeaves.map((leave, idx) => (
 															<tr key={leave.id} className="border-b hover:bg-blue-50">
+																<td className="py-2 px-4 text-center">{idx + 1}</td>
 																<td className="py-2 px-4 text-center">
 																	<span className={`px-3 py-1 rounded-full text-white text-sm ${getLeaveBadgeColor(leave.status)}`}>{leave.status}</span>
 																</td>
@@ -1424,6 +1408,7 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 											<table className="min-w-full bg-white border rounded-lg">
 												<thead>
 													<tr className="bg-blue-600 text-white">
+														<th className="py-2 px-4 text-left">S.No</th>
 														<th className="py-2 px-4 text-left">From</th>
 														<th className="py-2 px-4 text-left">To</th>
 														<th className="py-2 px-4 text-left">Duration</th>
@@ -1434,6 +1419,7 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 												</thead>
 												<tbody>
 													<tr className="border-b hover:bg-gray-50">
+														<td className="py-2 px-4">1</td>
 														<td className="py-2 px-4">{formatFullDate(parseDateOnly(leave.from_date))}</td>
 														<td className="py-2 px-4">{formatFullDate(parseDateOnly(leave.to_date))}</td>
 														<td className="py-2 px-4">{leave.leave_duration || ''} ({leave.duration ?? leave.credited_days} day{(leave.duration ?? leave.credited_days) === 1 ? '' : 's'})</td>
@@ -1697,6 +1683,7 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 										<table className="min-w-full text-sm border">
 											<thead className="bg-blue-600 text-white">
 												<tr>
+													<th className="text-left px-4 py-2 border">S.No</th>
 													<th className="text-left px-4 py-2 border">User Name</th>
 													<th className="text-left px-4 py-2 border">Role</th>
 													<th className="text-left px-4 py-2 border">From Date</th>
@@ -1708,8 +1695,9 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 												</tr>
 											</thead>
 											<tbody>
-												{selectedDateLeaves.map((leave) => (
+												{selectedDateLeaves.map((leave, idx) => (
 													<tr key={leave.id} className={`border-t ${isLeaveWithoutPay(leave) ? 'bg-red-50 border-l-4 border-red-600' : ''}`}>
+														<td className="px-4 py-2 border">{idx + 1}</td>
 														<td className="px-4 py-2 border">{leave.user_name}</td>
 														<td className="px-4 py-2 border">{leave.user_role || '—'}</td>
 														<td className="px-4 py-2 border">{formatFullDate(parseDateOnly(leave.from_date))}</td>

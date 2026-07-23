@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getAllTickets } from '../../../api/ticketApi';
+import { getUsers, getAssignableUsers } from '../../../api/userApi';
 import { useAuth } from '../../../context/AuthContext';
 import Notification from '../../../components/common/Notification';
 import {
@@ -40,6 +41,7 @@ const EmployeeCalendar = ({ joinDate }) => {
 
   // Ticket state
   const [tickets, setTickets] = useState([]);
+  const [usersById, setUsersById] = useState({});
   const [showTicketModal, setShowTicketModal] = useState(false);
   const [selectedTickets, setSelectedTickets] = useState([]);
 
@@ -111,13 +113,32 @@ const EmployeeCalendar = ({ joinDate }) => {
   // Load tickets for the user
   const loadTickets = async () => {
     try {
-      const res = await getAllTickets();
-      const all = res.data.data || [];
+      const all = await (async () => {
+        try {
+          const [ticketsRes, usersRes] = await Promise.all([
+            getAllTickets(),
+            getUsers().catch(() => getAssignableUsers()),
+          ]);
+          const users = usersRes?.data?.data || [];
+          const map = {};
+          users.forEach((u) => {
+            if (!u || u.id === undefined || u.id === null) return;
+            const name = `${u.firstname || ''} ${u.lastname || ''}`.trim() || u.name || u.full_name || u.email || `User #${u.id}`;
+            map[String(u.id)] = name;
+          });
+          setUsersById(map);
+          return ticketsRes.data.data || [];
+        } catch (err) {
+          const ticketsRes = await getAllTickets();
+          return ticketsRes.data.data || [];
+        }
+      })();
+
       // DEBUG: inspect tickets shape
       try {
         console.groupCollapsed('[EmployeeCalendar] fetched tickets sample');
         console.log('total fetched:', all.length);
-        console.log('sample tickets (first 10):', all.slice(0, 10).map(t => ({ id: t.id, user_id: t.user_id, created_at: t.created_at, assigned_to: t.assigned_to })));
+        console.log('sample tickets (first 10):', all.slice(0, 10).map(t => ({ id: t.id, user_id: t.user_id, created_at: t.created_at, assigned_to_ids: t.assigned_to_ids })));
         console.groupEnd();
       } catch (e) {
         console.debug('Error while logging tickets sample', e);
@@ -126,14 +147,10 @@ const EmployeeCalendar = ({ joinDate }) => {
       const uid = Number(userId);
       const filtered = all.filter((ticket) => {
         const creatorId = Number(ticket.user_id ?? ticket.user?.id ?? ticket.userId ?? ticket.created_by ?? ticket.createdBy ?? NaN);
-        const a = ticket.assigned_to;
-        let assignedId = NaN;
-        if (a != null) {
-          if (typeof a === 'object') assignedId = Number(a.id ?? a.user_id ?? a.userId ?? NaN);
-          else assignedId = Number(a);
-        }
+        const assignedIds = Array.isArray(ticket.assigned_to_ids) ? ticket.assigned_to_ids : [];
+        const isAssigned = assignedIds.includes(uid);
 
-        return (!isNaN(creatorId) && creatorId === uid) || (!isNaN(assignedId) && assignedId === uid);
+        return (!isNaN(creatorId) && creatorId === uid) || isAssigned;
       });
 
       setTickets(filtered);
@@ -629,11 +646,16 @@ const EmployeeCalendar = ({ joinDate }) => {
   // Format full date
   const formatFullDate = (date) => {
     return date.toLocaleDateString('en-US', {
-      weekday: 'long',
       year: 'numeric',
-      month: 'long',
+      month: 'short',
       day: 'numeric'
     });
+  };
+
+  const getAssigneeDisplay = (ticket) => {
+    const ids = Array.isArray(ticket.assigned_to_ids) ? ticket.assigned_to_ids : [];
+    if (!ids.length) return '-';
+    return ids.map(id => usersById[String(id)] || `User #${id}`).join(', ');
   };
 
   // Day names for headers
@@ -873,22 +895,24 @@ const EmployeeCalendar = ({ joinDate }) => {
                       &times;
                     </button>
                     <h3 className="text-lg font-semibold mb-4">My Leave</h3>
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full bg-white border rounded-lg">
-                        <thead>
-                          <tr className="bg-blue-600 text-white">
-                            <th className="py-2 px-4 text-left">From</th>
-                            <th className="py-2 px-4 text-left">To</th>
-                            <th className="py-2 px-4 text-left">Duration</th>
-                            <th className="py-2 px-4 text-left">Reason</th>
-                            <th className="py-2 px-4 text-left">Leave Type</th>
-                            <th className="py-2 px-4 text-left">Status</th>
-                            <th className="py-2 px-4 text-center">Action</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          <tr className="border-b hover:bg-gray-50">
-                            <td className="py-2 px-4">{formatFullDate(parseDateOnly(selectedMyLeave.from_date))}</td>
+                     <div className="overflow-x-auto">
+                       <table className="min-w-full bg-white border rounded-lg">
+                         <thead>
+                           <tr className="bg-blue-600 text-white">
+                             <th className="py-2 px-4 text-left">S.No</th>
+                             <th className="py-2 px-4 text-left">From</th>
+                             <th className="py-2 px-4 text-left">To</th>
+                             <th className="py-2 px-4 text-left">Duration</th>
+                             <th className="py-2 px-4 text-left">Reason</th>
+                             <th className="py-2 px-4 text-left">Leave Type</th>
+                             <th className="py-2 px-4 text-left">Status</th>
+                             <th className="py-2 px-4 text-center">Action</th>
+                           </tr>
+                         </thead>
+                         <tbody>
+                           <tr className="border-b hover:bg-gray-50">
+                             <td className="py-2 px-4">1</td>
+                             <td className="py-2 px-4">{formatFullDate(parseDateOnly(selectedMyLeave.from_date))}</td>
                             <td className="py-2 px-4">{formatFullDate(parseDateOnly(selectedMyLeave.to_date))}</td>
                             <td className="py-2 px-4">{selectedMyLeave.leave_duration || ''} ({selectedMyLeave.duration ?? selectedMyLeave.credited_days} day{(selectedMyLeave.duration ?? selectedMyLeave.credited_days) === 1 ? '' : 's'})</td>
                             <td className="py-2 px-4">{selectedMyLeave.leave_reason || '-'}</td>
@@ -948,31 +972,35 @@ const EmployeeCalendar = ({ joinDate }) => {
                     >
                       &times;
                     </button>
-                    <h3 className="text-lg font-semibold mb-4">Ticket(s) for {selectedTickets[0] ? new Date(selectedTickets[0].created_at).toLocaleDateString() : ''}</h3>
+                    <h3 className="text-lg font-semibold mb-4">Ticket(s) for {selectedTickets[0] ? formatFullDate(new Date(selectedTickets[0].created_at)) : ''}</h3>
                     {selectedTickets.length === 0 ? (
                       <div className="text-center text-gray-500">No tickets found for this date.</div>
                     ) : (
                       <div className="overflow-x-auto overflow-hidden rounded-t-lg">
-                        <table className="min-w-full bg-white border">
-                          <thead className="bg-blue-600 text-white">
-                            <tr>
-                              <th className="py-2 px-4 text-center">Title</th>
-                              <th className="py-2 px-4 text-center">Description</th>
-                              <th className="py-2 px-4 text-center">Priority</th>
-                              <th className="py-2 px-4 text-center">Due Date</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {selectedTickets.map((ticket) => (
-                              <tr key={ticket.id} className="border-b hover:bg-green-50">
-                                <td className="py-2 px-4 text-center">{ticket.title}</td>
-                                <td className="py-2 px-4 text-center">{ticket.description}</td>
-                                <td className="py-2 px-4 text-center">{ticket.priority}</td>
-                                <td className="py-2 px-4 text-center">{ticket.due_date ? new Date(ticket.due_date).toLocaleDateString() : ''}</td>
+                         <table className="min-w-full bg-white border">
+                            <thead className="bg-blue-600 text-white">
+                              <tr>
+                                <th className="py-2 px-4 text-center">S.No</th>
+                                <th className="py-2 px-4 text-center">Title</th>
+                                <th className="py-2 px-4 text-center">Description</th>
+                                <th className="py-2 px-4 text-center">Priority</th>
+                                <th className="py-2 px-4 text-center">Assigned To</th>
+                                <th className="py-2 px-4 text-center">Due Date</th>
                               </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                            </thead>
+                            <tbody>
+                              {selectedTickets.map((ticket, idx) => (
+                                <tr key={ticket.id} className="border-b hover:bg-green-50">
+                                  <td className="py-2 px-4 text-center">{idx + 1}</td>
+                                  <td className="py-2 px-4 text-center">{ticket.title}</td>
+                                  <td className="py-2 px-4 text-center">{ticket.description}</td>
+                                  <td className="py-2 px-4 text-center">{ticket.priority}</td>
+                                  <td className="py-2 px-4 text-center">{getAssigneeDisplay(ticket)}</td>
+                                  <td className="py-2 px-4 text-center">{ticket.due_date ? formatFullDate(new Date(ticket.due_date)) : '-'}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                         </table>
                       </div>
                     )}
                   </div>
@@ -992,22 +1020,24 @@ const EmployeeCalendar = ({ joinDate }) => {
                       <div className="text-center text-gray-500">No leaves found for this date.</div>
                     ) : (
                       <div className="overflow-x-auto">
-                        <table className="min-w-full bg-white border rounded-lg">
-                          <thead>
-                            <tr className="bg-blue-600 text-white">
-                              <th className="py-2 px-4 text-left">User</th>
-                              <th className="py-2 px-4 text-left">Role</th>
-                              <th className="py-2 px-4 text-left">From</th>
-                              <th className="py-2 px-4 text-left">To</th>
-                              <th className="py-2 px-4 text-left">Duration</th>
-                              <th className="py-2 px-4 text-left">Type</th>
-                              <th className="py-2 px-4 text-left">Status</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {selectedCalendarLeaves.map(l => (
-                              <tr key={l.id} className={`border-t ${isLeaveWithoutPay(l) ? 'bg-red-50 border-l-4 border-red-600' : ''}`}>
-                                <td className="py-2 px-4">{l.user_name}</td>
+                         <table className="min-w-full bg-white border rounded-lg">
+                           <thead>
+                             <tr className="bg-blue-600 text-white">
+                               <th className="py-2 px-4 text-left">S.No</th>
+                               <th className="py-2 px-4 text-left">User</th>
+                               <th className="py-2 px-4 text-left">Role</th>
+                               <th className="py-2 px-4 text-left">From</th>
+                               <th className="py-2 px-4 text-left">To</th>
+                               <th className="py-2 px-4 text-left">Duration</th>
+                               <th className="py-2 px-4 text-left">Type</th>
+                               <th className="py-2 px-4 text-left">Status</th>
+                             </tr>
+                           </thead>
+                           <tbody>
+                             {selectedCalendarLeaves.map((l, idx) => (
+                               <tr key={l.id} className={`border-t ${isLeaveWithoutPay(l) ? 'bg-red-50 border-l-4 border-red-600' : ''}`}>
+                                 <td className="py-2 px-4">{idx + 1}</td>
+                                 <td className="py-2 px-4">{l.user_name}</td>
                                 <td className="py-2 px-4">{l.user_role}</td>
                                 <td className="py-2 px-4">{formatFullDate(parseDateOnly(l.from_date))}</td>
                                 <td className="py-2 px-4">{formatFullDate(parseDateOnly(l.to_date))}</td>
@@ -1123,6 +1153,7 @@ const EmployeeCalendar = ({ joinDate }) => {
                 <table className="min-w-full bg-white border rounded-lg shadow">
                   <thead>
                     <tr className="bg-blue-100 text-blue-800">
+                      <th className="py-2 px-4 text-center">S.No</th>
                       <th className="py-2 px-4 text-center">Status</th>
                       <th className="py-2 px-4 text-center">Duration</th>
                       <th className="py-2 px-4 text-center">Reason</th>
@@ -1131,8 +1162,9 @@ const EmployeeCalendar = ({ joinDate }) => {
                     </tr>
                   </thead>
                   <tbody>
-                    {leaves.map((leave) => (
+                    {leaves.map((leave, idx) => (
                       <tr key={leave.id} className="border-b hover:bg-blue-50">
+                        <td className="py-2 px-4 text-center">{idx + 1}</td>
                         <td className="py-2 px-4 text-center">
                           <span className={`px-3 py-1 rounded-full text-white text-sm ${getLeaveBadgeColor(leave.status)}`}>{leave.status}</span>
                         </td>

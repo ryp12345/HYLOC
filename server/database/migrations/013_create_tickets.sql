@@ -1,34 +1,37 @@
 CREATE TABLE IF NOT EXISTS public.tickets
 (
-    id integer GENERATED ALWAYS AS IDENTITY,
-    title varchar(255) NOT NULL,
+    id integer NOT NULL
+        GENERATED ALWAYS AS IDENTITY
+        (INCREMENT 1 START 1 MINVALUE 1 MAXVALUE 2147483647 CACHE 1),
+
+    title character varying(255) NOT NULL,
+
     status enum_tickets_status,
+
     description text NOT NULL,
-    
-    priority enum_tickets_priority DEFAULT 'Medium',
+
+    priority enum_tickets_priority NOT NULL
+        DEFAULT 'Medium'::enum_tickets_priority,
+
+    -- User who created the ticket
     user_id integer NOT NULL,
-    assigned_to integer,
-    attachment varchar(255),
+
+    attachment character varying(255),
+
     due_date date,
-    rejected_by integer,
-    rejected_by_reason varchar(255),
-    created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT tickets_pkey PRIMARY KEY (id),
+    created_at timestamp without time zone NOT NULL
+        DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT fk_assigned_to
-        FOREIGN KEY (assigned_to)
-        REFERENCES users(id)
-        ON DELETE SET NULL,
+    updated_at timestamp without time zone NOT NULL
+        DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT fk_created_by
+    CONSTRAINT tickets_pkey
+        PRIMARY KEY (id),
+
+    CONSTRAINT fk_tickets_created_by
         FOREIGN KEY (user_id)
-        REFERENCES users(id)
-        ON DELETE CASCADE,
-
-    CONSTRAINT fk_rejected_by
-        FOREIGN KEY (rejected_by)
-        REFERENCES users(id)
-        ON DELETE SET NULL
+        REFERENCES public.users (id)
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE
 );

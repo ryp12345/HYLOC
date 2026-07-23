@@ -3,7 +3,7 @@
 // - Employee / HOD: tickets they created OR are assigned to
 exports.getMyTickets = async (req, res) => {
   try {
-    const userId = req.user?.userId;
+    const userId = req.user?.userId || req.user?.id;
     if (!userId) {
       return res.status(401).json({ success: false, message: 'Unauthorized' });
     }
@@ -86,7 +86,7 @@ const syncTicketAssignees = async (db, ticketId, assigneeIds, assignedBy) => {
   for (const userId of normalizedAssigneeIds) {
     await db.query(
       `
-        INSERT INTO ticket_assignees (ticket_id, user_id, assigned_by, created_at, updated_at)
+        INSERT INTO ticket_assignees (ticket_id, assigned_to, assigned_by, created_at, updated_at)
         VALUES ($1, $2, $3, NOW(), NOW())
       `,
       [ticketId, userId, assignedBy || null]
@@ -199,7 +199,6 @@ exports.createTicket = async (req, res) => {
       priority: priority || null,
       status: status || null,
       user_id,
-      assigned_to: assigneeIds[0],
       due_date,
       attachment: attachmentUrl || null,
     };
@@ -246,7 +245,7 @@ exports.createTicket = async (req, res) => {
 
 exports.getAllTickets = async (req, res) => {
   try {
-    const userId = req.user?.userId;
+    const userId = req.user?.userId || req.user?.id;
     const role = req.user?.role;
     const tickets = await ticketModel.getTicketsForUser(userId, role);
     const enriched = (tickets || []).map(t => ({ ...(t || {}), ...(String(t?.status || '').toLowerCase() === 'rejected' ? { rejected_date: t.updated_at } : {}) }));
@@ -430,9 +429,6 @@ exports.updateTicket = async (req, res) => {
       // don't block on DB error
     }
 
-    payload.assigned_to = assigneeIds[0];
-    delete payload.assigned_to_ids;
-
     // On any status change, notify creator and all HODs (no assignee notification)
     let sentStatusNotification = false;
     if (payload.status && payload.status !== existing.status) {
@@ -447,36 +443,18 @@ exports.updateTicket = async (req, res) => {
         `);
         const hodIds = hodRes.rows.map(r => r.id).filter(id => id !== existing.user_id);
         
-        // Special handling for 'Rejected' status: only Management may reject.
         if (payload.status === 'Rejected') {
           const reqRoleNorm = requesterRole ? String(requesterRole).toLowerCase() : '';
           if (reqRoleNorm !== 'management') {
             return res.status(403).json({ success: false, message: 'Only Management users can reject tickets' });
           }
 
-          // Keep status as 'Rejected', record who rejected it and reason.
           try {
-            payload.rejected_by = requesterId;
-            if (payload.rejected_by_reason === undefined || payload.rejected_by_reason === null) {
-              payload.rejected_by_reason = 'None Specified';
-            } else {
-              const normalizedReason = String(payload.rejected_by_reason).trim();
-              payload.rejected_by_reason = normalizedReason || 'None Specified';
-            }
-
-            // Notify the creator that the ticket was rejected
             const creatorMessage = `Type: Ticket rejected\nTitle: ${existing.title}\nDescription: ${existing.description || ''}`;
             await notificationModel.createNotification({ created_by: requesterId, assigned_to: existing.user_id, message: creatorMessage, type: 'ticket_status' });
           } catch (e) {
             console.error('Error handling Rejected transition:', e);
           }
-        } else {
-          // For other status changes, send standard format to all recipients (kept commented intentionally)
-          /* const recipients = new Set([existing.user_id, ...hodIds]);
-          for (const recipientId of recipients) {
-            const message = `Ticket #${existing.id} ('${existing.title}') status changed to ${payload.status} by user #${requesterId}`;
-            await notificationModel.createNotification({ created_by: requesterId, assigned_to: recipientId, message, type: 'ticket_status' });
-          } */
         }
         sentStatusNotification = true;
       } catch (notifErr) {
@@ -487,7 +465,7 @@ exports.updateTicket = async (req, res) => {
     // If not a status change, but other fields were edited, notify the assignee (if any)
     if (!sentStatusNotification) {
       // Check if any editable field other than status was changed
-      const editableFields = ['title', 'description', 'category', 'priority', 'due_date', 'attachment'];
+      const editableFields = ['title', 'description', 'priority', 'due_date', 'attachment'];
       const changedFields = editableFields.filter(f => {
         if (payload[f] === undefined) return false;
         if (f === 'due_date') {
