@@ -34,7 +34,7 @@ app.use(cors(config.cors));
 
 const path = require('path');
 // Serve uploaded files
-const uploadsPath = path.join(__dirname, 'public','uploads');
+const uploadsPath = path.join(__dirname, '../public/uploads');
 app.use('/uploads', express.static(uploadsPath));
 app.use('/api/uploads', express.static(uploadsPath));
 
