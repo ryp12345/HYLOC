@@ -159,7 +159,9 @@ export default function TicketsPage() {
         console.debug('getTicketStatuses error:', err?.response?.status, err?.response?.data || err?.message);
       }
 
-      setRows(ticketsRes.data?.data || []);
+      const fetchedTickets = ticketsRes.data?.data || [];
+      const uniqueTickets = Array.from(new Map(fetchedTickets.map(t => [t.id, t])).values());
+      setRows(uniqueTickets);
       setUsers(usersRes.data?.data || []);
       // Use server-provided lists when available, otherwise fall back to defaults
       const serverPriorities = prioritiesRes?.data?.data;
