@@ -41,17 +41,14 @@ app.use('/api/uploads', express.static(uploadsPath));
 const userUploadsPath = path.join(uploadsPath, 'users');
 const userPhotoExtensions = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
 
-app.get('/api/uploads/users/:fileName', (req, res, next) => {
-  const requestedName = String(req.params.fileName || '').trim();
-  if (!requestedName) {
-    return next();
-  }
+const findUserPhotoFile = (requestedName) => {
+  if (!requestedName) return '';
 
-  const normalizedName = requestedName.replace(/^\/+/, '');
+  const normalizedName = String(requestedName).replace(/^\/+/, '');
   const directFilePath = path.join(userUploadsPath, normalizedName);
 
   if (fs.existsSync(directFilePath) && fs.statSync(directFilePath).isFile()) {
-    return res.sendFile(directFilePath);
+    return directFilePath;
   }
 
   const baseName = path.parse(normalizedName).name || normalizedName;
@@ -60,17 +57,45 @@ app.get('/api/uploads/users/:fileName', (req, res, next) => {
 
   if (extension) {
     candidateNames.add(`${baseName}${extension}`);
+    candidateNames.add(`${baseName}${extension.toLowerCase()}`);
+    candidateNames.add(`${baseName}${extension.toUpperCase()}`);
   }
 
   userPhotoExtensions.forEach((ext) => {
     candidateNames.add(`${baseName}.${ext}`);
+    candidateNames.add(`${baseName}.${ext.toUpperCase()}`);
   });
 
   for (const candidateName of candidateNames) {
     const candidatePath = path.join(userUploadsPath, candidateName);
     if (fs.existsSync(candidatePath) && fs.statSync(candidatePath).isFile()) {
-      return res.sendFile(candidatePath);
+      return candidatePath;
     }
+  }
+
+  if (fs.existsSync(userUploadsPath)) {
+    const lowerTarget = normalizedName.toLowerCase();
+    const matchedFile = fs.readdirSync(userUploadsPath).find((entry) => entry.toLowerCase() === lowerTarget);
+    if (matchedFile) {
+      const matchedPath = path.join(userUploadsPath, matchedFile);
+      if (fs.existsSync(matchedPath) && fs.statSync(matchedPath).isFile()) {
+        return matchedPath;
+      }
+    }
+  }
+
+  return '';
+};
+
+app.get('/api/uploads/users/:fileName', (req, res, next) => {
+  const requestedName = String(req.params.fileName || '').trim();
+  if (!requestedName) {
+    return next();
+  }
+
+  const matchedPath = findUserPhotoFile(requestedName);
+  if (matchedPath) {
+    return res.sendFile(matchedPath);
   }
 
   return next();
