@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { deleteTicket } from '../../api/ticketApi';
 import { API_URL } from '../../api/axios';
@@ -564,169 +563,10 @@ export default function TicketsPage() {
     return list.filter((statusValue) => String(statusValue).toLowerCase() !== 'rejected');
   }, [statuses]);
 
-  const RADIAN = Math.PI / 180;
-  const renderStatusPieLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
-    if (!percent) return null;
-    const label = `${(percent * 100).toFixed(0)}%`;
-    const angle = -midAngle * RADIAN;
-    const isTinySlice = percent < 0.08;
-
-    if (!isTinySlice) {
-      const radius = innerRadius + (outerRadius - innerRadius) * 0.62;
-      const x = cx + radius * Math.cos(angle);
-      const y = cy + radius * Math.sin(angle);
-
-      return (
-        <text
-          x={x}
-          y={y}
-          fill="#111827"
-          textAnchor="middle"
-          dominantBaseline="central"
-          fontSize={12}
-          fontWeight={700}
-        >
-          {label}
-        </text>
-      );
-    }
-
-    const startX = cx + outerRadius * Math.cos(angle);
-    const startY = cy + outerRadius * Math.sin(angle);
-    const elbowX = cx + (outerRadius + 12) * Math.cos(angle);
-    const elbowY = cy + (outerRadius + 12) * Math.sin(angle);
-    const rightSide = Math.cos(angle) >= 0;
-    const endX = elbowX + (rightSide ? 14 : -14);
-    const textX = endX + (rightSide ? 3 : -3);
-
-    return (
-      <g>
-        <polyline
-          points={`${startX},${startY} ${elbowX},${elbowY} ${endX},${elbowY}`}
-          fill="none"
-          stroke="#6b7280"
-          strokeWidth={1.25}
-        />
-        <text
-          x={textX}
-          y={elbowY}
-          fill="#111827"
-          textAnchor={rightSide ? 'start' : 'end'}
-          dominantBaseline="central"
-          fontSize={11}
-          fontWeight={700}
-        >
-          {label}
-        </text>
-      </g>
-    );
-  };
-
   return (
     <div className="min-h-screen px-4 py-12 bg-gradient-to-br from-gray-50 to-gray-100 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
         <Notification show={notification.show} message={notification.message} type={notification.type} onClose={() => setNotification({ show: false, message: '', type: '' })} />
-
-        {user?.role === 'Management' && (() => {
-          const PRIORITY_CONFIG = [
-            { name: 'Low', color: '#10b981', bg: '#ecfdf5', border: '#a7f3d0' },
-            { name: 'High', color: '#ef4444', bg: '#fef2f2', border: '#fecaca' },
-            { name: 'Medium', color: '#d97706', bg: '#fef3c7', border: '#fde68a' },
-            { name: 'Critical', color: '#ef4444', bg: '#fef2f2', border: '#fecaca' },
-          ];
-          const STATUS_CONFIG = [
-            { name: 'Open', color: '#3b82f6', bg: '#eff6ff', border: '#bfdbfe' },
-            // { name: 'Assigned',    color: '#f59e0b', bg: '#fffbeb', border: '#fde68a' },
-            // { name: 'In Progress', color: '#8b5cf6', bg: '#f5f3ff', border: '#ddd6fe' },
-            // { name: 'Rejected',    color: '#ef4444', bg: '#fef2f2', border: '#fecaca' },
-            // { name: 'Resolved',    color: '#10b981', bg: '#ecfdf5', border: '#a7f3d0' },
-            { name: 'Closed', color: '#6b7280', bg: '#f9fafb', border: '#e5e7eb' },
-          ];
-          const priorityCounts = PRIORITY_CONFIG.map(p => ({
-            ...p,
-            value: rows.filter(t => t.priority === p.name).length,
-          }));
-          const priorityChartData = priorityCounts.filter(d => d.value > 0);
-
-          const allCounts = STATUS_CONFIG.map(s => ({
-            ...s,
-            value: rows.filter(t => t.status === s.name).length,
-          }));
-          const chartData = allCounts.filter(d => d.value > 0);
-          return (
-            <div className="mb-8 grid grid-cols-1 xl:grid-cols-2 gap-6">
-              <div className="bg-white rounded-2xl shadow p-6">
-                <h2 className="text-lg font-semibold text-gray-700 mb-4 text-center">Ticket Priority Distribution</h2>
-                <div className="flex flex-col md:flex-row gap-6 items-center md:items-stretch">
-                  {/* Pie chart */}
-                  <div className="flex-1 min-w-0">
-                    {priorityChartData.length === 0 ? (
-                      <p className="text-center text-gray-400 mt-10">No ticket data available.</p>
-                    ) : (
-                      <ResponsiveContainer width="100%" height={300}>
-                        <BarChart data={priorityCounts} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                          <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-                          <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
-                          <Tooltip formatter={(value, name) => [value, name]} />
-                          <Bar dataKey="value" radius={[6, 6, 0, 0]}>
-                            {priorityCounts.map((entry) => (
-                              <Cell key={entry.name} fill={entry.color} />
-                            ))}
-                          </Bar>
-                        </BarChart>
-                      </ResponsiveContainer>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-2xl shadow p-6">
-                <h2 className="text-lg font-semibold text-gray-700 mb-4 text-center">Ticket Status Distribution</h2>
-                <div className="flex flex-col md:flex-row gap-6 items-center md:items-stretch">
-                  {/* Pie chart */}
-                  <div className="flex-1 min-w-0">
-                    {chartData.length === 0 ? (
-                      <p className="text-center text-gray-400 mt-10">No ticket data available.</p>
-                    ) : (
-                      <ResponsiveContainer width="100%" height={300}>
-                        <PieChart margin={{ top: 16, right: 52, bottom: 16, left: 52 }}>
-                          <Pie
-                            data={chartData}
-                            cx="50%"
-                            cy="50%"
-                            outerRadius={100}
-                            dataKey="value"
-                            paddingAngle={2}
-                            stroke="#ffffff"
-                            strokeWidth={2}
-                            label={renderStatusPieLabel}
-                            labelLine={false}
-                          >
-                            {chartData.map((entry) => (
-                              <Cell key={entry.name} fill={entry.color} />
-                            ))}
-                          </Pie>
-                          <Tooltip formatter={(value, name) => [value, name]} />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    )}
-                  </div>
-                  {/* Status breakdown panel */}
-                  <div className="flex flex-col gap-2 justify-center w-full md:w-56 shrink-0">
-                    <div className="mb-2 px-4 py-3 rounded-lg border border-red-200 bg-red-50">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-semibold text-red-700">Overdue</span>
-                        <span className="text-lg font-bold text-red-700">{counts.overdueCount}</span>
-                      </div>
-                      <p className="mt-1 text-xs text-red-600">Due date passed and not closed</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          );
-        })()}
 
         <div className="mb-12 text-center">
           <h1 className="mb-2 text-4xl font-extrabold text-gray-900">Tickets</h1>
@@ -829,10 +669,18 @@ export default function TicketsPage() {
             <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search tickets..." className="w-full py-2 pl-10 pr-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400 absolute left-3 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
           </div>
-          <button onClick={openCreate} className="flex items-center justify-center w-full px-6 py-3 font-medium text-white transition-all duration-300 transform rounded-lg shadow-lg bg-blue-600 hover:bg-blue-700 hover:-translate-y-1 hover:scale-105 sm:w-auto">
-            <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" /></svg>
-            Add Ticket
-          </button>
+          <div className="flex flex-wrap items-center gap-3 justify-end w-full sm:w-auto">
+            {(isManagementUser || String(user?.role || '').toLowerCase() === 'hod' || String(user?.role || '').toLowerCase() === 'admin') && (
+              <button type="button" onClick={() => navigate('/tickets/reports')} className="inline-flex items-center justify-center w-full px-4 py-3 font-medium text-white transition-all duration-300 transform rounded-lg shadow-md bg-indigo-600 hover:bg-indigo-700 hover:-translate-y-1 hover:scale-105 sm:w-auto">
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6m6-6h2a2 2 0 012 2v7m-9 2h6a2 2 0 002-2v-7m-6 0h8" /></svg>
+                Ticket Reports
+              </button>
+            )}
+            <button onClick={openCreate} className="flex items-center justify-center w-full px-6 py-3 font-medium text-white transition-all duration-300 transform rounded-lg shadow-lg bg-blue-600 hover:bg-blue-700 hover:-translate-y-1 hover:scale-105 sm:w-auto">
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" /></svg>
+              Add Ticket
+            </button>
+          </div>
         </div>
 
 

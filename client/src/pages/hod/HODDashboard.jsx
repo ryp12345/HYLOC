@@ -167,38 +167,38 @@ function HODDashboard() {
 			{/* Team Overview Section */}
 			<div>
 				<h2 className="text-xl font-semibold text-gray-800 mb-4">👥 Team Overview</h2>
-				<div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-					<div className="bg-white rounded-lg shadow p-6 border-l-4 border-blue-500">
-						<div className="flex items-center justify-between mb-3">
-							<div className="text-gray-500 text-sm font-semibold">Total Employees</div>
-							<div className="text-3xl">👨‍💼</div>
+				<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+					<div className="bg-white rounded-lg shadow p-4 border-l-4 border-blue-500">
+						<div className="flex items-center justify-between mb-2">
+							<div className="text-gray-500 text-xs font-semibold">Total Employees</div>
+							<div className="text-2xl">👨‍💼</div>
 						</div>
-						<div className="text-3xl font-bold text-gray-800">
+						<div className="text-2xl font-bold text-gray-800">
 							{loading ? '...' : teamStats.totalEmployees}
 						</div>
-						<p className="text-xs text-gray-500 mt-2">In your department</p>
+						<p className="text-xs text-gray-500 mt-1">In your department</p>
 					</div>
 					
-					<div className="bg-white rounded-lg shadow p-6 border-l-4 border-green-500">
-						<div className="flex items-center justify-between mb-3">
-							<div className="text-gray-500 text-sm font-semibold">Present Today</div>
-							<div className="text-3xl">✅</div>
+					<div className="bg-white rounded-lg shadow p-4 border-l-4 border-green-500">
+						<div className="flex items-center justify-between mb-2">
+							<div className="text-gray-500 text-xs font-semibold">Present Today</div>
+							<div className="text-2xl">✅</div>
 						</div>
-						<div className="text-3xl font-bold text-gray-800">
+						<div className="text-2xl font-bold text-gray-800">
 							{loading ? '...' : teamStats.presentToday}
 						</div>
-						<p className="text-xs text-gray-500 mt-2">Active employees</p>
+						<p className="text-xs text-gray-500 mt-1">Active employees</p>
 					</div>
 
-					<div className="bg-white rounded-lg shadow p-6 border-l-4 border-orange-500">
-						<div className="flex items-center justify-between mb-3">
-							<div className="text-gray-500 text-sm font-semibold">On Leave Today</div>
-							<div className="text-3xl">🏖️</div>
+					<div className="bg-white rounded-lg shadow p-4 border-l-4 border-orange-500">
+						<div className="flex items-center justify-between mb-2">
+							<div className="text-gray-500 text-xs font-semibold">On Leave Today</div>
+							<div className="text-2xl">🏖️</div>
 						</div>
-						<div className="text-3xl font-bold text-gray-800">
+						<div className="text-2xl font-bold text-gray-800">
 							{loading ? '...' : teamStats.onLeaveToday}
 						</div>
-						<p className="text-xs text-gray-500 mt-2">Team members on leave</p>
+						<p className="text-xs text-gray-500 mt-1">Team members on leave</p>
 					</div>
 				</div>
 			</div>

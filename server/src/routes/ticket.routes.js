@@ -13,12 +13,14 @@ router.get('/statuses', authenticate, ticketController.getTicketStatuses);
 // POST /api/tickets - Create a new ticket (accepts optional file 'attachment')
 router.post('/', authenticate, upload.single('attachment'), ticketController.createTicket);
 
-
-// GET /api/tickets/my-tickets - list tickets created by the logged-in user
-router.get('/my-tickets', authenticate, ticketController.getMyTickets);
+// GET /api/tickets/me - list tickets created by the logged-in user
+router.get('/me', authenticate, ticketController.getMyTickets);
 
 // GET /api/tickets - list all tickets
 router.get('/', authenticate, ticketController.getAllTickets);
+
+// GET /api/tickets/reports - ticket analysis report
+router.get('/reports', authenticate, ticketController.getTicketReports);
 
 // GET /api/tickets/:id
 router.get('/:id', authenticate, ticketController.getTicketById);

@@ -256,6 +256,22 @@ exports.getAllTickets = async (req, res) => {
   }
 };
 
+exports.getTicketReports = async (req, res) => {
+  try {
+    const userId = req.user?.userId || req.user?.id;
+    const role = req.user?.role;
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+    const fiscalYear = req.query.fiscalYear ? parseInt(req.query.fiscalYear, 10) : null;
+    const report = await ticketModel.getTicketReportsData(userId, role, fiscalYear);
+    res.status(200).json(report);
+  } catch (error) {
+    console.error('Get ticket reports error:', error);
+    res.status(500).json({ success: false, message: 'Failed to generate ticket reports', error: error.message });
+  }
+};
+
 exports.getTicketById = async (req, res) => {
   try {
     const ticket = await ticketModel.getTicketById(req.params.id);

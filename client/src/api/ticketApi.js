@@ -17,9 +17,8 @@ export const getAllTickets = async () => {
   return await axios.get('/tickets');
 };
 
-// Get tickets created by the logged-in user
 export const getMyTickets = async () => {
-  return await axios.get('/tickets/my-tickets');
+  return await axios.get('/tickets/me');
 };
 
 export const getTicketStatuses = async () => {
@@ -39,4 +38,9 @@ export const updateTicket = async (id, data) => {
 
 export const deleteTicket = async (id) => {
   return await axios.delete(`/tickets/${id}`);
+};
+
+export const getTicketReports = async (fiscalYear) => {
+  const params = fiscalYear ? { fiscalYear } : {};
+  return await axios.get('/tickets/reports', { params });
 };

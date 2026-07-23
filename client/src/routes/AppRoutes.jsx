@@ -46,6 +46,7 @@ import ForgotPasswordPage from '../pages/auth/ForgotPasswordPage';
 import ProfilePage from '../pages/auth/ProfilePage';
 import RaiseTicket from '../pages/dev-tickets/RaiseTicket';
 import TicketsPage from '../pages/tickets/TicketsPage';
+import TicketsAnalysisReport from '../pages/tickets/TicketsAnalysisReport';
 
 // Layouts & Route Guards
 import ProtectedRoute from './ProtectedRoute';
@@ -648,6 +649,18 @@ const AppRoutes = () => {
               <ProtectedRoute>
                 <DashboardLayout>
                   <TicketsPage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Ticket Analysis Reports */}
+          <Route
+            path="/tickets/reports"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <TicketsAnalysisReport />
                 </DashboardLayout>
               </ProtectedRoute>
             }
