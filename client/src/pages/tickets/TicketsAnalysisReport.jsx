@@ -466,82 +466,10 @@ export default function TicketsAnalysisReport() {
 
       {hasData && (
         <div className="flex flex-col gap-2 lg:-mt-1">
-          {/* KPI Summary Row */}
-          <div className="grid grid-cols-2 gap-2 mb-3 md:grid-cols-4">
-            <div className="rounded-xl border border-gray-200 bg-white shadow-sm p-4">
-              <div className="flex items-center justify-between mb-2">
-                <div className="text-gray-500 text-xs font-semibold">Total Tickets</div>
-                <div className="text-2xl">🎫</div>
-              </div>
-              <div className="text-2xl font-extrabold text-black">{summary.total_tickets}</div>
-            </div>
-            <div className="rounded-xl border border-gray-200 bg-white shadow-sm p-4">
-              <div className="flex items-center justify-between mb-2">
-                <div className="text-gray-500 text-xs font-semibold">Open Tickets</div>
-                <div className="text-2xl">📋</div>
-              </div>
-              <div className="text-2xl font-extrabold text-black">{summary.open_tickets}</div>
-            </div>
-            <div className="rounded-xl border border-gray-200 bg-white shadow-sm p-4">
-              <div className="flex items-center justify-between mb-2">
-                <div className="text-gray-500 text-xs font-semibold">Closed</div>
-                <div className="text-2xl">✅</div>
-              </div>
-              <div className="text-2xl font-extrabold text-black">{summary.closed_tickets}</div>
-            </div>
-            <div className="rounded-xl border border-gray-200 bg-white shadow-sm p-4">
-              <div className="flex items-center justify-between mb-2">
-                <div className="text-gray-500 text-xs font-semibold">Overdue Tickets</div>
-                <div className="text-2xl">⚠️</div>
-              </div>
-              <div className="text-2xl font-extrabold text-black">{overdueCount}</div>
-            </div>
-          </div>
-
-          {/* Secondary KPI Row */}
-          <div className="grid grid-cols-2 gap-2 mb-3 md:grid-cols-4">
-            {report?.status_distribution?.pending > 0 && (
-              <div className="rounded-xl border border-gray-200 bg-white shadow-sm p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="text-gray-500 text-xs font-semibold">Pending Tickets</div>
-                  <div className="text-2xl">⏳</div>
-                </div>
-                <div className="text-2xl font-extrabold text-black">{report.status_distribution.pending}</div>
-              </div>
-            )}
-            {summary?.total_tickets > 0 && (
-              <div className="rounded-xl border border-gray-200 bg-white shadow-sm p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="text-gray-500 text-xs font-semibold">Resolution Rate</div>
-                  <div className="text-2xl">📊</div>
-                </div>
-                <div className="text-2xl font-extrabold text-black">{Math.round((summary.closed_tickets / summary.total_tickets) * 100)}%</div>
-              </div>
-            )}
-            {departmentChartData.length > 0 && (
-              <div className="rounded-xl border border-gray-200 bg-white shadow-sm p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="text-gray-500 text-xs font-semibold">Top Department</div>
-                  <div className="text-2xl">🏢</div>
-                </div>
-                <div className="text-xl font-extrabold text-black truncate">{departmentChartData[0].name}</div>
-              </div>
-            )}
-            {topCreatorsData.length > 0 && (
-              <div className="rounded-xl border border-gray-200 bg-white shadow-sm p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="text-gray-500 text-xs font-semibold">Top Contributor</div>
-                  <div className="text-2xl">👤</div>
-                </div>
-                <div className="text-xl font-extrabold text-black truncate">{topCreatorsData[0].dept || '—'}</div>
-              </div>
-            )}
-          </div>
-
           {/* Chart Rows */}
           <div className="grid grid-cols-1 gap-2 lg:min-h-[260px]">
             {/* Row 1: Status + Priority (+ Department for management only) */}
-            <div className={`grid min-h-[260px] grid-cols-1 ${roleName === 'management' ? 'lg:grid-cols-3' : 'lg:grid-cols-2'} gap-2`}>
+            <div className={`grid min-h-[260px] items-stretch grid-cols-1 ${roleName === 'management' ? 'lg:grid-cols-3' : 'lg:grid-cols-2'} gap-2`}>
               <SectionCard title="Ticket Status Distribution" headerColor="bg-blue-100" headerText="text-blue-900" borderColor="border-blue-500">
                 {statusChartData.length > 0 ? (
                   <div className="flex h-full w-full items-center justify-center">
@@ -633,7 +561,7 @@ export default function TicketsAnalysisReport() {
             </div>
 
             {/* Row 2: Assignee Performance + Overdue Details */}
-            <div className="grid grid-cols-1 gap-2 lg:min-h-[300px] lg:grid-cols-2">
+            <div className="grid grid-cols-1 items-stretch gap-2 lg:min-h-[300px] lg:grid-cols-2">
               <SectionCard title="Assignee Performance" subtitle="Assigned vs Overdue" headerColor="bg-emerald-100" headerText="text-emerald-900" borderColor="border-emerald-500">
                 {assigneeBreakdownData.length > 0 ? (
                   <div className="h-full min-h-0 overflow-hidden">
@@ -649,15 +577,15 @@ export default function TicketsAnalysisReport() {
                         </thead>
                         <tbody className="divide-y divide-gray-100">
                           {assigneeBreakdownData.map((a, idx) => (
-                              <tr key={a.name} className="hover:bg-emerald-50/50 transition">
-                                <td className="px-2 py-1.5 font-medium text-gray-900 text-xs">{idx + 1}</td>
-                                <td className="px-2 py-1.5 text-gray-700 text-xs">{a.name}</td>
-                                <td className="px-2 py-1.5 text-gray-700 text-xs">{a.assigned_count || 0}</td>
-                                <td className="px-2 py-1.5">
-                                  <span className="font-bold text-xs text-red-600">{a.overdue_count || 0}</span>
-                                </td>
-                              </tr>
-                            ))}
+                            <tr key={a.name} className="hover:bg-emerald-50/50 transition">
+                              <td className="px-2 py-1.5 font-medium text-gray-900 text-xs">{idx + 1}</td>
+                              <td className="px-2 py-1.5 text-gray-700 text-xs">{a.name}</td>
+                              <td className="px-2 py-1.5 text-gray-700 text-xs">{a.assigned_count || 0}</td>
+                              <td className="px-2 py-1.5">
+                                <span className="font-bold text-xs text-red-600">{a.overdue_count || 0}</span>
+                              </td>
+                            </tr>
+                          ))}
                         </tbody>
                       </table>
                     </div>
@@ -720,7 +648,7 @@ export default function TicketsAnalysisReport() {
             </div>
 
             {/* Row 3: Monthly Ticket Volume */}
-            <div className="grid grid-cols-1 gap-2 lg:min-h-[380px] lg:grid-cols-1">
+            <div className="grid grid-cols-1 items-stretch gap-2 lg:min-h-[380px] lg:grid-cols-1">
               <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border-2 border-indigo-600 bg-white shadow-lg">
                 <div className="flex w-full items-center justify-center gap-1.5 rounded-t-xl bg-indigo-100 px-2 py-1 text-center text-xs font-extrabold leading-snug text-indigo-900 transition-colors hover:bg-indigo-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:text-sm">
                   <span className="text-xs">📈</span>
@@ -755,6 +683,78 @@ export default function TicketsAnalysisReport() {
                 </div>
               </div>
             </div>
+          </div>
+
+{/* KPI Summary Row */}
+          <div className="grid grid-cols-2 gap-2 items-stretch md:grid-cols-4">
+            <div className="h-full rounded-xl border-l-4 border-blue-500 bg-white p-4 shadow-sm">
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-gray-500 text-xs font-semibold">Total Tickets</div>
+                <div className="text-2xl">🎫</div>
+              </div>
+              <div className="text-2xl font-extrabold text-black">{summary.total_tickets}</div>
+            </div>
+            <div className="h-full rounded-xl border-l-4 border-blue-500 bg-white p-4 shadow-sm">
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-gray-500 text-xs font-semibold">Open Tickets</div>
+                <div className="text-2xl">📋</div>
+              </div>
+              <div className="text-2xl font-extrabold text-black">{summary.open_tickets}</div>
+            </div>
+            <div className="h-full rounded-xl border-l-4 border-green-500 bg-white p-4 shadow-sm">
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-gray-500 text-xs font-semibold">Closed</div>
+                <div className="text-2xl">✅</div>
+              </div>
+              <div className="text-2xl font-extrabold text-black">{summary.closed_tickets}</div>
+            </div>
+            <div className="h-full rounded-xl border-l-4 border-orange-500 bg-white p-4 shadow-sm">
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-gray-500 text-xs font-semibold">Overdue Tickets</div>
+                <div className="text-2xl">⚠️</div>
+              </div>
+              <div className="text-2xl font-extrabold text-black">{overdueCount}</div>
+            </div>
+          </div>
+
+          {/* Secondary KPI Row */}
+          <div className="grid grid-cols-2 gap-2 items-stretch md:grid-cols-4">
+            {report?.status_distribution?.pending > 0 && (
+              <div className="h-full rounded-xl border-l-4 border-amber-500 bg-white p-4 shadow-sm">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-gray-500 text-xs font-semibold">Pending Tickets</div>
+                  <div className="text-2xl">⏳</div>
+                </div>
+                <div className="text-2xl font-extrabold text-black">{report.status_distribution.pending}</div>
+              </div>
+            )}
+            {summary?.total_tickets > 0 && (
+              <div className="h-full rounded-xl border-l-4 border-blue-500 bg-white p-4 shadow-sm">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-gray-500 text-xs font-semibold">Resolution Rate</div>
+                  <div className="text-2xl">📊</div>
+                </div>
+                <div className="text-2xl font-extrabold text-black">{Math.round((summary.closed_tickets / summary.total_tickets) * 100)}%</div>
+              </div>
+            )}
+            {departmentChartData.length > 0 && (
+              <div className="h-full rounded-xl border-l-4 border-indigo-500 bg-white p-4 shadow-sm">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-gray-500 text-xs font-semibold">Top Department</div>
+                  <div className="text-2xl">🏢</div>
+                </div>
+                <div className="text-xl font-extrabold text-black truncate">{departmentChartData[0].name}</div>
+              </div>
+            )}
+            {topCreatorsData.length > 0 && (
+              <div className="h-full rounded-xl border-l-4 border-gray-500 bg-white p-4 shadow-sm">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-gray-500 text-xs font-semibold">Top Contributor</div>
+                  <div className="text-2xl">👤</div>
+                </div>
+                <div className="text-xl font-extrabold text-black truncate">{topCreatorsData[0].dept || '—'}</div>
+              </div>
+            )}
           </div>
         </div>
       )}
