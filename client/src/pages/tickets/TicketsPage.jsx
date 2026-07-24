@@ -282,6 +282,13 @@ export default function TicketsPage() {
     }
   };
 
+  const formatDate = (dateStr) => {
+    if (!dateStr) return '--NA--';
+    const d = new Date(dateStr);
+    if (Number.isNaN(d.getTime())) return '--NA--';
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  };
+
   const getClosedDateDisplay = (row) => {
     if (String(row?.status || '').toLowerCase() !== 'closed' || !row?.updated_at) {
       return '--NA--';
@@ -292,7 +299,7 @@ export default function TicketsPage() {
       return '--NA--';
     }
 
-    return closedAt.toLocaleDateString();
+    return formatDate(row.updated_at);
   };
 
   const openCreate = () => {

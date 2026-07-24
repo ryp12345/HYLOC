@@ -84,7 +84,8 @@ exports.getTicketReportsData = async (userId, role, fiscalYear = null, db = pool
   if (isManagement) {
     const result = await db.query(
       `SELECT t.id, t.title, t.priority, t.status, t.user_id, t.due_date, t.created_at, t.updated_at,
-              d.department_name AS department
+              d.department_name AS department,
+              (CURRENT_DATE - t.due_date::date) AS overdue_days
        FROM tickets t
        LEFT JOIN users u ON u.id = t.user_id
        LEFT JOIN departments d ON d.id = u.department_id
@@ -96,7 +97,8 @@ exports.getTicketReportsData = async (userId, role, fiscalYear = null, db = pool
   } else {
     const base =
       `SELECT t.id, t.title, t.priority, t.status, t.user_id, t.due_date, t.created_at, t.updated_at,
-              d.department_name AS department
+              d.department_name AS department,
+              (CURRENT_DATE - t.due_date::date) AS overdue_days
        FROM tickets t
        LEFT JOIN users u ON u.id = t.user_id
        LEFT JOIN departments d ON d.id = u.department_id
@@ -113,7 +115,8 @@ exports.getTicketReportsData = async (userId, role, fiscalYear = null, db = pool
       } else {
         const hodQuery = `
           SELECT t.id, t.title, t.priority, t.status, t.user_id, t.due_date, t.created_at, t.updated_at,
-                 d.department_name AS department
+                 d.department_name AS department,
+                 (CURRENT_DATE - t.due_date::date) AS overdue_days
           FROM tickets t
           LEFT JOIN users u ON u.id = t.user_id
           LEFT JOIN departments d ON d.id = u.department_id
@@ -174,13 +177,8 @@ exports.getTicketReportsData = async (userId, role, fiscalYear = null, db = pool
       }
     }
 
-    if (OPEN_STATUSES.includes(status) && t.due_date) {
-      const due = new Date(t.due_date + 'T00:00:00');
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      if (due < today) {
-        overdueTickets.push({ ...t, overdueDays: Math.floor((today - due) / (1000 * 60 * 60 * 24)) });
-      }
+    if (OPEN_STATUSES.includes(status) && t.due_date && t.overdue_days > 0) {
+      overdueTickets.push({ ...t, overdueDays: t.overdue_days });
     }
 
     if (OPEN_STATUSES.includes(status)) {
@@ -224,10 +222,27 @@ exports.getTicketReportsData = async (userId, role, fiscalYear = null, db = pool
       assigneeCounts[key].assigned_count += 1;
       const s = String(t.status || '').toLowerCase();
       const isOpen = ['open', 'assigned', 'in progress', 'pending'].includes(s);
-      const isOverdue = isOpen && t.due_date && new Date(t.due_date + 'T00:00:00') < new Date(new Date().toDateString());
+      const isOverdue = isOpen && t.overdue_days > 0;
       if (isOverdue) assigneeCounts[key].overdue_count += 1;
     }
   }
+
+  const allAssigneeIds = Object.keys(assigneeCounts).map(Number);
+  const assigneeNames = {};
+  if (allAssigneeIds.length > 0) {
+    const usersResult = await db.query(
+      'SELECT id, firstname, lastname FROM users WHERE id = ANY($1::int[])',
+      [allAssigneeIds]
+    );
+    for (const row of usersResult.rows || []) {
+      assigneeNames[row.id] = `${row.firstname || ''} ${row.lastname || ''}`.trim() || `User ${row.id}`;
+    }
+  }
+
+  const assigneeBreakdownArray = Object.values(assigneeCounts).map((a) => ({
+    ...a,
+    name: assigneeNames[a.id] || `User ${a.id}`,
+  }));
 
   const topCreatorsArray = Object.entries(topCreators)
     .filter(([key]) => key !== 'avgResolutionTime')
@@ -274,7 +289,7 @@ exports.getTicketReportsData = async (userId, role, fiscalYear = null, db = pool
       priority_distribution: priorityDistribution,
       department_breakdown: departmentBreakdown,
       top_creators: topCreatorsArray,
-      assignee_breakdown: Object.values(assigneeCounts),
+      assignee_breakdown: assigneeBreakdownArray,
       overdue_table: overdueTable,
       monthly_trends: monthlyTrendsArray,
       open_aging: openAges,

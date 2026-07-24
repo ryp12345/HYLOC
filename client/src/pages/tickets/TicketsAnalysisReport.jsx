@@ -66,6 +66,13 @@ const ChartTooltip = ({ active, payload, label }) => {
   );
 };
 
+const formatDate = (dateStr) => {
+  if (!dateStr) return '—';
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return '—';
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+};
+
 const EmptyState = ({ message, linkTo, linkText }) => (
   <div className="bg-white rounded-2xl shadow p-12 text-center">
     <p className="text-gray-400 text-lg">{message}</p>
@@ -395,7 +402,7 @@ export default function TicketsAnalysisReport() {
                       <table className="w-full text-sm">
                         <thead className="bg-red-50 sticky top-0">
                           <tr>
-                            <th className="px-2 py-1.5 text-left text-[10px] font-bold text-red-700 uppercase tracking-wider">ID</th>
+                            <th className="px-2 py-1.5 text-left text-[10px] font-bold text-red-700 uppercase tracking-wider">S.No</th>
                             <th className="px-2 py-1.5 text-left text-[10px] font-bold text-red-700 uppercase tracking-wider">Title</th>
                             <th className="px-2 py-1.5 text-left text-[10px] font-bold text-red-700 uppercase tracking-wider">Priority</th>
                             <th className="px-2 py-1.5 text-left text-[10px] font-bold text-red-700 uppercase tracking-wider">Department</th>
@@ -404,9 +411,9 @@ export default function TicketsAnalysisReport() {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
-                          {(report?.overdue_table || []).map((t) => (
+                          {(report?.overdue_table || []).map((t, idx) => (
                             <tr key={t.id} className="hover:bg-red-50/50 transition">
-                              <td className="px-2 py-1.5 font-medium text-gray-900 text-xs">#{t.id}</td>
+                              <td className="px-2 py-1.5 font-medium text-gray-900 text-xs">{idx + 1}</td>
                               <td className="px-2 py-1.5 text-gray-700 text-xs max-w-[160px] truncate">{t.title || '—'}</td>
                               <td className="px-2 py-1.5">
                                 <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${(String(t.priority || '').toLowerCase() === 'high' || String(t.priority || '').toLowerCase() === 'critical')
@@ -419,7 +426,7 @@ export default function TicketsAnalysisReport() {
                                 </span>
                               </td>
                               <td className="px-2 py-1.5 text-gray-600 text-xs">{t.department || '—'}</td>
-                              <td className="px-2 py-1.5 text-gray-600 text-xs">{t.due_date || '—'}</td>
+                              <td className="px-2 py-1.5 text-gray-600 text-xs">{formatDate(t.due_date)}</td>
                               <td className="px-2 py-1.5">
                                 <span className={`font-bold text-xs ${t.overdue_days > 7 ? 'text-red-600' : 'text-orange-600'}`}>
                                   {t.overdue_days}d
