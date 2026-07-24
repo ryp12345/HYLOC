@@ -208,7 +208,8 @@ exports.getTicketReportsData = async (userId, role, fiscalYear = null, db = pool
     const mk = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
     if (!monthlyTrendsMap[mk]) monthlyTrendsMap[mk] = { month: mk, Open: 0, Closed: 0, Rejected: 0, total: 0 };
     const s = String(t.status || '').toLowerCase();
-    if (monthlyTrendsMap[mk][s] !== undefined) monthlyTrendsMap[mk][s] += 1;
+    const statusKey = s.charAt(0).toUpperCase() + s.slice(1);
+    if (monthlyTrendsMap[mk][statusKey] !== undefined) monthlyTrendsMap[mk][statusKey] += 1;
     monthlyTrendsMap[mk].total += 1;
   }
   const monthlyTrendsArray = fiscalMonths.map(fm => monthlyTrendsMap[fm.key] || { month: fm.key, Open: 0, Closed: 0, Rejected: 0, total: 0 });

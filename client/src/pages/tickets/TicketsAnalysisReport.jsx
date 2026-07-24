@@ -58,7 +58,7 @@ const ChartTooltip = ({ active, payload, label }) => {
       {payload.map((p, i) => (
         <div key={i} className="flex items-center gap-2">
           <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: p.color || p.stroke || p.fill }}></span>
-          <span className="font-semibold text-slate-500">{p.name}:</span>
+          <span className="font-bold text-slate-500">{p.name}:</span>
           <span className="font-bold text-slate-800">{p.value}</span>
         </div>
       ))}
@@ -168,10 +168,17 @@ export default function TicketsAnalysisReport() {
 
   const assigneeBreakdownData = useMemo(() => {
     if (!report?.assignee_breakdown) return [];
-    return report.assignee_breakdown
+    const filtered = report.assignee_breakdown
       .filter((a) => a.name && a.name !== 'Unknown')
-      .sort((a, b) => (b.overdue_count || 0) - (a.overdue_count || 0))
-      .slice(0, 10);
+      .sort((a, b) => (b.overdue_count || 0) - (a.overdue_count || 0));
+    const top = filtered.slice(0, 8);
+    const others = filtered.slice(8);
+    if (others.length > 0) {
+      const othersAssigned = others.reduce((sum, a) => sum + (a.assigned_count || 0), 0);
+      const othersOverdue = others.reduce((sum, a) => sum + (a.overdue_count || 0), 0);
+      top.push({ name: 'Others', assigned_count: othersAssigned, overdue_count: othersOverdue });
+    }
+    return top;
   }, [report]);
 
   const openAgingData = useMemo(() => {
@@ -303,7 +310,7 @@ export default function TicketsAnalysisReport() {
                             ))}
                           </Pie>
                           <Tooltip content={<ChartTooltip />} />
-                          <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11, paddingTop: 8 }} />
+                          <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12, fontWeight: 700, paddingTop: 8 }} />
                         </PieChart>
                       </ResponsiveContainer>
                     </div>
@@ -326,11 +333,11 @@ export default function TicketsAnalysisReport() {
                             </linearGradient>
                           </defs>
                           <CartesianGrid strokeDasharray="4 4" stroke="#eef2f7" vertical={false} />
-                          <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#475569' }} />
-                          <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: '#475569' }} />
+                          <XAxis dataKey="name" tick={{ fontSize: 12, fontWeight: 800, fill: '#1e293b' }} tickLine={false} axisLine={{ stroke: '#94a3b8' }} />
+                          <YAxis allowDecimals={false} tick={{ fontSize: 12, fontWeight: 800, fill: '#1e293b' }} tickLine={false} axisLine={false} width={38} />
                           <Tooltip content={<ChartTooltip />} cursor={{ fill: '#f8fafc' }} />
                           <Bar dataKey="value" fill="url(#priorityGrad)" radius={[4, 4, 0, 0]} maxBarSize={40}>
-                            <LabelList dataKey="value" position="top" style={{ fontSize: 11, fill: '#92400e', fontWeight: 700 }} />
+                            <LabelList dataKey="value" position="top" style={{ fontSize: 12, fontWeight: 800, fill: '#92400e' }} />
                             {priorityChartData.map((entry) => (
                               <Cell key={entry.name} fill={entry.color} />
                             ))}
@@ -352,8 +359,8 @@ export default function TicketsAnalysisReport() {
                         <ResponsiveContainer width="100%" height="100%">
                           <BarChart data={departmentChartData} layout="vertical" margin={{ top: 4, right: 12, left: 12, bottom: 4 }}>
                             <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f1f5f9" />
-                            <XAxis type="number" allowDecimals={false} tick={{ fontSize: 10, fill: '#475569' }} />
-                            <YAxis type="category" dataKey="name" width={90} tick={{ fontSize: 10, fill: '#475569' }} />
+                            <XAxis type="number" allowDecimals={false} tick={{ fontSize: 12, fontWeight: 800, fill: '#1e293b' }} tickLine={false} axisLine={false} width={38} />
+                            <YAxis type="category" dataKey="name" width={90} tick={{ fontSize: 12, fontWeight: 800, fill: '#1e293b' }} tickLine={false} axisLine={{ stroke: '#94a3b8' }} />
                             <Tooltip content={<ChartTooltip />} cursor={{ fill: '#f8fafc' }} />
                             <Bar dataKey="value" radius={[0, 3, 3, 0]} maxBarSize={20}>
                               {departmentChartData.map((entry, index) => (
@@ -380,10 +387,10 @@ export default function TicketsAnalysisReport() {
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={assigneeBreakdownData} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                          <XAxis dataKey="name" tick={{ fontSize: 9, fill: '#475569' }} interval={0} angle={-30} textAnchor="end" height={40} />
-                          <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: '#475569' }} />
+                          <XAxis dataKey="name" tick={{ fontSize: 11, fontWeight: 800, fill: '#1e293b' }} interval={0} angle={-30} textAnchor="end" height={40} tickLine={false} axisLine={{ stroke: '#94a3b8' }} />
+                          <YAxis allowDecimals={false} tick={{ fontSize: 12, fontWeight: 800, fill: '#1e293b' }} tickLine={false} axisLine={false} width={38} />
                           <Tooltip content={<ChartTooltip />} cursor={{ fill: '#f8fafc' }} />
-                          <Legend iconType="rect" iconSize={8} wrapperStyle={{ fontSize: 10, paddingTop: 6 }} />
+                          <Legend iconType="rect" iconSize={8} wrapperStyle={{ fontSize: 12, fontWeight: 700, paddingTop: 6 }} />
                           <Bar dataKey="assigned_count" fill="#3b82f6" radius={[3, 3, 0, 0]} name="Assigned" />
                           <Bar dataKey="overdue_count" fill="#ef4444" radius={[3, 3, 0, 0]} name="Overdue" />
                         </BarChart>
@@ -449,89 +456,148 @@ export default function TicketsAnalysisReport() {
 
             {/* Row 3: Monthly + Aging */}
             <div className="grid grid-cols-1 gap-1.5 lg:min-h-[290px] lg:grid-cols-2">
-              <SectionCard title={`Monthly Ticket Volume — ${formattedFiscalYear}`} headerColor="bg-indigo-100" headerText="text-indigo-900" borderColor="border-indigo-500">
-                {monthlyTrends.length > 0 ? (
-                  <div className="flex h-full w-full items-center justify-center">
-                    <div className="h-[230px] w-full">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <ComposedChart data={monthlyTrends} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
-                          <defs>
-                            <linearGradient id="openGrad" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="0%" stopColor="#6366f1" />
-                              <stop offset="100%" stopColor="#6366f1" stopOpacity={0.6} />
-                            </linearGradient>
-                          </defs>
-                          <CartesianGrid strokeDasharray="4 4" stroke="#eef2f7" vertical={false} />
-                          <XAxis dataKey="monthLabel" tick={{ fontSize: 10, fill: '#475569' }} />
-                          <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: '#475569' }} />
-                          <Tooltip content={<ChartTooltip />} cursor={{ fill: '#f1f5f9' }} />
-                          <Legend iconType="rect" iconSize={8} wrapperStyle={{ fontSize: 11, paddingTop: 8 }} />
-                          <Bar dataKey="Open" fill="url(#openGrad)" radius={[2, 2, 0, 0]} name="Open" />
-                          <Bar dataKey="Closed" fill="#22c55e" radius={[2, 2, 0, 0]} name="Closed" />
-                          <Bar dataKey="Rejected" fill="#ef4444" radius={[2, 2, 0, 0]} name="Rejected" />
-                          <Line type="monotone" dataKey="total" stroke="#0ea5e9" strokeWidth={2} dot={{ r: 2, fill: '#0ea5e9' }} name="Total" />
-                        </ComposedChart>
-                      </ResponsiveContainer>
+              <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border-2 border-indigo-500 bg-white shadow-lg">
+                <div className="flex w-full items-center justify-center gap-1.5 rounded-t-xl bg-indigo-100 px-2 py-1 text-center text-[10px] font-extrabold leading-snug text-indigo-900 transition-colors hover:bg-indigo-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:text-xs">
+                  <span className="text-xs">📈</span>
+                  <span className="whitespace-normal break-words">Monthly Ticket Volume — {formattedFiscalYear}</span>
+                </div>
+                <div className="flex-1 min-h-0 p-1.5 sm:p-2">
+                  {monthlyTrends.length > 0 ? (
+                    <div className="flex h-full w-full items-center justify-center">
+                      <div className="h-[230px] w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <ComposedChart data={monthlyTrends} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+                            <defs>
+                              <linearGradient id="openGrad" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stopColor="#6366f1" />
+                                <stop offset="100%" stopColor="#6366f1" stopOpacity={0.6} />
+                              </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="4 4" stroke="#eef2f7" vertical={false} />
+                            <XAxis dataKey="monthLabel" tick={{ fontSize: 12, fontWeight: 800, fill: '#1e293b' }} tickLine={false} axisLine={{ stroke: '#94a3b8' }} />
+                            <YAxis allowDecimals={false} tick={{ fontSize: 12, fontWeight: 800, fill: '#1e293b' }} tickLine={false} axisLine={false} width={38} />
+                            <Tooltip content={<ChartTooltip />} cursor={{ fill: '#f1f5f9' }} />
+                            <Legend iconType="rect" iconSize={8} wrapperStyle={{ fontSize: 12, fontWeight: 700, paddingTop: 8 }} />
+                            <Bar dataKey="Open" fill="url(#openGrad)" radius={[2, 2, 0, 0]} name="Open" />
+                            <Bar dataKey="Closed" fill="#22c55e" radius={[2, 2, 0, 0]} name="Closed" />
+                            <Line type="monotone" dataKey="total" stroke="#0ea5e9" strokeWidth={2} dot={{ r: 2, fill: '#0ea5e9' }} name="Total" />
+                          </ComposedChart>
+                        </ResponsiveContainer>
+                      </div>
                     </div>
-                  </div>
-                ) : (
-                  <p className="text-center text-gray-400 text-sm mt-4">No monthly trend data available.</p>
-                )}
-              </SectionCard>
+                  ) : (
+                    <p className="text-center text-gray-400 text-sm mt-4">No monthly trend data available.</p>
+                  )}
+                </div>
+              </div>
 
-              <SectionCard title="Open Ticket Aging" headerColor="bg-violet-100" headerText="text-violet-900" borderColor="border-violet-500">
-                {openAgingData.length > 0 && openAgingData.some((d) => d.value > 0) ? (
-                  <div className="flex h-full w-full items-center justify-center">
-                    <div className="h-[230px] w-full">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={openAgingData} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
-                          <CartesianGrid strokeDasharray="4 4" stroke="#eef2f7" vertical={false} />
-                          <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#475569' }} />
-                          <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: '#475569' }} />
-                          <Tooltip content={<ChartTooltip />} cursor={{ fill: '#f8fafc' }} />
-                          <Bar dataKey="value" radius={[3, 3, 0, 0]}>
-                            {openAgingData.map((entry) => (
-                              <Cell key={entry.name}
-                                fill={
-                                  entry.name === '7+ days' ? '#ef4444' :
-                                    entry.name === '3-7 days' ? '#f59e0b' :
-                                      entry.name === '1-3 days' ? '#6366f1' :
-                                        '#3b82f6'
-                                }
-                              />
-                            ))}
-                          </Bar>
-                        </BarChart>
-                      </ResponsiveContainer>
+              <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border-2 border-violet-500 bg-white shadow-lg">
+                <div className="flex w-full items-center justify-center gap-1.5 rounded-t-xl bg-violet-100 px-2 py-1 text-center text-[10px] font-extrabold leading-snug text-violet-900 transition-colors hover:bg-violet-200 focus:outline-none focus:ring-1 focus:ring-violet-500 sm:text-xs">
+                  <span className="text-xs">⏳</span>
+                  <span className="whitespace-normal break-words">Open Ticket Aging</span>
+                </div>
+                <div className="flex-1 min-h-0 p-1.5 sm:p-2">
+                  {openAgingData.length > 0 && openAgingData.some((d) => d.value > 0) ? (
+                    <div className="flex h-full w-full items-center justify-center">
+                      <div className="h-[230px] w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={openAgingData} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+                            <CartesianGrid strokeDasharray="4 4" stroke="#eef2f7" vertical={false} />
+                            <XAxis dataKey="name" tick={{ fontSize: 12, fontWeight: 800, fill: '#1e293b' }} tickLine={false} axisLine={{ stroke: '#94a3b8' }} />
+                            <YAxis allowDecimals={false} tick={{ fontSize: 12, fontWeight: 800, fill: '#1e293b' }} tickLine={false} axisLine={false} width={38} />
+                            <Tooltip content={<ChartTooltip />} cursor={{ fill: '#f8fafc' }} />
+                            <Bar dataKey="value" radius={[3, 3, 0, 0]}>
+                              {openAgingData.map((entry) => (
+                                <Cell key={entry.name}
+                                  fill={
+                                    entry.name === '7+ days' ? '#ef4444' :
+                                      entry.name === '3-7 days' ? '#f59e0b' :
+                                        entry.name === '1-3 days' ? '#6366f1' :
+                                          '#3b82f6'
+                                  }
+                                />
+                              ))}
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
                     </div>
-                  </div>
-                ) : (
-                  <p className="text-center text-gray-400 text-sm mt-4">No open tickets to display aging data.</p>
-                )}
-              </SectionCard>
+                  ) : (
+                    <p className="text-center text-gray-400 text-sm mt-4">No open tickets to display aging data.</p>
+                  )}
+                </div>
+              </div>
             </div>
 
             {/* KPI Summary Row */}
             <div className="grid grid-cols-2 gap-2 mb-3 md:grid-cols-4">
-              <KpiCard label="Total Tickets" value={summary.total_tickets} icon="🎫" borderColor="border-blue-500" />
-              <KpiCard label="Open Tickets" value={summary.open_tickets} icon="📋" borderColor="border-amber-500" />
-              <KpiCard label="Closed / Rejected" value={summary.closed_tickets} icon="✅" borderColor="border-emerald-500" />
-              <KpiCard label="Overdue Tickets" value={overdueCount} icon="⚠️" borderColor="border-rose-500" />
+              <div className="rounded-xl border-2 border-blue-500 bg-white shadow-lg p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-gray-500 text-xs font-semibold">Total Tickets</div>
+                  <div className="text-2xl">🎫</div>
+                </div>
+                <div className="text-2xl font-extrabold text-black">{summary.total_tickets}</div>
+              </div>
+              <div className="rounded-xl border-2 border-amber-500 bg-white shadow-lg p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-gray-500 text-xs font-semibold">Open Tickets</div>
+                  <div className="text-2xl">📋</div>
+                </div>
+                <div className="text-2xl font-extrabold text-black">{summary.open_tickets}</div>
+              </div>
+              <div className="rounded-xl border-2 border-emerald-500 bg-white shadow-lg p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-gray-500 text-xs font-semibold">Closed / Rejected</div>
+                  <div className="text-2xl">✅</div>
+                </div>
+                <div className="text-2xl font-extrabold text-black">{summary.closed_tickets}</div>
+              </div>
+              <div className="rounded-xl border-2 border-rose-500 bg-white shadow-lg p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-gray-500 text-xs font-semibold">Overdue Tickets</div>
+                  <div className="text-2xl">⚠️</div>
+                </div>
+                <div className="text-2xl font-extrabold text-black">{overdueCount}</div>
+              </div>
             </div>
 
             {/* Secondary KPI Row */}
             <div className="grid grid-cols-2 gap-2 mb-3 md:grid-cols-4">
               {report?.status_distribution?.pending > 0 && (
-                <KpiCard label="Pending Tickets" value={report.status_distribution.pending} icon="⏳" borderColor="border-yellow-500" />
+                <div className="rounded-xl border-2 border-yellow-500 bg-white shadow-lg p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="text-gray-500 text-xs font-semibold">Pending Tickets</div>
+                    <div className="text-2xl">⏳</div>
+                  </div>
+                  <div className="text-2xl font-extrabold text-black">{report.status_distribution.pending}</div>
+                </div>
               )}
               {summary?.total_tickets > 0 && (
-                <KpiCard label="Resolution Rate" value={Math.round((summary.closed_tickets / summary.total_tickets) * 100) + '%'} icon="📊" borderColor="border-emerald-500" />
+                <div className="rounded-xl border-2 border-emerald-500 bg-white shadow-lg p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="text-gray-500 text-xs font-semibold">Resolution Rate</div>
+                    <div className="text-2xl">📊</div>
+                  </div>
+                  <div className="text-2xl font-extrabold text-black">{Math.round((summary.closed_tickets / summary.total_tickets) * 100)}%</div>
+                </div>
               )}
               {departmentChartData.length > 0 && (
-                <KpiCard label="Top Department" value={departmentChartData[0].name} icon="🏢" borderColor="border-cyan-500" />
+                <div className="rounded-xl border-2 border-cyan-500 bg-white shadow-lg p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="text-gray-500 text-xs font-semibold">Top Department</div>
+                    <div className="text-2xl">🏢</div>
+                  </div>
+                  <div className="text-xl font-extrabold text-black truncate">{departmentChartData[0].name}</div>
+                </div>
               )}
               {topCreatorsData.length > 0 && (
-                <KpiCard label="Top Contributor" value={topCreatorsData[0].dept || '—'} icon="👤" borderColor="border-orange-500" />
+                <div className="rounded-xl border-2 border-orange-500 bg-white shadow-lg p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="text-gray-500 text-xs font-semibold">Top Contributor</div>
+                    <div className="text-2xl">👤</div>
+                  </div>
+                  <div className="text-xl font-extrabold text-black truncate">{topCreatorsData[0].dept || '—'}</div>
+                </div>
               )}
             </div>
           </div>
