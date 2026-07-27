@@ -45,6 +45,12 @@ const getFiscalMonthSequence = (fiscalYear) => {
 // Shared styled tooltip for all Recharts visualizations
 const ChartTooltip = ({ active, payload, label }) => {
   if (!active || !payload || !payload.length) return null;
+  const formatTooltipValue = (value) => {
+    const numericValue = Number(value);
+    if (!Number.isFinite(numericValue)) return value;
+    const rounded = Math.round(numericValue * 10) / 10;
+    return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+  };
   return (
     <div className="rounded-lg border border-slate-700 bg-slate-950/95 px-3 py-2 text-xs shadow-lg backdrop-blur">
       {label != null && <div className="mb-1 font-bold text-slate-100">{label}</div>}
@@ -52,7 +58,7 @@ const ChartTooltip = ({ active, payload, label }) => {
         <div key={i} className="flex items-center gap-2">
           <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: p.color || p.stroke || p.fill }}></span>
           <span className="font-semibold text-slate-400">{p.name}:</span>
-          <span className="font-bold text-slate-100">{p.value}</span>
+          <span className="font-bold text-slate-100">{formatTooltipValue(p.value)}</span>
         </div>
       ))}
     </div>
@@ -2139,7 +2145,7 @@ function ManagementDashboard() {
                 <span className="whitespace-normal break-words">Zero Accidents</span>
               </button>
               {zeroAccidentsLoading ? (
-                  <div className="flex items-center justify-center p-8 text-slate-400">Loading...</div>
+                <div className="flex items-center justify-center p-8 text-slate-400">Loading...</div>
               ) : zeroAccidentsChart ? (
                 <div
                   className="flex-1 min-h-0 cursor-pointer flex"
