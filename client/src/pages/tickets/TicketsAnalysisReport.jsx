@@ -258,7 +258,7 @@ export default function TicketsAnalysisReport() {
     const summaryData = [
       { Metric: 'Total Tickets', Value: summary?.total_tickets || 0 },
       { Metric: 'Open Tickets', Value: summary?.open_tickets || 0 },
-      { Metric: 'Closed / Rejected', Value: summary?.closed_tickets || 0 },
+      { Metric: 'Closed', Value: summary?.closed_tickets || 0 },
       { Metric: 'Overdue Tickets', Value: overdueCount },
       { Metric: 'Pending Tickets', Value: report?.status_distribution?.pending || 0 },
       { Metric: 'Resolution Rate', Value: summary?.total_tickets > 0 ? `${Math.round((summary.closed_tickets / summary.total_tickets) * 100)}%` : '0%' },

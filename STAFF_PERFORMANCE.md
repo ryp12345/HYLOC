@@ -2,7 +2,7 @@
 
 ## Overview
 
-The **Staff Performance** section in the Management Dashboard displays each active staff member's KMI performance for the selected fiscal year. Staff are grouped into three columns — **BEST**, **MEDIUM**, and **LOW** — based on their calculated achievement percentage.
+The **Staff Performance** section in the Management Dashboard displays each active staff member's KPI performance for the selected fiscal year. Staff are grouped into three columns — **BEST**, **MEDIUM**, and **LOW** — based on their calculated performance percentage.
 
 Each staff card shows:
 - Profile photo (with initials fallback)
@@ -14,33 +14,35 @@ Each staff card shows:
 
 ## Performance Calculation
 
-Performance is derived from actual KMI data entries (`kpi_data_value`) using the same achievement formula used across the KMI module.
+Performance is derived from KPI data values for the selected fiscal year.
 
 ### Formula
 
 | Metric Type | Formula | Examples |
 |-------------|---------|----------|
 | **Normal** (higher = better) | `(Actual / Target) × 100` | Sales, Revenue, Efficiency, Production |
+
 - Result is clamped to a maximum of `100%`.
 - If `target = 0` or either value is missing, that month's data point is skipped.
-
-Note: the current dashboard implementation uses the target-based KPI calculation path only. It does not apply the earlier title-based inverse-metric heuristic.
+- KPIs with `target_required = false` are excluded from the staff performance score.
 
 ### Per-KPI Average
 
-For each target-based KPI assigned to an employee:
+For each KPI value assigned to an employee:
 
-1. Gather all monthly `actual` and `target` values within the selected fiscal year (Apr – Mar).
-2. Compute achievement for each month using the formula above.
-3. Average the monthly achievements to get the KPI's overall score.
+1. Gather the KPI value records linked to that employee's `empid`.
+2. Fetch monthly actual/target rows for the selected fiscal year using both calendar years in the fiscal range.
+3. Keep only rows that fall inside the fiscal year month sequence.
+4. Compute achievement for each month using the formula above.
+5. Average the monthly achievements to get the KPI's overall score.
 
 ### Per-Staff Score
 
 ```
-Staff Performance = Average of all target-based KPI scores assigned to that employee
+Staff Performance = Average of all KPI scores assigned to that employee
 ```
 
-If an employee has no target-based KPI data in the selected fiscal year, their score is `0`.
+If an employee has no valid KPI data in the selected fiscal year, their score is `0`.
 
 ---
 
@@ -50,8 +52,8 @@ If an employee has no target-based KPI data in the selected fiscal year, their s
 
 | State Variable | Source | Purpose |
 |----------------|--------|---------|
-| `allUsers` | `GET /users` | List of all staff with `empid`, `department_id`, `designation_name`, `staff_photo` |
-| `cachedKpiValues` | `GET /kpi-values/kpi/:kpiId` (batched) | All KPI values for the selected fiscal year, including `data_operator` (empid) |
+| `allUsers` | `getUsers()` | List of all staff, including `id`, `empid`, `designation_name`, and `staff_photo` |
+| `cachedKpiValues` | `getKpiValuesForFiscalYear()` | KPI values for the selected fiscal year, including `data_operator` |
 | `staffPerformanceData` | Computed by `loadStaffPerformance()` | Map of `userId → performance %` |
 | `staffPerformanceLoading` | Boolean | Loading state while batch-fetching and calculating |
 
@@ -74,21 +76,22 @@ Two requests are sent per fiscal year:
 #### `loadStaffPerformance()`
 Located in `client/src/pages/management/ManagementDashboard.jsx`.
 
-1. Groups `cachedKpiValues` by `data_operator` (empid).
-2. Collects all unique `kpi_value_id`s across all employees.
-3. Calls `/api/kpi-data-values/multiple` for both calendar years of the fiscal year in parallel.
-4. Filters results to fiscal year months.
-5. Skips KPI values that are not target-based.
-6. For each employee's KPIs, calculates monthly achievement as `(actual / target) × 100` and clamps it to `100%`.
-7. Averages monthly achievements to a KPI score, then averages KPI scores to produce the final staff performance percentage.
-8. Stores result in `staffPerformanceData` state: `{ [userId]: number }`.
+1. Builds a lookup from each user's `empid` to their `user.id`.
+2. Groups `cachedKpiValues` by `data_operator` so each employee gets their own KPI values.
+3. Collects all unique `kpi_value_id`s across those KPI values.
+4. Calls `/api/kpi-data-values/multiple` for both calendar years of the fiscal year in parallel.
+5. Filters returned rows to the fiscal year month sequence.
+6. Skips KPI values where `target_required` is `false`.
+7. For each month, calculates achievement as `(actual / target) × 100`, clamps it to `100%`, and ignores months with missing data or `target = 0`.
+8. Averages monthly achievements to a KPI score, then averages KPI scores to produce the final staff performance percentage.
+9. Stores the result in `staffPerformanceData` state as `{ [userId]: number }`.
 
 #### `staffList` (useMemo)
 Derives the final staff list sorted by performance descending:
 
 ```js
 const staffList = useMemo(() => {
-  const activeUsers = allUsers.filter(u => u.status === 'active');
+  const activeUsers = allUsers.filter(u => (u.status || '').toLowerCase() === 'active');
   return activeUsers
     .map(user => ({
       id: user.id,
@@ -124,6 +127,5 @@ The staff performance calculation triggers via `useEffect` when any of these dep
 
 ## Notes
 
-- **No dummy data**: Staff performance is always calculated from real KMI entries. If no valid target-based data exists, the score is `0`.
-- **Tickets excluded for now**: the current staff-performance implementation does not include tickets yet.
-- **KMI consistency**: the dashboard uses the same target-vs-actual achievement rule as the KMI detail view.
+- The dashboard shows only active users.
+- If no valid KPI values exist for an employee in the selected fiscal year, the score is `0`.
