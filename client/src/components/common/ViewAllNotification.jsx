@@ -69,17 +69,17 @@ export default function ViewAllNotification({ show, onClose, title }) {
 
   if (!show) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-      <div className="bg-white rounded-lg shadow-lg w-full max-w-2xl mx-4 relative">
-        <div className="flex justify-between items-center border-b px-6 py-4">
-          <h2 className="text-lg font-semibold">{title || 'All Notifications'}</h2>
-          <button onClick={onClose} className="text-2xl font-bold text-gray-500 hover:text-gray-700" aria-label="Close">×</button>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+      <div className="relative mx-4 w-full max-w-2xl rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] shadow-lg">
+        <div className="flex items-center justify-between border-b border-[color:var(--border)] px-6 py-4">
+          <h2 className="text-lg font-semibold text-[color:var(--text-primary)]">{title || 'All Notifications'}</h2>
+          <button onClick={onClose} className="text-2xl font-bold text-[color:var(--text-muted)] hover:text-[color:var(--text-primary)]" aria-label="Close">×</button>
         </div>
-        <div className="p-6 max-h-[70vh] overflow-y-auto">
+        <div className="max-h-[70vh] overflow-y-auto p-6">
           {loading ? (
-            <div className="text-center py-8 text-gray-500">Loading...</div>
+            <div className="py-8 text-center text-[color:var(--text-muted)]">Loading...</div>
           ) : notifications.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">No notifications found.</div>
+            <div className="py-8 text-center text-[color:var(--text-muted)]">No notifications found.</div>
           ) : (
             (() => {
               const now = new Date();
@@ -95,7 +95,7 @@ export default function ViewAllNotification({ show, onClose, title }) {
               });
               // Show a single empty state if both are empty
               if (currentMonthNotifications.length === 0 && previousMonthNotifications.length === 0) {
-                return <div className="text-center py-8 text-gray-500">No notifications found.</div>;
+                return <div className="py-8 text-center text-[color:var(--text-muted)]">No notifications found.</div>;
               }
               return (
                 <>
@@ -113,21 +113,21 @@ export default function ViewAllNotification({ show, onClose, title }) {
                     <button
                       onClick={handleDeleteSelected}
                       disabled={selectedIds.length === 0}
-                      className={`px-3 py-1 text-sm rounded ${selectedIds.length ? 'bg-red-600 text-white' : 'bg-gray-200 text-gray-500 cursor-not-allowed'}`}
+                      className={`rounded px-3 py-1 text-sm ${selectedIds.length ? 'bg-[color:var(--danger)] text-white' : 'cursor-not-allowed bg-[color:var(--surface-hover)] text-[color:var(--text-muted)]'}`}
                     >
                       Delete selected
                     </button>
                   </div>
                   <div>
-                    <h3 className="text-md font-bold mb-2">Current Month Notifications</h3>
+                    <h3 className="mb-2 text-md font-bold text-[color:var(--text-primary)]">Current Month Notifications</h3>
                     {currentMonthNotifications.length === 0 ? (
-                      <div className="text-center py-4 text-gray-500">No current month notifications found.</div>
+                      <div className="py-4 text-center text-[color:var(--text-muted)]">No current month notifications found.</div>
                     ) : (
                       <div className="divide-y">
                         {currentMonthNotifications.map((n) => (
                           <div
                             key={n.id}
-                            className={`py-4 px-2 flex flex-col md:flex-row md:items-center md:justify-between cursor-pointer hover:bg-blue-50 ${n.is_read ? 'text-gray-500' : 'text-gray-900 font-semibold'}`}
+                            className={`cursor-pointer px-2 py-4 hover:bg-[color:var(--surface-hover)] md:flex md:flex-row md:items-center md:justify-between ${n.is_read ? 'text-[color:var(--text-muted)]' : 'font-semibold text-[color:var(--text-primary)]'}`}
                             onClick={() => !n.is_read && handleMarkAsRead(n.id)}
                           >
                             <div className="flex items-start md:items-center md:justify-between w-full">
@@ -144,14 +144,14 @@ export default function ViewAllNotification({ show, onClose, title }) {
                                   {(() => {
                                     const normalized = (n.message || '').replace(/\s+Title:/i, '\nTitle:').replace(/\s+Description:/i, '\nDescription:');
                                     return normalized.split('\n').map((line, idx) => (
-                                      <div key={idx} className={idx === 0 ? '' : 'text-sm text-gray-700'}>{line}</div>
+                                      <div key={idx} className={idx === 0 ? '' : 'text-sm text-[color:var(--text-secondary)]'}>{line}</div>
                                     ));
                                   })()}
-                                  <div className="text-xs text-gray-400 mt-1">{new Date(n.created_at).toLocaleString()}</div>
+                                  <div className="mt-1 text-xs text-[color:var(--text-muted)]">{new Date(n.created_at).toLocaleString()}</div>
                                 </div>
                               </div>
                               <button
-                                className="ml-4 mt-2 md:mt-0 px-2 py-1 text-xs p-2 text-white transition-colors duration-200 bg-red-600 rounded-lg hover:bg-red-700"
+                                className="ml-4 mt-2 rounded-lg bg-[color:var(--danger)] px-2 py-1 text-xs text-white transition-colors duration-200 hover:opacity-90 md:mt-0"
                                 onClick={e => { e.stopPropagation(); handleDelete(n.id); }}
                                 title="Delete notification"
                                 aria-label="Delete notification"
@@ -167,15 +167,15 @@ export default function ViewAllNotification({ show, onClose, title }) {
                     )}
                   </div>
                   <div className="mt-8">
-                    <h3 className="text-md font-bold mb-2">Previous Months' Notifications</h3>
+                    <h3 className="mb-2 text-md font-bold text-[color:var(--text-primary)]">Previous Months' Notifications</h3>
                     {previousMonthNotifications.length === 0 ? (
-                      <div className="text-center py-4 text-gray-500">No previous months' notifications found.</div>
+                      <div className="py-4 text-center text-[color:var(--text-muted)]">No previous months' notifications found.</div>
                     ) : (
                       <div className="divide-y">
                         {previousMonthNotifications.map((n) => (
                           <div
                             key={n.id}
-                            className={`py-4 px-2 flex flex-col md:flex-row md:items-center md:justify-between cursor-pointer hover:bg-blue-50 ${n.is_read ? 'text-gray-500' : 'text-gray-900 font-semibold'}`}
+                            className={`cursor-pointer px-2 py-4 hover:bg-[color:var(--surface-hover)] md:flex md:flex-row md:items-center md:justify-between ${n.is_read ? 'text-[color:var(--text-muted)]' : 'font-semibold text-[color:var(--text-primary)]'}`}
                             onClick={() => !n.is_read && handleMarkAsRead(n.id)}
                           >
                             <div className="flex items-start md:items-center md:justify-between w-full">
@@ -190,13 +190,13 @@ export default function ViewAllNotification({ show, onClose, title }) {
                                 />
                                 <div>
                                   {(n.message || '').split('\n').map((line, idx) => (
-                                    <div key={idx} className={idx === 0 ? '' : 'text-sm text-gray-700'}>{line}</div>
+                                    <div key={idx} className={idx === 0 ? '' : 'text-sm text-[color:var(--text-secondary)]'}>{line}</div>
                                   ))}
-                                  <div className="text-xs text-gray-400 mt-1">{new Date(n.created_at).toLocaleString()}</div>
+                                  <div className="mt-1 text-xs text-[color:var(--text-muted)]">{new Date(n.created_at).toLocaleString()}</div>
                                 </div>
                               </div>
                               <button
-                                className="ml-4 mt-2 md:mt-0 px-2 py-1 text-xs bg-red-100 text-red-600 rounded hover:bg-red-200"
+                                className="ml-4 mt-2 rounded bg-[color:var(--danger-soft)] px-2 py-1 text-xs text-[color:var(--danger)] hover:opacity-90 md:mt-0"
                                 onClick={e => { e.stopPropagation(); handleDelete(n.id); }}
                                 title="Delete notification"
                                 aria-label="Delete notification"

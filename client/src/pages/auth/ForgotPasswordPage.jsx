@@ -28,7 +28,7 @@ const ForgotPasswordPage = () => {
       setStep(2);
       setSuccess(
         res.data?.message ||
-          `We've sent a password reset email to ${email}. It contains a 6-digit verification code (OTP) and a secure reset link. The code is valid for 15 minutes. If you don't see the email, check your spam/junk folder or contact support at support@hyloc.com.`
+        `We've sent a password reset email to ${email}. It contains a 6-digit verification code (OTP) and a secure reset link. The code is valid for 15 minutes. If you don't see the email, check your spam/junk folder or contact support at support@hyloc.com.`
       );
     } catch (err) {
       const msg = err?.response?.data?.message || err.message || 'Failed to send OTP.';
@@ -116,7 +116,7 @@ const ForgotPasswordPage = () => {
       const res = await axios.post('/auth/reset-password', { email, otp, newPassword, resetToken });
       setSuccess(
         res.data?.message ||
-          'Your password has been reset successfully. You will be redirected to the login page shortly. If you did not perform this request, please contact support immediately.'
+        'Your password has been reset successfully. You will be redirected to the login page shortly. If you did not perform this request, please contact support immediately.'
       );
       setTimeout(() => navigate('/login'), 2000);
     } catch (err) {
@@ -191,7 +191,7 @@ const ForgotPasswordPage = () => {
             <button type="submit" disabled={loading} className="w-full mt-2 bg-gradient-to-r text-white font-bold py-3 rounded-lg" style={{ backgroundColor: '#001f3f' }}>
               {loading ? 'Verifying...' : 'Verify OTP'}
             </button>
-            <button type="button"  className="w-full mt-2 text-blue-600  underline" onClick={handleRequestOtp} disabled={loading}>
+            <button type="button" className="w-full mt-2 text-blue-600  underline" onClick={handleRequestOtp} disabled={loading}>
               Resend OTP
             </button>
           </form>

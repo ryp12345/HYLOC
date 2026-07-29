@@ -667,10 +667,10 @@ const HODCalendar = ({ joinDate, title = 'HOD Leave Calendar' }) => {
   };
 
   return (
-    <div className="w-full space-y-6">
+    <div className="w-full space-y-6 bg-[color:var(--app-bg)] text-[color:var(--text-primary)]">
       {/* Error Message */}
       {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+        <div className="bg-[color:var(--danger-soft)] border border-[color:var(--danger)] text-[color:var(--danger)] px-4 py-3 rounded">
           {error}
         </div>
       )}
@@ -678,7 +678,7 @@ const HODCalendar = ({ joinDate, title = 'HOD Leave Calendar' }) => {
       {/* Leave Details Cards */}
       {leaveBalance && (
         <div>
-          <h3 className="text-lg font-semibold text-gray-800 mb-4">Leave Details - {currentDate.getFullYear()}</h3>
+          <h3 className="text-lg font-semibold text-[color:var(--text-primary)] mb-4">Leave Details - {currentDate.getFullYear()}</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
             <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg shadow-lg p-6 text-white">
               <p className="text-sm opacity-90 mb-2">Entitled</p>
@@ -709,22 +709,22 @@ const HODCalendar = ({ joinDate, title = 'HOD Leave Calendar' }) => {
       )}
 
       {/* Calendar Card */}
-      <div className="bg-white rounded-lg shadow-lg p-6">
+      <div className="bg-[color:var(--surface)] rounded-lg border border-[color:var(--border)] shadow-sm p-6">
         {/* Search filters removed per request */}
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-2xl font-bold text-gray-800">{title}</h2>
+            <h2 className="text-2xl font-bold text-[color:var(--text-primary)]">{title}</h2>
           </div>
           
           {/* View Mode Toggle */}
-          <div className="flex gap-2 bg-gray-100 p-1 rounded-lg">
+          <div className="flex gap-2 bg-[color:var(--surface-hover)] p-1 rounded-lg">
             <button
               onClick={() => setViewMode('month')}
               className={`px-4 py-2 rounded transition-colors ${
                 viewMode === 'month'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  ? 'bg-[color:var(--accent)] text-white'
+                  : 'bg-[color:var(--surface)] text-[color:var(--text-secondary)] hover:bg-[color:var(--surface-hover)]'
               }`}
             >
               Month
@@ -733,8 +733,8 @@ const HODCalendar = ({ joinDate, title = 'HOD Leave Calendar' }) => {
               onClick={() => setViewMode('week')}
               className={`px-4 py-2 rounded transition-colors ${
                 viewMode === 'week'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  ? 'bg-[color:var(--accent)] text-white'
+                  : 'bg-[color:var(--surface)] text-[color:var(--text-secondary)] hover:bg-[color:var(--surface-hover)]'
               }`}
             >
               Week
@@ -743,8 +743,8 @@ const HODCalendar = ({ joinDate, title = 'HOD Leave Calendar' }) => {
               onClick={() => setViewMode('list')}
               className={`px-4 py-2 rounded transition-colors ${
                 viewMode === 'list'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  ? 'bg-[color:var(--accent)] text-white'
+                  : 'bg-[color:var(--surface)] text-[color:var(--text-secondary)] hover:bg-[color:var(--surface-hover)]'
               }`}
             >
               List
@@ -759,16 +759,16 @@ const HODCalendar = ({ joinDate, title = 'HOD Leave Calendar' }) => {
           <div className="mb-6 flex items-center justify-center gap-4">
             <button
               onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1))}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold text-lg"
+              className="px-4 py-2 bg-[color:var(--accent)] text-white rounded-lg hover:bg-[color:var(--accent-hover)] transition-colors font-semibold text-lg"
             >
               &lt;
             </button>
-            <h3 className="text-xl font-semibold text-gray-800 min-w-48 text-center">
+            <h3 className="text-xl font-semibold text-[color:var(--text-primary)] min-w-48 text-center">
               {formatMonthYear(currentDate)}
             </h3>
             <button
               onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1))}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold text-lg"
+              className="px-4 py-2 bg-[color:var(--accent)] text-white rounded-lg hover:bg-[color:var(--accent-hover)] transition-colors font-semibold text-lg"
             >
               &gt;
             </button>
@@ -779,7 +779,7 @@ const HODCalendar = ({ joinDate, title = 'HOD Leave Calendar' }) => {
             {dayNames.map((day) => (
               <div
                 key={day}
-                className="bg-blue-100 text-blue-800 font-semibold text-center py-2 rounded"
+                className="bg-[color:var(--accent-soft)] text-[color:var(--accent)] font-semibold text-center py-2 rounded"
               >
                 {day}
               </div>
@@ -797,22 +797,22 @@ const HODCalendar = ({ joinDate, title = 'HOD Leave Calendar' }) => {
                   key={index}
                   className={`min-h-[80px] p-2 rounded border-2 transition-all ${
                     date === null
-                      ? 'bg-gray-50 border-gray-200'
+                      ? 'bg-[color:var(--surface-hover)] border-[color:var(--border)]'
                       : isToday(date)
-                      ? 'border-blue-600 bg-white'
+                      ? 'border-[color:var(--success)] bg-[color:var(--surface)]'
                       : isSelectedDate(date)
-                      ? 'border-blue-500 bg-blue-50'
-                      : 'border-gray-200 bg-white hover:bg-gray-50'
+                      ? 'border-[color:var(--accent)] bg-[color:var(--surface-hover)]'
+                      : 'border-[color:var(--border)] bg-[color:var(--surface)] hover:bg-[color:var(--surface-hover)]'
                   } ${isPastDate(date) ? 'opacity-60' : 'opacity-100'} ${date && leave ? 'cursor-pointer' : date ? 'cursor-pointer' : ''}`}
                   onClick={() => date && handleDateClick(date)}
                 >
                   {date && (
                     <>
-                      <div className="font-bold text-gray-800 text-sm mb-1">
+                      <div className="font-bold text-[color:var(--text-primary)] text-sm mb-1">
                         {date.getDate()}
                       </div>
                       {isToday(date) && (
-                        <div className="text-blue-600 text-xs font-italic">Today</div>
+                        <div className="text-[color:var(--accent)] text-xs font-italic">Today</div>
                       )}
                               {leave && (
                                 <div className="mt-1">
@@ -848,9 +848,9 @@ const HODCalendar = ({ joinDate, title = 'HOD Leave Calendar' }) => {
                                     onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); openCalendarLeaveModal(date); } }}
                                   >
                                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" className="h-6 w-6" aria-hidden="true"><path d="M2 22C2 17.5817 5.58172 14 10 14C14.4183 14 18 17.5817 18 22H16C16 18.6863 13.3137 16 10 16C6.68629 16 4 18.6863 4 22H2ZM10 13C6.685 13 4 10.315 4 7C4 3.685 6.685 1 10 1C13.315 1 16 3.685 16 7C16 10.315 13.315 13 10 13ZM10 11C12.21 11 14 9.21 14 7C14 4.79 12.21 3 10 3C7.79 3 6 4.79 6 7C6 9.21 7.79 11 10 11ZM18.2837 14.7028C21.0644 15.9561 23 18.752 23 22H21C21 19.564 19.5483 17.4671 17.4628 16.5271L18.2837 14.7028ZM17.5962 3.41321C19.5944 4.23703 21 6.20361 21 8.5C21 11.3702 18.8042 13.7252 16 13.9776V11.9646C17.6967 11.7222 19 10.264 19 8.5C19 7.11935 18.2016 5.92603 17.041 5.35635L17.5962 3.41321Z"></path></svg>
-                                    {otherLeaves.length >= 1 && (
-                                      <span className="bg-white text-purple-700 text-[10px] font-semibold rounded-full px-1 py-0.5">{otherLeaves.length}</span>
-                                    )}
+                                     {otherLeaves.length >= 1 && (
+                                       <span className="bg-[color:var(--surface)] text-[color:var(--accent)] text-[10px] font-semibold rounded-full px-1 py-0.5">{otherLeaves.length}</span>
+                                     )}
                                   </button>
                                 </div>
                                 );
@@ -866,9 +866,9 @@ const HODCalendar = ({ joinDate, title = 'HOD Leave Calendar' }) => {
                               onClick={(e) => { e.stopPropagation(); openTicketModal(date); }}
                             >
                               <span aria-hidden="true" className="h-6 w-6 inline-flex items-center justify-center text-[24px]">🎫</span>
-                              {dayTickets.length >= 1 && (
-                                <span className="bg-white text-green-700 text-[10px] font-semibold rounded-full px-1 py-0.5">{dayTickets.length}</span>
-                              )}
+                               {dayTickets.length >= 1 && (
+                                 <span className="bg-[color:var(--surface)] text-[color:var(--success)] text-[10px] font-semibold rounded-full px-1 py-0.5">{dayTickets.length}</span>
+                               )}
                             </button>
                           </div>
                         ) : null;
@@ -886,54 +886,54 @@ const HODCalendar = ({ joinDate, title = 'HOD Leave Calendar' }) => {
       {viewMode === 'week' && (
         <div>
           {/* Week Header */}
-          <div className="mb-6">
-            <h3 className="text-xl font-semibold text-gray-800 text-center">
-              Week of {formatWeekRange(weekDays[0])}
-            </h3>
-          </div>
+            <div className="mb-6">
+              <h3 className="text-xl font-semibold text-[color:var(--text-primary)] text-center">
+                Week of {formatWeekRange(weekDays[0])}
+              </h3>
+            </div>
 
-          {/* Day Headers with Dates */}
-          <div className="grid grid-cols-7 gap-1 mb-2">
-            {weekDays.map((date) => (
-              <div
-                key={date.toISOString()}
-                className="bg-blue-100 text-blue-800 font-semibold text-center py-2 rounded"
-              >
-                <div>{dayNames[date.getDay()]}</div>
-                <div className="text-sm">{date.getDate()}</div>
-              </div>
-            ))}
-          </div>
-
-          {/* Week Grid */}
-          <div className="grid grid-cols-7 gap-1">
-            {weekDays.map((date) => {
-              const dayCalendarLeaves = getCalendarLeavesForDate(date);
-              const otherLeaves = (dayCalendarLeaves || []).filter(l => !isLeaveByCurrentUser(l));
-              const leaveWithoutPayCountWeek = (otherLeaves || []).filter(l => String(l.leave_type || '').toLowerCase().includes('leave without pay')).length;
-              const earnedLeaveCountWeek = (otherLeaves || []).length - leaveWithoutPayCountWeek;
-              const totalWeek = otherLeaves.length;
-              const earnedPctWeek = totalWeek > 0 ? Math.round((earnedLeaveCountWeek / totalWeek) * 100) : 50;
-              const deptBadgeStyleWeek = (earnedLeaveCountWeek > 0 && leaveWithoutPayCountWeek > 0) ? { background: `linear-gradient(to right, #3b82f6 ${earnedPctWeek}%, #ef4444 ${earnedPctWeek}%)` } : null;
-              const deptBadgeClassWeek = (earnedLeaveCountWeek > 0 && leaveWithoutPayCountWeek === 0) ? 'bg-blue-600 hover:bg-blue-700' : (leaveWithoutPayCountWeek > 0 && earnedLeaveCountWeek === 0) ? 'bg-red-600 hover:bg-red-700' : 'bg-purple-600 hover:bg-purple-700';
-              return (
-              <div
-                key={date.toISOString()}
-                className={`min-h-[150px] p-3 rounded border-2 transition-all cursor-pointer ${
-                  isToday(date)
-                    ? 'border-blue-600 bg-white'
-                    : isSelectedDate(date)
-                    ? 'border-blue-500 bg-purple-50'
-                    : 'border-gray-200 bg-white hover:bg-gray-50'
-                } ${isPastDate(date) ? 'opacity-60' : 'opacity-100'}`}
-                onClick={() => setSelectedDate(date)}
-              >
-                <div className="font-bold text-gray-800 text-sm mb-2">
-                  {date.getDate()}
+            {/* Day Headers with Dates */}
+            <div className="grid grid-cols-7 gap-1 mb-2">
+              {weekDays.map((date) => (
+                <div
+                  key={date.toISOString()}
+                  className="bg-[color:var(--accent-soft)] text-[color:var(--accent)] font-semibold text-center py-2 rounded"
+                >
+                  <div>{dayNames[date.getDay()]}</div>
+                  <div className="text-sm">{date.getDate()}</div>
                 </div>
-                {isToday(date) && (
-                  <div className="text-blue-600 text-xs font-italic">Today</div>
-                )}
+              ))}
+            </div>
+
+            {/* Week Grid */}
+            <div className="grid grid-cols-7 gap-1">
+              {weekDays.map((date) => {
+                const dayCalendarLeaves = getCalendarLeavesForDate(date);
+                const otherLeaves = (dayCalendarLeaves || []).filter(l => !isLeaveByCurrentUser(l));
+                const leaveWithoutPayCountWeek = (otherLeaves || []).filter(l => String(l.leave_type || '').toLowerCase().includes('leave without pay')).length;
+                const earnedLeaveCountWeek = (otherLeaves || []).length - leaveWithoutPayCountWeek;
+                const totalWeek = otherLeaves.length;
+                const earnedPctWeek = totalWeek > 0 ? Math.round((earnedLeaveCountWeek / totalWeek) * 100) : 50;
+                const deptBadgeStyleWeek = (earnedLeaveCountWeek > 0 && leaveWithoutPayCountWeek > 0) ? { background: `linear-gradient(to right, #3b82f6 ${earnedPctWeek}%, #ef4444 ${earnedPctWeek}%)` } : null;
+                const deptBadgeClassWeek = (earnedLeaveCountWeek > 0 && leaveWithoutPayCountWeek === 0) ? 'bg-blue-600 hover:bg-blue-700' : (leaveWithoutPayCountWeek > 0 && earnedLeaveCountWeek === 0) ? 'bg-red-600 hover:bg-red-700' : 'bg-purple-600 hover:bg-purple-700';
+                return (
+                <div
+                  key={date.toISOString()}
+                  className={`min-h-[150px] p-3 rounded border-2 transition-all cursor-pointer ${
+                    isToday(date)
+                      ? 'border-[color:var(--success)] bg-[color:var(--surface)]'
+                      : isSelectedDate(date)
+                      ? 'border-[color:var(--accent)] bg-[color:var(--surface-hover)]'
+                      : 'border-[color:var(--border)] bg-[color:var(--surface)] hover:bg-[color:var(--surface-hover)]'
+                } ${isPastDate(date) ? 'opacity-60' : 'opacity-100'}`}
+                  onClick={() => setSelectedDate(date)}
+                >
+                  <div className="font-bold text-[color:var(--text-primary)] text-sm mb-2">
+                    {date.getDate()}
+                  </div>
+                  {isToday(date) && (
+                    <div className="text-[color:var(--accent)] text-xs font-italic">Today</div>
+                  )}
                       {otherLeaves.length > 0 && (
                   <div className="mt-2">
                     <button
@@ -945,9 +945,9 @@ const HODCalendar = ({ joinDate, title = 'HOD Leave Calendar' }) => {
                       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); openCalendarLeaveModal(date); } }}
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="currentColor" className="h-6 w-6" aria-hidden="true"><path d="M2 22C2 17.5817 5.58172 14 10 14C14.4183 14 18 17.5817 18 22H16C16 18.6863 13.3137 16 10 16C6.68629 16 4 18.6863 4 22H2ZM10 13C6.685 13 4 10.315 4 7C4 3.685 6.685 1 10 1C13.315 1 16 3.685 16 7C16 10.315 13.315 13 10 13ZM10 11C12.21 11 14 9.21 14 7C14 4.79 12.21 3 10 3C7.79 3 6 4.79 6 7C6 9.21 7.79 11 10 11ZM18.2837 14.7028C21.0644 15.9561 23 18.752 23 22H21C21 19.564 19.5483 17.4671 17.4628 16.5271L18.2837 14.7028ZM17.5962 3.41321C19.5944 4.23703 21 6.20361 21 8.5C21 11.3702 18.8042 13.7252 16 13.9776V11.9646C17.6967 11.7222 19 10.264 19 8.5C19 7.11935 18.2016 5.92603 17.041 5.35635L17.5962 3.41321Z"></path></svg>
-                      {otherLeaves.length >= 1 && (
-                        <span className="bg-white text-purple-700 text-[10px] font-semibold rounded-full px-1 py-0.5">{otherLeaves.length}</span>
-                      )}
+                       {otherLeaves.length >= 1 && (
+                         <span className="bg-[color:var(--surface)] text-[color:var(--accent)] text-[10px] font-semibold rounded-full px-1 py-0.5">{otherLeaves.length}</span>
+                       )}
                     </button>
                   </div>
                 )}
@@ -962,9 +962,9 @@ const HODCalendar = ({ joinDate, title = 'HOD Leave Calendar' }) => {
                         onClick={(e) => { e.stopPropagation(); openTicketModal(date); }}
                       >
                         <span aria-hidden="true" className="h-6 w-6 inline-flex items-center justify-center text-[24px]">🎫</span>
-                        {dayTickets.length >= 1 && (
-                          <span className="bg-white text-green-700 text-[10px] font-semibold rounded-full px-1 py-0.5">{dayTickets.length}</span>
-                        )}
+                         {dayTickets.length >= 1 && (
+                           <span className="bg-[color:var(--surface)] text-[color:var(--success)] text-[10px] font-semibold rounded-full px-1 py-0.5">{dayTickets.length}</span>
+                         )}
                       </button>
                     </div>
                   ) : null;
@@ -979,16 +979,16 @@ const HODCalendar = ({ joinDate, title = 'HOD Leave Calendar' }) => {
       {/* List View */}
       {viewMode === 'list' && (
         <div className="flex flex-col items-center">
-          <h3 className="text-xl font-semibold text-gray-800 mb-4">My Leaves</h3>
+          <h3 className="text-xl font-semibold text-[color:var(--text-primary)] mb-4">My Leaves</h3>
           {leaves.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
+            <div className="text-center py-8 text-[color:var(--text-secondary)]">
               No leaves applied yet
             </div>
           ) : (
             <div className="overflow-x-auto w-full max-w-3xl">
-              <table className="min-w-full bg-white border rounded-lg shadow">
+              <table className="min-w-full bg-[color:var(--surface)] border rounded-lg shadow border-[color:var(--border)]">
                 <thead>
-                  <tr className="bg-blue-100 text-blue-800">
+                  <tr className="bg-[color:var(--accent-soft)] text-[color:var(--accent)]">
                     <th className="py-2 px-4 text-center">S.No</th>
                     <th className="py-2 px-4 text-center">Status</th>
                     <th className="py-2 px-4 text-center">Duration</th>
@@ -997,7 +997,7 @@ const HODCalendar = ({ joinDate, title = 'HOD Leave Calendar' }) => {
                 </thead>
                 <tbody>
                   {leaves.map((leave, idx) => (
-                    <tr key={leave.id} className="border-b hover:bg-purple-50">
+                    <tr key={leave.id} className="border-b border-[color:var(--border)] hover:bg-[color:var(--surface-hover)]">
                       <td className="py-2 px-4 text-center">{idx + 1}</td>
                       <td className="py-2 px-4 text-center">
                         <span className={`px-3 py-1 rounded-full text-white text-sm ${getLeaveBadgeColor(leave.status)}`}>{leave.status}</span>
@@ -1017,33 +1017,33 @@ const HODCalendar = ({ joinDate, title = 'HOD Leave Calendar' }) => {
         </div>
       )}
 
-      <hr className="border-t border-gray-200 my-6" />
+      <hr className="border-t border-[color:var(--border)] my-6" />
 
       {/* ...existing code... */}
     </div>
 
     {showCalendarLeaveModal && selectedCalendarDate && (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <div className="bg-white rounded-lg shadow-xl w-full max-w-5xl max-h-[90vh] overflow-y-auto">
+        <div className="bg-[color:var(--surface)] rounded-lg shadow-xl w-full max-w-5xl max-h-[90vh] overflow-y-auto border border-[color:var(--border)]">
           <div className="p-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-bold text-gray-800">
+              <h3 className="text-xl font-bold text-[color:var(--text-primary)]">
                 Leave Details - {formatFullDate(selectedCalendarDate)}
               </h3>
               <button
                 onClick={closeCalendarLeaveModal}
-                className="text-gray-500 hover:text-gray-700 text-2xl"
+                className="text-[color:var(--text-secondary)] hover:text-[color:var(--text-primary)] text-2xl"
               >
                 ×
               </button>
             </div>
 
             {selectedCalendarLeaves.length === 0 ? (
-              <div className="text-center text-gray-500 py-8">No leaves for this date</div>
+              <div className="text-center text-[color:var(--text-secondary)] py-8">No leaves for this date</div>
             ) : (
               <div className="overflow-x-auto overflow-hidden rounded-t-lg">
-                <table className="min-w-full text-sm border">
-                  <thead className="bg-blue-600 text-white">
+                <table className="min-w-full text-sm border border-[color:var(--border)]">
+                  <thead className="bg-[color:var(--accent)] text-white">
                     <tr>
                       <th className="text-left px-4 py-2 border">User Name</th>
                       <th className="text-left px-4 py-2 border">Role</th>
@@ -1056,14 +1056,14 @@ const HODCalendar = ({ joinDate, title = 'HOD Leave Calendar' }) => {
                   </thead>
                   <tbody>
                     {selectedCalendarLeaves.map((leave) => (
-                      <tr key={leave.id} className={`border-t ${isLeaveWithoutPay(leave) ? 'bg-red-50 border-l-4 border-red-600' : ''}`}>
+                      <tr key={leave.id} className={`border-t border-[color:var(--border)] ${isLeaveWithoutPay(leave) ? 'border-l-4 border-[color:var(--danger)] bg-[color:var(--danger-soft)]' : ''}`}>
                         <td className="px-4 py-2 border">{leave.user_name}</td>
                         <td className="px-4 py-2 border">{leave.user_role || '—'}</td>
                         <td className="px-4 py-2 border">{formatFullDate(parseDateOnly(leave.from_date))}</td>
                         <td className="px-4 py-2 border">{formatFullDate(parseDateOnly(leave.to_date))}</td>
                         <td className="px-4 py-2 border">{leave.leave_reason || '—'}</td>
                         <td className="px-4 py-2 border">
-                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold text-white ${isLeaveWithoutPay(leave) ? 'bg-red-600' : 'bg-blue-600'}`}>
+                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold text-white ${isLeaveWithoutPay(leave) ? 'bg-[color:var(--danger)]' : 'bg-[color:var(--accent)]'}`}>
                             {leave.leave_type || '—'}
                           </span>
                         </td>
@@ -1086,18 +1086,18 @@ const HODCalendar = ({ joinDate, title = 'HOD Leave Calendar' }) => {
     {/* Ticket Modal */}
     {showTicketModal && (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <div className="bg-white rounded-lg shadow-xl w-full max-w-5xl max-h-[90vh] overflow-y-auto">
+        <div className="bg-[color:var(--surface)] rounded-lg shadow-xl w-full max-w-5xl max-h-[90vh] overflow-y-auto border border-[color:var(--border)]">
           <div className="p-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-bold text-gray-800">Tickets</h3>
-              <button onClick={closeTicketModal} className="text-gray-500 hover:text-gray-700 text-2xl">×</button>
+              <h3 className="text-xl font-bold text-[color:var(--text-primary)]">Tickets</h3>
+              <button onClick={closeTicketModal} className="text-[color:var(--text-secondary)] hover:text-[color:var(--text-primary)] text-2xl">×</button>
             </div>
             {selectedTickets.length === 0 ? (
-              <div className="text-center text-gray-500 py-8">No tickets for this date</div>
+              <div className="text-center text-[color:var(--text-secondary)] py-8">No tickets for this date</div>
               ) : (
               <div className="overflow-x-auto rounded-t-lg">
-                <table className="min-w-full text-sm border rounded-t-lg overflow-hidden">
-                  <thead className="bg-blue-600 text-white rounded-t-lg">
+                <table className="min-w-full text-sm border border-[color:var(--border)] rounded-t-lg overflow-hidden">
+                  <thead className="bg-[color:var(--accent)] text-white rounded-t-lg">
                     <tr>
                       <th className="text-left px-4 py-2 border">S.No</th>
                       <th className="text-left px-4 py-2 border">Title</th>
@@ -1109,7 +1109,7 @@ const HODCalendar = ({ joinDate, title = 'HOD Leave Calendar' }) => {
                   </thead>
                   <tbody>
                     {selectedTickets.map((t, idx) => (
-                      <tr key={t.id} className="border-t">
+                      <tr key={t.id} className="border-t border-[color:var(--border)]">
                         <td className="px-4 py-2 border">{idx + 1}</td>
                         <td className="px-4 py-2 border">{t.title || '-'}</td>
                         <td className="px-4 py-2 border">{t.description || '-'}</td>
@@ -1129,15 +1129,15 @@ const HODCalendar = ({ joinDate, title = 'HOD Leave Calendar' }) => {
     {/* Date Detail Modal */}
     {showDateDetail && selectedDate && (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <div className="bg-white rounded-lg shadow-xl w-full max-w-5xl max-h-[90vh] overflow-y-auto">
+        <div className="bg-[color:var(--surface)] rounded-lg shadow-xl w-full max-w-5xl max-h-[90vh] overflow-y-auto border border-[color:var(--border)]">
           <div className="p-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-bold text-gray-800">
+              <h3 className="text-xl font-bold text-[color:var(--text-primary)]">
                 Leave Details - {formatFullDate(selectedDate)}
               </h3>
               <button
                 onClick={handleCloseDateDetail}
-                className="text-gray-500 hover:text-gray-700 text-2xl"
+                className="text-[color:var(--text-secondary)] hover:text-[color:var(--text-primary)] text-2xl"
               >
                 ×
               </button>
@@ -1152,8 +1152,8 @@ const HODCalendar = ({ joinDate, title = 'HOD Leave Calendar' }) => {
                 || (user?.role?.name || user?.role || '—');
               return leave ? (
                  <div className="overflow-x-auto overflow-hidden rounded-t-lg">
-                   <table className="min-w-full text-sm border">
-                     <thead className="bg-blue-600 text-white">
+                   <table className="min-w-full text-sm border border-[color:var(--border)]">
+                     <thead className="bg-[color:var(--accent)] text-white">
                        <tr>
                          <th className="text-left px-4 py-2 border">S.No</th>
                          <th className="text-left px-4 py-2 border">User Name</th>
@@ -1166,7 +1166,7 @@ const HODCalendar = ({ joinDate, title = 'HOD Leave Calendar' }) => {
                        </tr>
                      </thead>
                      <tbody>
-                       <tr key={leave.id} className={`border-t ${isLeaveWithoutPay(leave) ? 'bg-red-50 border-l-4 border-red-600' : ''}`}>
+                       <tr key={leave.id} className={`border-t border-[color:var(--border)] ${isLeaveWithoutPay(leave) ? 'border-l-4 border-[color:var(--danger)] bg-[color:var(--danger-soft)]' : ''}`}>
                          <td className="px-4 py-2 border">1</td>
                          <td className="px-4 py-2 border">{userName}</td>
                         <td className="px-4 py-2 border">{userRoleLabel}</td>
@@ -1174,7 +1174,7 @@ const HODCalendar = ({ joinDate, title = 'HOD Leave Calendar' }) => {
                         <td className="px-4 py-2 border">{formatFullDate(parseDateOnly(leave.to_date))}</td>
                         <td className="px-4 py-2 border">{leave.leave_reason || '—'}</td>
                         <td className="px-4 py-2 border">
-                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold text-white ${isLeaveWithoutPay(leave) ? 'bg-red-600' : 'bg-blue-600'}`}>
+                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold text-white ${isLeaveWithoutPay(leave) ? 'bg-[color:var(--danger)]' : 'bg-[color:var(--accent)]'}`}>
                             {leave.leave_type || leave.type || (isLeaveWithoutPay(leave) ? 'Leave without pay' : '—')}
                           </span>
                         </td>
@@ -1188,7 +1188,7 @@ const HODCalendar = ({ joinDate, title = 'HOD Leave Calendar' }) => {
                   </table>
                 </div>
               ) : (
-                <div className="text-center text-gray-500 py-8">No leaves for this date</div>
+                <div className="text-center text-[color:var(--text-secondary)] py-8">No leaves for this date</div>
               );
             })()}
           </div>
@@ -1199,15 +1199,15 @@ const HODCalendar = ({ joinDate, title = 'HOD Leave Calendar' }) => {
     {/* Leave Application Form Modal */}
     {showLeaveForm && (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="bg-[color:var(--surface)] rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-[color:var(--border)]">
           <div className="p-6">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xl font-bold text-gray-800">
+              <h3 className="text-xl font-bold text-[color:var(--text-primary)]">
                 {editingLeave ? 'Edit Leave Application' : 'Apply for Leave'}
               </h3>
               <button
                 onClick={handleCloseLeaveForm}
-                className="text-gray-500 hover:text-gray-700 text-2xl"
+                className="text-[color:var(--text-secondary)] hover:text-[color:var(--text-primary)] text-2xl"
               >
                 ×
               </button>
@@ -1217,37 +1217,37 @@ const HODCalendar = ({ joinDate, title = 'HOD Leave Calendar' }) => {
 
               <div className="grid grid-cols-7 gap-4 items-end">
                 <div className="col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">From Date *</label>
+                  <label className="block text-sm font-medium text-[color:var(--text-primary)] mb-1">From Date *</label>
                   <input
                     type="date"
                     name="from_date"
                     value={leaveForm.from_date}
                     onChange={handleFormChange}
                     required
-                    className="w-28 px-2 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-28 px-2 py-2 border border-[color:var(--border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[color:var(--ring)] bg-[color:var(--surface)] text-[color:var(--text-primary)]"
                     style={{minWidth:'10.5rem',maxWidth:'13rem'}}
                   />
                 </div>
                 <div className="col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">To Date *</label>
+                  <label className="block text-sm font-medium text-[color:var(--text-primary)] mb-1">To Date *</label>
                   <input
                     type="date"
                     name="to_date"
                     value={leaveForm.to_date}
                     onChange={handleFormChange}
                     required
-                    className="w-28 px-2 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-28 px-2 py-2 border border-[color:var(--border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[color:var(--ring)] bg-[color:var(--surface)] text-[color:var(--text-primary)]"
                     style={{minWidth:'10.5rem',maxWidth:'13rem'}}
                   />
                 </div>
                 <div className="col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Day Type</label>
+                  <label className="block text-sm font-medium text-[color:var(--text-primary)] mb-1">Day Type</label>
                   <select
                     name="day_type"
                     value={leaveForm.day_type || 'full'}
                     onChange={handleFormChange}
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base"
+                    className="w-full px-3 py-2 border border-[color:var(--border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[color:var(--ring)] text-base bg-[color:var(--surface)] text-[color:var(--text-primary)]"
                     disabled={leaveForm.from_date !== leaveForm.to_date}
                   >
                     <option value="full">Full day</option>
@@ -1256,7 +1256,7 @@ const HODCalendar = ({ joinDate, title = 'HOD Leave Calendar' }) => {
                   </select>
                 </div>
                 <div className="col-span-1 flex flex-col">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">(days)</label>
+                  <label className="block text-sm font-medium text-[color:var(--text-primary)] mb-1">(days)</label>
                   <input
                     type="text"
                     inputMode="numeric"
@@ -1264,18 +1264,18 @@ const HODCalendar = ({ joinDate, title = 'HOD Leave Calendar' }) => {
                     name="duration"
                     value={Number(leaveForm.duration) === 0.5 ? '0.5' : (Number(leaveForm.duration) < 10 && Number.isInteger(Number(leaveForm.duration)) ? `0${leaveForm.duration}` : leaveForm.duration)}
                     readOnly 
-                    className="w-20 px-2 py-2 border border-gray-300 rounded-lg bg-gray-100 focus:outline-none text-center"
+                    className="w-20 px-2 py-2 border border-[color:var(--border)] rounded-lg bg-[color:var(--surface-hover)] focus:outline-none text-center text-[color:var(--text-primary)]"
                     style={{minWidth:'3.5rem',maxWidth:'4.5rem'}}
                   />
                 </div>
-                              </div>
+              </div>
 
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-[color:var(--text-secondary)]">
                 Note: Half-day leaves are limited to a single day
               </p>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Leave Type *</label>
+                <label className="block text-sm font-medium text-[color:var(--text-primary)] mb-2">Leave Type *</label>
                 <div className="flex flex-wrap gap-4">
                   <label className="inline-flex items-center gap-2">
                     <input
@@ -1284,9 +1284,9 @@ const HODCalendar = ({ joinDate, title = 'HOD Leave Calendar' }) => {
                       value="Earned Leave"
                       checked={leaveForm.leave_type === 'Earned Leave'}
                       onChange={handleFormChange}
-                      className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                      className="h-4 w-4 text-[color:var(--accent)] border-[color:var(--border)] focus:ring-[color:var(--ring)]"
                     />
-                    <span className="text-sm text-gray-700">Earned Leave</span>
+                    <span className="text-sm text-[color:var(--text-primary)]">Earned Leave</span>
                   </label>
                   <label className="inline-flex items-center gap-2">
                     <input
@@ -1295,22 +1295,22 @@ const HODCalendar = ({ joinDate, title = 'HOD Leave Calendar' }) => {
                       value="Duty Leave"
                       checked={leaveForm.leave_type === 'Duty Leave'}
                       onChange={handleFormChange}
-                      className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                      className="h-4 w-4 text-[color:var(--accent)] border-[color:var(--border)] focus:ring-[color:var(--ring)]"
                     />
-                    <span className="text-sm text-gray-700">Duty Leave</span>
+                    <span className="text-sm text-[color:var(--text-primary)]">Duty Leave</span>
                   </label>
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Reason for Leave *</label>
+                <label className="block text-sm font-medium text-[color:var(--text-primary)] mb-1">Reason for Leave *</label>
                 <textarea
                   name="leave_reason"
                   value={leaveForm.leave_reason}
                   onChange={handleFormChange}
                   required
                   rows="3"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-[color:var(--border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[color:var(--ring)] bg-[color:var(--surface)] text-[color:var(--text-primary)]"
                   placeholder="Please provide a reason for your leave..."
                 />
               </div>
@@ -1322,15 +1322,15 @@ const HODCalendar = ({ joinDate, title = 'HOD Leave Calendar' }) => {
                     name="available_on_phone"
                     checked={leaveForm.available_on_phone}
                     onChange={handleFormChange}
-                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    className="w-4 h-4 text-[color:var(--accent)] border-[color:var(--border)] rounded focus:ring-[color:var(--ring)]"
                   />
-                  <label className="ml-2 text-sm text-gray-700">
+                  <label className="ml-2 text-sm text-[color:var(--text-primary)]">
                     Available on phone during leave
                   </label>
                 </div>
                 {leaveBalance && (
-                  <div className="bg-purple-50 p-3 rounded-lg">
-                    <p className="text-sm text-gray-700">
+                  <div className="bg-[color:var(--surface-hover)] border border-[color:var(--border)] p-3 rounded-lg">
+                    <p className="text-sm text-[color:var(--text-primary)]">
                       <strong>Available Balance:</strong> {leaveBalance.leave_balance} day(s)
                     </p>
                   </div>
@@ -1340,14 +1340,14 @@ const HODCalendar = ({ joinDate, title = 'HOD Leave Calendar' }) => {
                 <button
                   type="button"
                   onClick={handleCloseLeaveForm}
-                 className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+                  className="px-4 py-2 bg-[color:var(--danger)] text-white rounded hover:bg-[color:var(--danger-hover)]"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={loading}
-                  className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-400"
+                  className="px-4 py-2 bg-[color:var(--accent)] text-white rounded hover:bg-[color:var(--accent-hover)] disabled:bg-[color:var(--surface-hover)]"
                 >
                   {loading ? 'Submitting...' : editingLeave ? 'Update Leave' : 'Submit Leave'}
                 </button>

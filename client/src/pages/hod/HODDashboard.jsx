@@ -153,52 +153,52 @@ function HODDashboard() {
 	};
 
 	return (
-		<div className="space-y-6">
+		<div className="w-full space-y-6 bg-[color:var(--app-bg)] text-[color:var(--text-primary)]">
 			{/* Header */}
 			<div className="mb-8">
-				<h1 className="text-4xl font-bold text-gray-800 mb-2">
+				<h1 className="text-4xl font-bold text-[color:var(--text-primary)] mb-2">
 					HOD Dashboard
 				</h1>
-				<p className="text-gray-600">
+				<p className="text-[color:var(--text-secondary)]">
 					Welcome, {user?.firstName} {user?.lastName}
 				</p>
 			</div>
 
 			{/* Team Overview Section */}
 			<div>
-				<h2 className="text-xl font-semibold text-gray-800 mb-4">👥 Team Overview</h2>
+				<h2 className="text-xl font-semibold text-[color:var(--text-primary)] mb-4">👥 Team Overview</h2>
 				<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-					<div className="bg-white rounded-lg shadow p-4 border-l-4 border-blue-500">
+					<div className="bg-[color:var(--surface)] rounded-lg shadow p-4 border-l-4 border-[color:var(--accent)]">
 						<div className="flex items-center justify-between mb-2">
-							<div className="text-gray-500 text-xs font-semibold">Total Employees</div>
+							<div className="text-[color:var(--text-muted)] text-xs font-semibold">Total Employees</div>
 							<div className="text-2xl">👨‍💼</div>
 						</div>
-						<div className="text-2xl font-bold text-gray-800">
+						<div className="text-2xl font-bold text-[color:var(--text-primary)]">
 							{loading ? '...' : teamStats.totalEmployees}
 						</div>
-						<p className="text-xs text-gray-500 mt-1">In your department</p>
+						<p className="text-xs text-[color:var(--text-muted)] mt-1">In your department</p>
 					</div>
 					
-					<div className="bg-white rounded-lg shadow p-4 border-l-4 border-green-500">
+					<div className="bg-[color:var(--surface)] rounded-lg shadow p-4 border-l-4 border-[color:var(--success)]">
 						<div className="flex items-center justify-between mb-2">
-							<div className="text-gray-500 text-xs font-semibold">Present Today</div>
+							<div className="text-[color:var(--text-muted)] text-xs font-semibold">Present Today</div>
 							<div className="text-2xl">✅</div>
 						</div>
-						<div className="text-2xl font-bold text-gray-800">
+						<div className="text-2xl font-bold text-[color:var(--text-primary)]">
 							{loading ? '...' : teamStats.presentToday}
 						</div>
-						<p className="text-xs text-gray-500 mt-1">Active employees</p>
+						<p className="text-xs text-[color:var(--text-muted)] mt-1">Active employees</p>
 					</div>
 
-					<div className="bg-white rounded-lg shadow p-4 border-l-4 border-orange-500">
+					<div className="bg-[color:var(--surface)] rounded-lg shadow p-4 border-l-4 border-[color:var(--danger)]">
 						<div className="flex items-center justify-between mb-2">
-							<div className="text-gray-500 text-xs font-semibold">On Leave Today</div>
+							<div className="text-[color:var(--text-muted)] text-xs font-semibold">On Leave Today</div>
 							<div className="text-2xl">🏖️</div>
 						</div>
-						<div className="text-2xl font-bold text-gray-800">
+						<div className="text-2xl font-bold text-[color:var(--text-primary)]">
 							{loading ? '...' : teamStats.onLeaveToday}
 						</div>
-						<p className="text-xs text-gray-500 mt-1">Team members on leave</p>
+						<p className="text-xs text-[color:var(--text-muted)] mt-1">Team members on leave</p>
 					</div>
 				</div>
 			</div>

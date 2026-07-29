@@ -371,14 +371,14 @@ export default function UsersPage() {
   useEffect(() => { setPage(1); }, [search, rows, sortConfig, departmentFilter, designationFilter]);
 
   return (
-    <div className="min-h-screen px-4 py-12 bg-gradient-to-br from-gray-50 to-gray-100 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-[color:var(--app-bg)] px-4 py-12 text-[color:var(--text-primary)] transition-colors duration-300 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
         <Notification show={notification.show} message={notification.message} type={notification.type} onClose={() => setNotification({ show: false, message: '', type: '' })} />
         <div className="mb-12 text-center">
-          <h1 className="mb-2 text-4xl font-extrabold text-gray-900">
+          <h1 className="mb-2 text-4xl font-extrabold text-[color:var(--text-primary)]">
             {isManagementView ? 'User Credentials' : 'Users'}
           </h1>
-          <p className="text-lg text-gray-600">
+          <p className="text-lg text-[color:var(--text-secondary)]">
             {isManagementView ? 'Reset passwords and manage user credentials' : 'Create, update and manage users'}
           </p>
         </div>
@@ -444,12 +444,12 @@ export default function UsersPage() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search users..."
-                className="w-full py-2 pl-10 pr-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] py-2 pl-10 pr-4 text-[color:var(--text-primary)] focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--focus-ring)]"
               />
 
               <svg
                 xmlns="http://www.w3.org/2000/svg"
-                className="absolute w-5 h-5 text-gray-400 left-3 top-2.5"
+                className="absolute left-3 top-2.5 h-5 w-5 text-[color:var(--text-muted)]"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -467,7 +467,7 @@ export default function UsersPage() {
             <select
               value={departmentFilter}
               onChange={(e) => setDepartmentFilter(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-4 py-2 text-[color:var(--text-primary)] focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--focus-ring)]"
             >
               <option value="">All Departments</option>
 
@@ -482,7 +482,7 @@ export default function UsersPage() {
             <select
               value={designationFilter}
               onChange={(e) => setDesignationFilter(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-4 py-2 text-[color:var(--text-primary)] focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--focus-ring)]"
             >
               <option value="">All Designations</option>
 
@@ -500,7 +500,7 @@ export default function UsersPage() {
 
             <button
               onClick={exportToExcel}
-              className="flex items-center justify-center px-6 py-2 font-medium text-white transition rounded-lg shadow bg-emerald-600 hover:bg-emerald-700"
+              className="flex items-center justify-center rounded-lg bg-[color:var(--success)] px-6 py-2 font-medium text-white shadow transition hover:opacity-90"
             >
               Export
             </button>
@@ -508,7 +508,7 @@ export default function UsersPage() {
             {!isManagementView && (
               <button
                 onClick={openCreate}
-                className="flex items-center justify-center px-6 py-2 font-medium text-white transition rounded-lg shadow bg-blue-600 hover:bg-blue-700"
+                className="flex items-center justify-center rounded-lg bg-[color:var(--accent)] px-6 py-2 font-medium text-white shadow transition hover:opacity-90"
               >
                 Add User
               </button>
@@ -517,63 +517,63 @@ export default function UsersPage() {
           </div>
 
         </div>
-        <div className="mb-10 overflow-hidden bg-white shadow-xl rounded-xl">
+        <div className="mb-10 overflow-hidden rounded-xl border border-[color:var(--border)] bg-[color:var(--surface)] shadow-xl">
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-blue-600">
+            <table className="min-w-full divide-y divide-[color:var(--border)]">
+              <thead className="bg-[color:var(--accent)]">
                 <tr>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">S.NO</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">
+                  <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white">S.NO</th>
+                  <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white">
                     <button type="button" onClick={(e) => handleSort('empid', e.shiftKey)} className="inline-flex items-center gap-2" title="Sort by employee ID">
                       Emp ID
                       <span className="text-[10px]">{sortConfig[0]?.key === 'empid' ? (sortConfig[0].direction === 'asc' ? '▲' : '▼') : '↕'}</span>
                     </button>
                   </th>
-                  <th className="px-6 py-4 text-center text-xs font-medium text-white uppercase tracking-wider">Photo</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">
+                  <th className="px-6 py-4 text-center text-xs font-medium uppercase tracking-wider text-white">Photo</th>
+                  <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white">
                     <button type="button" onClick={(e) => handleSort('name', e.shiftKey)} className="inline-flex items-center gap-2" title="Sort by staff name">
                       Name
                       <span className="text-[10px]">{sortConfig[0]?.key === 'name' ? (sortConfig[0].direction === 'asc' ? '▲' : '▼') : '↕'}</span>
                     </button>
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">Email</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">
+                  <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white">Email</th>
+                  <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white">
                     <button type="button" onClick={(e) => handleSort('department', e.shiftKey)} className="inline-flex items-center gap-2" title="Sort by department">
                       Department
                       <span className="text-[10px]">{sortConfig[0]?.key === 'department' ? (sortConfig[0].direction === 'asc' ? '▲' : '▼') : '↕'}</span>
                     </button>
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">
+                  <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white">
                     <button type="button" onClick={(e) => handleSort('designation', e.shiftKey)} className="inline-flex items-center gap-2" title="Sort by designation">
                       Designation
                       <span className="text-[10px]">{sortConfig[0]?.key === 'designation' ? (sortConfig[0].direction === 'asc' ? '▲' : '▼') : '↕'}</span>
                     </button>
                   </th>
-                  <th className="px-6 py-4 text-center text-xs font-medium text-white uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-4 text-center text-xs font-medium text-white uppercase tracking-wider">Actions</th>
+                  <th className="px-6 py-4 text-center text-xs font-medium uppercase tracking-wider text-white">Status</th>
+                  <th className="px-6 py-4 text-center text-xs font-medium uppercase tracking-wider text-white">Actions</th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="divide-y divide-[color:var(--border)] bg-[color:var(--surface)]">
                 {filtered.length === 0 ? (
-                  <tr><td colSpan="10" className="px-6 py-12 text-center text-gray-500">No users found</td></tr>
+                  <tr><td colSpan="10" className="px-6 py-12 text-center text-[color:var(--text-muted)]">No users found</td></tr>
                 ) : (
                   paginated.map((u, idx) => (
-                    <tr key={u.id} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-colors duration-150`}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{(page - 1) * PAGE_SIZE + idx + 1}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{u.empid || '--N/A--'}</td>
+                    <tr key={u.id} className={`transition-colors duration-150 ${idx % 2 === 0 ? 'bg-[color:var(--surface)]' : 'bg-[color:var(--surface-hover)]'} hover:bg-[color:var(--surface-hover)]`}>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-[color:var(--text-primary)]">{(page - 1) * PAGE_SIZE + idx + 1}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-[color:var(--text-secondary)]">{u.empid || '--N/A--'}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-center">
                         {u.staff_photo ? (
-                           <img src={getPhotoUrl(u.staff_photo)} alt="Staff" className="object-cover w-12 h-12 rounded-full border border-gray-300" />
+                           <img src={getPhotoUrl(u.staff_photo)} alt="Staff" className="h-12 w-12 rounded-full border border-[color:var(--border)] object-cover" />
                         ) : (
-                          <span className="text-sm text-gray-400">--</span>
+                          <span className="text-sm text-[color:var(--text-muted)]">--</span>
                         )}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{u.firstname} {u.middlename || ''} {u.lastname}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{u.email}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{u.department_name || '--N/A--'}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{u.designation_name || '--N/A--'}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-[color:var(--text-primary)]">{u.firstname} {u.middlename || ''} {u.lastname}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-[color:var(--text-secondary)]">{u.email}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-[color:var(--text-secondary)]">{u.department_name || '--N/A--'}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-[color:var(--text-secondary)]">{u.designation_name || '--N/A--'}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-center">
-                        <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${u.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                        <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${u.status === 'active' ? 'bg-[color:var(--success-soft)] text-[color:var(--success)]' : 'bg-[color:var(--danger-soft)] text-[color:var(--danger)]'
                           }`}>
                           {u.status || 'active'}
                         </span>
@@ -583,7 +583,7 @@ export default function UsersPage() {
                           {isManagementView ? (
                             <button
                               onClick={() => openReset(u)}
-                              className="px-3 py-2 text-xs font-semibold text-white transition-colors duration-200 bg-blue-600 rounded-lg hover:bg-blue-700"
+                              className="rounded-lg bg-[color:var(--accent)] px-3 py-2 text-xs font-semibold text-white transition-colors duration-200 hover:opacity-90"
                               title="Reset Password"
                             >
                               Reset Password
@@ -592,7 +592,7 @@ export default function UsersPage() {
                             <>
                               <button
                                 onClick={() => openEdit(u)}
-                                className="p-2 text-white transition-colors duration-200 bg-blue-600 rounded-lg hover:bg-blue-700"
+                                className="rounded-lg bg-[color:var(--accent)] p-2 text-white transition-colors duration-200 hover:opacity-90"
                                 title="Edit User"
                               >
                                 <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -601,7 +601,7 @@ export default function UsersPage() {
                               </button>
                               <button
                                 onClick={() => remove(u.id)}
-                                className="p-2 text-white transition-colors duration-200 bg-red-600 rounded-lg hover:bg-red-700"
+                                className="rounded-lg bg-[color:var(--danger)] p-2 text-white transition-colors duration-200 hover:opacity-90"
                                 title="Deactivate User"
                               >
                                 <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -622,17 +622,17 @@ export default function UsersPage() {
           {filtered.length > PAGE_SIZE && (
             <div className="flex justify-end items-center gap-2 px-6 pb-6">
               <button
-                className="px-3 py-1 rounded border border-gray-300 bg-white text-gray-700 disabled:opacity-50"
+                className="rounded border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-1 text-[color:var(--text-secondary)] disabled:opacity-50"
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 disabled={page === 1}
               >
                 Prev
               </button>
-              <span className="text-sm text-gray-700">
+              <span className="text-sm text-[color:var(--text-secondary)]">
                 Page {page} of {Math.ceil(filtered.length / PAGE_SIZE)}
               </span>
               <button
-                className="px-3 py-1 rounded border border-gray-300 bg-white text-gray-700 disabled:opacity-50"
+                className="rounded border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-1 text-[color:var(--text-secondary)] disabled:opacity-50"
                 onClick={() => setPage(p => Math.min(Math.ceil(filtered.length / PAGE_SIZE), p + 1))}
                 disabled={page === Math.ceil(filtered.length / PAGE_SIZE)}
               >
@@ -645,47 +645,47 @@ export default function UsersPage() {
         {isModalOpen && (
           <div className="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true">
             <div className="flex items-end justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-              <div className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" onClick={onClose} />
-              <div className="inline-block overflow-hidden text-left align-bottom transition-all transform bg-white rounded-lg shadow-xl sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full">
-                <div className="px-6 py-4 bg-blue-600">
+              <div className="fixed inset-0 bg-black/40 backdrop-blur-sm transition-opacity" onClick={onClose} />
+              <div className="inline-block overflow-hidden text-left align-bottom transition-all transform rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] shadow-xl sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full">
+                <div className="bg-[color:var(--accent)] px-6 py-4">
                   <div className="flex items-center justify-between">
                     <h3 className="text-lg font-medium leading-6 text-white">{editingId ? 'Edit User' : 'Add User'}</h3>
-                    <button className="text-white hover:text-gray-200" onClick={onClose}>
+                    <button className="text-white hover:opacity-80" onClick={onClose}>
                       <svg className="w-6 h-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
                   </div>
                 </div>
-                <div className="px-6 py-5 bg-white">
-                  {error && <div className="mb-4 p-3 rounded border border-red-200 text-red-700 bg-red-50 text-sm">{error}</div>}
+                <div className="bg-[color:var(--surface)] px-6 py-5">
+                  {error && <div className="mb-4 rounded border border-[color:var(--danger-soft)] bg-[color:var(--danger-soft)] p-3 text-sm text-[color:var(--danger)]">{error}</div>}
                   <form className="space-y-5" onSubmit={submit}>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                       <div>
-                        <label className="block mb-2 text-sm font-medium text-gray-700">Employee ID<span className='text-red-500'>*</span></label>
-                        <input value={form.empid} onChange={e => setForm({ ...form, empid: e.target.value })} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="EMP-001" />
+                        <label className="mb-2 block text-sm font-medium text-[color:var(--text-secondary)]">Employee ID<span className='text-red-500'>*</span></label>
+                        <input value={form.empid} onChange={e => setForm({ ...form, empid: e.target.value })} className="block w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-4 py-3 text-[color:var(--text-primary)] focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--focus-ring)]" placeholder="EMP-001" />
                       </div>
                       <div>
-                        <label className="block mb-2 text-sm font-medium text-gray-700">First Name<span className='text-red-500'>*</span></label>
-                        <input value={form.firstName} onChange={e => setForm({ ...form, firstName: e.target.value })} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="John" required />
+                        <label className="mb-2 block text-sm font-medium text-[color:var(--text-secondary)]">First Name<span className='text-red-500'>*</span></label>
+                        <input value={form.firstName} onChange={e => setForm({ ...form, firstName: e.target.value })} className="block w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-4 py-3 text-[color:var(--text-primary)] focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--focus-ring)]" placeholder="John" required />
                       </div>
                       <div>
-                        <label className="block mb-2 text-sm font-medium text-gray-700">Middle Name<span className='text-red-500'>*</span></label>
-                        <input value={form.middleName} onChange={e => setForm({ ...form, middleName: e.target.value })} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="James" />
+                        <label className="mb-2 block text-sm font-medium text-[color:var(--text-secondary)]">Middle Name<span className='text-red-500'>*</span></label>
+                        <input value={form.middleName} onChange={e => setForm({ ...form, middleName: e.target.value })} className="block w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-4 py-3 text-[color:var(--text-primary)] focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--focus-ring)]" placeholder="James" />
                       </div>
                       <div>
-                        <label className="block mb-2 text-sm font-medium text-gray-700">Last Name<span className='text-red-500'>*</span></label>
-                        <input value={form.lastName} onChange={e => setForm({ ...form, lastName: e.target.value })} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Doe" required />
+                        <label className="mb-2 block text-sm font-medium text-[color:var(--text-secondary)]">Last Name<span className='text-red-500'>*</span></label>
+                        <input value={form.lastName} onChange={e => setForm({ ...form, lastName: e.target.value })} className="block w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-4 py-3 text-[color:var(--text-primary)] focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--focus-ring)]" placeholder="Doe" required />
                       </div>
                       <div className="md:col-span-2">
-                        <label className="block mb-2 text-sm font-medium text-gray-700">Email<span className='text-red-500'>*</span></label>
-                        <input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="john@example.com" required />
+                        <label className="mb-2 block text-sm font-medium text-[color:var(--text-secondary)]">Email<span className='text-red-500'>*</span></label>
+                        <input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} className="block w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-4 py-3 text-[color:var(--text-primary)] focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--focus-ring)]" placeholder="john@example.com" required />
                       </div>
                       <div>
-                        <label className="block mb-2 text-sm font-medium text-gray-700">Phone</label>
-                        <input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="91+ 1234567890" />
+                        <label className="mb-2 block text-sm font-medium text-[color:var(--text-secondary)]">Phone</label>
+                        <input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} className="block w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-4 py-3 text-[color:var(--text-primary)] focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--focus-ring)]" placeholder="91+ 1234567890" />
                       </div>
                       <div>
-                        <label className="block mb-2 text-sm font-medium text-gray-700">Blood Group</label>
-                        <select value={form.bloodGroup} onChange={e => setForm({ ...form, bloodGroup: e.target.value })} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        <label className="mb-2 block text-sm font-medium text-[color:var(--text-secondary)]">Blood Group</label>
+                        <select value={form.bloodGroup} onChange={e => setForm({ ...form, bloodGroup: e.target.value })} className="block w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-4 py-3 text-[color:var(--text-primary)] focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--focus-ring)]">
                           <option value="">Select Blood Group</option>
                           <option value="A+">A+</option>
                           <option value="A-">A-</option>
@@ -698,12 +698,12 @@ export default function UsersPage() {
                         </select>
                       </div>
                       <div className="md:col-span-2">
-                        <label className="block mb-2 text-sm font-medium text-gray-700">Address</label>
-                        <textarea value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="123 Main Street, City" rows="2" />
+                        <label className="mb-2 block text-sm font-medium text-[color:var(--text-secondary)]">Address</label>
+                        <textarea value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} className="block w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-4 py-3 text-[color:var(--text-primary)] focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--focus-ring)]" placeholder="123 Main Street, City" rows="2" />
                       </div>
                       <div>
-                        <label className="block mb-2 text-sm font-medium text-gray-700">Department<span className='text-red-500'>*</span></label>
-                        <select value={form.departmentId} onChange={e => setForm({ ...form, departmentId: e.target.value })} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        <label className="mb-2 block text-sm font-medium text-[color:var(--text-secondary)]">Department<span className='text-red-500'>*</span></label>
+                        <select value={form.departmentId} onChange={e => setForm({ ...form, departmentId: e.target.value })} className="block w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-4 py-3 text-[color:var(--text-primary)] focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--focus-ring)]">
                           <option value="">Select Department</option>
                           {departments.map(dept => (
                             <option key={dept.id} value={dept.id}>{dept.department_name}</option>
@@ -711,8 +711,8 @@ export default function UsersPage() {
                         </select>
                       </div>
                       <div>
-                        <label className="block mb-2 text-sm font-medium text-gray-700">Designation<span className='text-red-500'>*</span></label>
-                        <select value={form.designationId} onChange={e => setForm({ ...form, designationId: e.target.value })} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        <label className="mb-2 block text-sm font-medium text-[color:var(--text-secondary)]">Designation<span className='text-red-500'>*</span></label>
+                        <select value={form.designationId} onChange={e => setForm({ ...form, designationId: e.target.value })} className="block w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-4 py-3 text-[color:var(--text-primary)] focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--focus-ring)]">
                           <option value="">Select Designation</option>
                           {designations.map(desig => (
                             <option key={desig.id} value={desig.id}>{desig.designation_name}</option>
@@ -720,9 +720,9 @@ export default function UsersPage() {
                         </select>
                       </div>
                       <div>
-                        <label className="block mb-2 text-sm font-medium text-gray-700">Staff Photo</label>
+                        <label className="mb-2 block text-sm font-medium text-[color:var(--text-secondary)]">Staff Photo</label>
                         {photoPreview && (
-                          <img src={photoPreview} alt="Staff preview" className="object-cover w-20 h-20 mb-2 rounded-full border border-gray-300" />
+                          <img src={photoPreview} alt="Staff preview" className="mb-2 h-20 w-20 rounded-full border border-[color:var(--border)] object-cover" />
                         )}
                         <input
                           type="file"
@@ -732,16 +732,16 @@ export default function UsersPage() {
                             setPhotoFile(file);
                             setPhotoPreview(file ? URL.createObjectURL(file) : (form.staffPhoto || ''));
                           }}
-                          className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          className="block w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-4 py-3 text-[color:var(--text-primary)] focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--focus-ring)]"
                         />
                       </div>
                       {!editingId && (
                         <>
                           <div>
-                            <label className="block mb-2 text-sm font-medium text-gray-700">Password<span className='text-red-500'>*</span></label>
+                            <label className="mb-2 block text-sm font-medium text-[color:var(--text-secondary)]">Password<span className='text-red-500'>*</span></label>
                             <div className="relative">
-                              <input type={showPassword ? 'text' : 'password'} value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="••••••••" />
-                              <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-3 text-gray-500 hover:text-gray-700">
+                              <input type={showPassword ? 'text' : 'password'} value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} className="block w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-4 py-3 text-[color:var(--text-primary)] focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--focus-ring)]" placeholder="••••••••" />
+                              <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-3 text-[color:var(--text-muted)] hover:text-[color:var(--text-primary)]">
                                 {showPassword ? (
                                   <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-4.803m5.596-3.856a3.375 3.375 0 11-4.753 4.753m4.753-4.753L9.172 9.172M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                                 ) : (
@@ -751,10 +751,10 @@ export default function UsersPage() {
                             </div>
                           </div>
                           <div>
-                            <label className="block mb-2 text-sm font-medium text-gray-700">Confirm Password<span className='text-red-500'>*</span></label>
+                            <label className="mb-2 block text-sm font-medium text-[color:var(--text-secondary)]">Confirm Password<span className='text-red-500'>*</span></label>
                             <div className="relative">
-                              <input type={showConfirmPassword ? 'text' : 'password'} value={form.confirmPassword} onChange={e => setForm({ ...form, confirmPassword: e.target.value })} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="••••••••" />
-                              <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-3 text-gray-500 hover:text-gray-700">
+                              <input type={showConfirmPassword ? 'text' : 'password'} value={form.confirmPassword} onChange={e => setForm({ ...form, confirmPassword: e.target.value })} className="block w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-4 py-3 text-[color:var(--text-primary)] focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--focus-ring)]" placeholder="••••••••" />
+                              <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-3 text-[color:var(--text-muted)] hover:text-[color:var(--text-primary)]">
                                 {showConfirmPassword ? (
                                   <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-4.803m5.596-3.856a3.375 3.375 0 11-4.753 4.753m4.753-4.753L9.172 9.172M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                                 ) : (
@@ -767,8 +767,8 @@ export default function UsersPage() {
                       )}
                       {editingId && (
                         <div>
-                          <label className="block mb-2 text-sm font-medium text-gray-700">Status</label>
-                          <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })} className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                          <label className="mb-2 block text-sm font-medium text-[color:var(--text-secondary)]">Status</label>
+                          <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })} className="block w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-4 py-3 text-[color:var(--text-primary)] focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--focus-ring)]">
                             <option value="active">Active</option>
                             <option value="inactive">Inactive</option>
                           </select>
@@ -777,8 +777,8 @@ export default function UsersPage() {
                     </div>
 
                     <div className="flex justify-end space-x-4 pt-4">
-                      <button type="button" onClick={onClose} className="inline-flex justify-center px-6 py-3 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">Cancel</button>
-                      <button type="submit" className="inline-flex justify-center px-6 py-3 text-sm font-medium text-white border border-transparent rounded-lg shadow-sm bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">{editingId ? 'Update User' : 'Create User'}</button>
+                      <button type="button" onClick={onClose} className="inline-flex justify-center rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-6 py-3 text-sm font-medium text-[color:var(--text-secondary)] shadow-sm hover:bg-[color:var(--surface-hover)] focus:outline-none focus:ring-2 focus:ring-[color:var(--focus-ring)]">Cancel</button>
+                      <button type="submit" className="inline-flex justify-center rounded-lg bg-[color:var(--accent)] px-6 py-3 text-sm font-medium text-white shadow-sm hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-[color:var(--focus-ring)]">{editingId ? 'Update User' : 'Create User'}</button>
                     </div>
                   </form>
                 </div>
@@ -790,9 +790,9 @@ export default function UsersPage() {
         {isResetOpen && (
           <div className="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true">
             <div className="flex items-end justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-              <div className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" onClick={closeReset} />
-              <div className="inline-block overflow-hidden text-left align-bottom transition-all transform bg-white rounded-lg shadow-xl sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-                <div className="px-6 py-4 bg-blue-600">
+              <div className="fixed inset-0 bg-black/40 backdrop-blur-sm transition-opacity" onClick={closeReset} />
+              <div className="inline-block overflow-hidden text-left align-bottom transition-all transform rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] shadow-xl sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                <div className="bg-[color:var(--accent)] px-6 py-4">
                   <div className="flex items-center justify-between">
                     <h3 className="text-lg font-medium leading-6 text-white">
                       Reset Password :-{' '}
@@ -800,24 +800,24 @@ export default function UsersPage() {
                         {resetTarget ? `${resetTarget.firstname || ''} ${resetTarget.middlename || ''} ${resetTarget.lastname || ''}`.trim() || resetTarget.empid : ''}
                       </span>
                     </h3>
-                    <button className="text-white hover:text-gray-200" onClick={closeReset}>
+                    <button className="text-white hover:opacity-80" onClick={closeReset}>
                       <svg className="w-6 h-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
                   </div>
                 </div>
-                <div className="px-6 py-5 bg-white">
-                  {resetError && <div className="mb-4 p-3 rounded border border-red-200 text-red-700 bg-red-50 text-sm">{resetError}</div>}
-                  <p className="text-sm text-gray-600">
+                <div className="bg-[color:var(--surface)] px-6 py-5">
+                  {resetError && <div className="mb-4 rounded border border-[color:var(--danger-soft)] bg-[color:var(--danger-soft)] p-3 text-sm text-[color:var(--danger)]">{resetError}</div>}
+                  <p className="text-sm text-[color:var(--text-secondary)]">
                     This will reset the password for{' '}
-                    <span className="font-semibold text-gray-900">
+                    <span className="font-semibold text-[color:var(--text-primary)]">
                       {resetTarget ? `${resetTarget.firstname || ''} ${resetTarget.middlename || ''} ${resetTarget.lastname || ''}`.trim() || resetTarget.empid : ''}
                     </span>{' '}
-                    to the default <span className="font-mono font-semibold text-gray-900">Password@123</span>.
+                    to the default <span className="font-mono font-semibold text-[color:var(--text-primary)]">Password@123</span>.
                   </p>
 
                   <div className="flex justify-end space-x-4 pt-6">
-                    <button type="button" onClick={closeReset} className="inline-flex justify-center px-6 py-3 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">Cancel</button>
-                    <button type="button" onClick={submitReset} disabled={resetLoading} className="inline-flex justify-center px-6 py-3 text-sm font-medium text-white border border-transparent rounded-lg shadow-sm bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50">
+                    <button type="button" onClick={closeReset} className="inline-flex justify-center rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-6 py-3 text-sm font-medium text-[color:var(--text-secondary)] shadow-sm hover:bg-[color:var(--surface-hover)] focus:outline-none focus:ring-2 focus:ring-[color:var(--focus-ring)]">Cancel</button>
+                    <button type="button" onClick={submitReset} disabled={resetLoading} className="inline-flex justify-center rounded-lg bg-[color:var(--accent)] px-6 py-3 text-sm font-medium text-white shadow-sm hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-[color:var(--focus-ring)] disabled:opacity-50">
                       {resetLoading ? 'Resetting...' : 'Reset Password'}
                     </button>
                   </div>

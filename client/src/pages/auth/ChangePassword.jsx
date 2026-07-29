@@ -90,12 +90,12 @@ const ChangePasswordModal = ({ isOpen, onClose }) => {
       <div className="flex items-center justify-center min-h-screen px-4">
         <div className="fixed inset-0 bg-black opacity-30" onClick={handleClose}></div>
 
-        <div className="bg-white rounded-lg shadow-xl max-w-md w-full z-10 p-6">
-          <h3 className="text-lg font-semibold mb-4">Change Password</h3>
+        <div className="bg-[color:var(--surface)] rounded-lg shadow-xl max-w-md w-full z-10 p-6 border border-[color:var(--border)]">
+          <h3 className="text-lg font-semibold mb-4 text-[color:var(--text-primary)]">Change Password</h3>
 
           <form onSubmit={handleSubmit}>
             <div className="mb-3">
-              <label className="block text-sm font-medium text-gray-700">Current Password</label>
+              <label className="block text-sm font-medium text-[color:var(--text-primary)] mb-1">Current Password</label>
               <div className="relative mt-1">
                 <input 
                   type={showCurrent ? 'text' : 'password'} 
@@ -106,9 +106,9 @@ const ChangePasswordModal = ({ isOpen, onClose }) => {
                     setCurrentPassword(e.target.value);
                     setError('');
                   }} 
-                  className="block w-full px-3 py-2 pr-10 border rounded-lg focus:ring-blue-500 focus:border-blue-500" 
+                  className="block w-full px-3 py-2 pr-10 border border-[color:var(--border)] bg-[color:var(--surface)] text-[color:var(--text-primary)] rounded-lg focus:ring-2 focus:ring-[color:var(--ring)] focus:border-[color:var(--ring)]" 
                 />
-                <button type="button" onClick={()=>setShowCurrent(s=>!s)} aria-label="Toggle current password visibility" className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-500">
+                <button type="button" onClick={()=>setShowCurrent(s=>!s)} aria-label="Toggle current password visibility" className="absolute right-2 top-1/2 transform -translate-y-1/2 text-[color:var(--text-muted)] hover:text-[color:var(--text-primary)]">
                   {showCurrent ? (
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-5 0-9-3.5-10-8 1-3.5 5-8 10-8 1.657 0 3.24.33 4.63.93" />
@@ -125,7 +125,7 @@ const ChangePasswordModal = ({ isOpen, onClose }) => {
             </div>
 
             <div className="mb-3">
-              <label className="block text-sm font-medium text-gray-700">New Password</label>
+              <label className="block text-sm font-medium text-[color:var(--text-primary)] mb-1">New Password</label>
               <div className="relative mt-1">
                 <input 
                   type={showNew ? 'text' : 'password'} 
@@ -135,9 +135,9 @@ const ChangePasswordModal = ({ isOpen, onClose }) => {
                     setNewPassword(e.target.value);
                     setError('');
                   }} 
-                  className="block w-full px-3 py-2 pr-10 border rounded-lg focus:ring-blue-500 focus:border-blue-500" 
+                  className="block w-full px-3 py-2 pr-10 border border-[color:var(--border)] bg-[color:var(--surface)] text-[color:var(--text-primary)] rounded-lg focus:ring-2 focus:ring-[color:var(--ring)] focus:border-[color:var(--ring)]" 
                 />
-                <button type="button" onClick={()=>setShowNew(s=>!s)} aria-label="Toggle new password visibility" className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-500">
+                <button type="button" onClick={()=>setShowNew(s=>!s)} aria-label="Toggle new password visibility" className="absolute right-2 top-1/2 transform -translate-y-1/2 text-[color:var(--text-muted)] hover:text-[color:var(--text-primary)]">
                   {showNew ? (
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-5 0-9-3.5-10-8 1-3.5 5-8 10-8 1.657 0 3.24.33 4.63.93" />
@@ -156,12 +156,12 @@ const ChangePasswordModal = ({ isOpen, onClose }) => {
               {newPassword && (
                 <div className="mt-2">
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs text-gray-500">Strength: <span className="font-medium">{getStrengthLabel(strength)}</span></span>
+                    <span className="text-xs text-[color:var(--text-muted)]">Strength: <span className="font-medium text-[color:var(--text-primary)]">{getStrengthLabel(strength)}</span></span>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-1.5">
+                  <div className="w-full bg-[color:var(--border)] rounded-full h-1.5">
                     <div className={`h-1.5 rounded-full transition-all duration-300 ${getStrengthColor(strength)}`} style={{ width: `${(strength / 5) * 100}%` }}></div>
                   </div>
-                  <div className="text-xs text-gray-500 mt-1">
+                  <div className="text-xs text-[color:var(--text-muted)] mt-1">
                      Use uppercase, numbers & symbols
                   </div>
                 </div>
@@ -169,7 +169,7 @@ const ChangePasswordModal = ({ isOpen, onClose }) => {
             </div>
 
             <div className="mb-3">
-              <label className="block text-sm font-medium text-gray-700">Confirm New Password</label>
+              <label className="block text-sm font-medium text-[color:var(--text-primary)] mb-1">Confirm New Password</label>
               <div className="relative mt-1">
                 <input 
                   type={showConfirm ? 'text' : 'password'} 
@@ -179,9 +179,9 @@ const ChangePasswordModal = ({ isOpen, onClose }) => {
                     setConfirmPassword(e.target.value);
                     setError('');
                   }} 
-                  className="block w-full px-3 py-2 pr-10 border rounded-lg focus:ring-blue-500 focus:border-blue-500" 
+                  className="block w-full px-3 py-2 pr-10 border border-[color:var(--border)] bg-[color:var(--surface)] text-[color:var(--text-primary)] rounded-lg focus:ring-2 focus:ring-[color:var(--ring)] focus:border-[color:var(--ring)]" 
                 />
-                <button type="button" onClick={()=>setShowConfirm(s=>!s)} aria-label="Toggle confirm password visibility" className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-500">
+                <button type="button" onClick={()=>setShowConfirm(s=>!s)} aria-label="Toggle confirm password visibility" className="absolute right-2 top-1/2 transform -translate-y-1/2 text-[color:var(--text-muted)] hover:text-[color:var(--text-primary)]">
                   {showConfirm ? (
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-5 0-9-3.5-10-8 1-3.5 5-8 10-8 1.657 0 3.24.33 4.63.93" />
@@ -197,19 +197,19 @@ const ChangePasswordModal = ({ isOpen, onClose }) => {
               </div>
 
               {confirmPassword && newPassword !== confirmPassword && (
-                <div className="text-sm text-red-600 mt-2">Passwords do not match</div>
+                <div className="text-sm text-[color:var(--danger)] mt-2">Passwords do not match</div>
               )}
               {confirmPassword && newPassword === confirmPassword && (
-                <div className="text-sm text-green-600 mt-2">Passwords match</div>
+                <div className="text-sm text-[color:var(--success)] mt-2">Passwords match</div>
               )}
             </div>
 
-            {error && <div className="text-sm text-red-600 mb-3">{error}</div>}
-            {success && <div className="text-sm text-green-600 mb-3">{success}</div>}
+            {error && <div className="text-sm text-[color:var(--danger)] mb-3">{error}</div>}
+            {success && <div className="text-sm text-[color:var(--success)] mb-3">{success}</div>}
 
-            <div className="flex justify-end space-x-2">
-              <button type="button" onClick={handleClose} className="px-4 py-2 rounded-lg border">Cancel</button>
-              <button type="submit" disabled={loading} className="px-4 py-2 rounded-lg bg-blue-600 text-white">{loading ? 'Updating...' : 'Update'}</button>
+            <div className="flex justify-end space-x-2 mt-4">
+              <button type="button" onClick={handleClose} className="px-4 py-2 rounded-lg border border-[color:var(--border)] text-[color:var(--text-primary)] hover:bg-[color:var(--surface-hover)] transition-colors">Cancel</button>
+              <button type="submit" disabled={loading} className="px-4 py-2 rounded-lg bg-[color:var(--accent)] text-white hover:bg-[color:var(--accent-hover)] transition-colors">{loading ? 'Updating...' : 'Update'}</button>
             </div>
           </form>
         </div>

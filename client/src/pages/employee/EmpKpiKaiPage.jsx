@@ -6,18 +6,18 @@ import api from '../../api/axios';
 import { getAllUnitMasters } from '../../api/unitMasterApi';
 
 function EmpKpiKaiPage() {
-    const [units, setUnits] = useState([]);
-    const unitSymbolById = useMemo(() => {
-      const map = {};
-      units.forEach(u => { map[u.id] = u.symbol; });
-      return map;
-    }, [units]);
+  const [units, setUnits] = useState([]);
+  const unitSymbolById = useMemo(() => {
+    const map = {};
+    units.forEach(u => { map[u.id] = u.symbol; });
+    return map;
+  }, [units]);
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const [kpis, setKPIs] = useState([]); // All KPIs for hierarchy display
   const [assignedKPIValues, setAssignedKPIValues] = useState([]); // KPI values assigned to employee
   const [selectedKPI, setSelectedKPI] = useState(null);
-  
+
   // Helper function to get current fiscal year (April to March)
   const getCurrentFiscalYear = () => {
     const today = new Date();
@@ -26,7 +26,7 @@ function EmpKpiKaiPage() {
     // If current month is Jan-Mar (0-2), fiscal year started last year
     return currentMonth < 3 ? currentYear - 1 : currentYear;
   };
-  
+
   const [selectedYear, setSelectedYear] = useState(getCurrentFiscalYear());
   const [monthlyData, setMonthlyData] = useState({});
   const [loading, setLoading] = useState(true);
@@ -53,7 +53,7 @@ function EmpKpiKaiPage() {
     'April', 'May', 'June', 'July', 'August', 'September',
     'October', 'November', 'December', 'January', 'February', 'March'
   ];
-  
+
   // Map financial year month index to calendar month (1-12)
   const getCalendarMonth = (fyMonthIndex) => {
     // fyMonthIndex 0 = April (month 4), 1 = May (month 5), etc.
@@ -63,10 +63,10 @@ function EmpKpiKaiPage() {
 
   const updateFinancialYear = async (year) => {
     setSelectedYear(year);
-    
+
     // When year changes, reload all KPI values' monthly data for the new year and surrounding years
     const yearsToLoad = [year - 1, year, year + 1];
-    
+
     for (const kpiValue of employeeAssignedKPIValues) {
       for (const fyear of yearsToLoad) {
         await loadMonthlyData(kpiValue.id, fyear);
@@ -74,7 +74,7 @@ function EmpKpiKaiPage() {
     }
   };
 
-  
+
 
   const getSelectedFinancialYear = () => `${selectedYear}-${String(selectedYear + 1).slice(-2)}`;
 
@@ -108,7 +108,7 @@ function EmpKpiKaiPage() {
   const buildBreadcrumb = (kpi) => {
     const breadcrumb = [];
     let currentKPI = kpi;
-    
+
     while (currentKPI) {
       breadcrumb.unshift(currentKPI);
       if (currentKPI.parent_kpi_id) {
@@ -131,9 +131,9 @@ function EmpKpiKaiPage() {
       if (value === null || value === undefined || value === '') return '-';
       const numValue = parseFloat(value);
       if (isNaN(numValue)) return value;
-      
+
       const isPercentage = unitSymbol === '%' || (unitSymbol && unitSymbol.toLowerCase().includes('percent'));
-      
+
       return numValue.toLocaleString('en-IN', {
         minimumFractionDigits: isPercentage ? 0 : 2,
         maximumFractionDigits: isPercentage ? 0 : 2
@@ -151,9 +151,9 @@ function EmpKpiKaiPage() {
     };
 
     return (
-      <div className="rounded-lg border p-2 option3 transition-all bg-white border-slate-200">
+      <div className="rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] p-2 option3 transition-all shadow-sm">
         <div className="flex items-center justify-between mb-3">
-          <h5 className="font-semibold text-slate-900">{month}</h5>
+          <h5 className="font-semibold text-[color:var(--text-primary)]">{month}</h5>
           {initialTarget !== null && initialTarget !== undefined && initialTarget !== '' && targetFormula && onViewFormula && (
             <button className="text-sm" onClick={onViewFormula} title="View formula details">👁️</button>
           )}
@@ -161,25 +161,25 @@ function EmpKpiKaiPage() {
         {isEditing ? (
           <div className="space-y-3">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Actual Value</label>
-              <input type="text" value={actualValue} onChange={(e) => setActualValue(e.target.value)} placeholder="Enter actual value" className="w-full px-3 py-2 border-2 border-slate-300 rounded-lg text-sm" />
+              <label className="mb-1 block text-xs font-semibold text-[color:var(--text-secondary)]">Actual Value</label>
+              <input type="text" value={actualValue} onChange={(e) => setActualValue(e.target.value)} placeholder="Enter actual value" className="w-full rounded-lg border-2 border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-2 text-sm text-[color:var(--text-primary)]" />
             </div>
-            <div className="text-xs text-slate-600">
+            <div className="text-xs text-[color:var(--text-secondary)]">
               <p>📊 Target will be automatically computed using formula</p>
               <p>Formula: <code>{targetFormula}</code></p>
             </div>
             <div className="flex gap-2 mt-2">
-              <button className="flex-1 px-3 py-2 bg-green-600 text-white rounded-lg" onClick={handleSave}>Save</button>
-              <button className="flex-1 px-3 py-2 bg-slate-300 text-slate-700 rounded-lg" onClick={() => setIsEditing(false)}>Cancel</button>
+              <button className="flex-1 rounded-lg bg-[color:var(--success)] px-3 py-2 text-white" onClick={handleSave}>Save</button>
+              <button className="flex-1 rounded-lg bg-[color:var(--surface-hover)] px-3 py-2 text-[color:var(--text-secondary)]" onClick={() => setIsEditing(false)}>Cancel</button>
             </div>
           </div>
         ) : (
           <div className="space-y-2 text-sm">
-            <p className="text-xs font-bold">Target</p>
-            <p className="text-base font-semibold">{formatDisplayValue(initialTarget)}{unitSymbol && <span className="ml-2">{unitSymbol}</span>} <span className="text-xs text-slate-500">🔧 Computed</span></p>
-            <p className="text-xs font-bold">Actual</p>
-            <p className="text-base font-semibold">{formatDisplayValue(actualValue)}{unitSymbol && <span className="ml-2">{unitSymbol}</span>}</p>
-            <button className="w-full py-2 mt-2 bg-yellow-400 text-white rounded-lg" onClick={() => setIsEditing(true)}>{!isEmptyValue(actualValue) ? 'Edit' : 'Add Data'}</button>
+            <p className="text-xs font-bold text-[color:var(--text-secondary)]">Target</p>
+            <p className="text-base font-semibold text-[color:var(--text-primary)]">{formatDisplayValue(initialTarget)}{unitSymbol && <span className="ml-2">{unitSymbol}</span>} <span className="text-xs text-[color:var(--text-secondary)]">🔧 Computed</span></p>
+            <p className="text-xs font-bold text-[color:var(--text-secondary)]">Actual</p>
+            <p className="text-base font-semibold text-[color:var(--text-primary)]">{formatDisplayValue(actualValue)}{unitSymbol && <span className="ml-2">{unitSymbol}</span>}</p>
+            <button className="mt-2 w-full rounded-lg bg-[color:var(--accent)] py-2 text-white" onClick={() => setIsEditing(true)}>{!isEmptyValue(actualValue) ? 'Edit' : 'Add Data'}</button>
           </div>
         )}
       </div>
@@ -197,9 +197,9 @@ function EmpKpiKaiPage() {
       if (value === null || value === undefined || value === '') return '-';
       const numValue = parseFloat(value);
       if (isNaN(numValue)) return value;
-      
+
       const isPercentage = unitSymbol === '%' || (unitSymbol && unitSymbol.toLowerCase().includes('percent'));
-      
+
       return numValue.toLocaleString('en-IN', {
         minimumFractionDigits: isPercentage ? 0 : 2,
         maximumFractionDigits: isPercentage ? 0 : 2
@@ -217,9 +217,9 @@ function EmpKpiKaiPage() {
     };
 
     return (
-      <div className="rounded-lg border p-2 option2 transition-all bg-white border-slate-200">
+      <div className="rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] p-2 option2 transition-all shadow-sm">
         <div className="flex items-center justify-between mb-3">
-          <h5 className="font-semibold text-slate-900">{month}</h5>
+          <h5 className="font-semibold text-[color:var(--text-primary)]">{month}</h5>
           {initialActual !== null && initialActual !== undefined && initialActual !== '' && formula && onViewFormula && (
             <button className="text-sm" onClick={onViewFormula} title="View formula details">👁️</button>
           )}
@@ -227,25 +227,25 @@ function EmpKpiKaiPage() {
         {isEditing ? (
           <div className="space-y-3">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Target Value</label>
-              <input type="text" value={targetValue} onChange={(e) => setTargetValue(e.target.value)} placeholder={defaultTargetValue ? `Default: ${defaultTargetValue}` : 'Enter target value'} className="w-full px-3 py-2 border-2 border-slate-300 rounded-lg text-sm" />
+              <label className="mb-1 block text-xs font-semibold text-[color:var(--text-secondary)]">Target Value</label>
+              <input type="text" value={targetValue} onChange={(e) => setTargetValue(e.target.value)} placeholder={defaultTargetValue ? `Default: ${defaultTargetValue}` : 'Enter target value'} className="w-full rounded-lg border-2 border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-2 text-sm text-[color:var(--text-primary)]" />
             </div>
-            <div className="text-xs text-slate-600">
+            <div className="text-xs text-[color:var(--text-secondary)]">
               <p>📊 Actual value will be automatically computed using formula</p>
               <p>Formula: <code>{formula}</code></p>
             </div>
             <div className="flex gap-2 mt-2">
-              <button className="flex-1 px-3 py-2 bg-green-600 text-white rounded-lg" onClick={handleSave}>Save</button>
-              <button className="flex-1 px-3 py-2 bg-slate-300 text-slate-700 rounded-lg" onClick={() => setIsEditing(false)}>Cancel</button>
+              <button className="flex-1 rounded-lg bg-[color:var(--success)] px-3 py-2 text-white" onClick={handleSave}>Save</button>
+              <button className="flex-1 rounded-lg bg-[color:var(--surface-hover)] px-3 py-2 text-[color:var(--text-secondary)]" onClick={() => setIsEditing(false)}>Cancel</button>
             </div>
           </div>
         ) : (
           <div className="space-y-2 text-sm">
-            <p className="text-xs font-bold">Actual</p>
-            <p className="text-base font-semibold">{formatDisplayValue(initialActual)}{unitSymbol && <span className="ml-2">{unitSymbol}</span>} <span className="text-xs text-slate-500">🔧 Computed</span></p>
-            <p className="text-xs font-bold">Target</p>
-            <p className="text-base font-semibold">{formatDisplayValue(targetValue)}{unitSymbol && <span className="ml-2">{unitSymbol}</span>}</p>
-            <button className="w-full py-2 mt-2 bg-yellow-400 text-white rounded-lg" onClick={() => setIsEditing(true)}>{!isEmptyValue(targetValue) ? 'Edit' : 'Add Data'}</button>
+            <p className="text-xs font-bold text-[color:var(--text-secondary)]">Actual</p>
+            <p className="text-base font-semibold text-[color:var(--text-primary)]">{formatDisplayValue(initialActual)}{unitSymbol && <span className="ml-2">{unitSymbol}</span>} <span className="text-xs text-[color:var(--text-secondary)]">🔧 Computed</span></p>
+            <p className="text-xs font-bold text-[color:var(--text-secondary)]">Target</p>
+            <p className="text-base font-semibold text-[color:var(--text-primary)]">{formatDisplayValue(targetValue)}{unitSymbol && <span className="ml-2">{unitSymbol}</span>}</p>
+            <button className="mt-2 w-full rounded-lg bg-[color:var(--accent)] py-2 text-white" onClick={() => setIsEditing(true)}>{!isEmptyValue(targetValue) ? 'Edit' : 'Add Data'}</button>
           </div>
         )}
       </div>
@@ -342,33 +342,33 @@ function EmpKpiKaiPage() {
     try {
       setLoading(true);
       // Don't clear monthlyData immediately - preserve cached data
-      
+
       // Load KPI values assigned to this employee
       const kpiValuesResponse = await api.get(`/employees/${empId}/kpi-values`);
       const kpiValues = kpiValuesResponse.data.data || [];
       setAssignedKPIValues(kpiValues);
-      
+
       if (kpiValues.length === 0) {
         showNotification('No KPIs have been assigned to you yet. Please contact your administrator.', 'error');
         setLoading(false);
         return;
       }
-      
+
       // Load all KPIs to build hierarchy for the selected financial year
       const kpisResponse = await api.get('/kpis');
       const allKPIs = kpisResponse.data.data || [];
       setKPIs(allKPIs);
-      
+
       // Pre-load monthly data for all KPI values for the selected financial year
       // Use selectedYear state to ensure we load the correct year's data
       const yearsToLoad = [selectedYear - 1, selectedYear, selectedYear + 1];
-      
+
       for (const kpiValue of kpiValues) {
         for (const fyear of yearsToLoad) {
           await loadMonthlyData(kpiValue.id, fyear);
         }
       }
-      
+
       // Don't automatically select a KPI - let the user choose from the hierarchy view
       setSelectedKPI(null);
     } catch (error) {
@@ -386,12 +386,12 @@ function EmpKpiKaiPage() {
       return;
     }
     setSelectedKPI(kpi);
-    
+
     // Filter kpi_values for this specific KPI
     const kpiValuesForSelected = kpiValues || assignedKPIValuesForYear.filter(
       (kv) => normalizeKpiId(kv.kpi_id) === normalizeKpiId(kpi.id)
     );
-    
+
     try {
       // Load monthly data for each KPI value for the selected year and surrounding years
       if (kpiValuesForSelected.length > 0) {
@@ -470,10 +470,10 @@ function EmpKpiKaiPage() {
       // FY 2024 = April 2024 to March 2025
       const response1 = await api.get(`/kpi-data-values/${kpiValueId}/monthly?year=${fyYear}`);
       const response2 = await api.get(`/kpi-data-values/${kpiValueId}/monthly?year=${fyYear + 1}`);
-      
+
       const data1 = response1.data.data || [];
       const data2 = response2.data.data || [];
-      
+
       // Combine data from both years
       const combinedData = normalizeMonthlyRows([...data1, ...data2]);
 
@@ -490,7 +490,7 @@ function EmpKpiKaiPage() {
             merged.push(newItem);
           }
         });
-        
+
         return {
           ...prev,
           [kpiValueId]: merged
@@ -509,7 +509,7 @@ function EmpKpiKaiPage() {
       // Determine the calendar year for this financial year month
       // For months Jan-Mar (fyMonthIndex 9-11), use next calendar year
       const calendarYear = fyMonthIndex >= 9 ? selectedYear + 1 : selectedYear;
-      
+
       const isEmptyValue = (value) => value === '' || value === null || value === undefined;
       const payload = {
         kpiValueId,
@@ -520,7 +520,7 @@ function EmpKpiKaiPage() {
         targetValue: isEmptyValue(targetValue) ? null : targetValue,
         actualValue: isEmptyValue(actualValue) ? null : actualValue
       };
-      
+
       const response = await api.post('/employees/kpi-data', payload);
       showNotification('Data saved successfully! Computing dependent KPIs...', 'success');
 
@@ -531,7 +531,7 @@ function EmpKpiKaiPage() {
       // Also load the previous and next fiscal year to ensure all data is available
       const yearsToReload = [selectedYear - 1, selectedYear, selectedYear + 1];
       const reloadResults = [];
-      
+
       for (const year of yearsToReload) {
         const results = await Promise.all(
           assignedKPIValuesForYear.map(value => loadMonthlyData(value.id, year))
@@ -606,7 +606,7 @@ function EmpKpiKaiPage() {
       for (const sourceId of sourceIds) {
         // Find the KPI value in already loaded data
         let sourceKpiValue = assignedKPIValues.find(kv => String(kv.id) === String(sourceId));
-        
+
         // If not found in assigned values, fetch it from API
         if (!sourceKpiValue) {
           try {
@@ -621,7 +621,7 @@ function EmpKpiKaiPage() {
 
         // Get monthly data from already loaded state (if available)
         let monthData = getMonthData(sourceId, monthIndex);
-        
+
         // If no data in state, try to fetch from API
         if (!monthData.actual_value && !monthData.target_value) {
           try {
@@ -739,12 +739,12 @@ function EmpKpiKaiPage() {
     const data = monthlyData[kpiValueId] || monthlyData[String(kpiValueId)] || monthlyData[Number(kpiValueId)] || [];
     const calendarMonth = getCalendarMonth(fyMonthIndex);
     const calendarYear = fyMonthIndex >= 9 ? selectedYear + 1 : selectedYear;
-    
+
     // Find data matching both month and year for accuracy
-      const result = data.find(d => Number(d.month) === Number(calendarMonth) && Number(d.year) === Number(calendarYear)) || 
-        data.find(d => Number(d.month) === Number(calendarMonth)) || // Fallback to just month if year doesn't match
-           {};
-    
+    const result = data.find(d => Number(d.month) === Number(calendarMonth) && Number(d.year) === Number(calendarYear)) ||
+      data.find(d => Number(d.month) === Number(calendarMonth)) || // Fallback to just month if year doesn't match
+      {};
+
     return result;
   };
 
@@ -753,10 +753,10 @@ function EmpKpiKaiPage() {
     if (value === null || value === undefined || value === '') return '-';
     const numValue = parseFloat(value);
     if (isNaN(numValue)) return value;
-    
+
     // Check if unit is percentage
     const isPercentage = unitSymbol === '%' || (unitSymbol && unitSymbol.toLowerCase().includes('percent'));
-    
+
     if (isPercentage) {
       // Format percentages with no decimal places
       return numValue.toLocaleString('en-IN', {
@@ -764,7 +764,7 @@ function EmpKpiKaiPage() {
         maximumFractionDigits: 0
       });
     }
-    
+
     // Format with commas and 2 decimal places for other units
     return numValue.toLocaleString('en-IN', {
       minimumFractionDigits: 2,
@@ -772,7 +772,7 @@ function EmpKpiKaiPage() {
     });
   };
 
-  
+
 
   // Build flat KPI list nodes (no parent/child hierarchy)
   const fullHierarchy = useMemo(() => {
@@ -829,33 +829,33 @@ function EmpKpiKaiPage() {
     const isExpanded = normalizeKpiId(selectedKPI?.id) === normalizeKpiId(node.kpi.id);
 
     return (
-      <div key={node.kpi.id} className={`bg-white rounded-lg border-2 transition-all duration-200 ${isExpanded ? 'border-blue-400 shadow-md' : 'border-slate-200 hover:border-blue-300 hover:shadow-sm'}`}>
+      <div key={node.kpi.id} className={`rounded-lg border-2 bg-[color:var(--surface)] transition-all duration-200 ${isExpanded ? 'border-[color:var(--accent)] shadow-md' : 'border-[color:var(--border)] hover:border-[color:var(--accent)] hover:shadow-sm'}`}>
         {/* Clickable header row */}
         <div
           className="p-4 flex items-center justify-between gap-4 cursor-pointer select-none"
           onClick={() => selectKPI(node.kpi, kpiValues)}
         >
           <div className="flex-1 min-w-0">
-            <h3 className="text-base font-semibold text-slate-900 truncate">{node.kpi.title}</h3>
+            <h3 className="truncate text-base font-semibold text-[color:var(--text-primary)]">{node.kpi.title}</h3>
             <div className="flex items-center gap-2 mt-2 flex-wrap">
               {kpiValues.length > 0 ? (
                 <>
-                  <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 text-amber-700 rounded-full text-xs font-medium border border-amber-200">
+                  <span className="inline-flex items-center gap-1 rounded-full border border-[color:var(--border)] bg-[color:var(--surface-hover)] px-2.5 py-1 text-xs font-medium text-[color:var(--text-secondary)]">
                     📊 {kpiValues.length} Value{kpiValues.length !== 1 ? 's' : ''}
                   </span>
-                  <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 text-slate-700 rounded-full text-xs font-medium border border-slate-200">
+                  <span className="inline-flex items-center gap-1 rounded-full border border-[color:var(--border)] bg-[color:var(--surface-hover)] px-2.5 py-1 text-xs font-medium text-[color:var(--text-secondary)]">
                     📁 {getCategoryName(node.kpi)}
                   </span>
                 </>
               ) : (
-                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 text-slate-700 rounded-full text-xs font-medium border border-slate-200">
+                <span className="inline-flex items-center gap-1 rounded-full border border-[color:var(--border)] bg-[color:var(--surface-hover)] px-2.5 py-1 text-xs font-medium text-[color:var(--text-secondary)]">
                   📁 {getCategoryName(node.kpi)}
                 </span>
               )}
             </div>
           </div>
           <button
-            className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${isExpanded ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
+            className={`flex items-center gap-1 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${isExpanded ? 'bg-[color:var(--accent)] text-white hover:bg-[color:var(--accent-hover)]' : 'bg-[color:var(--surface-hover)] text-[color:var(--text-secondary)] hover:bg-[color:var(--surface)]'}`}
             type="button"
             onClick={(e) => { e.stopPropagation(); selectKPI(node.kpi, kpiValues); }}
             title={isExpanded ? 'Minimize' : 'Expand to enter data'}
@@ -866,7 +866,7 @@ function EmpKpiKaiPage() {
 
         {/* Inline expanded data entry */}
         {isExpanded && (
-          <div className="border-t border-slate-200">
+          <div className="border-t border-[color:var(--border)]">
             {renderKPIWithValues(node)}
           </div>
         )}
@@ -879,16 +879,16 @@ function EmpKpiKaiPage() {
     const kpiValues = assignedKPIValuesForYear.filter(
       (kv) => normalizeKpiId(kv.kpi_id) === normalizeKpiId(node.kpi.id)
     );
-    
+
     return (
       <div key={node.kpi.id} className="space-y-2">
         {/* Recently auto-computed KPIs notice */}
         {recentlyUpdatedKPIs.length > 0 && (
-          <div className="bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-2 mx-3 mt-3">
-            <p className="text-xs font-semibold text-emerald-700 mb-1">✓ Recently Auto-Computed</p>
+          <div className="mx-3 mt-3 rounded-lg border border-[color:var(--border)] bg-[color:var(--surface-hover)] px-4 py-2">
+            <p className="mb-1 text-xs font-semibold text-[color:var(--success)]">✓ Recently Auto-Computed</p>
             <div className="flex flex-wrap gap-3">
               {recentlyUpdatedKPIs.map((kpi, idx) => (
-                <span key={idx} className="text-xs text-emerald-800 font-medium">{kpi.name}: <strong>{formatValue(kpi.value, kpi.unit)}{kpi.unit && ` ${kpi.unit}`}</strong></span>
+                <span key={idx} className="text-xs font-medium text-[color:var(--text-secondary)]">{kpi.name}: <strong className="text-[color:var(--text-primary)]">{formatValue(kpi.value, kpi.unit)}{kpi.unit && ` ${kpi.unit}`}</strong></span>
               ))}
             </div>
           </div>
@@ -897,34 +897,33 @@ function EmpKpiKaiPage() {
         {kpiValues.length > 0 ? (
           <div className="space-y-2">
             {kpiValues.map((kpiValue) => (
-              <div key={kpiValue.id} className="bg-white rounded-lg border border-slate-200 overflow-hidden">
+              <div key={kpiValue.id} className="overflow-hidden rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)]">
                 {/* Value Header */}
-                <div className="bg-gradient-to-r from-blue-50 to-slate-50 border-b border-slate-200 px-4 py-2">
+                <div className="border-b border-[color:var(--border)] bg-[color:var(--surface-hover)] px-4 py-2">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-base font-bold text-slate-900">{kpiValue.data}</h3>
-                  
+                    <h3 className="text-base font-bold text-[color:var(--text-primary)]">{kpiValue.data}</h3>
+
                   </div>
                   {/* Metadata Badges */}
                   <div className="flex flex-wrap items-center gap-2 mt-1">
-                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border ${
-                      String(kpiValue.kpi_type).toLowerCase() === 'computed' 
-                        ? 'bg-purple-50 text-purple-700 border-purple-200' 
-                        : 'bg-indigo-50 text-indigo-700 border-indigo-200'
-                    }`}>
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border ${String(kpiValue.kpi_type).toLowerCase() === 'computed'
+                      ? 'bg-[color:var(--surface)] text-[color:var(--text-secondary)] border-[color:var(--border)]'
+                      : 'bg-[color:var(--surface)] text-[color:var(--text-secondary)] border-[color:var(--border)]'
+                      }`}>
                       {String(kpiValue.kpi_type).toLowerCase() === 'computed' ? '🧮 Computed' : '📝 Manual'}
                     </span>
                     {kpiValue.uom && unitSymbolById[kpiValue.uom] && (
-                      <span className="unit-badge inline-flex items-center gap-1 px-2 py-0.5 bg-orange-50 text-orange-700 rounded-full text-xs font-semibold border border-orange-200" title="Unit of Measurement">
+                      <span className="unit-badge inline-flex items-center gap-1 rounded-full border border-[color:var(--border)] bg-[color:var(--surface-hover)] px-2 py-0.5 text-xs font-semibold text-[color:var(--text-secondary)]" title="Unit of Measurement">
                         📏{unitSymbolById[kpiValue.uom]}
                       </span>
                     )}
                     {kpiValue.target_required && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-50 text-red-700 rounded-full text-xs font-semibold border border-red-200">
+                      <span className="inline-flex items-center gap-1 rounded-full border border-[color:var(--border)] bg-[color:var(--surface-hover)] px-2 py-0.5 text-xs font-semibold text-[color:var(--text-secondary)]">
                         🎯 Target Required
                       </span>
                     )}
                     {String(kpiValue.kpi_type).toLowerCase() === 'computed' && kpiValue.formula && (
-                      <code className="inline-block px-2 py-0.5 bg-white border border-slate-300 rounded text-xs font-mono text-slate-700 max-w-xs truncate" title={kpiValue.formula}>
+                      <code className="inline-block max-w-xs truncate rounded border border-[color:var(--border)] bg-[color:var(--surface)] px-2 py-0.5 font-mono text-xs text-[color:var(--text-secondary)]" title={kpiValue.formula}>
                         {kpiValue.formula}
                       </code>
                     )}
@@ -933,7 +932,7 @@ function EmpKpiKaiPage() {
 
                 {/* Monthly Data Section */}
                 <div className="p-3">
-                  
+
                   {String(kpiValue.kpi_type).toLowerCase() === 'manual' ? (
                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
                       {months.map((month, index) => {
@@ -1014,8 +1013,8 @@ function EmpKpiKaiPage() {
                             key={index}
                             className={`rounded-lg border p-2 transition-all ${containerClass}`}
                           >
-                            <div className="flex items-start justify-between mb-2">
-                              <h5 className="font-semibold text-slate-900">{month}</h5>
+                            <div className="mb-2 flex items-start justify-between">
+                              <h5 className="font-semibold text-[color:var(--text-primary)]">{month}</h5>
                               {hasComputedValue && kpiValue.formula && (
                                 <button className="text-sm" onClick={() => fetchFormulaDetails(kpiValue.id, kpiValue.formula, month, index)} title="View formula details">👁️</button>
                               )}
@@ -1025,7 +1024,7 @@ function EmpKpiKaiPage() {
                                 <p className="data-row">
                                   <strong>Target:</strong> {formatValue(monthData.target_value ?? kpiValue.default_target_value)}
                                   {kpiValue.uom && unitSymbolById[kpiValue.uom] && (
-                                    <span className="unit-badge inline-flex items-center gap-2 px-2 py-0.5 bg-orange-50 text-orange-700 rounded-full text-xs font-semibold border border-orange-200 ml-2" title="Unit of Measurement">
+                                    <span className="unit-badge ml-2 inline-flex items-center gap-2 rounded-full border border-[color:var(--border)] bg-[color:var(--surface-hover)] px-2 py-0.5 text-xs font-semibold text-[color:var(--text-secondary)]" title="Unit of Measurement">
                                       {unitSymbolById[kpiValue.uom]}
                                     </span>
                                   )}
@@ -1038,7 +1037,7 @@ function EmpKpiKaiPage() {
                                   <>
                                     <span className={`computed-value text-lg font-bold text-emerald-700`}>{formatValue(monthData.actual_value)}</span>
                                     {kpiValue.uom && unitSymbolById[kpiValue.uom] && (
-                                      <span className="unit-badge inline-flex items-center gap-2 px-2 py-0.5 bg-orange-50 text-orange-700 rounded-full text-xs font-semibold border border-orange-200 ml-2" title="Unit of Measurement">
+                                      <span className="unit-badge ml-2 inline-flex items-center gap-2 rounded-full border border-[color:var(--border)] bg-[color:var(--surface-hover)] px-2 py-0.5 text-xs font-semibold text-[color:var(--text-secondary)]" title="Unit of Measurement">
                                         {unitSymbolById[kpiValue.uom]}
                                       </span>
                                     )}
@@ -1068,10 +1067,10 @@ function EmpKpiKaiPage() {
             ))}
           </div>
         ) : (
-          <div className="bg-white rounded-xl border-2 border-dashed border-slate-300 p-12 text-center">
+          <div className="rounded-xl border-2 border-dashed border-[color:var(--border)] bg-[color:var(--surface)] p-12 text-center">
             <div className="text-5xl mb-4">📭</div>
-            <h3 className="text-xl font-semibold text-slate-900 mb-2">No Values Assigned</h3>
-            <p className="text-slate-600">No data operator has been assigned to this KPI yet.</p>
+            <h3 className="mb-2 text-xl font-semibold text-[color:var(--text-primary)]">No Values Assigned</h3>
+            <p className="text-[color:var(--text-secondary)]">No data operator has been assigned to this KPI yet.</p>
           </div>
         )}
 
@@ -1080,98 +1079,98 @@ function EmpKpiKaiPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+    <div className="min-h-screen bg-[color:var(--app-bg)] text-[color:var(--text-primary)]">
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 py-4">
+      <div className="mx-auto max-w-7xl px-4 py-4">
         <Notification show={notification.show} message={notification.message} type={notification.type} onClose={() => setNotification({ show: false, message: '', type: '' })} />
         <div className="space-y-4">
-            {/* Filters Section */}
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 hover:shadow-md transition-shadow">
-              <h2 className="text-lg font-semibold text-blue-900 mb-6 flex items-center gap-2">
-                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-                </svg>
-                My KPIs/KAIs
-              </h2>
-              
-              
+          {/* Filters Section */}
+          <div className="rounded-xl border border-[color:var(--border)] bg-[color:var(--surface)] p-6 shadow-sm transition-shadow hover:shadow-md">
+            <h2 className="mb-6 flex items-center gap-2 text-lg font-semibold text-[color:var(--text-primary)]">
+              <svg className="h-5 w-5 text-[color:var(--accent)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+              </svg>
+              My KPIs/KAIs
+            </h2>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {/* Financial Year Dropdown */}
-                <div className="flex flex-col gap-2">
-                  <label htmlFor="financial-year" className="text-sm font-semibold text-slate-700">
-                    Financial Year
-                  </label>
-                  <select
-                    id="financial-year"
-                    value={selectedYear}
-                    onChange={(e) => updateFinancialYear(parseInt(e.target.value))}
-                    className="px-4 py-3 border-2 border-slate-200 rounded-lg text-sm font-medium focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-colors bg-white hover:border-slate-300"
-                  >
-                    {[...Array(5)].map((_, i) => {
-                      const year = selectedYear - 2 + i;
-                      return <option key={year} value={year}>{year}-{String(year + 1).slice(-2)}</option>;
-                    })}
-                  </select>
-                </div>
 
-                {/* Search Input */}
-                <div className="flex flex-col gap-2 col-span-1 md:col-span-2 lg:col-span-2">
-                  <label htmlFor="search-kpi" className="text-sm font-semibold text-slate-700">
-                    Search KPI
-                  </label>
-                  <div className="relative">
-                    <input
-                      id="search-kpi"
-                      type="text"
-                      placeholder="Search by title or category..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full px-4 py-3 border-2 border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-colors"
-                    />
-                    {searchQuery && (
-                      <button
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full w-8 h-8 flex items-center justify-center transition-colors"
-                        onClick={() => setSearchQuery('')}
-                        type="button"
-                        title="Clear search"
-                      >
-                        ✕
-                      </button>
-                    )}
-                  </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {/* Financial Year Dropdown */}
+              <div className="flex flex-col gap-2">
+                <label htmlFor="financial-year" className="text-sm font-semibold text-[color:var(--text-secondary)]">
+                  Financial Year
+                </label>
+                <select
+                  id="financial-year"
+                  value={selectedYear}
+                  onChange={(e) => updateFinancialYear(parseInt(e.target.value))}
+                  className="rounded-lg border-2 border-[color:var(--border)] bg-[color:var(--surface)] px-4 py-3 text-sm font-medium text-[color:var(--text-primary)] transition-colors focus:outline-none focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--accent-soft)] hover:border-[color:var(--accent)]"
+                >
+                  {[...Array(5)].map((_, i) => {
+                    const year = selectedYear - 2 + i;
+                    return <option key={year} value={year}>{year}-{String(year + 1).slice(-2)}</option>;
+                  })}
+                </select>
+              </div>
+
+              {/* Search Input */}
+              <div className="flex flex-col gap-2 col-span-1 md:col-span-2 lg:col-span-2">
+                <label htmlFor="search-kpi" className="text-sm font-semibold text-[color:var(--text-secondary)]">
+                  Search KPI
+                </label>
+                <div className="relative">
+                  <input
+                    id="search-kpi"
+                    type="text"
+                    placeholder="Search by title or category..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full rounded-lg border-2 border-[color:var(--border)] bg-[color:var(--surface)] px-4 py-3 text-sm text-[color:var(--text-primary)] transition-colors focus:outline-none focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--accent-soft)]"
+                  />
+                  {searchQuery && (
+                    <button
+                      className="absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-[color:var(--text-secondary)] transition-colors hover:bg-[color:var(--surface-hover)] hover:text-[color:var(--text-primary)]"
+                      onClick={() => setSearchQuery('')}
+                      type="button"
+                      title="Clear search"
+                    >
+                      ✕
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
-
-            {/* KPI List Section */}
-            {loading ? (
-              <div className="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-slate-200">
-                <div className="inline-flex items-center gap-3 text-slate-600 animate-pulse">
-                  <div className="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
-                  <span className="text-lg font-medium">Loading KPIs...</span>
-                </div>
-              </div>
-            ) : visibleKPIsForYear.length === 0 ? (
-              <div className="bg-white rounded-xl border-2 border-dashed border-slate-300 p-12 text-center">
-                <div className="text-5xl mb-4">📭</div>
-                <h3 className="text-xl font-semibold text-slate-900 mb-2">No KPIs Found</h3>
-                <p className="text-slate-600">No KPIs/KAIs assigned to you for FY {getSelectedFinancialYear()}.</p>
-                <p className="text-sm text-slate-500 mt-2">Please contact your administrator to assign KPIs.</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {filteredHierarchy.map(node => renderKPINode(node))}
-              </div>
-            )}
           </div>
+
+          {/* KPI List Section */}
+          {loading ? (
+            <div className="flex flex-col items-center justify-center rounded-xl border border-[color:var(--border)] bg-[color:var(--surface)] py-16">
+              <div className="inline-flex items-center gap-3 text-[color:var(--text-secondary)] animate-pulse">
+                <div className="h-8 w-8 animate-spin rounded-full border-4 border-[color:var(--accent-soft)] border-t-[color:var(--accent)]"></div>
+                <span className="text-lg font-medium">Loading KPIs...</span>
+              </div>
+            </div>
+          ) : visibleKPIsForYear.length === 0 ? (
+            <div className="rounded-xl border-2 border-dashed border-[color:var(--border)] bg-[color:var(--surface)] p-12 text-center">
+              <div className="text-5xl mb-4">📭</div>
+              <h3 className="mb-2 text-xl font-semibold text-[color:var(--text-primary)]">No KPIs Found</h3>
+              <p className="text-[color:var(--text-secondary)]">No KPIs/KAIs assigned to you for FY {getSelectedFinancialYear()}.</p>
+              <p className="mt-2 text-sm text-[color:var(--text-secondary)]">Please contact your administrator to assign KPIs.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {filteredHierarchy.map(node => renderKPINode(node))}
+            </div>
+          )}
         </div>
+      </div>
 
       {/* Scroll to Top Button */}
       {showScrollTop && (
 
         <button
-          className="fixed bottom-8 right-8 w-12 h-12 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg flex items-center justify-center transition-all duration-300 hover:scale-110 active:scale-95"
+          className="fixed bottom-8 right-8 flex h-12 w-12 items-center justify-center rounded-full bg-[color:var(--accent)] text-white shadow-lg transition-all duration-300 hover:scale-110 hover:bg-[color:var(--accent-hover)] active:scale-95"
           onClick={scrollToTop}
           aria-label="Scroll to top"
           title="Back to top"
@@ -1182,14 +1181,14 @@ function EmpKpiKaiPage() {
       {/* Formula Details Modal */}
       {formulaDetailsModal.show && formulaDetailsModal.data && (
         <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
           onClick={() => setFormulaDetailsModal({ show: false, data: null })}
         >
           <div
-            className="bg-white rounded-lg max-w-3xl w-full max-h-[80vh] overflow-auto mx-4 shadow-xl"
+            className="mx-4 max-h-[80vh] w-full max-w-3xl overflow-auto rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="px-6 py-4 rounded-t-lg bg-blue-600">
+            <div className="rounded-t-lg bg-[color:var(--accent)] px-6 py-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-white text-lg font-semibold">Formula Details - {formulaDetailsModal.data.month}</h3>
                 <button
@@ -1202,43 +1201,43 @@ function EmpKpiKaiPage() {
               </div>
             </div>
 
-            <div className="p-6 space-y-4 bg-white">
+            <div className="space-y-4 bg-[color:var(--surface)] p-6 text-[color:var(--text-primary)]">
               <div>
-                <h4 className="text-sm font-semibold mb-1 text-slate-700">Formula:</h4>
-                <pre className="bg-white border border-slate-200 p-3 rounded text-sm overflow-auto"><code className="whitespace-pre-wrap">{formulaDetailsModal.data.formula}</code></pre>
+                <h4 className="mb-1 text-sm font-semibold text-[color:var(--text-secondary)]">Formula:</h4>
+                <pre className="overflow-auto rounded border border-[color:var(--border)] bg-[color:var(--surface-hover)] p-3 text-sm"><code className="whitespace-pre-wrap">{formulaDetailsModal.data.formula}</code></pre>
               </div>
 
               {formulaDetailsModal.data.dependencies && formulaDetailsModal.data.dependencies.length > 0 && (
                 <>
                   <div>
-                    <h4 className="text-sm font-semibold mb-1 text-slate-700">Computed With Values:</h4>
-                    <pre className="bg-green-50 border border-green-200 p-3 rounded text-sm overflow-auto"><code className="whitespace-pre-wrap">{formulaDetailsModal.data.computedFormula}</code></pre>
+                    <h4 className="mb-1 text-sm font-semibold text-[color:var(--text-secondary)]">Computed With Values:</h4>
+                    <pre className="overflow-auto rounded border border-[color:var(--border)] bg-[color:var(--surface-hover)] p-3 text-sm"><code className="whitespace-pre-wrap">{formulaDetailsModal.data.computedFormula}</code></pre>
                   </div>
 
                   <div>
-                    <h4 className="text-sm font-semibold mb-2 text-slate-700">Dependent KPI Values ({formulaDetailsModal.data.month}):</h4>
+                    <h4 className="mb-2 text-sm font-semibold text-[color:var(--text-secondary)]">Dependent KPI Values ({formulaDetailsModal.data.month}):</h4>
                     <div className="overflow-x-auto rounded-md shadow-sm">
                       <table className="w-full text-sm border-separate" style={{ borderSpacing: '0 8px' }}>
                         <thead>
-                          <tr className="bg-blue-600">
-                            <th className="py-3 px-3 align-middle text-white text-xs font-semibold">KPI Value Name</th>
-                            <th className="py-3 px-3 align-middle text-white text-xs font-semibold">Variable ID</th>
-                            <th className="py-3 px-3 align-middle text-white text-xs font-semibold">Value</th>
+                          <tr className="bg-[color:var(--accent)]">
+                            <th className="py-3 px-3 align-middle text-xs font-semibold text-white">KPI Value Name</th>
+                            <th className="py-3 px-3 align-middle text-xs font-semibold text-white">Variable ID</th>
+                            <th className="py-3 px-3 align-middle text-xs font-semibold text-white">Value</th>
                           </tr>
                         </thead>
                         <tbody>
                           {formulaDetailsModal.data.dependencies.map((dep, idx) => (
-                            <tr key={idx} className={`${dep.hasValue ? 'bg-white' : 'bg-slate-50'} rounded-md`}>
-                              <td className="py-3 align-top bg-blue-50 px-3 rounded-l-md font-semibold text-slate-900">{dep.name}</td>
-                              <td className="py-3 align-top text-slate-600 px-3"><code className="text-xs bg-slate-100 px-2 py-1 rounded">v{dep.id}</code></td>
+                            <tr key={idx} className={`${dep.hasValue ? 'bg-[color:var(--surface)]' : 'bg-[color:var(--surface-hover)]'} rounded-md`}>
+                              <td className="rounded-l-md bg-[color:var(--surface-hover)] px-3 py-3 align-top font-semibold text-[color:var(--text-primary)]">{dep.name}</td>
+                              <td className="px-3 py-3 align-top text-[color:var(--text-secondary)]"><code className="rounded bg-[color:var(--surface)] px-2 py-1 text-xs">v{dep.id}</code></td>
                               <td className="py-3 align-top px-3">
                                 {dep.hasValue ? (
                                   <>
-                                    <span className="font-semibold text-slate-900">{formatValue(dep.value, dep.unit)}</span>
-                                    {dep.unit && <span className="ml-2 text-xs text-slate-500">{dep.unit}</span>}
+                                    <span className="font-semibold text-[color:var(--text-primary)]">{formatValue(dep.value, dep.unit)}</span>
+                                    {dep.unit && <span className="ml-2 text-xs text-[color:var(--text-secondary)]">{dep.unit}</span>}
                                   </>
                                 ) : (
-                                  <span className="text-red-500 italic">No data</span>
+                                  <span className="italic text-[color:var(--danger)]">No data</span>
                                 )}
                               </td>
                             </tr>
@@ -1269,9 +1268,9 @@ function MonthlyDataForm({ month, monthIndex, kpiValueId, targetRequired, initia
     if (value === null || value === undefined || value === '') return '-';
     const numValue = parseFloat(value);
     if (isNaN(numValue)) return value;
-    
+
     const isPercentage = unitSymbol === '%' || (unitSymbol && unitSymbol.toLowerCase().includes('percent'));
-    
+
     // Format with commas and decimals based on unit type
     return numValue.toLocaleString('en-IN', {
       minimumFractionDigits: isPercentage ? 0 : 2,
@@ -1285,7 +1284,7 @@ function MonthlyDataForm({ month, monthIndex, kpiValueId, targetRequired, initia
       return formatDisplayValue(targetValue);
     }
     if (!isEmptyValue(defaultTargetValue)) {
-      return <span className="text-slate-500 italic">{formatDisplayValue(defaultTargetValue)} <span className="text-xs">(Default)</span></span>;
+      return <span className="italic text-[color:var(--text-secondary)]">{formatDisplayValue(defaultTargetValue)} <span className="text-xs">(Default)</span></span>;
     }
     return '-';
   };
@@ -1304,46 +1303,45 @@ function MonthlyDataForm({ month, monthIndex, kpiValueId, targetRequired, initia
   };
 
   return (
-    <div className={`rounded-lg border p-2 transition-all ${
-      isEditing
-        ? 'bg-blue-50 border-blue-300'
-        : 'bg-white border-slate-200 hover:border-slate-300 hover:shadow-sm'
-    }`}>
-      <h5 className="font-semibold text-slate-900 mb-2 text-center text-xs">{month}</h5>
-      
+    <div className={`rounded-lg border p-2 transition-all ${isEditing
+      ? 'border-[color:var(--accent)] bg-[color:var(--surface-hover)]'
+      : 'border-[color:var(--border)] bg-[color:var(--surface)] hover:border-[color:var(--accent)] hover:shadow-sm'
+      }`}>
+      <h5 className="mb-2 text-center text-xs font-semibold text-[color:var(--text-primary)]">{month}</h5>
+
       {isEditing ? (
         <div className="space-y-3">
           {targetRequired && (
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Target</label>
+              <label className="mb-1 block text-xs font-semibold text-[color:var(--text-secondary)]">Target</label>
               <input
                 type="text"
                 value={targetValue}
                 onChange={(e) => setTargetValue(e.target.value)}
                 placeholder="Enter target"
-                className="w-full px-3 py-2 border-2 border-slate-300 rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                className="w-full rounded-lg border-2 border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-2 text-sm text-[color:var(--text-primary)] focus:outline-none focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--accent-soft)]"
               />
             </div>
           )}
           <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Actual</label>
+            <label className="mb-1 block text-xs font-semibold text-[color:var(--text-secondary)]">Actual</label>
             <input
               type="text"
               value={actualValue}
               onChange={(e) => setActualValue(e.target.value)}
               placeholder="Enter actual value"
-              className="w-full px-3 py-2 border-2 border-slate-300 rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              className="w-full rounded-lg border-2 border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-2 text-sm text-[color:var(--text-primary)] focus:outline-none focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--accent-soft)]"
             />
           </div>
           <div className="flex gap-2 mt-4">
-            <button 
-              className="flex-1 px-3 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-lg transition-colors"
+            <button
+              className="flex-1 rounded-lg bg-[color:var(--success)] px-3 py-2 text-sm font-semibold text-white"
               onClick={handleSave}
             >
               ✓ Save
             </button>
-            <button 
-              className="flex-1 px-3 py-2 bg-slate-300 hover:bg-slate-400 text-slate-700 text-sm font-semibold rounded-lg transition-colors"
+            <button
+              className="flex-1 rounded-lg bg-[color:var(--surface-hover)] px-3 py-2 text-sm font-semibold text-[color:var(--text-secondary)]"
               onClick={() => setIsEditing(false)}
             >
               ✕ Cancel
@@ -1353,12 +1351,12 @@ function MonthlyDataForm({ month, monthIndex, kpiValueId, targetRequired, initia
       ) : (
         <div className="space-y-2 text-sm">
           {targetRequired && (
-            <div className="pb-2 border-b border-slate-200">
-              <p className="text-black text-xs font-bold mb-1">Target</p>
-              <p className="text-slate-900 font-semibold text-base">
+            <div className="border-b border-[color:var(--border)] pb-2">
+              <p className="mb-1 text-xs font-bold text-[color:var(--text-secondary)]">Target</p>
+              <p className="text-base font-semibold text-[color:var(--text-primary)]">
                 {getTargetDisplay()}
                 {unitSymbol && (
-                  <span className="unit-badge inline-flex items-center gap-2 px-2 py-0.5 bg-orange-50 text-orange-700 rounded-full text-xs font-semibold border border-orange-200 ml-2" title="Unit of Measurement">
+                  <span className="unit-badge ml-2 inline-flex items-center gap-2 rounded-full border border-[color:var(--border)] bg-[color:var(--surface-hover)] px-2 py-0.5 text-xs font-semibold text-[color:var(--text-secondary)]" title="Unit of Measurement">
                     {unitSymbol}
                   </span>
                 )}
@@ -1366,22 +1364,18 @@ function MonthlyDataForm({ month, monthIndex, kpiValueId, targetRequired, initia
             </div>
           )}
           <div className="pb-3">
-            <p className="text-black text-xs font-bold mb-1">Actual</p>
-            <p className="text-slate-900 font-semibold text-base">
+            <p className="mb-1 text-xs font-bold text-[color:var(--text-secondary)]">Actual</p>
+            <p className="text-base font-semibold text-[color:var(--text-primary)]">
               {formatDisplayValue(actualValue)}
               {unitSymbol && (
-                <span className="unit-badge inline-flex items-center gap-2 px-2 py-0.5 bg-orange-50 text-orange-700 rounded-full text-xs font-semibold border border-orange-200 ml-2" title="Unit of Measurement">
+                <span className="unit-badge ml-2 inline-flex items-center gap-2 rounded-full border border-[color:var(--border)] bg-[color:var(--surface-hover)] px-2 py-0.5 text-xs font-semibold text-[color:var(--text-secondary)]" title="Unit of Measurement">
                   {unitSymbol}
                 </span>
               )}
             </p>
           </div>
           <button 
-            className={`w-full py-2 rounded-lg font-semibold text-sm transition-colors ${
-              !isEmptyValue(targetValue) || !isEmptyValue(actualValue)
-                ? 'bg-yellow-400 hover:bg-yellow-500 text-white'
-                : 'bg-yellow-400 hover:bg-yellow-500 text-white'
-            }`}
+            className="w-full py-2 rounded-lg font-semibold text-sm transition-colors bg-[color:var(--accent)] text-white"
             onClick={() => setIsEditing(true)}
           >
             {!isEmptyValue(targetValue) || !isEmptyValue(actualValue) ? '✏️ Edit' : '➕ Add Data'}

@@ -21,11 +21,11 @@ export default function Notification({ show, message, type = 'success', onClose 
 
   return (
     <div className="fixed top-6 right-4 md:right-6 z-50 w-auto max-w-sm">
-      <div className={`w-full px-4 py-3 rounded-lg border flex items-center justify-between shadow-lg ${type === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : type === 'error' ? 'bg-red-50 border-red-200 text-red-800' : 'bg-slate-50 border-slate-200 text-slate-800'}`}>
+      <div className={`w-full px-4 py-3 rounded-lg border flex items-center justify-between shadow-lg ${type === 'success' ? 'border-[color:var(--success)] bg-[color:var(--success-soft)] text-[color:var(--text-primary)]' : type === 'error' ? 'border-[color:var(--danger)] bg-[color:var(--danger-soft)] text-[color:var(--text-primary)]' : 'border-[color:var(--border)] bg-[color:var(--surface)] text-[color:var(--text-primary)]'}`}>
         <div className="flex items-center gap-3">
           <span className="notification-icon text-lg">{type === 'success' ? '✓' : type === 'error' ? '✕' : 'ℹ️'}</span>
-          <div className="notification-message font-medium ml-1">
-            {initialSentence ? <div className="text-sm text-gray-800">{initialSentence}</div> : null}
+          <div className="notification-message ml-1 font-medium">
+            {initialSentence ? <div className="text-sm text-[color:var(--text-primary)]">{initialSentence}</div> : null}
             <div className="notification-title truncate max-w-xs">{title ? `Title: ${title}` : ''}</div>
             {desc ? (
               <div className="notification-desc text-sm font-normal mt-1 truncate max-w-xs">{`Description: ${desc}`}</div>

@@ -161,43 +161,43 @@ const MonthlyAttendancePage = ({ token: propToken }) => {
   }, [filtered, page]);
 
   return (
-    <div className="min-h-screen px-4 py-12 bg-gradient-to-br from-gray-50 to-gray-100 sm:px-6 lg:px-8">
+    <div className="min-h-screen px-4 py-12 bg-[color:var(--app-bg)] sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
-        <div className="mb-8 rounded-xl border border-indigo-100 bg-white p-6 shadow-lg">
+        <div className="mb-8 rounded-xl border border-[color:var(--border)] bg-[color:var(--surface)] p-6 shadow-sm">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
             <div>
-              <h2 className="text-2xl font-bold text-gray-900">Monthly Working Days Input</h2>
-              <p className="mt-1 text-sm text-gray-600">Select a month for the current year ({currentYear}), download the template, fill NoOfDays, and upload it back.</p>
+              <h2 className="text-2xl font-bold text-[color:var(--text-primary)]">Monthly Working Days Input</h2>
+              <p className="mt-1 text-sm text-[color:var(--text-secondary)]">Select a month for the current year ({currentYear}), download the template, fill NoOfDays, and upload it back.</p>
             </div>
             <div className="flex w-full flex-col gap-3 sm:flex-row lg:w-auto">
-              <select value={month} onChange={(e)=>setMonth(Number(e.target.value))} className="border px-4 py-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+              <select value={month} onChange={(e)=>setMonth(Number(e.target.value))} className="border border-[color:var(--border)] px-4 py-2 rounded-lg bg-[color:var(--surface)] text-[color:var(--text-primary)] focus:ring-2 focus:ring-[color:var(--focus-ring)] focus:border-[color:var(--focus-ring)]">
                 {MONTH_NAMES.map((monthName, index) => (<option key={monthName} value={index+1}>{monthName}</option>))}
               </select>
-              <button onClick={handleDownloadTemplate} className="flex items-center justify-center px-6 py-3 font-medium text-white transition-all duration-300 transform rounded-lg shadow-lg bg-indigo-600 hover:bg-indigo-700 hover:-translate-y-1 hover:scale-105" type="button" disabled={monthlyLoading}>Download Excel Template</button>
-              <button onClick={handleUploadButtonClick} disabled={uploadingCsv||monthlyLoading} className="flex items-center justify-center px-6 py-3 font-medium text-white transition-all duration-300 transform rounded-lg shadow-lg bg-green-600 hover:bg-green-700 disabled:bg-green-300" type="button">{uploadingCsv? 'Uploading...' : 'Upload Excel'}</button>
+              <button onClick={handleDownloadTemplate} className="flex items-center justify-center px-6 py-3 font-medium text-white transition-all duration-300 transform rounded-lg shadow-sm bg-[color:var(--accent)] hover:bg-[color:var(--accent-hover)] hover:-translate-y-1 hover:scale-105" type="button" disabled={monthlyLoading}>Download Excel Template</button>
+              <button onClick={handleUploadButtonClick} disabled={uploadingCsv||monthlyLoading} className="flex items-center justify-center px-6 py-3 font-medium text-white transition-all duration-300 transform rounded-lg shadow-sm bg-[color:var(--success)] hover:bg-[color:var(--success-hover)] disabled:bg-[color:var(--surface-hover)]" type="button">{uploadingCsv? 'Uploading...' : 'Upload Excel'}</button>
             </div>
           </div>
           <div className="mt-6 grid gap-4 md:grid-cols-3">
-            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4"><div className="text-sm font-medium text-gray-500">Month</div><div className="mt-1 text-xl font-semibold text-gray-900">{MONTH_NAMES[month - 1]}</div></div>
-            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4"><div className="text-sm font-medium text-gray-500">Current Year</div><div className="mt-1 text-xl font-semibold text-gray-900">{currentYear}</div></div>
-            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4"><div className="text-sm font-medium text-gray-500">Monthly Coverage</div><div className="mt-1 text-xl font-semibold text-gray-900">{monthlyAssignedCount} / {monthlyStaff.length}</div></div>
+            <div className="rounded-lg border border-[color:var(--border)] bg-[color:var(--surface-hover)] p-4"><div className="text-sm font-medium text-[color:var(--text-muted)]">Month</div><div className="mt-1 text-xl font-semibold text-[color:var(--text-primary)]">{MONTH_NAMES[month - 1]}</div></div>
+            <div className="rounded-lg border border-[color:var(--border)] bg-[color:var(--surface-hover)] p-4"><div className="text-sm font-medium text-[color:var(--text-muted)]">Current Year</div><div className="mt-1 text-xl font-semibold text-[color:var(--text-primary)]">{currentYear}</div></div>
+            <div className="rounded-lg border border-[color:var(--border)] bg-[color:var(--surface-hover)] p-4"><div className="text-sm font-medium text-[color:var(--text-muted)]">Monthly Coverage</div><div className="mt-1 text-xl font-semibold text-[color:var(--text-primary)]">{monthlyAssignedCount} / {monthlyStaff.length}</div></div>
           </div>
           <input ref={fileInputRef} type="file" accept=".csv,text/csv" onChange={handleUploadCsv} className="hidden" />
         </div>
-          {successMessage && (<div className="mb-6 rounded-lg border border-green-200 bg-green-50 p-4 text-sm text-green-900">{successMessage}</div>)}
+          {successMessage && (<div className="mb-6 rounded-lg border border-[color:var(--success-soft)] bg-[color:var(--success-soft)] p-4 text-sm text-[color:var(--success)]">{successMessage}</div>)}
           <div className="flex flex-col items-start justify-between gap-4 mb-6 sm:flex-row sm:items-center">
             <div className="relative w-full sm:w-72">
-              <input value={search} onChange={(e)=>{ setSearch(e.target.value); setPage(1); }} placeholder="Search by name or emp ID..." className="w-full py-2 pl-10 pr-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400 absolute left-3 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+              <input value={search} onChange={(e)=>{ setSearch(e.target.value); setPage(1); }} placeholder="Search by name or emp ID..." className="w-full py-2 pl-10 pr-4 border border-[color:var(--border)] rounded-lg bg-[color:var(--surface)] text-[color:var(--text-primary)] focus:ring-2 focus:ring-[color:var(--focus-ring)] focus:border-[color:var(--focus-ring)]" />
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-[color:var(--text-muted)] absolute left-3 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
             </div>
           </div>
-        {uploadSummary && (<div className="mb-6 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900"><div className="font-semibold mb-1">Upload Summary ({uploadSummary.fileName})</div><div>Total rows processed: {uploadSummary.totalDataRows}</div><div>Users updated for {MONTH_NAMES[month - 1]} {currentYear}: {uploadSummary.updatedUsers}</div><div>Skipped blank rows: {uploadSummary.skippedRows}</div><div>Invalid rows: {uploadSummary.invalidRows.length > 0 ? uploadSummary.invalidRows.join(', ') : 'None'}</div><div>Unmatched Employee IDs: {uploadSummary.unmatchedEmployeeIds.length > 0 ? uploadSummary.unmatchedEmployeeIds.join(', ') : 'None'}</div></div>)}
-        {error && <div className="text-red-500 mt-2">{error}</div>}
+        {uploadSummary && (<div className="mb-6 rounded-lg border border-[color:var(--accent-soft)] bg-[color:var(--accent-soft)] p-4 text-sm text-[color:var(--accent)]"><div className="font-semibold mb-1">Upload Summary ({uploadSummary.fileName})</div><div>Total rows processed: {uploadSummary.totalDataRows}</div><div>Users updated for {MONTH_NAMES[month - 1]} {currentYear}: {uploadSummary.updatedUsers}</div><div>Skipped blank rows: {uploadSummary.skippedRows}</div><div>Invalid rows: {uploadSummary.invalidRows.length > 0 ? uploadSummary.invalidRows.join(', ') : 'None'}</div><div>Unmatched Employee IDs: {uploadSummary.unmatchedEmployeeIds.length > 0 ? uploadSummary.unmatchedEmployeeIds.join(', ') : 'None'}</div></div>)}
+        {error && <div className="text-[color:var(--danger)] mt-2">{error}</div>}
 
-        <div className="mb-10 overflow-hidden bg-white shadow-xl rounded-xl">
+        <div className="mb-10 overflow-hidden bg-[color:var(--surface)] shadow-sm rounded-xl border border-[color:var(--border)]">
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-blue-600">
+            <table className="min-w-full divide-y divide-[color:var(--border)]">
+              <thead className="bg-[color:var(--accent)]">
                 <tr>
                   <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">S.No</th>
                   <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">Name</th>
@@ -205,20 +205,20 @@ const MonthlyAttendancePage = ({ token: propToken }) => {
                   <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">No. of Days</th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-[color:var(--surface)] divide-y divide-[color:var(--border)]">
                 {filtered.length === 0 ? (
-                  <tr><td colSpan="4" className="px-6 py-12 text-center text-gray-500">No monthly working days records found for this month</td></tr>
+                  <tr><td colSpan="4" className="px-6 py-12 text-center text-[color:var(--text-secondary)]">No monthly working days records found for this month</td></tr>
                 ) : (
                   paginated.map((s, idx) => {
                     const md = s.monthly_working_days || null;
                     const noOfDays = md?.no_of_days ?? '-';
                     const name = getDisplayName(s);
                     return (
-                      <tr key={s.id} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-colors duration-150`}>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{(page - 1) * PAGE_SIZE + idx + 1}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{name}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{s.empid || '-'}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{Number.isInteger(Number(noOfDays)) ? Number(noOfDays) : noOfDays}</td>
+                      <tr key={s.id} className={`${idx % 2 === 0 ? 'bg-[color:var(--surface)]' : 'bg-[color:var(--surface-hover)]'} hover:bg-[color:var(--surface-hover)] transition-colors duration-150`}>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-[color:var(--text-primary)]">{(page - 1) * PAGE_SIZE + idx + 1}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-[color:var(--text-primary)]">{name}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-[color:var(--text-primary)]">{s.empid || '-'}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-[color:var(--text-primary)]">{Number.isInteger(Number(noOfDays)) ? Number(noOfDays) : noOfDays}</td>
                       </tr>
                     );
                   })
@@ -228,9 +228,9 @@ const MonthlyAttendancePage = ({ token: propToken }) => {
           </div>
           {filtered.length > PAGE_SIZE && (
             <div className="flex justify-end items-center gap-2 px-6 pb-6">
-              <button className="px-3 py-1 rounded border border-gray-300 bg-white text-gray-700 disabled:opacity-50" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>Prev</button>
-              <span className="text-sm text-gray-700">Page {page} of {Math.ceil(filtered.length / PAGE_SIZE)}</span>
-              <button className="px-3 py-1 rounded border border-gray-300 bg-white text-gray-700 disabled:opacity-50" onClick={() => setPage(p => Math.min(Math.ceil(filtered.length / PAGE_SIZE), p + 1))} disabled={page === Math.ceil(filtered.length / PAGE_SIZE)}>Next</button>
+              <button className="px-3 py-1 rounded border border-[color:var(--border)] bg-[color:var(--surface)] text-[color:var(--text-primary)] disabled:opacity-50" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>Prev</button>
+              <span className="text-sm text-[color:var(--text-primary)]">Page {page} of {Math.ceil(filtered.length / PAGE_SIZE)}</span>
+              <button className="px-3 py-1 rounded border border-[color:var(--border)] bg-[color:var(--surface)] text-[color:var(--text-primary)] disabled:opacity-50" onClick={() => setPage(p => Math.min(Math.ceil(filtered.length / PAGE_SIZE), p + 1))} disabled={page === Math.ceil(filtered.length / PAGE_SIZE)}>Next</button>
             </div>
           )}
         </div>

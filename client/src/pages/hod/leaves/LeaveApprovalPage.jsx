@@ -257,7 +257,7 @@ const LeaveApprovalPage = () => {
   };
 
   return (
-    <div className="min-h-screen p-6 bg-gray-50">
+    <div className="min-h-screen p-6 bg-[color:var(--app-bg)]">
       <div className="max-w-7xl mx-auto">
         <Notification
           show={notification.show}
@@ -266,12 +266,12 @@ const LeaveApprovalPage = () => {
           onClose={() => setNotification({ show: false, message: '', type: '' })}
         />
         <div className="mb-12 text-center">
-          <h1 className="text-3xl font-bold text-gray-800">Leave Approval (HOD)</h1>
-          <p className="text-sm text-gray-600">Approve or reject employee leave requests</p>
+          <h1 className="text-3xl font-bold text-[color:var(--text-primary)]">Leave Approval (HOD)</h1>
+          <p className="text-sm text-[color:var(--text-secondary)]">Approve or reject employee leave requests</p>
         </div>
 
         {error && (
-          <div className="mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+          <div className="mb-4 bg-[color:var(--danger-soft)] border border-[color:var(--danger)] text-[color:var(--danger)] px-4 py-3 rounded">
             {error}
           </div>
         )}
@@ -284,8 +284,8 @@ const LeaveApprovalPage = () => {
               onClick={() => setActiveTab(tab)}
               className={`px-6 py-3 rounded-lg font-medium transition-colors ${
                 activeTab === tab
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-blue-100 text-gray-700 hover:bg-blue-200'
+                  ? 'bg-[color:var(--accent)] text-white'
+                  : 'bg-[color:var(--surface)] text-[color:var(--text-secondary)] hover:bg-[color:var(--surface-hover)]'
               }`}
             >
               {tab}
@@ -296,30 +296,30 @@ const LeaveApprovalPage = () => {
         {/* Leave List with Filters (only for approve/reject employee leaves) */}
         {['Pending', 'Approved', 'Rejected'].includes(activeTab) && (
           <div className="mb-8">
-            <div className="bg-white rounded-lg shadow-lg p-4 mb-4">
+            <div className="bg-[color:var(--surface)] rounded-lg shadow border border-[color:var(--border)] p-4 mb-4">
               <div className="flex flex-wrap items-end gap-4 w-full">
                 <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1">From Date</label>
+                  <label className="block text-xs font-semibold text-[color:var(--text-secondary)] mb-1">From Date</label>
                   <input
                     type="date"
-                    className="border rounded px-3 py-2"
+                    className="border border-[color:var(--border)] rounded px-3 py-2 bg-[color:var(--surface)] text-[color:var(--text-primary)]"
                     value={filter.from}
                     onChange={e => setFilter(f => ({ ...f, from: e.target.value }))}
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1">To Date</label>
+                  <label className="block text-xs font-semibold text-[color:var(--text-secondary)] mb-1">To Date</label>
                   <input
                     type="date"
-                    className="border rounded px-3 py-2"
+                    className="border border-[color:var(--border)] rounded px-3 py-2 bg-[color:var(--surface)] text-[color:var(--text-primary)]"
                     value={filter.to}
                     onChange={e => setFilter(f => ({ ...f, to: e.target.value }))}
                   />
                 </div>
                 <div className="min-w-[200px] max-w-[320px] flex-1">
-                  <label className="block text-xs font-semibold text-gray-600 mb-1">Department</label>
+                  <label className="block text-xs font-semibold text-[color:var(--text-secondary)] mb-1">Department</label>
                   <select
-                    className="border rounded px-3 py-2 w-full"
+                    className="border border-[color:var(--border)] rounded px-3 py-2 w-full bg-[color:var(--surface)] text-[color:var(--text-primary)]"
                     value={filter.department || ''}
                     onChange={e => setFilter(f => ({ ...f, department: e.target.value }))}
                   >
@@ -330,25 +330,25 @@ const LeaveApprovalPage = () => {
                   </select>
                 </div>
                 <div className="flex-1 min-w-[200px]">
-                  <label className="block text-xs font-semibold text-gray-600 mb-1">Username</label>
+                  <label className="block text-xs font-semibold text-[color:var(--text-secondary)] mb-1">Username</label>
                   <div className="relative">
                     <input
                       type="text"
                       placeholder="Search names..."
-                      className="w-full py-2 pl-10 pr-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full py-2 pl-10 pr-4 border border-[color:var(--border)] rounded-lg focus:ring-2 focus:ring-[color:var(--ring)] focus:border-[color:var(--border)] bg-[color:var(--surface)] text-[color:var(--text-primary)]"
                       value={filter.username}
                       onChange={e => setFilter(f => ({ ...f, username: e.target.value }))}
                       onKeyDown={e => { if (e.key === 'Enter') { setShowFilteredTable(true); setCurrentPage(1); } }}
                     />
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400 absolute left-3 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-[color:var(--text-muted)] absolute left-3 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                     </svg>
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1">Year</label>
+                  <label className="block text-xs font-semibold text-[color:var(--text-secondary)] mb-1">Year</label>
                   <select
-                    className="border rounded px-3 py-2"
+                    className="border border-[color:var(--border)] rounded px-3 py-2 bg-[color:var(--surface)] text-[color:var(--text-primary)]"
                     value={filter.year}
                     onChange={e => setFilter(f => ({ ...f, year: Number(e.target.value) }))}
                   >
@@ -361,7 +361,7 @@ const LeaveApprovalPage = () => {
                 <div className="flex flex-row items-end gap-2">
                   <button
                     type="button"
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition"
+                    className="px-4 py-2 bg-[color:var(--accent)] text-white rounded-lg font-semibold hover:bg-[color:var(--accent-hover)] transition"
                     onClick={async () => {
                       setShowFilteredTable(true);
                       setCurrentPage(1);
@@ -372,7 +372,7 @@ const LeaveApprovalPage = () => {
                   </button>
                   {showFilteredTable && (
                     <button
-                      className="bg-gray-200 text-gray-700 px-4 py-2 rounded font-semibold hover:bg-gray-300 transition"
+                      className="bg-[color:var(--surface-hover)] text-[color:var(--text-secondary)] px-4 py-2 rounded font-semibold hover:bg-[color:var(--surface)] transition"
                       onClick={() => {
                         setShowFilteredTable(false);
                         setFilter({ from: '', to: '', year: new Date().getFullYear(), department: '', username: '' });
@@ -389,10 +389,10 @@ const LeaveApprovalPage = () => {
           </div>
         )}
         {/* ...existing code... */}
-        <div className="mb-10 overflow-hidden bg-white shadow-xl rounded-xl">
+        <div className="mb-10 overflow-hidden bg-[color:var(--surface)] shadow-xl rounded-xl border border-[color:var(--border)]">
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-blue-600">
+            <table className="min-w-full divide-y divide-[color:var(--border)]">
+              <thead className="bg-[color:var(--accent)]">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider rounded-tl-xl">S.No</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Name</th>
@@ -403,25 +403,25 @@ const LeaveApprovalPage = () => {
                   <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider rounded-tr-xl">Actions</th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-[color:var(--surface)] divide-y divide-[color:var(--border)]">
                 {loading ? (
-                  <tr><td colSpan="7" className="p-8 text-center text-gray-500">Loading...</td></tr>
+                  <tr><td colSpan="7" className="p-8 text-center text-[color:var(--text-secondary)]">Loading...</td></tr>
                 ) : filteredLeaves.length === 0 ? (
-                  <tr><td colSpan="7" className="p-8 text-center text-gray-500">No {activeTab.toLowerCase()} leave requests</td></tr>
+                  <tr><td colSpan="7" className="p-8 text-center text-[color:var(--text-secondary)]">No {activeTab.toLowerCase()} leave requests</td></tr>
                 ) : (
                   filteredLeaves.map((leave, idx) => (
-                    <tr key={leave.id} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-colors duration-150`}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{idx + 1}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{
+                    <tr key={leave.id} className={`${idx % 2 === 0 ? 'bg-[color:var(--surface)]' : 'bg-[color:var(--surface-hover)]'} transition-colors duration-150 hover:bg-[color:var(--surface-hover)]`}>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-[color:var(--text-primary)]">{idx + 1}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-[color:var(--text-primary)]">{
                         leave.user_name
                         || leave.employee_name
                         || leave.name
                         || (leave.firstname && leave.lastname ? `${leave.firstname} ${leave.lastname}`
                           : leave.firstname || leave.lastname || '-')
                       }</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{formatDate(leave.from_date)} - {formatDate(leave.to_date)}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{computeDays(leave)} day(s)</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-700 cursor-pointer">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-[color:var(--text-primary)]">{formatDate(leave.from_date)} - {formatDate(leave.to_date)}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-[color:var(--text-primary)]">{computeDays(leave)} day(s)</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-[color:var(--accent)] cursor-pointer">
                         <button
                           type="button"
                           title="View Details"
@@ -437,16 +437,16 @@ const LeaveApprovalPage = () => {
                           </svg>
                         </button>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-[color:var(--text-primary)]">
                         <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                          leave.status === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
-                          leave.status === 'Approved' ? 'bg-green-100 text-green-800' :
-                          'bg-red-100 text-red-800'
+                          leave.status === 'Pending' ? 'bg-[color:var(--warning-soft)] text-[color:var(--warning)]' :
+                          leave.status === 'Approved' ? 'bg-[color:var(--success-soft)] text-[color:var(--success)]' :
+                          'bg-[color:var(--danger-soft)] text-[color:var(--danger)]'
                         }`}>
                           {leave.status}
                         </span>
                         {['Approved', 'Rejected'].includes(leave.status) && leave.approver_name && (
-                          <div className="text-xs text-gray-400 mt-1">by: {leave.approver_name}</div>
+                          <div className="text-xs text-[color:var(--text-muted)] mt-1">by: {leave.approver_name}</div>
                         )}
                       </td>
                        <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
@@ -487,7 +487,7 @@ const LeaveApprovalPage = () => {
                                      <button
                                        onClick={() => handleApprove(leave.id)}
                                        disabled={loading}
-                                       className="p-2 text-white transition-colors duration-200 bg-green-600 rounded-lg hover:bg-green-700 disabled:bg-gray-400"
+                                       className="p-2 text-white transition-colors duration-200 bg-[color:var(--success)] rounded-lg hover:bg-[color:var(--success-hover)] disabled:bg-[color:var(--surface-hover)]"
                                        title="Approve"
                                      >
                                        <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -497,7 +497,7 @@ const LeaveApprovalPage = () => {
                                      <button
                                        onClick={() => handleReject(leave.id)}
                                        disabled={loading}
-                                       className="p-2 text-white transition-colors duration-200 bg-red-600 rounded-lg hover:bg-red-700 disabled:bg-gray-400"
+                                       className="p-2 text-white transition-colors duration-200 bg-[color:var(--danger)] rounded-lg hover:bg-[color:var(--danger-hover)] disabled:bg-[color:var(--surface-hover)]"
                                        title="Reject"
                                      >
                                        <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -515,14 +515,14 @@ const LeaveApprovalPage = () => {
                                   <button
                                     onClick={() => handleEditClick(leave)}
                                     disabled={actionDisabled}
-                                    className={`p-2 rounded-lg ${actionDisabled ? 'text-gray-400 cursor-not-allowed' : 'text-blue-600 hover:text-blue-800'}`}
+                                    className={`p-2 rounded-lg ${actionDisabled ? 'text-[color:var(--text-muted)] cursor-not-allowed' : 'text-[color:var(--accent)] hover:text-[color:var(--accent-hover)]'}`}
                                   >
                                     <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                     </svg>
                                   </button>
                                   {actionDisabled && (
-                                    <span className="pointer-events-none absolute -top-9 left-1/2 -translate-x-1/2 z-10 whitespace-nowrap rounded-md bg-gray-900 px-2 py-1 text-xs font-medium text-white opacity-0 shadow-md transition-opacity duration-150 group-hover:opacity-100">
+                                    <span className="pointer-events-none absolute -top-9 left-1/2 -translate-x-1/2 z-10 whitespace-nowrap rounded-md bg-[color:var(--text-primary)] px-2 py-1 text-xs font-medium text-white opacity-0 shadow-md transition-opacity duration-150 group-hover:opacity-100">
                                       Edit available in Management login
                                     </span>
                                   )}
@@ -544,9 +544,9 @@ const LeaveApprovalPage = () => {
       {showEditModal && editingLeave && (
         <div className="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true">
           <div className="flex items-end justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-            <div className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" onClick={() => { setShowEditModal(false); setIsEditMode(false); }} />
-            <div className="inline-block overflow-hidden text-left align-bottom transition-all transform bg-white rounded-lg shadow-xl sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-              <div className="px-6 py-4 bg-blue-600">
+             <div className="fixed inset-0 transition-opacity bg-black/40" onClick={() => { setShowEditModal(false); setIsEditMode(false); }} />
+            <div className="inline-block overflow-hidden text-left align-bottom transition-all transform bg-[color:var(--surface)] rounded-lg shadow-xl sm:my-8 sm:align-middle sm:max-w-lg sm:w-full border border-[color:var(--border)]">
+              <div className="px-6 py-4 bg-[color:var(--accent)]">
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-medium leading-6 text-white">Leave Details</h3>
                   <button className="text-white hover:text-gray-200" onClick={() => { setShowEditModal(false); setIsEditMode(false); }}>
@@ -554,33 +554,33 @@ const LeaveApprovalPage = () => {
                   </button>
                 </div>
               </div>
-              <div className="px-6 py-5 bg-white">
-                <div className="mb-2 text-gray-700">
+              <div className="px-6 py-5 bg-[color:var(--surface)]">
+                <div className="mb-2 text-[color:var(--text-primary)]">
                   <span className="font-semibold">Name:</span> {editingLeave.user_name}
                 </div>
-                <div className="mb-2 text-black font-semibold">
+                <div className="mb-2 text-[color:var(--text-primary)] font-semibold">
                   Duration: {String(editingLeave.credited_days)} day(s)
                 </div>
-                <div className="mb-2 text-gray-700">
+                <div className="mb-2 text-[color:var(--text-primary)]">
                   <span className="font-semibold">Date Range:</span> {formatDate(editingLeave.from_date)} - {formatDate(editingLeave.to_date)}
                 </div>
-                <div className="mb-2 text-gray-700">
+                <div className="mb-2 text-[color:var(--text-primary)]">
                   <span className="font-semibold">Reason:</span> {editingLeave.leave_reason}
                 </div>
-                <div className="mb-2 text-gray-700">
+                <div className="mb-2 text-[color:var(--text-primary)]">
                   <span className="font-semibold">Status:</span> {editingLeave.status}
                 </div>
                 {['Approved', 'Rejected'].includes(editingLeave.status) && editingLeave.approver_name && (
-                  <div className="mb-2 text-gray-500 text-xs">by: {editingLeave.approver_name}</div>
+                  <div className="mb-2 text-[color:var(--text-muted)] text-xs">by: {editingLeave.approver_name}</div>
                 )}
                 {isEditMode && (
-                <div className="mt-4 pt-4 border-t border-gray-200">
+                <div className="mt-4 pt-4 border-t border-[color:var(--border)]">
                   <div className="mb-3">
-                    <label className="block text-sm font-semibold text-gray-700 mb-1">Change Status</label>
+                    <label className="block text-sm font-semibold text-[color:var(--text-primary)] mb-1">Change Status</label>
                     <select
                       value={editStatus || editingLeave.status}
                       onChange={(e) => setEditStatus(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                       className="w-full px-3 py-2 border border-[color:var(--border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[color:var(--focus-ring)] bg-[color:var(--surface)] text-[color:var(--text-primary)]"
                     >
                       <option value="Pending">Pending</option>
                       <option value="Approved">Approved</option>
@@ -591,7 +591,7 @@ const LeaveApprovalPage = () => {
                     <button
                       type="button"
                       onClick={() => handleEditStatusSave()}
-                      className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:bg-gray-400"
+                      className="px-4 py-2 rounded-lg bg-[color:var(--accent)] text-white text-sm font-semibold hover:bg-[color:var(--accent-hover)] disabled:bg-[color:var(--surface-hover)]"
                       disabled={loading || ((editStatus || editingLeave.status) === editingLeave.status)}
                     >
                       Save Status
@@ -600,7 +600,7 @@ const LeaveApprovalPage = () => {
                       <button
                         type="button"
                         onClick={() => handleEditStatusSave('Pending')}
-                        className="px-4 py-2 rounded-lg bg-green-600 text-white text-sm font-semibold hover:bg-green-700 disabled:bg-gray-400"
+                        className="px-4 py-2 rounded-lg bg-[color:var(--success)] text-white text-sm font-semibold hover:bg-[color:var(--success-hover)] disabled:bg-[color:var(--surface-hover)]"
                         disabled={loading}
                       >
                         Allow Leave Request Change

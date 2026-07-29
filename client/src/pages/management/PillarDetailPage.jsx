@@ -82,8 +82,8 @@ const KPILineChart = ({
   return (
     <div className="w-full h-full flex flex-col">
       <div className="text-center mb-3">
-        <h2 className="text-lg font-semibold text-gray-800 mb-1">{title}</h2>
-        {operator && <div className="text-xs text-gray-500">Data by: {operator}</div>}
+        <h2 className="mb-1 text-lg font-semibold text-[color:var(--text-primary)]">{title}</h2>
+        {operator && <div className="text-xs text-[color:var(--text-secondary)]">Data by: {operator}</div>}
       </div>
       <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="w-full flex-1" style={{ maxHeight: '300px' }}>
         {/* Grid lines + Y ticks */}
@@ -100,7 +100,7 @@ const KPILineChart = ({
                   y1={y}
                   x2={svgWidth - padding}
                   y2={y}
-                  stroke="#e5e7eb"
+                  stroke="rgba(148, 163, 184, 0.24)"
                   strokeWidth="1"
                   strokeDasharray="5,5"
                 />
@@ -109,7 +109,7 @@ const KPILineChart = ({
                   y={y + 4}
                   textAnchor="end"
                   fontSize="10"
-                  fill="#666"
+                  fill="rgba(226, 232, 240, 0.75)"
                 >
                   {formatY(tick)}
                 </text>
@@ -118,11 +118,11 @@ const KPILineChart = ({
           });
         })()}
 
-        <line x1={padding} y1={padding} x2={padding} y2={svgHeight - padding} stroke="#1f2937" strokeWidth="2" />
-        <line x1={padding} y1={svgHeight - padding} x2={svgWidth - padding} y2={svgHeight - padding} stroke="#1f2937" strokeWidth="2" />
+        <line x1={padding} y1={padding} x2={padding} y2={svgHeight - padding} stroke="rgba(148, 163, 184, 0.45)" strokeWidth="2" />
+        <line x1={padding} y1={svgHeight - padding} x2={svgWidth - padding} y2={svgHeight - padding} stroke="rgba(148, 163, 184, 0.45)" strokeWidth="2" />
 
-        <path d={targetPath} stroke="#ffb74d" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round" opacity="0.7" />
-        <path d={actualPath} stroke="#41aafe" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+        <path d={targetPath} stroke="rgba(251, 191, 36, 0.8)" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round" opacity="0.8" />
+        <path d={actualPath} stroke="rgba(56, 189, 248, 0.95)" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" />
 
         {/* Target dots + labels */}
         {targets.map((val, idx) => {
@@ -130,9 +130,9 @@ const KPILineChart = ({
           const y = getY(val);
           return (
             <g key={`target-${idx}`}>
-              <circle cx={x} cy={y} r="4" fill="#ffb74d" stroke="white" strokeWidth="1" opacity="0.7" />
+              <circle cx={x} cy={y} r="4" fill="rgba(251, 191, 36, 0.95)" stroke="rgba(15, 23, 42, 0.9)" strokeWidth="1" opacity="0.85" />
               {showPointLabels && (
-                <text x={x} y={y - 10} textAnchor="middle" fontSize="10" fill="#666">
+                <text x={x} y={y - 10} textAnchor="middle" fontSize="10" fill="rgba(226, 232, 240, 0.75)">
                   {formatVal(val)}
                 </text>
               )}
@@ -146,9 +146,9 @@ const KPILineChart = ({
           const y = getY(val);
           return (
             <g key={`actual-${idx}`}>
-              <circle cx={x} cy={y} r="4" fill="#41aafe" stroke="white" strokeWidth="1" />
+              <circle cx={x} cy={y} r="4" fill="rgba(56, 189, 248, 0.95)" stroke="rgba(15, 23, 42, 0.9)" strokeWidth="1" />
               {showPointLabels && (
-                <text x={x} y={y + 15} textAnchor="middle" fontSize="10" fill="#666">
+                <text x={x} y={y + 15} textAnchor="middle" fontSize="10" fill="rgba(226, 232, 240, 0.75)">
                   {formatVal(val)}
                 </text>
               )}
@@ -160,7 +160,7 @@ const KPILineChart = ({
         {showAxisLabels && labels.map((label, idx) => {
           const x = getX(idx);
           return (
-            <text key={`x-label-${idx}`} x={x} y={svgHeight - padding + 20} textAnchor="middle" fontSize="10" fill="#666">
+            <text key={`x-label-${idx}`} x={x} y={svgHeight - padding + 20} textAnchor="middle" fontSize="10" fill="rgba(226, 232, 240, 0.8)">
               {label}
             </text>
           );
@@ -170,12 +170,12 @@ const KPILineChart = ({
       {/* Legend */}
       <div className="flex justify-center gap-6 mt-4">
         <div className="flex items-center gap-2">
-          <div className="w-4 h-4 bg-[#41aafe] rounded"></div>
-          <span className="text-xs text-gray-700">Actual</span>
+          <div className="w-4 h-4 rounded bg-[rgba(56,189,248,0.95)]"></div>
+          <span className="text-xs text-[color:var(--text-secondary)]">Actual</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-4 h-4 bg-[#ffb74d] rounded opacity-70"></div>
-          <span className="text-xs text-gray-700">Target</span>
+          <div className="w-4 h-4 rounded bg-[rgba(251,191,36,0.95)] opacity-90"></div>
+          <span className="text-xs text-[color:var(--text-secondary)]">Target</span>
         </div>
       </div>
     </div>
@@ -456,7 +456,7 @@ export default function PillarDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
+      <div className="min-h-screen flex items-center justify-center bg-[color:var(--app-bg)]">
         <div className="text-center">
           <div className="text-4xl mb-4">Loading...</div>
         </div>
@@ -465,48 +465,48 @@ export default function PillarDetailPage() {
   }
 
   return (
-    <div className="min-h-screen px-4 py-12 bg-gradient-to-br from-gray-50 to-gray-100 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-[color:var(--app-bg)] px-4 py-12 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
           <button
             onClick={() => navigate(-1)}
-            className="mb-4 px-4 py-2 text-blue-600 hover:text-blue-800 font-semibold flex items-center gap-2"
+            className="mb-4 flex items-center gap-2 px-4 py-2 font-semibold text-[color:var(--accent)] hover:text-[color:var(--accent-hover)]"
           >
             ← Back
           </button>
-          <h1 className="text-4xl font-extrabold text-gray-900 mb-2">
+          <h1 className="mb-2 text-4xl font-extrabold text-[color:var(--text-primary)]">
             {pillar?.piller_name || 'Pillar Details'}
           </h1>
           {pillar?.short_name && (
-            <p className="text-lg text-gray-600">({pillar.short_name})</p>
+            <p className="text-lg text-[color:var(--text-secondary)]">({pillar.short_name})</p>
           )}
         </div>
 
         {/* Summary Analysis - Moved to top */}
         {analysis.length > 0 && (
-          <div className="mb-8 bg-white rounded-lg shadow p-6">
-            <h3 className="text-2xl font-bold text-gray-900 mb-4">Pillar Analysis Summary</h3>
+          <div className="mb-8 rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] p-6 shadow-sm">
+            <h3 className="mb-4 text-2xl font-bold text-[color:var(--text-primary)]">Pillar Analysis Summary</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded p-4">
-                <div className="text-sm text-gray-600 mb-2">Total KPIs</div>
-                <div className="text-3xl font-bold text-blue-600">{analysis.length}</div>
+              <div className="rounded border border-[color:var(--border)] bg-[color:var(--surface-hover)] p-4">
+                <div className="mb-2 text-sm text-[color:var(--text-secondary)]">Total KPIs</div>
+                <div className="text-3xl font-bold text-[color:var(--accent)]">{analysis.length}</div>
               </div>
-              <div className="bg-gradient-to-br from-green-50 to-green-100 rounded p-4">
-                <div className="text-sm text-gray-600 mb-2">On Track</div>
-                <div className="text-3xl font-bold text-green-600">
+              <div className="rounded border border-[color:var(--border)] bg-[color:var(--surface-hover)] p-4">
+                <div className="mb-2 text-sm text-[color:var(--text-secondary)]">On Track</div>
+                <div className="text-3xl font-bold text-[color:var(--success)]">
                   {analysis.filter(a => a.achievementPercent >= 100).length}
                 </div>
               </div>
-              <div className="bg-gradient-to-br from-red-50 to-red-100 rounded p-4">
-                <div className="text-sm text-gray-600 mb-2">Below Target</div>
-                <div className="text-3xl font-bold text-red-600">
+              <div className="rounded border border-[color:var(--border)] bg-[color:var(--surface-hover)] p-4">
+                <div className="mb-2 text-sm text-[color:var(--text-secondary)]">Below Target</div>
+                <div className="text-3xl font-bold text-[color:var(--danger)]">
                   {analysis.filter(a => a.achievementPercent < 100).length}
                 </div>
               </div>
-              <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded p-4">
-                <div className="text-sm text-gray-600 mb-2">Avg Achievement</div>
-                <div className="text-3xl font-bold text-purple-600">
+              <div className="rounded border border-[color:var(--border)] bg-[color:var(--surface-hover)] p-4">
+                <div className="mb-2 text-sm text-[color:var(--text-secondary)]">Avg Achievement</div>
+                <div className="text-3xl font-bold text-[color:var(--accent)]">
                   {(analysis.reduce((sum, a) => sum + a.achievementPercent, 0) / analysis.length).toFixed(1)}%
                 </div>
               </div>
@@ -517,27 +517,27 @@ export default function PillarDetailPage() {
         {/* KPI Values Charts */}
         <div className="space-y-8">
           {analysis.length === 0 ? (
-            <div className="bg-white rounded-lg shadow p-8 text-center">
-              <p className="text-gray-500 text-lg">No KPI values associated with this pillar</p>
+            <div className="rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] p-8 text-center shadow-sm">
+              <p className="text-lg text-[color:var(--text-secondary)]">No KPI values associated with this pillar</p>
             </div>
           ) : (
             analysis.map((item, idx) => (
-              <div key={item.kpiVal.id} className="bg-white rounded-lg shadow p-6">
+              <div key={item.kpiVal.id} className="rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] p-6 shadow-sm">
                 {/* KPI Title and Analysis */}
                 <div className="mb-6">
-                  <h2 className="text-2xl font-bold text-gray-900 mb-2">{item.kpiVal.data}</h2>
+                  <h2 className="mb-2 text-2xl font-bold text-[color:var(--text-primary)]">{item.kpiVal.data}</h2>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div className="bg-blue-50 rounded p-4">
-                      <div className="text-sm text-gray-600">Average Actual</div>
-                      <div className="text-2xl font-bold text-blue-600">{formatMetricValue(item.avgActual, item.currencyUnit)}</div>
+                    <div className="rounded border border-[color:var(--border)] bg-[color:var(--surface-hover)] p-4">
+                      <div className="text-sm text-[color:var(--text-secondary)]">Average Actual</div>
+                      <div className="text-2xl font-bold text-[color:var(--accent)]">{formatMetricValue(item.avgActual, item.currencyUnit)}</div>
                     </div>
-                    <div className="bg-orange-50 rounded p-4">
-                      <div className="text-sm text-gray-600">Average Target</div>
-                      <div className="text-2xl font-bold text-orange-600">{formatMetricValue(item.avgTarget, item.currencyUnit)}</div>
+                    <div className="rounded border border-[color:var(--border)] bg-[color:var(--surface-hover)] p-4">
+                      <div className="text-sm text-[color:var(--text-secondary)]">Average Target</div>
+                      <div className="text-2xl font-bold text-[color:var(--warning)]">{formatMetricValue(item.avgTarget, item.currencyUnit)}</div>
                     </div>
-                    <div className={`rounded p-4 ${item.achievementPercent >= 100 ? 'bg-green-50' : 'bg-red-50'}`}>
-                      <div className="text-sm text-gray-600">Achievement %</div>
-                      <div className={`text-2xl font-bold ${item.achievementPercent >= 100 ? 'text-green-600' : 'text-red-600'}`}>
+                    <div className={`rounded border border-[color:var(--border)] p-4 ${item.achievementPercent >= 100 ? 'bg-[color:var(--success-soft)]' : 'bg-[color:var(--danger-soft)]'}`}>
+                      <div className="text-sm text-[color:var(--text-secondary)]">Achievement %</div>
+                      <div className={`text-2xl font-bold ${item.achievementPercent >= 100 ? 'text-[color:var(--success)]' : 'text-[color:var(--danger)]'}`}>
                         {item.achievementPercent.toFixed(1)}%
                       </div>
                     </div>
@@ -557,24 +557,24 @@ export default function PillarDetailPage() {
                 </div>
 
                 {/* Details */}
-                <div className="mt-6 pt-6 border-t border-gray-200">
-                  <detail className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                <div className="mt-6 border-t border-[color:var(--border)] pt-6">
+                  <detail className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
                     {item.kpiVal.uom && (
                       <div>
-                        <span className="text-gray-600">Unit of Measurement:</span>
-                        <span className="ml-2 font-semibold text-gray-900">{getUnitDisplayName(item.kpiVal.uom)}</span>
+                        <span className="text-[color:var(--text-secondary)]">Unit of Measurement:</span>
+                        <span className="ml-2 font-semibold text-[color:var(--text-primary)]">{getUnitDisplayName(item.kpiVal.uom)}</span>
                       </div>
                     )}
                     {item.kpiVal.kpi_type && (
                       <div>
-                        <span className="text-gray-600">KPI Type:</span>
-                        <span className="ml-2 font-semibold text-gray-900">{item.kpiVal.kpi_type}</span>
+                        <span className="text-[color:var(--text-secondary)]">KPI Type:</span>
+                        <span className="ml-2 font-semibold text-[color:var(--text-primary)]">{item.kpiVal.kpi_type}</span>
                       </div>
                     )}
                     {item.kpiVal.computation_type && (
                       <div>
-                        <span className="text-gray-600">Computation Type:</span>
-                        <span className="ml-2 font-semibold text-gray-900">{item.kpiVal.computation_type}</span>
+                        <span className="text-[color:var(--text-secondary)]">Computation Type:</span>
+                        <span className="ml-2 font-semibold text-[color:var(--text-primary)]">{item.kpiVal.computation_type}</span>
                       </div>
                     )}
                   </detail>
@@ -586,28 +586,28 @@ export default function PillarDetailPage() {
 
         {/* Summary Analysis */}
         {analysis.length > 0 && (
-          <div className="mt-8 bg-white rounded-lg shadow p-6">
-            <h3 className="text-2xl font-bold text-gray-900 mb-4">Pillar Analysis Summary</h3>
+          <div className="mt-8 rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] p-6 shadow-sm">
+            <h3 className="mb-4 text-2xl font-bold text-[color:var(--text-primary)]">Pillar Analysis Summary</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded p-4">
-                <div className="text-sm text-gray-600 mb-2">Total KPIs</div>
-                <div className="text-3xl font-bold text-blue-600">{analysis.length}</div>
+              <div className="rounded border border-[color:var(--border)] bg-[color:var(--surface-hover)] p-4">
+                <div className="mb-2 text-sm text-[color:var(--text-secondary)]">Total KPIs</div>
+                <div className="text-3xl font-bold text-[color:var(--accent)]">{analysis.length}</div>
               </div>
-              <div className="bg-gradient-to-br from-green-50 to-green-100 rounded p-4">
-                <div className="text-sm text-gray-600 mb-2">On Track</div>
-                <div className="text-3xl font-bold text-green-600">
+              <div className="rounded border border-[color:var(--border)] bg-[color:var(--surface-hover)] p-4">
+                <div className="mb-2 text-sm text-[color:var(--text-secondary)]">On Track</div>
+                <div className="text-3xl font-bold text-[color:var(--success)]">
                   {analysis.filter(a => a.achievementPercent >= 100).length}
                 </div>
               </div>
-              <div className="bg-gradient-to-br from-red-50 to-red-100 rounded p-4">
-                <div className="text-sm text-gray-600 mb-2">Below Target</div>
-                <div className="text-3xl font-bold text-red-600">
+              <div className="rounded border border-[color:var(--border)] bg-[color:var(--surface-hover)] p-4">
+                <div className="mb-2 text-sm text-[color:var(--text-secondary)]">Below Target</div>
+                <div className="text-3xl font-bold text-[color:var(--danger)]">
                   {analysis.filter(a => a.achievementPercent < 100).length}
                 </div>
               </div>
-              <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded p-4">
-                <div className="text-sm text-gray-600 mb-2">Avg Achievement</div>
-                <div className="text-3xl font-bold text-purple-600">
+              <div className="rounded border border-[color:var(--border)] bg-[color:var(--surface-hover)] p-4">
+                <div className="mb-2 text-sm text-[color:var(--text-secondary)]">Avg Achievement</div>
+                <div className="text-3xl font-bold text-[color:var(--accent)]">
                   {(analysis.reduce((sum, a) => sum + a.achievementPercent, 0) / analysis.length).toFixed(1)}%
                 </div>
               </div>
@@ -620,7 +620,7 @@ export default function PillarDetailPage() {
       {showScrollToTop && (
         <button
           onClick={scrollToTop}
-          className="fixed bottom-8 right-8 bg-blue-600 hover:bg-blue-700 text-white rounded-full p-3 shadow-lg transition-all duration-200 z-50"
+          className="fixed bottom-8 right-8 rounded-full bg-[color:var(--accent)] p-3 text-white shadow-lg transition-all duration-200 hover:bg-[color:var(--accent-hover)] z-50"
           title="Scroll to top"
           aria-label="Scroll to top"
         >

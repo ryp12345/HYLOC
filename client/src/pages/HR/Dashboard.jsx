@@ -66,37 +66,37 @@ const HRDashboard = () => {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="w-full space-y-6 bg-[color:var(--app-bg)] text-[color:var(--text-primary)]">
       <div className="mb-8">
-        <h1 className="text-4xl font-bold text-gray-800 mb-2">HR Dashboard</h1>
-        <p className="text-gray-600">Welcome, {user?.firstName} {user?.lastName}</p>
+        <h1 className="text-4xl font-bold text-[color:var(--text-primary)] mb-2">HR Dashboard</h1>
+        <p className="text-[color:var(--text-secondary)]">Welcome, {user?.firstName} {user?.lastName}</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {stats.map((stat) => (
-          <div key={stat.label} className={`bg-white rounded-lg shadow-lg border-l-4 ${stat.tone} p-6`}>
+          <div key={stat.label} className={`bg-[color:var(--surface)] rounded-lg shadow-sm border-l-4 ${stat.tone} p-6`}>
             <div className="flex items-center justify-between mb-3">
-              <div className="text-gray-500 text-sm font-semibold">{stat.label}</div>
+              <div className="text-[color:var(--text-muted)] text-sm font-semibold">{stat.label}</div>
               <div className="text-3xl">{stat.icon}</div>
             </div>
-            <div className="text-3xl font-bold text-gray-800">{stat.value}</div>
+            <div className="text-3xl font-bold text-[color:var(--text-primary)]">{stat.value}</div>
           </div>
         ))}
       </div>
 
-      <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-xl font-bold text-gray-800 mb-4">Quick Actions</h2>
+      <div className="bg-[color:var(--surface)] rounded-lg shadow-sm border border-[color:var(--border)] p-6">
+        <h2 className="text-xl font-bold text-[color:var(--text-primary)] mb-4">Quick Actions</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {quickActions.map((action) => (
             <Link
               key={action.title}
               to={action.to}
-              className="flex items-center gap-4 p-4 border border-gray-200 rounded-lg hover:shadow-md hover:border-blue-300 transition-all"
+              className="flex items-center gap-4 p-4 border border-[color:var(--border)] rounded-lg hover:shadow-md hover:border-[color:var(--accent)] transition-all"
             >
               <div className="text-3xl">{action.icon}</div>
               <div>
-                <div className="font-semibold text-gray-900">{action.title}</div>
-                <div className="text-sm text-gray-600">{action.description}</div>
+                <div className="font-semibold text-[color:var(--text-primary)]">{action.title}</div>
+                <div className="text-sm text-[color:var(--text-secondary)]">{action.description}</div>
               </div>
             </Link>
           ))}

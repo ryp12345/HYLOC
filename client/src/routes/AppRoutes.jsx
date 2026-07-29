@@ -54,15 +54,30 @@ import RoleRoute from './RoleRoute';
 import Header from '../components/layout/Header';
 import Sidebar from '../components/layout/Sidebar';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
+
+// Theme manager for role-based defaults
+const RoleThemeManager = () => {
+  const { user, isAuthenticated } = useAuth();
+  const { setTheme } = useTheme();
+
+  React.useEffect(() => {
+    if (isAuthenticated && user?.role?.toLowerCase() === 'management') {
+      setTheme('dark');
+    }
+  }, [user?.role, isAuthenticated, setTheme]);
+
+  return null;
+};
 
 // Layout wrapper for authenticated routes
 const DashboardLayout = ({ children }) => {
   return (
-    <div className="flex">
+    <div className="flex min-h-screen bg-[color:var(--app-bg)] text-[color:var(--text-primary)] transition-colors duration-300">
       <Sidebar />
       <div className="flex-1 flex flex-col">
         <Header />
-        <main className="flex-1 p-2 bg-gray-100">
+        <main className="flex-1 bg-[color:var(--app-bg)] p-2 transition-colors duration-300">
           {children}
         </main>
       </div>
@@ -72,13 +87,13 @@ const DashboardLayout = ({ children }) => {
 
 // Unauthorized page
 const Unauthorized = () => (
-  <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-red-500 to-red-600">
-    <div className="bg-white rounded-lg shadow-lg p-8 text-center max-w-md">
-      <h1 className="text-3xl font-bold text-red-600 mb-4">Access Denied</h1>
-      <p className="text-gray-600 mb-6">You don't have permission to access this page.</p>
+  <div className="flex min-h-screen items-center justify-center bg-[color:var(--app-bg)] p-4">
+    <div className="max-w-md rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] p-8 text-center shadow-lg">
+      <h1 className="mb-4 text-3xl font-bold text-[color:var(--danger)]">Access Denied</h1>
+      <p className="mb-6 text-[color:var(--text-secondary)]">You don't have permission to access this page.</p>
       <a
         href="/login"
-        className="inline-block bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition"
+        className="inline-block rounded-lg bg-[color:var(--accent)] px-6 py-2 text-white transition hover:opacity-90"
       >
         Go to Login
       </a>
@@ -88,13 +103,13 @@ const Unauthorized = () => (
 
 // Not found page
 const NotFound = () => (
-  <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-gray-500 to-gray-600">
-    <div className="bg-white rounded-lg shadow-lg p-8 text-center max-w-md">
-      <h1 className="text-4xl font-bold text-gray-800 mb-4">404</h1>
-      <p className="text-gray-600 mb-6">Page not found.</p>
+  <div className="flex min-h-screen items-center justify-center bg-[color:var(--app-bg)] p-4">
+    <div className="max-w-md rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] p-8 text-center shadow-lg">
+      <h1 className="mb-4 text-4xl font-bold text-[color:var(--text-primary)]">404</h1>
+      <p className="mb-6 text-[color:var(--text-secondary)]">Page not found.</p>
       <a
         href="/login"
-        className="inline-block bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition"
+        className="inline-block rounded-lg bg-[color:var(--accent)] px-6 py-2 text-white transition hover:opacity-90"
       >
         Go to Home
       </a>
@@ -108,10 +123,10 @@ const AuthRoute = ({ children }) => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex min-h-screen items-center justify-center bg-[color:var(--app-bg)]">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
+          <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-[color:var(--accent)]"></div>
+          <p className="text-[color:var(--text-secondary)]">Loading...</p>
         </div>
       </div>
     );
@@ -131,10 +146,10 @@ const DashboardRedirect = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
-        </div>
+        <div className="text-center text-[color:var(--text-secondary)]">
+            <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-[color:var(--accent)]"></div>
+            <p>Loading...</p>
+          </div>
       </div>
     );
   }
@@ -170,6 +185,7 @@ const AppRoutes = () => {
   return (
     <Router>
       <AuthProvider>
+        <RoleThemeManager />
         <Routes>
           {/* Home redirect */}
           <Route path="/" element={<Navigate to="/dashboard" replace />} />

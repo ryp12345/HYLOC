@@ -52,13 +52,13 @@ const COLORS_PALETTE = ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#6366f1', '
 const ChartTooltip = ({ active, payload, label }) => {
   if (!active || !payload || !payload.length) return null;
   return (
-    <div className="rounded-lg border border-slate-200 bg-white/95 px-3 py-2 text-xs shadow-lg backdrop-blur">
-      {label != null && <div className="mb-1 font-bold text-slate-700">{label}</div>}
+    <div className="rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-2 text-xs shadow-lg backdrop-blur">
+      {label != null && <div className="mb-1 font-bold text-[color:var(--text-primary)]">{label}</div>}
       {payload.map((p, i) => (
         <div key={i} className="flex items-center gap-2">
           <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: p.color || p.stroke || p.fill }}></span>
-          <span className="font-bold text-slate-500">{p.name}:</span>
-          <span className="font-bold text-slate-800">{p.value}</span>
+          <span className="font-bold text-[color:var(--text-secondary)]">{p.name}:</span>
+          <span className="font-bold text-[color:var(--text-primary)]">{p.value}</span>
         </div>
       ))}
     </div>
@@ -73,24 +73,24 @@ const formatDate = (dateStr) => {
 };
 
 const EmptyState = ({ message, linkTo, linkText }) => (
-  <div className="bg-white rounded-2xl shadow p-12 text-center">
-    <p className="text-gray-400 text-lg">{message}</p>
-    {linkTo && <Link to={linkTo} className="inline-block mt-4 text-blue-600 hover:underline">{linkText}</Link>}
+  <div className="bg-[color:var(--surface)] border border-[color:var(--border)] rounded-2xl shadow p-12 text-center">
+    <p className="text-[color:var(--text-secondary)] text-lg">{message}</p>
+    {linkTo && <Link to={linkTo} className="inline-block mt-4 text-blue-600 dark:text-blue-400 hover:underline">{linkText}</Link>}
   </div>
 );
 
 const KpiCard = ({ label, value, icon, borderColor = 'border-blue-500' }) => (
-  <div className={`bg-white rounded-lg shadow p-4 border-l-4 ${borderColor}`}>
+  <div className={`bg-[color:var(--surface)] border border-[color:var(--border)] rounded-lg shadow p-4 border-l-4 ${borderColor}`}>
     <div className="flex items-center justify-between mb-2">
-      <div className="text-gray-500 text-xs font-semibold">{label}</div>
+      <div className="text-[color:var(--text-secondary)] text-xs font-semibold">{label}</div>
       <div className="text-2xl">{icon}</div>
     </div>
-    <div className="text-2xl font-bold text-gray-800">{value}</div>
+    <div className="text-2xl font-bold text-[color:var(--text-primary)]">{value}</div>
   </div>
 );
 
-const SectionCard = ({ title, subtitle, children, className = '', headerColor = 'bg-blue-100', headerText = 'text-blue-900', borderColor = 'border-blue-500' }) => (
-  <div className={`flex h-full min-h-0 flex-col overflow-hidden rounded-xl border-2 ${borderColor} bg-white shadow-lg ${className}`}>
+const SectionCard = ({ title, subtitle, children, className = '', headerColor = 'bg-blue-100 dark:bg-blue-900/40', headerText = 'text-blue-900 dark:text-blue-300', borderColor = 'border-blue-500 dark:border-blue-700' }) => (
+  <div className={`flex h-full min-h-0 flex-col overflow-hidden rounded-xl border-2 ${borderColor} bg-[color:var(--surface)] shadow-lg ${className}`}>
     <div className={`flex w-full items-center justify-center gap-1.5 rounded-t-xl ${headerColor} px-2 py-1 text-center text-xs font-extrabold leading-snug ${headerText} transition-colors sm:text-sm`}>
       {title && <span className="whitespace-normal break-words">{title}</span>}
       {subtitle && <span className="text-[10px] font-medium opacity-80">{subtitle}</span>}
@@ -378,7 +378,7 @@ export default function TicketsAnalysisReport() {
   }
 
   return (
-    <div className="w-full max-w-none bg-gradient-to-br from-slate-50 via-blue-50/40 to-indigo-50 px-0 sm:px-1 lg:px-2">
+    <div className="w-full max-w-none bg-[color:var(--app-bg)] px-0 sm:px-1 lg:px-2">
       {/* Header */}
       <div className="relative mb-4 overflow-hidden rounded-2xl bg-gradient-to-r from-blue-700 via-blue-600 to-indigo-700 px-4 py-3 shadow-xl sm:px-5 sm:py-3">
         <div className="pointer-events-none absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(circle at 18px 18px, rgba(255,255,255,0.5) 1.5px, transparent 1.5px)', backgroundSize: '26px 26px' }}></div>
@@ -449,21 +449,21 @@ export default function TicketsAnalysisReport() {
         <div className="flex flex-col gap-3">
           {/* KPI Summary */}
           <div className="grid grid-cols-2 gap-2 items-stretch md:grid-cols-4">
-            <div className="rounded-xl border-l-4 border-blue-500 bg-white p-3 shadow-sm">
-              <div className="text-gray-500 text-[11px] font-semibold">Total Tickets</div>
-              <div className="text-xl font-extrabold text-gray-800">{summary.total_tickets}</div>
+            <div className="rounded-xl border-l-4 border-blue-500 dark:border-blue-600 bg-[color:var(--surface)] p-3 shadow-sm border border-[color:var(--border)]">
+              <div className="text-[color:var(--text-secondary)] text-[11px] font-semibold">Total Tickets</div>
+              <div className="text-xl font-extrabold text-[color:var(--text-primary)]">{summary.total_tickets}</div>
             </div>
-            <div className="rounded-xl border-l-4 border-blue-500 bg-white p-3 shadow-sm">
-              <div className="text-gray-500 text-[11px] font-semibold">Open Tickets</div>
-              <div className="text-xl font-extrabold text-gray-800">{summary.open_tickets}</div>
+            <div className="rounded-xl border-l-4 border-blue-500 dark:border-blue-600 bg-[color:var(--surface)] p-3 shadow-sm border border-[color:var(--border)]">
+              <div className="text-[color:var(--text-secondary)] text-[11px] font-semibold">Open Tickets</div>
+              <div className="text-xl font-extrabold text-[color:var(--text-primary)]">{summary.open_tickets}</div>
             </div>
-            <div className="rounded-xl border-l-4 border-green-500 bg-white p-3 shadow-sm">
-              <div className="text-gray-500 text-[11px] font-semibold">Closed</div>
-              <div className="text-xl font-extrabold text-gray-800">{summary.closed_tickets}</div>
+            <div className="rounded-xl border-l-4 border-green-500 dark:border-green-600 bg-[color:var(--surface)] p-3 shadow-sm border border-[color:var(--border)]">
+              <div className="text-[color:var(--text-secondary)] text-[11px] font-semibold">Closed</div>
+              <div className="text-xl font-extrabold text-[color:var(--text-primary)]">{summary.closed_tickets}</div>
             </div>
-            <div className="rounded-xl border-l-4 border-orange-500 bg-white p-3 shadow-sm">
-              <div className="text-gray-500 text-[11px] font-semibold">Overdue</div>
-              <div className="text-xl font-extrabold text-gray-800">{overdueCount}</div>
+            <div className="rounded-xl border-l-4 border-orange-500 dark:border-orange-600 bg-[color:var(--surface)] p-3 shadow-sm border border-[color:var(--border)]">
+              <div className="text-[color:var(--text-secondary)] text-[11px] font-semibold">Overdue</div>
+              <div className="text-xl font-extrabold text-[color:var(--text-primary)]">{overdueCount}</div>
             </div>
           </div>
 
@@ -491,7 +491,7 @@ export default function TicketsAnalysisReport() {
               )}
             </SectionCard>
 
-            <SectionCard title="Priority Distribution" headerColor="bg-amber-100" headerText="text-amber-900" borderColor="border-amber-500">
+            <SectionCard title="Priority Distribution" headerColor="bg-amber-100 dark:bg-amber-900/40" headerText="text-amber-900 dark:text-amber-300" borderColor="border-amber-500 dark:border-amber-700">
               {priorityChartData.length > 0 ? (
                 <div className="flex h-full w-full items-center justify-center">
                   <div className="h-[200px] w-full">
@@ -514,15 +514,15 @@ export default function TicketsAnalysisReport() {
             </SectionCard>
 
             {roleName === 'management' && (
-              <SectionCard title="Department Breakdown" headerColor="bg-cyan-100" headerText="text-cyan-900" borderColor="border-cyan-500">
+              <SectionCard title="Department Breakdown" headerColor="bg-cyan-100 dark:bg-cyan-900/40" headerText="text-cyan-900 dark:text-cyan-300" borderColor="border-cyan-500 dark:border-cyan-700">
                 {departmentChartData.length > 0 ? (
                   <div className="flex h-full w-full items-center justify-center">
                     <div className="h-[200px] w-full">
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={departmentChartData} layout="vertical" margin={{ top: 4, right: 12, left: 12, bottom: 4 }}>
                           <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f1f5f9" />
-                          <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11, fontWeight: 800, fill: '#1e293b' }} tickLine={false} axisLine={false} width={34} />
-                          <YAxis type="category" dataKey="name" width={80} tick={{ fontSize: 11, fontWeight: 800, fill: '#1e293b' }} tickLine={false} axisLine={{ stroke: '#94a3b8' }} />
+                          <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11, fontWeight: 800, fill: 'var(--text-primary)' }} tickLine={false} axisLine={false} width={34} />
+                          <YAxis type="category" dataKey="name" width={80} tick={{ fontSize: 11, fontWeight: 800, fill: 'var(--text-primary)' }} tickLine={false} axisLine={{ stroke: 'var(--text-secondary)' }} />
                           <Tooltip content={<ChartTooltip />} cursor={{ fill: '#f8fafc' }} />
                           <Bar dataKey="value" radius={[0, 3, 3, 0]} maxBarSize={18}>
                             {departmentChartData.map((entry, index) => (
@@ -542,8 +542,8 @@ export default function TicketsAnalysisReport() {
 
           {/* Trend Analysis */}
           <div className="grid grid-cols-1 gap-2 lg:min-h-[340px]">
-            <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border-2 border-indigo-600 bg-white shadow-lg">
-              <div className="flex w-full items-center justify-center gap-1.5 rounded-t-xl bg-indigo-100 px-2 py-1 text-center text-xs font-extrabold leading-snug text-indigo-900 transition-colors hover:bg-indigo-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:text-sm">
+            <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border-2 border-indigo-600 dark:border-indigo-800 bg-[color:var(--surface)] shadow-lg">
+              <div className="flex w-full items-center justify-center gap-1.5 rounded-t-xl bg-indigo-100 dark:bg-indigo-900/40 px-2 py-1 text-center text-xs font-extrabold leading-snug text-indigo-900 dark:text-indigo-300 transition-colors sm:text-sm">
                 <span className="text-xs">📈</span>
                 <span className="whitespace-normal break-words">Monthly Ticket Volume — {formattedFiscalYear}</span>
               </div>
@@ -560,8 +560,8 @@ export default function TicketsAnalysisReport() {
                             </linearGradient>
                           </defs>
                           <CartesianGrid strokeDasharray="4 4" stroke="#eef2f7" vertical={false} />
-                          <XAxis dataKey="monthLabel" tick={{ fontSize: 11, fontWeight: 800, fill: '#1e293b' }} tickLine={false} axisLine={{ stroke: '#94a3b8' }} />
-                          <YAxis allowDecimals={false} tick={{ fontSize: 11, fontWeight: 800, fill: '#1e293b' }} tickLine={false} axisLine={false} width={34} />
+                          <XAxis dataKey="monthLabel" tick={{ fontSize: 11, fontWeight: 800, fill: 'var(--text-primary)' }} tickLine={false} axisLine={{ stroke: 'var(--text-secondary)' }} />
+                          <YAxis allowDecimals={false} tick={{ fontSize: 11, fontWeight: 800, fill: 'var(--text-primary)' }} tickLine={false} axisLine={false} width={34} />
                           <Tooltip content={<ChartTooltip />} cursor={{ fill: '#f1f5f9' }} />
                           <Legend iconType="rect" iconSize={8} wrapperStyle={{ fontSize: 11, fontWeight: 700, paddingTop: 4 }} />
                           <Bar dataKey="Open" fill="url(#openGrad)" radius={[4, 4, 0, 0]} name="Open" />
@@ -579,27 +579,27 @@ export default function TicketsAnalysisReport() {
 
           {/* Performance Details */}
           <div className="grid grid-cols-1 items-stretch gap-2 lg:min-h-[280px] lg:grid-cols-2">
-            <SectionCard title="Assignee Performance" subtitle="Assigned vs Overdue" headerColor="bg-emerald-100" headerText="text-emerald-900" borderColor="border-emerald-500">
+            <SectionCard title="Assignee Performance" subtitle="Assigned vs Overdue" headerColor="bg-emerald-100 dark:bg-emerald-900/40" headerText="text-emerald-900 dark:text-emerald-300" borderColor="border-emerald-500 dark:border-emerald-700">
               {assigneeBreakdownData.length > 0 ? (
                 <div className="h-full min-h-0 overflow-hidden">
-                  <div className="h-[260px] overflow-x-auto overflow-y-auto rounded-lg border-2 border-gray-300">
+                  <div className="h-[260px] overflow-x-auto overflow-y-auto rounded-lg border-2 border-[color:var(--border)]">
                     <table className="w-full text-sm">
-                      <thead className="bg-emerald-50 sticky top-0">
+                      <thead className="bg-emerald-50 dark:bg-emerald-900/30 sticky top-0">
                         <tr>
-                          <th className="px-3 py-2 text-left text-[11px] font-bold text-emerald-700 uppercase tracking-wider">S.No</th>
-                          <th className="px-3 py-2 text-left text-[11px] font-bold text-emerald-700 uppercase tracking-wider">Assignee</th>
-                          <th className="px-3 py-2 text-left text-[11px] font-bold text-emerald-700 uppercase tracking-wider">Assigned</th>
-                          <th className="px-3 py-2 text-left text-[11px] font-bold text-emerald-700 uppercase tracking-wider">Overdue</th>
+                          <th className="px-3 py-2 text-left text-[11px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">S.No</th>
+                          <th className="px-3 py-2 text-left text-[11px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">Assignee</th>
+                          <th className="px-3 py-2 text-left text-[11px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">Assigned</th>
+                          <th className="px-3 py-2 text-left text-[11px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">Overdue</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-gray-100">
+                      <tbody className="divide-y divide-[color:var(--border)]">
                         {assigneeBreakdownData.map((a, idx) => (
-                          <tr key={a.name} className="hover:bg-emerald-50/50 transition">
-                            <td className="px-3 py-2 font-medium text-gray-900 text-sm">{idx + 1}</td>
-                            <td className="px-3 py-2 text-gray-700 text-sm">{a.name}</td>
-                            <td className="px-3 py-2 text-gray-700 text-sm">{a.assigned_count || 0}</td>
+                          <tr key={a.name} className="hover:bg-[color:var(--surface-hover)] transition">
+                            <td className="px-3 py-2 font-medium text-[color:var(--text-primary)] text-sm">{idx + 1}</td>
+                            <td className="px-3 py-2 text-[color:var(--text-secondary)] text-sm">{a.name}</td>
+                            <td className="px-3 py-2 text-[color:var(--text-secondary)] text-sm">{a.assigned_count || 0}</td>
                             <td className="px-3 py-2">
-                              <span className="font-bold text-sm text-red-600">{a.overdue_count || 0}</span>
+                              <span className="font-bold text-sm text-red-600 dark:text-red-400">{a.overdue_count || 0}</span>
                             </td>
                           </tr>
                         ))}
@@ -612,40 +612,40 @@ export default function TicketsAnalysisReport() {
               )}
             </SectionCard>
 
-            <SectionCard title="Overdue Ticket Details" subtitle={`${(report?.overdue_table || []).length} overdue`} headerColor="bg-red-100" headerText="text-red-900" borderColor="border-red-500">
+            <SectionCard title="Overdue Ticket Details" subtitle={`${(report?.overdue_table || []).length} overdue`} headerColor="bg-red-100 dark:bg-red-900/40" headerText="text-red-900 dark:text-red-300" borderColor="border-red-500 dark:border-red-700">
               {(report?.overdue_table || []).length > 0 ? (
                 <div className="h-full min-h-0 overflow-hidden">
-                  <div className="h-[260px] overflow-x-auto overflow-y-auto rounded-lg border-2 border-gray-300">
+                  <div className="h-[260px] overflow-x-auto overflow-y-auto rounded-lg border-2 border-[color:var(--border)]">
                     <table className="w-full text-sm">
-                      <thead className="bg-red-50 sticky top-0">
+                      <thead className="bg-red-50 dark:bg-red-900/30 sticky top-0">
                         <tr>
-                          <th className="px-3 py-2 text-left text-[11px] font-bold text-red-700 uppercase tracking-wider">S.No</th>
-                          <th className="px-3 py-2 text-left text-[11px] font-bold text-red-700 uppercase tracking-wider">Title</th>
-                          <th className="px-3 py-2 text-left text-[11px] font-bold text-red-700 uppercase tracking-wider">Priority</th>
-                          <th className="px-3 py-2 text-left text-[11px] font-bold text-red-700 uppercase tracking-wider">Department</th>
-                          <th className="px-3 py-2 text-left text-[11px] font-bold text-red-700 uppercase tracking-wider">Due Date</th>
-                          <th className="px-3 py-2 text-left text-[11px] font-bold text-red-700 uppercase tracking-wider">Days</th>
+                          <th className="px-3 py-2 text-left text-[11px] font-bold text-red-700 dark:text-red-400 uppercase tracking-wider">S.No</th>
+                          <th className="px-3 py-2 text-left text-[11px] font-bold text-red-700 dark:text-red-400 uppercase tracking-wider">Title</th>
+                          <th className="px-3 py-2 text-left text-[11px] font-bold text-red-700 dark:text-red-400 uppercase tracking-wider">Priority</th>
+                          <th className="px-3 py-2 text-left text-[11px] font-bold text-red-700 dark:text-red-400 uppercase tracking-wider">Department</th>
+                          <th className="px-3 py-2 text-left text-[11px] font-bold text-red-700 dark:text-red-400 uppercase tracking-wider">Due Date</th>
+                          <th className="px-3 py-2 text-left text-[11px] font-bold text-red-700 dark:text-red-400 uppercase tracking-wider">Days</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-gray-100">
+                      <tbody className="divide-y divide-[color:var(--border)]">
                         {(report?.overdue_table || []).map((t, idx) => (
-                          <tr key={t.id} className="hover:bg-red-50/50 transition">
-                            <td className="px-3 py-2 font-medium text-gray-900 text-sm">{idx + 1}</td>
-                            <td className="px-3 py-2 text-gray-700 text-sm max-w-[160px] truncate">{t.title || '—'}</td>
+                          <tr key={t.id} className="hover:bg-[color:var(--surface-hover)] transition">
+                            <td className="px-3 py-2 font-medium text-[color:var(--text-primary)] text-sm">{idx + 1}</td>
+                            <td className="px-3 py-2 text-[color:var(--text-secondary)] text-sm max-w-[160px] truncate">{t.title || '—'}</td>
                             <td className="px-3 py-2">
                               <span className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${(String(t.priority || '').toLowerCase() === 'high' || String(t.priority || '').toLowerCase() === 'critical')
-                                ? 'bg-red-100 text-red-700'
+                                ? 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300'
                                 : String(t.priority || '').toLowerCase() === 'medium'
-                                  ? 'bg-yellow-100 text-yellow-700'
-                                  : 'bg-green-100 text-green-700'
+                                  ? 'bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-300'
+                                  : 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300'
                                 }`}>
                                 {t.priority || '—'}
                               </span>
                             </td>
-                            <td className="px-3 py-2 text-gray-600 text-sm">{t.department || '—'}</td>
-                            <td className="px-3 py-2 text-gray-600 text-sm">{formatDate(t.due_date)}</td>
+                            <td className="px-3 py-2 text-[color:var(--text-secondary)] text-sm">{t.department || '—'}</td>
+                            <td className="px-3 py-2 text-[color:var(--text-secondary)] text-sm">{formatDate(t.due_date)}</td>
                             <td className="px-3 py-2">
-                              <span className={`font-bold text-sm ${t.overdue_days > 7 ? 'text-red-600' : 'text-orange-600'}`}>
+                              <span className={`font-bold text-sm ${t.overdue_days > 7 ? 'text-red-600 dark:text-red-400' : 'text-orange-600 dark:text-orange-400'}`}>
                                 {t.overdue_days}d
                               </span>
                             </td>

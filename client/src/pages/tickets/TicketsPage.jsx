@@ -464,12 +464,12 @@ export default function TicketsPage() {
   const renderPriorityChip = (p) => {
     const key = (p || '').toLowerCase();
     const map = {
-      critical: 'bg-red-100 text-red-800',
-      high: 'bg-red-100 text-red-800',
-      medium: 'bg-yellow-100 text-yellow-800',
-      low: 'bg-green-100 text-green-800',
+      critical: 'bg-[color:var(--danger-soft)] text-[color:var(--danger)]',
+      high: 'bg-[color:var(--danger-soft)] text-[color:var(--danger)]',
+      medium: 'bg-[color:var(--warning-soft)] text-[color:var(--warning)]',
+      low: 'bg-[color:var(--success-soft)] text-[color:var(--success)]',
     };
-    const cls = map[key] || 'bg-gray-100 text-gray-800';
+    const cls = map[key] || 'bg-[color:var(--surface-hover)] text-[color:var(--text-secondary)]';
     return <span className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded ${cls}`}>{p}</span>;
   };
 
@@ -571,22 +571,22 @@ export default function TicketsPage() {
   }, [statuses]);
 
   return (
-    <div className="min-h-screen px-4 py-12 bg-gradient-to-br from-gray-50 to-gray-100 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-[color:var(--app-bg)] px-4 py-12 text-[color:var(--text-primary)] transition-colors duration-300 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
         <Notification show={notification.show} message={notification.message} type={notification.type} onClose={() => setNotification({ show: false, message: '', type: '' })} />
 
         <div className="mb-12 text-center">
-          <h1 className="mb-2 text-4xl font-extrabold text-gray-900">Tickets</h1>
-          <p className="text-lg text-gray-600">Create, update and manage tickets</p>
+          <h1 className="mb-2 text-4xl font-extrabold text-[color:var(--text-primary)]">Tickets</h1>
+          <p className="text-lg text-[color:var(--text-secondary)]">Create, update and manage tickets</p>
         </div>
 
         <div className="mb-4">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-4">
-              <button onClick={() => setPanelOpen(p => !p)} className="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-300 bg-slate-200 text-slate-800 hover:bg-slate-300 shadow-sm">
-                <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L15 12v7a1 1 0 01-1 1h-4a1 1 0 01-1-1v-7L3.293 6.707A1 1 0 013 6V4z" /></svg>
+              <button onClick={() => setPanelOpen(p => !p)} className="flex items-center gap-2 rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-2 text-[color:var(--text-primary)] shadow-sm hover:bg-[color:var(--surface-hover)]">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-[color:var(--text-secondary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L15 12v7a1 1 0 01-1 1h-4a1 1 0 01-1-1v-7L3.293 6.707A1 1 0 013 6V4z" /></svg>
                 <span className="text-sm font-semibold">Filters</span>
-                <svg xmlns="http://www.w3.org/2000/svg" className={`w-3 h-3 text-gray-500 transform ${panelOpen ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.25 8.29a.75.75 0 01-.02-1.06z" clipRule="evenodd" /></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" className={`h-3 w-3 transform text-[color:var(--text-muted)] ${panelOpen ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.25 8.29a.75.75 0 01-.02-1.06z" clipRule="evenodd" /></svg>
               </button>
 
               <div className="flex items-center gap-2">
@@ -594,29 +594,29 @@ export default function TicketsPage() {
                   type="button"
                   onClick={() => setFilter('all')}
                   aria-pressed={filter === 'all'}
-                  className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium cursor-pointer ${filter === 'all' ? 'bg-blue-600 text-white' : 'bg-blue-50 text-blue-700'}`}
+                  className={`inline-flex cursor-pointer items-center gap-2 rounded-full px-3 py-1 text-sm font-medium ${filter === 'all' ? 'bg-[color:var(--accent)] text-white' : 'bg-[color:var(--accent-soft)] text-[color:var(--accent)]'}`}
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-current" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7h18M5 7v10a2 2 0 002 2h10a2 2 0 002-2V7" /></svg>
                   <span>All</span>
-                  <span className={`ml-2 inline-flex items-center justify-center w-6 h-6 text-xs font-semibold rounded-full bg-white ${filter === 'all' ? 'text-blue-600' : 'text-blue-600'}`}>{counts.allCount}</span>
+                  <span className={`ml-2 inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold ${filter === 'all' ? 'bg-[color:var(--surface)] text-[color:var(--accent)]' : 'bg-[color:var(--surface)] text-[color:var(--accent)]'}`}>{counts.allCount}</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => setFilter('mine')}
                   aria-pressed={filter === 'mine'}
-                  className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium cursor-pointer ${filter === 'mine' ? 'bg-green-500 text-white' : 'bg-green-200 text-green-400'}`}
+                  className={`inline-flex cursor-pointer items-center gap-2 rounded-full px-3 py-1 text-sm font-medium ${filter === 'mine' ? 'bg-[color:var(--success)] text-white' : 'bg-[color:var(--success-soft)] text-[color:var(--success)]'}`}
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-current" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 11c0-1.657-1.343-3-3-3S6 9.343 6 11s1.343 3 3 3 3-1.343 3-3zM21 11v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6" /></svg>
                   <span>Mine</span>
-                  <span className={`ml-2 inline-flex items-center justify-center w-6 h-6 text-xs font-semibold rounded-full bg-white ${filter === 'mine' ? 'text-green-600' : 'text-green-700'}`}>{counts.mineCount}</span>
+                  <span className={`ml-2 inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold ${filter === 'mine' ? 'bg-[color:var(--surface)] text-[color:var(--success)]' : 'bg-[color:var(--surface)] text-[color:var(--success)]'}`}>{counts.mineCount}</span>
                 </button>
 
                 {/* <button
                   type="button"
                   onClick={() => setFilter('overdue')}
                   aria-pressed={filter === 'overdue'}
-                  className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium cursor-pointer ${filter === 'overdue' ? 'bg-red-600 text-white' : 'bg-red-50 text-red-700'}`}
+                  className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium cursor-pointer ${filter === 'overdue' ? 'bg-[color:var(--danger)] text-white' : 'bg-red-50 text-red-700'}`}
                 > */}
                 {/* <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-current" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                     <path d="M12.9 2.3c-.4-.7-1.4-.7-1.8 0L2.6 18.4c-.4.7.1 1.6.9 1.6h18.9c.8 0 1.3-.9.9-1.6L12.9 2.3z" fill="currentColor" className="opacity-90" />
@@ -624,7 +624,7 @@ export default function TicketsPage() {
                     <rect x="11" y="16" width="2" height="2" rx="1" fill="white" />
                   </svg> */}
                 {/* <span>Overdue</span> */}
-                {/* <span className={`ml-2 inline-flex items-center justify-center w-6 h-6 text-xs font-semibold rounded-full bg-white ${filter === 'overdue' ? 'text-red-600' : 'text-red-700'} ${counts.overdueCount>0 ? 'animate-pulse' : ''}`}>{counts.overdueCount}</span> */}
+                {/* <span className={`ml-2 inline-flex items-center justify-center w-6 h-6 text-xs font-semibold rounded-full bg-[color:var(--surface)] ${filter === 'overdue' ? 'text-red-600' : 'text-red-700'} ${counts.overdueCount>0 ? 'animate-pulse' : ''}`}>{counts.overdueCount}</span> */}
                 {/* </button> */}
               </div>
             </div>
@@ -633,37 +633,37 @@ export default function TicketsPage() {
           {/* Bulk actions removed (selection checkboxes and toolbar) */}
 
           {panelOpen && (
-            <div className="mt-4 p-4 bg-white rounded-lg shadow-sm border border-gray-100">
+            <div className="mt-4 rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] p-4 shadow-sm">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
                 <div>
-                  <label className="block text-xs text-gray-600 mb-1">Assignee</label>
-                  <select value={assigneeFilter} onChange={e => setAssigneeFilter(e.target.value)} className="w-full px-3 py-2 border rounded">
+                  <label className="mb-1 block text-xs text-[color:var(--text-secondary)]">Assignee</label>
+                  <select value={assigneeFilter} onChange={e => setAssigneeFilter(e.target.value)} className="w-full rounded border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-2 text-[color:var(--text-primary)]">
                     <option value="">Any</option>
                     {users.map(u => <option key={u.id} value={u.id}>{`${u.firstname || u.name || u.full_name || u.email}${u.lastname ? ' ' + u.lastname : ''}`}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs text-gray-600 mb-1">Priority</label>
-                  <select value={priorityFilter} onChange={e => setPriorityFilter(e.target.value)} className="w-full px-3 py-2 border rounded">
+                  <label className="mb-1 block text-xs text-[color:var(--text-secondary)]">Priority</label>
+                  <select value={priorityFilter} onChange={e => setPriorityFilter(e.target.value)} className="w-full rounded border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-2 text-[color:var(--text-primary)]">
                     <option value="">Any</option>
                     {priorities.map(p => <option key={p} value={p}>{p}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs text-gray-600 mb-1">Status</label>
-                  <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="w-full px-3 py-2 border rounded">
+                  <label className="mb-1 block text-xs text-[color:var(--text-secondary)]">Status</label>
+                  <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="w-full rounded border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-2 text-[color:var(--text-primary)]">
                     <option value="">Any</option>
                     {filterStatusOptions.map(s => <option key={s} value={s}>{s}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs text-gray-600 mb-1">Options</label>
+                  <label className="mb-1 block text-xs text-[color:var(--text-secondary)]">Options</label>
                   <div className="flex items-center gap-3">
-                    <label className="inline-flex items-center px-2 py-1 text-xs rounded-full bg-red-600 text-white">
+                    <label className="inline-flex items-center rounded-full bg-[color:var(--danger)] px-2 py-1 text-xs text-white">
                       <input type="checkbox" className="mr-2" checked={overdueOnly} onChange={e => setOverdueOnly(e.target.checked)} />
                       <span>Only overdue</span>
                     </label>
-                    <button onClick={() => { setAssigneeFilter(''); setPriorityFilter(''); setStatusFilter(''); setOverdueOnly(false); setSearch(''); setFilter('all'); }} className="bg-gray-200 text-gray-700 px-4 py-2 rounded font-semibold hover:bg-gray-300 transition">Clear</button>
+                    <button onClick={() => { setAssigneeFilter(''); setPriorityFilter(''); setStatusFilter(''); setOverdueOnly(false); setSearch(''); setFilter('all'); }} className="rounded bg-[color:var(--surface-hover)] px-4 py-2 font-semibold text-[color:var(--text-primary)] transition hover:opacity-90">Clear</button>
                   </div>
                 </div>
               </div>
@@ -673,17 +673,17 @@ export default function TicketsPage() {
 
         <div className="flex flex-col items-start justify-between gap-4 mb-6 sm:flex-row sm:items-center">
           <div className="relative w-full sm:w-72">
-            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search tickets..." className="w-full py-2 pl-10 pr-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400 absolute left-3 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search tickets..." className="w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] py-2 pl-10 pr-4 text-[color:var(--text-primary)] focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--focus-ring)]" />
+            <svg xmlns="http://www.w3.org/2000/svg" className="absolute left-3 top-2.5 h-5 w-5 text-[color:var(--text-muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
           </div>
           <div className="flex flex-wrap items-center gap-3 justify-end w-full sm:w-auto">
             {(isManagementUser || String(user?.role || '').toLowerCase() === 'hod' || String(user?.role || '').toLowerCase() === 'admin') && (
-              <button type="button" onClick={() => navigate('/tickets/reports')} className="inline-flex items-center justify-center w-full px-4 py-3 font-medium text-white transition-all duration-300 transform rounded-lg shadow-md bg-indigo-600 hover:bg-indigo-700 hover:-translate-y-1 hover:scale-105 sm:w-auto">
+              <button type="button" onClick={() => navigate('/tickets/reports')} className="inline-flex items-center justify-center w-full rounded-lg bg-[color:var(--accent)] px-4 py-3 font-medium text-white shadow-md transition-all duration-300 hover:scale-105 hover:opacity-90 sm:w-auto">
                 <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6m6-6h2a2 2 0 012 2v7m-9 2h6a2 2 0 002-2v-7m-6 0h8" /></svg>
                 Ticket Reports
               </button>
             )}
-            <button onClick={openCreate} className="flex items-center justify-center w-full px-6 py-3 font-medium text-white transition-all duration-300 transform rounded-lg shadow-lg bg-blue-600 hover:bg-blue-700 hover:-translate-y-1 hover:scale-105 sm:w-auto">
+            <button onClick={openCreate} className="flex items-center justify-center w-full rounded-lg bg-[color:var(--accent)] px-6 py-3 font-medium text-white shadow-sm transition-all duration-300 hover:scale-105 hover:opacity-90 sm:w-auto">
               <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" /></svg>
               Add Ticket
             </button>
@@ -692,43 +692,43 @@ export default function TicketsPage() {
 
 
 
-        <div className="mb-10 overflow-hidden bg-white shadow-xl rounded-xl">
+        <div className="mb-10 overflow-hidden rounded-xl border border-[color:var(--border)] bg-[color:var(--surface)] shadow-xl">
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-blue-600">
+            <table className="min-w-full divide-y divide-[color:var(--border)]">
+              <thead className="bg-[color:var(--accent)]">
                 <tr>
-                  <th onClick={() => { setSortBy('id'); setSortDir(sortBy === 'id' ? (sortDir === 'asc' ? 'desc' : 'asc') : 'desc'); }} className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider cursor-pointer">S.NO {sortBy === 'id' ? (sortDir === 'asc' ? '▲' : '▼') : ''}</th>
-                  <th onClick={() => { setSortBy('title'); setSortDir(sortBy === 'title' ? (sortDir === 'asc' ? 'desc' : 'asc') : 'asc'); }} className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider cursor-pointer">Title {sortBy === 'title' ? (sortDir === 'asc' ? '▲' : '▼') : ''}</th>
-                  <th onClick={() => { setSortBy('status'); setSortDir(sortBy === 'status' ? (sortDir === 'asc' ? 'desc' : 'asc') : 'asc'); }} className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider cursor-pointer">Status {sortBy === 'status' ? (sortDir === 'asc' ? '▲' : '▼') : ''}</th>
-                  <th onClick={() => { setSortBy('priority'); setSortDir(sortBy === 'priority' ? (sortDir === 'asc' ? 'desc' : 'asc') : 'asc'); }} className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider cursor-pointer">Priority {sortBy === 'priority' ? (sortDir === 'asc' ? '▲' : '▼') : ''}</th>
-                  <th className="px-6 py-4 text-center text-xs font-medium text-white uppercase tracking-wider">Attachment</th>
-                  <th className="px-6 py-4 text-center text-xs font-medium text-white uppercase tracking-wider">Closed Date</th>
-                  <th className="px-6 py-4 text-center text-xs font-medium text-white uppercase tracking-wider">Actions</th>
+                  <th onClick={() => { setSortBy('id'); setSortDir(sortBy === 'id' ? (sortDir === 'asc' ? 'desc' : 'asc') : 'desc'); }} className="cursor-pointer px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white">S.NO {sortBy === 'id' ? (sortDir === 'asc' ? '▲' : '▼') : ''}</th>
+                  <th onClick={() => { setSortBy('title'); setSortDir(sortBy === 'title' ? (sortDir === 'asc' ? 'desc' : 'asc') : 'asc'); }} className="cursor-pointer px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white">Title {sortBy === 'title' ? (sortDir === 'asc' ? '▲' : '▼') : ''}</th>
+                  <th onClick={() => { setSortBy('status'); setSortDir(sortBy === 'status' ? (sortDir === 'asc' ? 'desc' : 'asc') : 'asc'); }} className="cursor-pointer px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white">Status {sortBy === 'status' ? (sortDir === 'asc' ? '▲' : '▼') : ''}</th>
+                  <th onClick={() => { setSortBy('priority'); setSortDir(sortBy === 'priority' ? (sortDir === 'asc' ? 'desc' : 'asc') : 'asc'); }} className="cursor-pointer px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white">Priority {sortBy === 'priority' ? (sortDir === 'asc' ? '▲' : '▼') : ''}</th>
+                  <th className="px-6 py-4 text-center text-xs font-medium uppercase tracking-wider text-white">Attachment</th>
+                  <th className="px-6 py-4 text-center text-xs font-medium uppercase tracking-wider text-white">Closed Date</th>
+                  <th className="px-6 py-4 text-center text-xs font-medium uppercase tracking-wider text-white">Actions</th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="divide-y divide-[color:var(--border)] bg-[color:var(--surface)]">
                 {filtered.length === 0 ? (
-                  <tr><td colSpan="7" className="px-6 py-12 text-center text-gray-500">No tickets found</td></tr>
+                  <tr><td colSpan="7" className="px-6 py-12 text-center text-[color:var(--text-muted)]">No tickets found</td></tr>
                 ) : (
                   paginated.map((row, idx) => (
-                    <tr key={row.id} className={`${isOverdue(row) ? 'border-l-4 border-red-400 bg-red-50' : ''} ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-colors duration-150`}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{(page - 1) * PAGE_SIZE + idx + 1}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{row.title}</td>
+                    <tr key={row.id} className={`${isOverdue(row) ? 'border-l-4 border-[color:var(--danger)] bg-[color:var(--danger-soft)]' : ''} ${idx % 2 === 0 ? 'bg-[color:var(--surface)]' : 'bg-[color:var(--surface-hover)]'} transition-colors duration-150 hover:bg-[color:var(--surface-hover)]`}>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-[color:var(--text-primary)]">{(page - 1) * PAGE_SIZE + idx + 1}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-[color:var(--text-primary)]">{row.title}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
                         {String(row.status || '').toLowerCase() === 'rejected' ? (
-                          <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded bg-red-200 text-red-900">{row.status}</span>
+                          <span className="inline-flex items-center rounded bg-[color:var(--danger-soft)] px-2 py-0.5 text-xs font-medium text-[color:var(--danger)]">{row.status}</span>
                         ) : (
-                          <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded bg-blue-100 text-blue-800">{row.status}</span>
+                          <span className="inline-flex items-center rounded bg-[color:var(--accent-soft)] px-2 py-0.5 text-xs font-medium text-[color:var(--accent)]">{row.status}</span>
                         )}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{renderPriorityChip(row.priority)}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-[color:var(--text-secondary)]">{renderPriorityChip(row.priority)}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-center text-sm">
                         {row.attachment ? (
                           <a
                             href={getAttachmentHref(row.attachment)}
                             target="_blank"
                             rel="noreferrer"
-                            className="inline-flex items-center justify-center p-2 text-blue-600 hover:text-blue-800"
+                            className="inline-flex items-center justify-center p-2 text-[color:var(--accent)] hover:opacity-80"
                             title="View Attachment"
                             aria-label="View Attachment"
                           >
@@ -738,10 +738,10 @@ export default function TicketsPage() {
                             </svg>
                           </a>
                         ) : (
-                          <span className="text-gray-400">--NA--</span>
+                          <span className="text-[color:var(--text-muted)]">--NA--</span>
                         )}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-700">
+                      <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-[color:var(--text-secondary)]">
                         {getClosedDateDisplay(row)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
@@ -752,9 +752,9 @@ export default function TicketsPage() {
                               openEdit(row);
                             }}
                             disabled={String(row.status || '').toLowerCase() === 'closed'}
-                            className={`p-2 text-white transition-colors duration-200 rounded-lg ${String(row.status || '').toLowerCase() === 'closed'
-                              ? 'bg-blue-300 cursor-not-allowed opacity-60'
-                              : 'bg-blue-600 hover:bg-blue-700'
+                            className={`rounded-lg p-2 text-white transition-colors duration-200 ${String(row.status || '').toLowerCase() === 'closed'
+                              ? 'cursor-not-allowed bg-[color:var(--accent)] opacity-40'
+                              : 'bg-[color:var(--accent)] hover:opacity-90'
                               }`}
                             title={String(row.status || '').toLowerCase() === 'closed' ? 'Closed tickets cannot be edited' : 'Edit Ticket'}
                           >
@@ -765,7 +765,7 @@ export default function TicketsPage() {
                           {user && row.user_id === user.id && (
                             <button
                               onClick={() => handleDelete(row.id)}
-                              className="p-2 text-white transition-colors duration-200 bg-red-600 rounded-lg hover:bg-red-700"
+                              className="rounded-lg bg-[color:var(--danger)] p-2 text-white transition-colors duration-200 hover:opacity-90"
                               title="Delete Ticket"
                             >
                               <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -785,17 +785,17 @@ export default function TicketsPage() {
           {filtered.length > PAGE_SIZE && (
             <div className="flex justify-end items-center gap-2 px-6 pb-6">
               <button
-                className="px-3 py-1 rounded border border-gray-300 bg-white text-gray-700 disabled:opacity-50"
+                className="rounded border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-1 text-[color:var(--text-primary)] disabled:opacity-50"
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 disabled={page === 1}
               >
                 Prev
               </button>
-              <span className="text-sm text-gray-700">
+              <span className="text-sm text-[color:var(--text-secondary)]">
                 Page {page} of {Math.ceil(filtered.length / PAGE_SIZE)}
               </span>
               <button
-                className="px-3 py-1 rounded border border-gray-300 bg-white text-gray-700 disabled:opacity-50"
+                className="rounded border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-1 text-[color:var(--text-primary)] disabled:opacity-50"
                 onClick={() => setPage(p => Math.min(Math.ceil(filtered.length / PAGE_SIZE), p + 1))}
                 disabled={page === Math.ceil(filtered.length / PAGE_SIZE)}
               >
@@ -808,47 +808,47 @@ export default function TicketsPage() {
         {isModalOpen && (
           <div className="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true">
             <div className="flex items-end justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-              <div className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" onClick={onClose} />
-              <div className="inline-block overflow-hidden text-left align-bottom transition-all transform bg-white rounded-lg shadow-xl sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full">
-                <div className="px-6 py-4 bg-blue-600">
+              <div className="fixed inset-0 transition-opacity bg-black bg-opacity-50" onClick={onClose} />
+              <div className="inline-block overflow-hidden text-left align-bottom transition-all transform bg-[color:var(--surface)] rounded-lg border border-[color:var(--border)] shadow-xl sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full">
+                <div className="px-6 py-4 bg-[color:var(--accent)]">
                   <div className="flex items-center justify-between">
                     <h3 className="text-lg font-medium leading-6 text-white">{editingId ? 'Edit Ticket' : 'Add Ticket'}</h3>
-                    <button className="text-white hover:text-gray-200" onClick={onClose}>
+                    <button className="text-white hover:text-[color:var(--text-primary)]" onClick={onClose}>
                       <svg className="w-6 h-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
                   </div>
                 </div>
-                <div className="px-6 py-5 bg-white">
-                  {error && <div className="mb-4 p-3 rounded border border-red-200 text-red-700 bg-red-50 text-sm">{error}</div>}
+                <div className="px-6 py-5 bg-[color:var(--surface)]">
+                  {error && <div className="mb-4 p-3 rounded border border-[color:var(--danger-soft)] text-[color:var(--danger)] bg-[color:var(--danger-soft)] text-sm">{error}</div>}
                   <form className="space-y-5" onSubmit={submit}>
                     <div>
-                      <label className="block mb-2 text-sm font-medium text-gray-700">Title *</label>
+                      <label className="block mb-2 text-sm font-medium text-[color:var(--text-primary)]">Title *</label>
                       <input
                         type="text"
                         value={form.title}
                         onChange={e => setForm({ ...form, title: e.target.value })}
-                        className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="block w-full bg-[color:var(--surface)] px-4 py-3 border border-[color:var(--border)] rounded-lg focus:ring-2 focus:ring-[color:var(--ring)] focus:border-[color:var(--ring)] text-[color:var(--text-primary)]"
                         placeholder="Ticket title"
                         required
                       />
                     </div>
                     <div>
-                      <label className="block mb-2 text-sm font-medium text-gray-700">Description *</label>
+                      <label className="block mb-2 text-sm font-medium text-[color:var(--text-primary)]">Description *</label>
                       <textarea
                         value={form.description}
                         onChange={e => setForm({ ...form, description: e.target.value })}
-                        className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="block w-full bg-[color:var(--surface)] px-4 py-3 border border-[color:var(--border)] rounded-lg focus:ring-2 focus:ring-[color:var(--ring)] focus:border-[color:var(--ring)] text-[color:var(--text-primary)]"
                         placeholder="Ticket description"
                         required
                       />
                     </div>
                     <div className="flex gap-4">
                       <div className="flex-1">
-                        <label className="block mb-2 text-sm font-medium text-gray-700">Priority</label>
+                        <label className="block mb-2 text-sm font-medium text-[color:var(--text-primary)]">Priority</label>
                         <select
                           value={form.priority}
                           onChange={e => setForm({ ...form, priority: e.target.value })}
-                          className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          className="block w-full bg-[color:var(--surface)] px-4 py-3 border border-[color:var(--border)] rounded-lg focus:ring-2 focus:ring-[color:var(--ring)] focus:border-[color:var(--ring)] text-[color:var(--text-primary)]"
                         >
                           <option value="">Select priority</option>
                           {priorities.map(pri => (
@@ -859,31 +859,31 @@ export default function TicketsPage() {
                     </div>
                     <div className="flex gap-4">
                       <div className="flex-1">
-                        <label className="block mb-2 text-sm font-medium text-gray-700">Assign To *</label>
+                        <label className="block mb-2 text-sm font-medium text-[color:var(--text-primary)]">Assign To *</label>
                         {isManagementUser ? (
                           <div ref={assigneeDropdownRef} className="relative">
                             <button
                               type="button"
                               onClick={() => setAssigneeDropdownOpen((open) => !open)}
-                              className={`block w-full px-4 py-3 text-left border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${editingId && !form.assigned_to_ids.length ? 'border-red-400 bg-red-50' : 'border-gray-300'} bg-white`}
+                              className={`block w-full bg-[color:var(--surface)] px-4 py-3 text-left border rounded-lg focus:ring-2 focus:ring-[color:var(--ring)] focus:border-[color:var(--ring)] ${editingId && !form.assigned_to_ids.length ? 'border-[color:var(--danger)] bg-[color:var(--danger-soft)]' : 'border-[color:var(--border)]'}`}
                               disabled={editingId && form.status === 'Open' && !form.assigned_to_ids.length && String(form.user_id) !== String(user?.id)}
                             >
                               <div className="flex items-center justify-between gap-3">
-                                <span className={form.assigned_to_ids.length ? 'text-gray-900' : 'text-gray-500'}>
+                                <span className={form.assigned_to_ids.length ? 'text-[color:var(--text-primary)]' : 'text-[color:var(--text-muted)]'}>
                                   {form.assigned_to_ids.length
                                     ? `${form.assigned_to_ids.length} user${form.assigned_to_ids.length > 1 ? 's' : ''} selected`
                                     : 'Select users'}
                                 </span>
-                                <svg className={`w-4 h-4 text-gray-500 transition-transform ${assigneeDropdownOpen ? 'rotate-180' : ''}`} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <svg className={`w-4 h-4 text-[color:var(--text-muted)] transition-transform ${assigneeDropdownOpen ? 'rotate-180' : ''}`} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                                 </svg>
                               </div>
                             </button>
 
                             {assigneeDropdownOpen && (
-                              <div className="absolute z-20 w-full mt-2 bg-white border border-gray-200 rounded-lg shadow-lg max-h-64 overflow-y-auto">
+                              <div className="absolute z-20 w-full mt-2 bg-[color:var(--surface)]  border border-[color:var(--border)] rounded-lg shadow-xl max-h-64 overflow-y-auto">
                                 {users.length === 0 ? (
-                                  <div className="px-4 py-3 text-sm text-gray-500">No users available</div>
+                                  <div className="px-4 py-3 text-sm text-[color:var(--text-muted)]">No users available</div>
                                 ) : (
                                   users
                                     .slice()
@@ -893,7 +893,7 @@ export default function TicketsPage() {
                                       return (
                                         <label
                                           key={u.id}
-                                          className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-blue-50 cursor-pointer"
+                                          className="flex items-center gap-3 px-4 py-3 text-sm text-[color:var(--text-primary)] hover:bg-[color:var(--surface-hover)] cursor-pointer"
                                         >
                                           <input
                                             type="checkbox"
@@ -912,7 +912,7 @@ export default function TicketsPage() {
                                                 };
                                               });
                                             }}
-                                            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                            className="w-4 h-4 text-[color:var(--accent)] border-[color:var(--border)] rounded focus:ring-[color:var(--ring)]"
                                           />
                                           <span>{`${u.firstname || u.name || u.full_name || u.email}${u.lastname ? ' ' + u.lastname : ''}`}</span>
                                         </label>
@@ -937,7 +937,7 @@ export default function TicketsPage() {
                                 setForm({ ...form, assigned_to: newAssigned, assigned_to_ids: newAssigned ? [newAssigned] : [] });
                               }
                             }}
-                            className={`block w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${editingId && !form.assigned_to ? 'border-red-400 bg-red-50' : 'border-gray-300'}`}
+                            className={`block w-full bg-[color:var(--surface)] px-4 py-3 border rounded-lg focus:ring-2 focus:ring-[color:var(--ring)] focus:border-[color:var(--ring)] ${editingId && !form.assigned_to ? 'border-[color:var(--danger)] bg-[color:var(--danger-soft)]' : 'border-[color:var(--border)]'} text-[color:var(--text-primary)]`}
                             disabled={editingId && form.status === 'Open' && !form.assigned_to && String(form.user_id) !== String(user?.id)}
                           >
                             {users.length === 0 ? (
@@ -958,11 +958,11 @@ export default function TicketsPage() {
 
                       </div>
                       <div className="flex-1">
-                        <label className="block mb-2 text-sm font-medium text-gray-700">Status</label>
+                        <label className="block mb-2 text-sm font-medium text-[color:var(--text-primary)]">Status</label>
                         <select
                           value={form.status}
                           onChange={e => setForm({ ...form, status: e.target.value })}
-                          className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          className="block w-full bg-[color:var(--surface)] px-4 py-3 border border-[color:var(--border)] rounded-lg focus:ring-2 focus:ring-[color:var(--ring)] focus:border-[color:var(--ring)] text-[color:var(--text-primary)]"
                         >
                           <option value="">Select status</option>
                           {displayedStatuses.map(s => {
@@ -1016,17 +1016,17 @@ export default function TicketsPage() {
                     </div>
                     <div className="flex gap-4">
                       <div className="flex-1">
-                        <label className="block mb-2 text-sm font-medium text-gray-700">Due Date *</label>
+                        <label className="block mb-2 text-sm font-medium text-[color:var(--text-primary)]">Due Date *</label>
                         <input
                           type="date"
                           value={form.due_date}
                           onChange={e => setForm({ ...form, due_date: e.target.value })}
-                          className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          className="block w-full bg-[color:var(--surface)] px-4 py-3 border border-[color:var(--border)] rounded-lg focus:ring-2 focus:ring-[color:var(--ring)] focus:border-[color:var(--ring)] text-[color:var(--text-primary)]"
                           required
                         />
                       </div>
                       <div className="flex-1">
-                        <label className="block mb-2 text-sm font-medium text-gray-700">Attachment</label>
+                        <label className="block mb-2 text-sm font-medium text-[color:var(--text-primary)]">Attachment</label>
                         {editingId && typeof form.attachment === 'string' && form.attachment && (
                           <div className="mb-2">
                             <div className="flex items-center gap-3">
@@ -1034,22 +1034,22 @@ export default function TicketsPage() {
                                 type="text"
                                 readOnly
                                 value={getDisplayAttachmentPath(form.attachment)}
-                                className="block w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-50 text-gray-700"
+                                className="block w-full px-3 py-2 text-sm  border border-[color:var(--border)] rounded-lg bg-[color:var(--surface-hover)] text-[color:var(--text-primary)]"
                               />
                               <a
                                 href={getAttachmentHref(form.attachment)}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="text-blue-600 hover:underline whitespace-nowrap"
+                                className="text-[color:var(--accent)] hover:opacity-80 whitespace-nowrap"
                               >
                                 Open
                               </a>
                             </div>
-                            <div className="text-xs text-gray-500 mt-1">If you do not choose a new file, this attachment will be kept on update.</div>
+                            <div className="text-xs text-[color:var(--text-muted)] mt-1">If you do not choose a new file, this attachment will be kept on update.</div>
                           </div>
                         )}
                         {typeof form.attachment === 'object' && form.attachment?.name && (
-                          <div className="mb-2 text-sm text-gray-600">
+                          <div className="mb-2 text-sm text-[color:var(--text-secondary)]">
                             New file selected: {form.attachment.name}
                           </div>
                         )}
@@ -1059,12 +1059,12 @@ export default function TicketsPage() {
                             const file = e.target.files[0];
                             setForm({ ...form, attachment: file || '' });
                           }}
-                          className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          className="block w-full bg-[color:var(--surface)] px-4 py-3 border border-[color:var(--border)] rounded-lg focus:ring-2 focus:ring-[color:var(--ring)] focus:border-[color:var(--ring)] text-[color:var(--text-primary)]"
                         />
                       </div>
                     </div>
                     <div className="flex justify-end space-x-4 pt-4">
-                      <button type="button" onClick={onClose} className="inline-flex justify-center px-6 py-3 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">Cancel</button>
+                      <button type="button" onClick={onClose} className="inline-flex justify-center px-6 py-3 text-sm font-medium text-[color:var(--text-primary)] bg-[color:var(--surface)] border border-[color:var(--border)] rounded-lg shadow-sm hover:bg-[color:var(--surface-hover)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[color:var(--ring)]">Cancel</button>
                       {(() => {
                         const isEditing = Boolean(editingId);
                         const isAssignee = normalizeAssignedIds(form).includes(Number(user?.id));
@@ -1076,9 +1076,9 @@ export default function TicketsPage() {
                             type="submit"
                             disabled={disableUpdateBtn}
                             title={disableUpdateBtn ? "Assignees are not allowed to update the ticket directly" : undefined}
-                            className={`inline-flex justify-center px-6 py-3 text-sm font-medium text-white border border-transparent rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${disableUpdateBtn
-                              ? 'bg-blue-400 opacity-50 cursor-not-allowed'
-                              : 'bg-blue-600 hover:bg-blue-700'
+                            className={`inline-flex justify-center px-6 py-3 text-sm font-medium text-white border border-transparent rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[color:var(--ring)] ${disableUpdateBtn
+                              ? 'bg-[color:var(--surface-hover)] opacity-50 cursor-not-allowed'
+                              : 'bg-[color:var(--accent)] hover:bg-[color:var(--accent-hover)]'
                               }`}
                           >
                             {editingId ? 'Update Ticket' : 'Create Ticket'}
@@ -1097,21 +1097,21 @@ export default function TicketsPage() {
         {isDeleteModalOpen && (
           <div className="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true">
             <div className="flex items-end justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-              <div className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" onClick={cancelDelete} />
-              <div className="inline-block overflow-hidden text-left align-bottom transition-all transform bg-white rounded-lg shadow-xl sm:my-8 sm:align-middle sm:max-w-md sm:w-full">
-                <div className="px-6 py-4 bg-red-600">
+              <div className="fixed inset-0 transition-opacity bg-black bg-opacity-50" onClick={cancelDelete} />
+              <div className="inline-block overflow-hidden text-left align-bottom transition-all transform bg-[color:var(--surface)] rounded-lg border border-[color:var(--border)] shadow-xl sm:my-8 sm:align-middle sm:max-w-md sm:w-full">
+                <div className="px-6 py-4 bg-[color:var(--danger)]">
                   <div className="flex items-center justify-between">
                     <h3 className="text-lg font-medium leading-6 text-white">Delete Ticket</h3>
-                    <button className="text-white hover:text-gray-200" onClick={cancelDelete}>
+                    <button className="text-white hover:text-[color:var(--text-primary)]" onClick={cancelDelete}>
                       <svg className="w-6 h-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
                   </div>
                 </div>
-                <div className="px-6 py-5 bg-white">
-                  <p className="mb-6 text-gray-800 text-base">Are you sure you want to delete this ticket?</p>
+                <div className="px-6 py-5 bg-[color:var(--surface)]">
+                  <p className="mb-6 text-[color:var(--text-primary)] text-base">Are you sure you want to delete this ticket?</p>
                   <div className="flex justify-end space-x-4">
-                    <button onClick={cancelDelete} className="inline-flex justify-center px-6 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">Cancel</button>
-                    <button onClick={confirmDelete} className="inline-flex justify-center px-6 py-2 text-sm font-medium text-white border border-transparent rounded-lg shadow-sm bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">Delete</button>
+                    <button onClick={cancelDelete} className="inline-flex justify-center px-6 py-2 text-sm font-medium text-[color:var(--text-primary)] bg-[color:var(--surface)] border border-[color:var(--border)] rounded-lg shadow-sm hover:bg-[color:var(--surface-hover)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[color:var(--danger)]">Cancel</button>
+                    <button onClick={confirmDelete} className="inline-flex justify-center px-6 py-2 text-sm font-medium text-white border border-transparent rounded-lg shadow-sm bg-[color:var(--danger)] hover:bg-[color:var(--danger-hover)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[color:var(--danger)]">Delete</button>
                   </div>
                 </div>
               </div>

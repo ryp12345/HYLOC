@@ -151,7 +151,7 @@ export default function ProfilePage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!form.firstName || !form.lastName || !form.email) {
       setNotification({
         show: true,
@@ -190,7 +190,7 @@ export default function ProfilePage() {
       await axios.put('/users/me', requestData,
         photoFile ? { headers: { 'Content-Type': 'multipart/form-data' } } : undefined
       );
-      
+
       // Update auth context if name changed
       if (updateUserContext) {
         updateUserContext({
@@ -229,7 +229,7 @@ export default function ProfilePage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="text-blue-600 text-lg">Loading profile...</div>
+        <div className="text-[color:var(--accent)] text-lg">Loading profile...</div>
       </div>
     );
   }
@@ -242,11 +242,11 @@ export default function ProfilePage() {
         type={notification.type}
         onClose={() => setNotification({ show: false, message: '', type: '' })}
       />
-      <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+      <div className="bg-[color:var(--surface)] rounded-lg border border-[color:var(--border)] shadow-sm overflow-hidden">
         {/* Header */}
-        <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-8">
+        <div className="bg-[color:var(--accent)] px-6 py-8">
           <div className="flex items-center space-x-4">
-            <div className="h-20 w-20 rounded-full bg-white text-blue-600 flex items-center justify-center text-3xl font-bold shadow-lg overflow-hidden">
+            <div className="h-20 w-20 rounded-full bg-[color:var(--surface)] text-[color:var(--accent)] flex items-center justify-center text-3xl font-bold shadow-sm overflow-hidden">
               {photoPreview ? (
                 <img
                   src={photoPreview}
@@ -268,7 +268,7 @@ export default function ProfilePage() {
               <h1 className="text-3xl font-bold">
                 {userData?.firstname} {userData?.middlename} {userData?.lastname}
               </h1>
-              <p className="text-blue-100 mt-1">Employee ID: {userData?.empid || 'N/A'}</p>
+              <p className="text-[color:var(--text-secondary)] mt-1">Employee ID: {userData?.empid || 'N/A'}</p>
             </div>
           </div>
         </div>
@@ -276,7 +276,7 @@ export default function ProfilePage() {
         {/* Content */}
         <div className="p-6">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold text-gray-800">Profile Information</h2>
+            <h2 className="text-2xl font-bold text-[color:var(--text-primary)]">Profile Information</h2>
           </div>
 
           {isEditing ? (
@@ -284,63 +284,63 @@ export default function ProfilePage() {
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    First Name <span className="text-red-500">*</span>
+                  <label className="block text-sm font-medium text-[color:var(--text-primary)] mb-2">
+                    First Name <span className="text-[color:var(--danger)]">*</span>
                   </label>
-                  <input
-                    type="text"
-                    value={form.firstName}
-                    onChange={(e) => setForm({ ...form, firstName: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    required
-                  />
+                   <input
+                     type="text"
+                     value={form.firstName}
+                     onChange={(e) => setForm({ ...form, firstName: e.target.value })}
+                     className="w-full bg-[color:var(--surface)] px-3 py-2 border border-[color:var(--border)] rounded-lg focus:ring-2 focus:ring-[color:var(--ring)] focus:border-[color:var(--ring)] text-[color:var(--text-primary)]"
+                     required
+                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-[color:var(--text-primary)] mb-2">
                     Middle Name
                   </label>
-                  <input
-                    type="text"
-                    value={form.middleName}
-                    onChange={(e) => setForm({ ...form, middleName: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
+                   <input
+                     type="text"
+                     value={form.middleName}
+                     onChange={(e) => setForm({ ...form, middleName: e.target.value })}
+                     className="w-full bg-[color:var(--surface)] px-3 py-2 border border-[color:var(--border)] rounded-lg focus:ring-2 focus:ring-[color:var(--ring)] focus:border-[color:var(--ring)] text-[color:var(--text-primary)]"
+                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Last Name <span className="text-red-500">*</span>
+                  <label className="block text-sm font-medium text-[color:var(--text-primary)] mb-2">
+                    Last Name <span className="text-[color:var(--danger)]">*</span>
                   </label>
-                  <input
-                    type="text"
-                    value={form.lastName}
-                    onChange={(e) => setForm({ ...form, lastName: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    required
-                  />
+                   <input
+                     type="text"
+                     value={form.lastName}
+                     onChange={(e) => setForm({ ...form, lastName: e.target.value })}
+                     className="w-full bg-[color:var(--surface)] px-3 py-2 border border-[color:var(--border)] rounded-lg focus:ring-2 focus:ring-[color:var(--ring)] focus:border-[color:var(--ring)] text-[color:var(--text-primary)]"
+                     required
+                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Email <span className="text-red-500">*</span>
+                  <label className="block text-sm font-medium text-[color:var(--text-primary)] mb-2">
+                    Email <span className="text-[color:var(--danger)]">*</span>
                   </label>
-                  <input
-                    type="email"
-                    value={form.email}
-                    onChange={(e) => setForm({ ...form, email: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    required
-                  />
+                   <input
+                     type="email"
+                     value={form.email}
+                     onChange={(e) => setForm({ ...form, email: e.target.value })}
+                     className="w-full bg-[color:var(--surface)] px-3 py-2 border border-[color:var(--border)] rounded-lg focus:ring-2 focus:ring-[color:var(--ring)] focus:border-[color:var(--ring)] text-[color:var(--text-primary)]"
+                     required
+                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-[color:var(--text-primary)] mb-2">
                     Employee ID
                   </label>
                   <input
                     type="text"
                     value={form.empid}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50"
+                    className="w-full px-3 py-2 border border-[color:var(--border)] rounded-lg focus:ring-2 focus:ring-[color:var(--ring)] focus:border-[color:var(--ring)] bg-[color:var(--surface-hover)]"
                     readOnly
                   />
                 </div>
@@ -348,25 +348,25 @@ export default function ProfilePage() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-[color:var(--text-primary)] mb-2">
                     Phone
                   </label>
-                  <input
-                    type="tel"
-                    value={form.phone}
-                    onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
+                   <input
+                     type="tel"
+                     value={form.phone}
+                     onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                     className="w-full bg-[color:var(--surface)] px-3 py-2 border border-[color:var(--border)] rounded-lg focus:ring-2 focus:ring-[color:var(--ring)] focus:border-[color:var(--ring)] text-[color:var(--text-primary)]"
+                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-[color:var(--text-primary)] mb-2">
                     Blood Group
                   </label>
-                  <select
-                    value={form.bloodGroup}
-                    onChange={(e) => setForm({ ...form, bloodGroup: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
+                   <select
+                     value={form.bloodGroup}
+                     onChange={(e) => setForm({ ...form, bloodGroup: e.target.value })}
+                     className="w-full bg-[color:var(--surface)] px-3 py-2 border border-[color:var(--border)] rounded-lg focus:ring-2 focus:ring-[color:var(--ring)] focus:border-[color:var(--ring)] text-[color:var(--text-primary)]"
+                   >
                     <option value="">Select Blood Group</option>
                     <option value="A+">A+</option>
                     <option value="A-">A-</option>
@@ -381,44 +381,44 @@ export default function ProfilePage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-[color:var(--text-primary)] mb-2">
                   Address
                 </label>
-                <textarea
-                  value={form.address}
-                  onChange={(e) => setForm({ ...form, address: e.target.value })}
-                  rows="3"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
+                 <textarea
+                   value={form.address}
+                   onChange={(e) => setForm({ ...form, address: e.target.value })}
+                   rows="3"
+                   className="w-full bg-[color:var(--surface)] px-3 py-2 border border-[color:var(--border)] rounded-lg focus:ring-2 focus:ring-[color:var(--ring)] focus:border-[color:var(--ring)] text-[color:var(--text-primary)]"
+                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-[color:var(--text-primary)] mb-2">
                   Profile Photo
                 </label>
                 {photoPreview && (
-                  <img src={photoPreview} alt="Profile preview" className="object-cover w-16 h-16 mb-2 rounded-full border border-gray-300" />
+                  <img src={photoPreview} alt="Profile preview" className="object-cover w-16 h-16 mb-2 rounded-full border border-[color:var(--border)]" />
                 )}
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0] || null;
-                    setPhotoFile(file);
-                    setPhotoPreview(file ? URL.createObjectURL(file) : getPhotoUrl(userData?.staff_photo));
-                  }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
+                 <input
+                   type="file"
+                   accept="image/*"
+                   onChange={(e) => {
+                     const file = e.target.files?.[0] || null;
+                     setPhotoFile(file);
+                     setPhotoPreview(file ? URL.createObjectURL(file) : getPhotoUrl(userData?.staff_photo));
+                   }}
+                   className="w-full bg-[color:var(--surface)] px-3 py-2 border border-[color:var(--border)] rounded-lg focus:ring-2 focus:ring-[color:var(--ring)] focus:border-[color:var(--ring)] text-[color:var(--text-primary)]"
+                 />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-[color:var(--text-primary)] mb-2">
                     Department
                   </label>
                   <select
                     value={form.departmentId}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50"
+                    className="w-full px-3 py-2 border border-[color:var(--border)] rounded-lg focus:ring-2 focus:ring-[color:var(--ring)] focus:border-[color:var(--ring)] bg-[color:var(--surface-hover)]"
                     disabled
                   >
                     <option value="">Select Department</option>
@@ -439,12 +439,12 @@ export default function ProfilePage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-[color:var(--text-primary)] mb-2">
                     Designation
                   </label>
                   <select
                     value={form.designationId}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50"
+                    className="w-full px-3 py-2 border border-[color:var(--border)] rounded-lg focus:ring-2 focus:ring-[color:var(--ring)] focus:border-[color:var(--ring)] bg-[color:var(--surface-hover)]"
                     disabled
                   >
                     <option value="">Select Designation</option>
@@ -469,7 +469,7 @@ export default function ProfilePage() {
               <div className="flex gap-3 pt-4">
                 <button
                   type="submit"
-                  className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium flex items-center gap-2"
+                  className="px-6 py-2 bg-[color:var(--success)] text-white rounded-lg hover:bg-[color:var(--success-hover)] transition font-medium flex items-center gap-2"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -482,7 +482,7 @@ export default function ProfilePage() {
                     setIsEditing(false);
                     loadProfile();
                   }}
-                  className="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition font-medium flex items-center gap-2"
+                  className="px-6 py-2 bg-[color:var(--surface-hover)] text-white rounded-lg hover:bg-[color:var(--surface-hover)] transition font-medium flex items-center gap-2"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -495,52 +495,51 @@ export default function ProfilePage() {
             /* View Mode */
             <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <label className="text-sm font-semibold text-gray-600 uppercase">Full Name</label>
-                  <p className="mt-1 text-lg text-gray-900">
+                <div className="bg-[color:var(--surface-hover)] p-4 rounded-lg">
+                  <label className="text-sm font-semibold text-[color:var(--text-muted)] uppercase">Full Name</label>
+                  <p className="mt-1 text-lg text-[color:var(--text-primary)]">
                     {userData?.firstname} {userData?.middlename} {userData?.lastname}
                   </p>
                 </div>
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <label className="text-sm font-semibold text-gray-600 uppercase">Email</label>
-                  <p className="mt-1 text-lg text-gray-900">{userData?.email || 'N/A'}</p>
+                <div className="bg-[color:var(--surface-hover)] p-4 rounded-lg">
+                  <label className="text-sm font-semibold text-[color:var(--text-muted)] uppercase">Email</label>
+                  <p className="mt-1 text-lg text-[color:var(--text-primary)]">{userData?.email || 'N/A'}</p>
                 </div>
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <label className="text-sm font-semibold text-gray-600 uppercase">Employee ID</label>
-                  <p className="mt-1 text-lg text-gray-900">{userData?.empid || 'N/A'}</p>
+                <div className="bg-[color:var(--surface-hover)] p-4 rounded-lg">
+                  <label className="text-sm font-semibold text-[color:var(--text-muted)] uppercase">Employee ID</label>
+                  <p className="mt-1 text-lg text-[color:var(--text-primary)]">{userData?.empid || 'N/A'}</p>
                 </div>
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <label className="text-sm font-semibold text-gray-600 uppercase">Phone</label>
-                  <p className="mt-1 text-lg text-gray-900">{userData?.phone || 'N/A'}</p>
+                <div className="bg-[color:var(--surface-hover)] p-4 rounded-lg">
+                  <label className="text-sm font-semibold text-[color:var(--text-muted)] uppercase">Phone</label>
+                  <p className="mt-1 text-lg text-[color:var(--text-primary)]">{userData?.phone || 'N/A'}</p>
                 </div>
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <label className="text-sm font-semibold text-gray-600 uppercase">Blood Group</label>
-                  <p className="mt-1 text-lg text-gray-900">{userData?.bloodgroup || 'N/A'}</p>
+                <div className="bg-[color:var(--surface-hover)] p-4 rounded-lg">
+                  <label className="text-sm font-semibold text-[color:var(--text-muted)] uppercase">Blood Group</label>
+                  <p className="mt-1 text-lg text-[color:var(--text-primary)]">{userData?.bloodgroup || 'N/A'}</p>
                 </div>
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <label className="text-sm font-semibold text-gray-600 uppercase">Department</label>
-                  <p className="mt-1 text-lg text-gray-900">
+                <div className="bg-[color:var(--surface-hover)] p-4 rounded-lg">
+                  <label className="text-sm font-semibold text-[color:var(--text-muted)] uppercase">Department</label>
+                  <p className="mt-1 text-lg text-[color:var(--text-primary)]">
                     {userDeptDesig.department
                       ? getDepartmentName(userDeptDesig.department)
                       : getDepartmentName(userData?.department_id)}
                   </p>
                 </div>
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <label className="text-sm font-semibold text-gray-600 uppercase">Designation</label>
-                  <p className="mt-1 text-lg text-gray-900">
+                <div className="bg-[color:var(--surface-hover)] p-4 rounded-lg">
+                  <label className="text-sm font-semibold text-[color:var(--text-muted)] uppercase">Designation</label>
+                  <p className="mt-1 text-lg text-[color:var(--text-primary)]">
                     {userDeptDesig.designation
                       ? getDesignationName(userDeptDesig.designation)
                       : getDesignationName(userData?.designation_id)}
                   </p>
                 </div>
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <label className="text-sm font-semibold text-gray-600 uppercase">Status</label>
+                <div className="bg-[color:var(--surface-hover)] p-4 rounded-lg">
+                  <label className="text-sm font-semibold text-[color:var(--text-muted)] uppercase">Status</label>
                   <p className="mt-1">
-                    <span className={`inline-block px-3 py-1 rounded-full text-sm font-semibold ${
-                      userData?.status === 'active' 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-red-100 text-red-800'
-                    }`}>
+                    <span className={`inline-block px-3 py-1 rounded-full text-sm font-semibold ${userData?.status === 'active'
+                        ? 'bg-[color:var(--success-soft)] text-[color:var(--success)]'
+                        : 'bg-[color:var(--danger-soft)] text-[color:var(--danger)]'
+                      }`}>
                       {userData?.status || 'N/A'}
                     </span>
                   </p>
@@ -548,15 +547,15 @@ export default function ProfilePage() {
               </div>
 
               {userData?.address && (
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <label className="text-sm font-semibold text-gray-600 uppercase">Address</label>
-                  <p className="mt-1 text-lg text-gray-900">{userData.address}</p>
+                <div className="bg-[color:var(--surface-hover)] p-4 rounded-lg">
+                  <label className="text-sm font-semibold text-[color:var(--text-muted)] uppercase">Address</label>
+                  <p className="mt-1 text-lg text-[color:var(--text-primary)]">{userData.address}</p>
                 </div>
               )}
 
-              <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                <label className="text-sm font-semibold text-gray-600 uppercase">Account Created</label>
-                <p className="mt-1 text-lg text-gray-900">
+              <div className="bg-[color:var(--surface-hover)] p-4 rounded-lg border border-[color:var(--border)]">
+                <label className="text-sm font-semibold text-[color:var(--text-muted)] uppercase">Account Created</label>
+                <p className="mt-1 text-lg text-[color:var(--text-primary)]">
                   {userData?.created_at ? new Date(userData.created_at).toLocaleDateString('en-US', {
                     year: 'numeric',
                     month: 'long',
@@ -573,7 +572,7 @@ export default function ProfilePage() {
       <div className="mt-6">
         <button
           onClick={() => navigate(-1)}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center gap-2"
+          className="px-4 py-2 bg-[color:var(--accent)] text-white rounded-lg hover:bg-[color:var(--accent-hover)] transition flex items-center gap-2"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />

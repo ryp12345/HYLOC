@@ -124,9 +124,7 @@ const Sidebar = () => {
 
   return (
     <aside
-      className={`${sidebarWidth
-        } text-white transition-all duration-300 min-h-screen shadow-lg`}
-      style={{ backgroundColor: '#001f3f' }}
+      className={`${sidebarWidth} min-h-screen text-[color:var(--sidebar-text)] transition-all duration-300 shadow-lg bg-[color:var(--sidebar-bg)]`}
     >
       {/* Toggle Button */}
       <div className="flex justify-end p-4">
@@ -138,7 +136,7 @@ const Sidebar = () => {
               setIsOpen(!isOpen);
             }
           }}
-          className="text-gray-400 hover:text-white focus:outline-none"
+          className="text-[color:var(--sidebar-muted)] hover:text-[color:var(--sidebar-text)] focus:outline-none focus:ring-2 focus:ring-[color:var(--focus-ring)]"
           aria-label="Toggle sidebar"
         >
           <span className="text-xl select-none">• • •</span>
@@ -156,8 +154,8 @@ const Sidebar = () => {
                   onClick={() => setExpandedMenu(expandedMenu === link.name ? null : link.name)}
                   title={!isOpen && !expandedMenu ? link.name : ''}
                   className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition duration-200 ${expandedMenu === link.name
-                    ? 'bg-blue-500 text-white'
-                    : 'text-gray-300 hover:bg-gray-700'
+                    ? 'bg-[color:var(--accent)] text-white'
+                    : 'text-[color:var(--sidebar-muted)] hover:bg-[color:var(--sidebar-hover)] hover:text-[color:var(--sidebar-text)]'
                     }`}
                 >
                   <span className="text-xl">{link.icon}</span>
@@ -178,8 +176,8 @@ const Sidebar = () => {
                         to={subitem.path}
                         title={!isOpen && expandedMenu ? subitem.name : ''}
                         className={`flex items-center space-x-3 px-8 py-2 rounded-lg transition duration-200 text-sm ${location.pathname === subitem.path
-                          ? 'bg-blue-500 text-white font-semibold'
-                          : 'text-gray-400 hover:text-gray-200 hover:bg-gray-700'
+                          ? 'bg-[color:var(--accent)] text-white font-semibold'
+                          : 'text-[color:var(--sidebar-muted)] hover:bg-[color:var(--sidebar-hover)] hover:text-[color:var(--sidebar-text)]'
                           }`}
                       >
                         <span className="text-lg">{subitem.icon}</span>
@@ -195,8 +193,8 @@ const Sidebar = () => {
                 to={link.path}
                 title={!isOpen ? link.name : ''}
                 className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition duration-200 ${location.pathname === link.path
-                  ? 'bg-blue-500 text-white'
-                  : 'text-gray-300 hover:bg-gray-700'
+                  ? 'bg-[color:var(--accent)] text-white'
+                  : 'text-[color:var(--sidebar-muted)] hover:bg-[color:var(--sidebar-hover)] hover:text-[color:var(--sidebar-text)]'
                   }`}
               >
                 <span className="text-xl">{link.icon}</span>

@@ -73,19 +73,19 @@ const RoleSwitchModal = ({ isOpen, onClose, roles: rolesProp }) => {
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true">
       <div className="flex items-end justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-        <div className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" onClick={handleClose} />
-        <div className="inline-block overflow-hidden text-left align-bottom transition-all transform bg-white rounded-lg shadow-xl sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-          <div className="px-6 py-4 bg-blue-600">
+        <div className="fixed inset-0 transition-opacity bg-black/50 backdrop-blur-sm" onClick={handleClose} />
+        <div className="inline-block w-full max-w-lg overflow-hidden rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] text-left align-bottom shadow-xl transition-all transform sm:my-8 sm:align-middle">
+          <div className="bg-[color:var(--accent)] px-6 py-4">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-medium leading-6 text-white">Switch Role</h3>
-              <button className="text-white hover:text-gray-200" onClick={handleClose}>
+              <button className="text-white hover:opacity-80" onClick={handleClose}>
                 <svg className="w-6 h-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
             </div>
           </div>
-          <div className="px-6 py-5 bg-white">
+          <div className="bg-[color:var(--surface)] px-6 py-5 text-[color:var(--text-primary)]">
             <Notification
               show={notification.show}
               message={notification.message}
@@ -94,19 +94,19 @@ const RoleSwitchModal = ({ isOpen, onClose, roles: rolesProp }) => {
             />
             {roles.length > 1 ? (
               <form onSubmit={handleSwitch} className="space-y-4">
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-[color:var(--text-secondary)]">
                   You have access to multiple roles. Select a role to view the application as that role.
                 </p>
                 <div className="text-sm">
-                  <span className="text-gray-500">Current role: </span>
+                  <span className="text-[color:var(--text-muted)]">Current role: </span>
                   <span className="font-semibold capitalize">{currentRole || 'N/A'}</span>
                 </div>
                 <div>
-                  <label className="block mb-2 text-sm font-medium text-gray-700">Select Role</label>
+                  <label className="block mb-2 text-sm font-medium text-[color:var(--text-secondary)]">Select Role</label>
                   <select
                     value={pendingRole}
                     onChange={(e) => setPendingRole(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 capitalize"
+                    className="w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-4 py-3 capitalize text-[color:var(--text-primary)] focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--focus-ring)]"
                   >
                     {roles.map((r) => (
                       <option key={r} value={r} className="capitalize">{r}</option>
@@ -117,21 +117,21 @@ const RoleSwitchModal = ({ isOpen, onClose, roles: rolesProp }) => {
                   <button
                     type="button"
                     onClick={handleClose}
-                    className="inline-flex justify-center px-6 py-3 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                    className="inline-flex justify-center rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-6 py-3 text-sm font-medium text-[color:var(--text-primary)] shadow-sm hover:bg-[color:var(--surface-hover)] focus:outline-none focus:ring-2 focus:ring-[color:var(--focus-ring)]"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={switching || pendingRole === currentRole}
-                    className="inline-flex justify-center px-6 py-3 text-sm font-medium text-white border border-transparent rounded-lg shadow-sm bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                    className="inline-flex justify-center rounded-lg bg-[color:var(--accent)] px-6 py-3 text-sm font-medium text-white shadow-sm hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-[color:var(--focus-ring)] disabled:opacity-50"
                   >
                     {switching ? 'Switching...' : 'Switch'}
                   </button>
                 </div>
               </form>
             ) : (
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-[color:var(--text-secondary)]">
                 You only have a single role assigned, so role switching is not available.
               </p>
             )}

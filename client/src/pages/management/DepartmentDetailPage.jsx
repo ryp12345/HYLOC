@@ -199,15 +199,16 @@ function DepartmentDetailPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-3">
+      <div className="dashboard-panel-header px-4 py-3 sm:px-5 sm:py-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">Department Detailed Analysis</h1>
-          <p className="text-gray-600 text-sm mt-1">
+          <h1 className="text-2xl font-bold text-white">Department Detailed Analysis</h1>
+          <p className="mt-1 text-sm text-white/90">
             {department?.department_name || department?.departmentName || `Department ${departmentId}`}
           </p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex items-center gap-1 bg-white rounded shadow px-2 py-1 border border-gray-200 h-9 min-h-0">
+          <div className="flex h-9 min-h-0 items-center gap-1 rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-2 py-1 shadow">
             <button
               onClick={() => {
                 const currentIndex = availableFiscalYears.indexOf(selectedFiscalYear);
@@ -216,19 +217,19 @@ function DepartmentDetailPage() {
                 }
               }}
               disabled={availableFiscalYears.length === 0 || availableFiscalYears.indexOf(selectedFiscalYear) <= 0}
-              className="px-2 py-0.5 rounded bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors font-semibold text-xs focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-40 disabled:cursor-not-allowed"
+              className="rounded bg-[color:var(--accent-soft)] px-2 py-0.5 text-xs font-semibold text-[color:var(--accent)] transition hover:bg-[color:var(--surface-hover)] focus:outline-none focus:ring-2 focus:ring-[color:var(--focus-ring)] disabled:cursor-not-allowed disabled:opacity-40"
               title="Previous Fiscal Year"
               style={{ lineHeight: '1' }}
             >
               ‹
             </button>
-            <span className="text-xs text-gray-500 font-medium mr-1">FY</span>
-            <span className="text-sm font-bold text-gray-800 mr-1">
+            <span className="mr-1 text-xs font-semibold uppercase tracking-wide text-[color:var(--text-muted)]">FY</span>
+            <span className="mr-1 text-sm font-bold text-[color:var(--text-primary)]">
               {selectedFiscalYear}-{(selectedFiscalYear + 1).toString().slice(-2)}
             </span>
-            <span className="text-xs text-gray-400 mr-1">Apr {selectedFiscalYear} - Mar {selectedFiscalYear + 1}</span>
+            <span className="mr-1 text-xs text-[color:var(--text-muted)]">Apr {selectedFiscalYear} - Mar {selectedFiscalYear + 1}</span>
             {availableFiscalYears.length > 0 && (
-              <span className="text-xs text-gray-400 mr-1">
+              <span className="mr-1 text-xs text-[color:var(--text-muted)]">
                 ({availableFiscalYears.indexOf(selectedFiscalYear) + 1} / {availableFiscalYears.length})
               </span>
             )}
@@ -240,7 +241,7 @@ function DepartmentDetailPage() {
                 }
               }}
               disabled={availableFiscalYears.length === 0 || availableFiscalYears.indexOf(selectedFiscalYear) >= availableFiscalYears.length - 1}
-              className="px-2 py-0.5 rounded bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors font-semibold text-xs focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-40 disabled:cursor-not-allowed"
+              className="rounded bg-[color:var(--accent-soft)] px-2 py-0.5 text-xs font-semibold text-[color:var(--accent)] transition hover:bg-[color:var(--surface-hover)] focus:outline-none focus:ring-2 focus:ring-[color:var(--focus-ring)] disabled:cursor-not-allowed disabled:opacity-40"
               title="Next Fiscal Year"
               style={{ lineHeight: '1' }}
             >
@@ -250,43 +251,44 @@ function DepartmentDetailPage() {
           <button
             type="button"
             onClick={() => navigate('/management/dashboard')}
-            className="px-4 py-2 rounded-md bg-blue-100 text-blue-700 hover:bg-blue-200 font-semibold"
+            className="rounded-md bg-[color:var(--accent-soft)] px-4 py-2 font-semibold text-[color:var(--accent)] transition hover:bg-[color:var(--surface-hover)]"
           >
             Back to Dashboard
           </button>
         </div>
+        </div>
       </div>
 
       {loading ? (
-        <div className="bg-white rounded-lg shadow border p-8 text-center text-gray-500">Loading department analysis...</div>
+        <div className="rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] p-8 text-center text-[color:var(--text-secondary)] shadow-sm">Loading department analysis...</div>
       ) : error ? (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">{error}</div>
+        <div className="rounded-lg border border-[color:var(--danger-soft)] bg-[color:var(--danger-soft)] p-4 text-[color:var(--danger)]">{error}</div>
       ) : (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-white rounded-lg shadow border p-4">
-              <div className="text-sm text-gray-500">KPIs in Selected Year</div>
-              <div className="text-3xl font-bold text-gray-800 mt-1">{analysis.totalMapped}</div>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <div className="rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] p-4 shadow-sm">
+              <div className="text-sm text-[color:var(--text-secondary)]">KPIs in Selected Year</div>
+              <div className="mt-1 text-3xl font-bold text-[color:var(--text-primary)]">{analysis.totalMapped}</div>
             </div>
-            <div className="bg-white rounded-lg shadow border p-4">
-              <div className="text-sm text-gray-500">Current FY KPIs</div>
-              <div className="text-3xl font-bold text-gray-800 mt-1">{analysis.currentYearMapped}</div>
+            <div className="rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] p-4 shadow-sm">
+              <div className="text-sm text-[color:var(--text-secondary)]">Current FY KPIs</div>
+              <div className="mt-1 text-3xl font-bold text-[color:var(--text-primary)]">{analysis.currentYearMapped}</div>
             </div>
-            <div className="bg-white rounded-lg shadow border p-4">
-              <div className="text-sm text-gray-500">Current FY Coverage</div>
-              <div className="text-3xl font-bold text-green-700 mt-1">{analysis.coveragePercent}%</div>
+            <div className="rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] p-4 shadow-sm">
+              <div className="text-sm text-[color:var(--text-secondary)]">Current FY Coverage</div>
+              <div className="mt-1 text-3xl font-bold text-[color:var(--success)]">{analysis.coveragePercent}%</div>
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow border overflow-hidden">
-            <div className="border-b bg-gray-50 px-4 pt-3">
+          <div className="overflow-hidden rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] shadow-sm">
+            <div className="border-b border-[color:var(--border)] bg-[color:var(--surface-hover)] px-4 pt-3">
               <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => setActiveTab('department')}
                   className={`px-4 py-2 rounded-t-lg text-sm font-semibold transition-colors ${activeTab === 'department'
-                    ? 'bg-white text-blue-700 border border-b-0 border-gray-200'
-                    : 'text-gray-600 hover:text-gray-800'
+                    ? 'bg-[color:var(--surface)] text-[color:var(--accent)] border border-b-0 border-[color:var(--border)]'
+                    : 'text-[color:var(--text-secondary)] hover:text-[color:var(--text-primary)]'
                     }`}
                 >
                   Department KPIS
@@ -295,8 +297,8 @@ function DepartmentDetailPage() {
                   type="button"
                   onClick={() => setActiveTab('employee')}
                   className={`px-4 py-2 rounded-t-lg text-sm font-semibold transition-colors ${activeTab === 'employee'
-                    ? 'bg-white text-blue-700 border border-b-0 border-gray-200'
-                    : 'text-gray-600 hover:text-gray-800'
+                    ? 'bg-[color:var(--surface)] text-[color:var(--accent)] border border-b-0 border-[color:var(--border)]'
+                    : 'text-[color:var(--text-secondary)] hover:text-[color:var(--text-primary)]'
                     }`}
                 >
                   EMPLOYEE KPIS
@@ -305,21 +307,21 @@ function DepartmentDetailPage() {
             </div>
             {activeTab === 'department' ? (
               filteredKpis.length === 0 ? (
-                <div className="p-6 text-gray-500">No KPIs are linked to this department.</div>
+                <div className="p-6 text-[color:var(--text-secondary)]">No KPIs are linked to this department.</div>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="min-w-full text-sm">
-                    <thead className="bg-blue-600">
+                    <thead className="bg-[color:var(--accent)]">
                       <tr>
-                        <th className="text-left px-4 py-2 text-xs font-medium text-white uppercase tracking-wider">KPI Title</th>
-                        <th className="text-left px-4 py-2 text-xs font-medium text-white uppercase tracking-wider">Fiscal Year</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-white">KPI Title</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-white">Fiscal Year</th>
                       </tr>
                     </thead>
                     <tbody>
                       {filteredKpis.map((kpi) => (
                         <tr key={kpi.id} className="border-t">
-                          <td className="px-4 py-2 text-gray-800">{kpi.title || '-'}</td>
-                          <td className="px-4 py-2 text-gray-700">{kpi.fin_year || '-'}</td>
+                          <td className="px-4 py-2 text-[color:var(--text-primary)]">{kpi.title || '-'}</td>
+                          <td className="px-4 py-2 text-[color:var(--text-secondary)]">{kpi.fin_year || '-'}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -329,25 +331,25 @@ function DepartmentDetailPage() {
             ) : (
               <>
                 {employeeKpisLoading ? (
-                  <div className="p-6 text-gray-500">Loading employee KPIs...</div>
+                  <div className="p-6 text-[color:var(--text-secondary)]">Loading employee KPIs...</div>
                 ) : employeeKpiRows.length === 0 ? (
-                  <div className="p-6 text-gray-500">No employee KPIs found for this department.</div>
+                  <div className="p-6 text-[color:var(--text-secondary)]">No employee KPIs found for this department.</div>
                 ) : (
                   <div className="overflow-x-auto">
                     <table className="min-w-full text-sm">
-                      <thead className="bg-blue-600">
+                      <thead className="bg-[color:var(--accent)]">
                         <tr>
-                          <th className="text-left px-4 py-2 text-xs font-medium text-white uppercase tracking-wider">Data Operator</th>
-                          <th className="text-left px-4 py-2 text-xs font-medium text-white uppercase tracking-wider">KPI Title</th>
-                          <th className="text-left px-4 py-2 text-xs font-medium text-white uppercase tracking-wider">Fiscal Year</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-white">Data Operator</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-white">KPI Title</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-white">Fiscal Year</th>
                         </tr>
                       </thead>
                       <tbody>
                         {employeeKpiRows.map((row) => (
                           <tr key={`${row.empId}-${row.kpiId}`} className="border-t">
-                            <td className="px-4 py-2 text-gray-800">{row.name}</td>
-                            <td className="px-4 py-2 text-gray-800">{row.kpiTitle}</td>
-                            <td className="px-4 py-2 text-gray-700">{row.financialYear}</td>
+                            <td className="px-4 py-2 text-[color:var(--text-primary)]">{row.name}</td>
+                            <td className="px-4 py-2 text-[color:var(--text-primary)]">{row.kpiTitle}</td>
+                            <td className="px-4 py-2 text-[color:var(--text-secondary)]">{row.financialYear}</td>
                           </tr>
                         ))}
                       </tbody>

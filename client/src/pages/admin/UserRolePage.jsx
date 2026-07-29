@@ -210,58 +210,58 @@ export default function UserRolePage() {
   useEffect(() => { setPage(1); }, [search, rows]);
 
   return (
-    <div className="min-h-screen px-4 py-12 bg-gradient-to-br from-gray-50 to-gray-100 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-[color:var(--app-bg)] px-4 py-12 text-[color:var(--text-primary)] transition-colors duration-300 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
         <Notification show={notification.show} message={notification.message} type={notification.type} onClose={() => setNotification({ show: false, message: '', type: '' })} />
         <div className="mb-12 text-center">
-          <h1 className="mb-2 text-4xl font-extrabold text-gray-900">User Roles</h1>
-          <p className="text-lg text-gray-600">Assign and manage user roles</p>
+          <h1 className="mb-2 text-4xl font-extrabold text-[color:var(--text-primary)]">User Roles</h1>
+          <p className="text-lg text-[color:var(--text-secondary)]">Assign and manage user roles</p>
         </div>
 
         <div className="flex flex-col items-start justify-between gap-4 mb-6 sm:flex-row sm:items-center">
           <div className="relative w-full sm:w-72">
-            <input value={search} onChange={(e)=>setSearch(e.target.value)} placeholder="Search user roles..." className="w-full py-2 pl-10 pr-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400 absolute left-3 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+            <input value={search} onChange={(e)=>setSearch(e.target.value)} placeholder="Search user roles..." className="w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] py-2 pl-10 pr-4 text-[color:var(--text-primary)] focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--focus-ring)]" />
+            <svg xmlns="http://www.w3.org/2000/svg" className="absolute left-3 top-2.5 h-5 w-5 text-[color:var(--text-muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
           </div>
           <div className="flex flex-col w-full gap-3 sm:w-auto sm:flex-row">
-            <button onClick={exportToExcel} className="flex items-center justify-center w-full px-6 py-3 font-medium text-white transition-all duration-300 transform rounded-lg shadow-lg bg-emerald-600 hover:bg-emerald-700 hover:-translate-y-1 hover:scale-105 sm:w-auto">
+            <button onClick={exportToExcel} className="flex items-center justify-center w-full rounded-lg bg-[color:var(--success)] px-6 py-3 font-medium text-white shadow-lg transition-all duration-300 hover:scale-105 hover:opacity-90 sm:w-auto">
               <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path d="M13 7H7v6h6V7z" /><path fillRule="evenodd" d="M4 3a1 1 0 00-1 1v12a1 1 0 001 1h12a1 1 0 001-1V8.414a1 1 0 00-.293-.707l-3.414-3.414A1 1 0 0012.586 4H4zm8 1.414L15.586 8H13a1 1 0 01-1-1V4.414zM7 9a1 1 0 000 2h6a1 1 0 100-2H7z" clipRule="evenodd" /></svg>
               Export
             </button>
-            <button onClick={openCreate} className="flex items-center justify-center w-full px-6 py-3 font-medium text-white transition-all duration-300 transform rounded-lg shadow-lg bg-blue-600 hover:bg-blue-700 hover:-translate-y-1 hover:scale-105 sm:w-auto">
+            <button onClick={openCreate} className="flex items-center justify-center w-full rounded-lg bg-[color:var(--accent)] px-6 py-3 font-medium text-white shadow-lg transition-all duration-300 hover:scale-105 hover:opacity-90 sm:w-auto">
               <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" /></svg>
               Add User Role
             </button>
           </div>
         </div>
 
-        <div className="mb-10 overflow-hidden bg-white shadow-xl rounded-xl">
+        <div className="mb-10 overflow-hidden rounded-xl border border-[color:var(--border)] bg-[color:var(--surface)] shadow-xl">
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-blue-600">
+            <table className="min-w-full divide-y divide-[color:var(--border)]">
+              <thead className="bg-[color:var(--accent)]">
                 <tr>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">S.NO</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">User</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">Role</th>
-                  <th className="px-6 py-4 text-center text-xs font-medium text-white uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">Assigned At</th>
-                  <th className="px-6 py-4 text-center text-xs font-medium text-white uppercase tracking-wider">Action</th>
+                  <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white">S.NO</th>
+                  <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white">User</th>
+                  <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white">Role</th>
+                  <th className="px-6 py-4 text-center text-xs font-medium uppercase tracking-wider text-white">Status</th>
+                  <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white">Assigned At</th>
+                  <th className="px-6 py-4 text-center text-xs font-medium uppercase tracking-wider text-white">Action</th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="divide-y divide-[color:var(--border)] bg-[color:var(--surface)]">
                 {merged.length === 0 ? (
-                  <tr><td colSpan="6" className="px-6 py-12 text-center text-gray-500">No user roles found</td></tr>
+                  <tr><td colSpan="6" className="px-6 py-12 text-center text-[color:var(--text-muted)]">No user roles found</td></tr>
                 ) : (
                   paginated.map((row, idx) => (
-                    <tr key={row.key} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-colors duration-150`}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{(page - 1) * PAGE_SIZE + idx + 1}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                    <tr key={row.key} className={`transition-colors duration-150 ${idx % 2 === 0 ? 'bg-[color:var(--surface)]' : 'bg-[color:var(--surface-hover)]'} hover:bg-[color:var(--surface-hover)]`}>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-[color:var(--text-primary)]">{(page - 1) * PAGE_SIZE + idx + 1}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-[color:var(--text-secondary)]">
                         {`${row.firstname || ''} ${row.middlename || ''} ${row.lastname || ''}`.trim()} ({row.email})
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-600">
                         <div className="flex flex-col gap-2 items-start">
                           {row.roles.map((role) => (
-                            <span key={role.id} className="px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800 whitespace-nowrap">
+                            <span key={role.id} className="inline-flex whitespace-nowrap rounded-full bg-[color:var(--accent-soft)] px-2.5 py-1 text-xs font-semibold leading-5 text-[color:var(--accent)]">
                               {role.role_name}
                             </span>
                           ))}
@@ -270,15 +270,13 @@ export default function UserRolePage() {
                       <td className="px-6 py-4">
                         <div className="flex flex-col items-center gap-2">
                           {row.roles.map((role) => (
-                            <span key={role.id} className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full whitespace-nowrap ${
-                              role.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                            }`}>
+                            <span key={role.id} className={`inline-flex whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold leading-5 ${role.status === 'active' ? 'bg-[color:var(--success-soft)] text-[color:var(--success)]' : 'bg-[color:var(--danger-soft)] text-[color:var(--danger)]'}`}>
                               {role.status || 'active'}
                             </span>
                           ))}
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">
+                      <td className="px-6 py-4 text-sm text-[color:var(--text-secondary)]">
                         <div className="flex flex-col gap-2">
                           {row.roles.map((role) => (
                             <span key={role.id} className="whitespace-nowrap">
@@ -293,7 +291,7 @@ export default function UserRolePage() {
                             <div key={role.id} className="flex items-center justify-center space-x-2">
                               <button
                                 onClick={() => openEdit(role)}
-                                className="p-2 text-white transition-colors duration-200 bg-blue-600 rounded-lg hover:bg-blue-700"
+                                className="rounded-lg bg-[color:var(--accent)] p-2 text-white transition-colors duration-200 hover:opacity-90"
                                 title={`Edit ${role.role_name} Role`}
                               >
                                 <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -302,7 +300,7 @@ export default function UserRolePage() {
                               </button>
                               <button
                                 onClick={() => remove(role.id)}
-                                className="p-2 text-white transition-colors duration-200 bg-red-600 rounded-lg hover:bg-red-700"
+                                className="rounded-lg bg-[color:var(--danger)] p-2 text-white transition-colors duration-200 hover:opacity-90"
                                 title={`Delete ${role.role_name} Role`}
                               >
                                 <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -323,17 +321,17 @@ export default function UserRolePage() {
           {merged.length > PAGE_SIZE && (
             <div className="flex justify-end items-center gap-2 px-6 pb-6">
               <button
-                className="px-3 py-1 rounded border border-gray-300 bg-white text-gray-700 disabled:opacity-50"
+                className="rounded border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-1 text-[color:var(--text-secondary)] disabled:opacity-50"
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 disabled={page === 1}
               >
                 Prev
               </button>
-              <span className="text-sm text-gray-700">
+              <span className="text-sm text-[color:var(--text-secondary)]">
                  Page {page} of {Math.ceil(merged.length / PAGE_SIZE)}
               </span>
               <button
-                className="px-3 py-1 rounded border border-gray-300 bg-white text-gray-700 disabled:opacity-50"
+                className="rounded border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-1 text-[color:var(--text-secondary)] disabled:opacity-50"
                 onClick={() => setPage(p => Math.min(Math.ceil(merged.length / PAGE_SIZE), p + 1))}
                 disabled={page === Math.ceil(merged.length / PAGE_SIZE)}
               >
@@ -346,59 +344,61 @@ export default function UserRolePage() {
         {isModalOpen && (
           <div className="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true">
             <div className="flex items-end justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-              <div className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" onClick={onClose} />
-              <div className="inline-block overflow-hidden text-left align-bottom transition-all transform bg-white rounded-lg shadow-xl sm:my-8 sm:align-middle sm:max-w-md sm:w-full">
-                <div className="px-6 py-4 bg-blue-600">
+              <div className="fixed inset-0 bg-black/40 backdrop-blur-sm transition-opacity" onClick={onClose} />
+              <div className="inline-block overflow-hidden text-left align-bottom transition-all transform rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] shadow-xl sm:my-8 sm:align-middle sm:max-w-xl sm:w-full">
+                <div className="bg-[color:var(--accent)] px-6 py-4">
                   <div className="flex items-center justify-between">
                     <h3 className="text-lg font-medium leading-6 text-white">{editingId ? 'Edit User Role' : 'Add User Role'}</h3>
-                    <button className="text-white hover:text-gray-200" onClick={onClose}>
+                    <button className="text-white hover:opacity-80" onClick={onClose}>
                       <svg className="w-6 h-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
                   </div>
                 </div>
-                <div className="px-6 py-5 bg-white">
-                  {error && <div className="mb-4 p-3 rounded border border-red-200 text-red-700 bg-red-50 text-sm">{error}</div>}
+                <div className="bg-[color:var(--surface)] px-6 py-5">
+                  {error && <div className="mb-4 rounded border border-[color:var(--danger-soft)] bg-[color:var(--danger-soft)] p-3 text-sm text-[color:var(--danger)]">{error}</div>}
                   <form className="space-y-5" onSubmit={submit}>
-                    <div>
-                      <label className="block mb-2 text-sm font-medium text-gray-700">User</label>
-                      <select
-                        value={form.userId}
-                        onChange={(e) => setForm({ ...form, userId: e.target.value })}
-                        className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        required
-                      >
-                        <option value="">Select User</option>
-                        {users.map((user) => (
-                          <option key={user.id} value={user.id}>
-                            {user.email} - {user.firstname} {user.lastname}
-                          </option>
-                        ))}
-                      </select>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                      <div>
+                        <label className="mb-2 block text-sm font-medium text-[color:var(--text-secondary)]">User</label>
+                        <select
+                          value={form.userId}
+                          onChange={(e) => setForm({ ...form, userId: e.target.value })}
+                          className="block w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-4 py-3 text-[color:var(--text-primary)] focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--focus-ring)]"
+                          required
+                        >
+                          <option value="">Select User</option>
+                          {users.map((user) => (
+                            <option key={user.id} value={user.id}>
+                              {user.email} - {user.firstname} {user.lastname}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="mb-2 block text-sm font-medium text-[color:var(--text-secondary)]">Role</label>
+                        <select
+                          value={form.roleId}
+                          onChange={(e) => setForm({ ...form, roleId: e.target.value })}
+                          className="block w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-4 py-3 text-[color:var(--text-primary)] focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--focus-ring)]"
+                          required
+                        >
+                          <option value="">Select Role</option>
+                          {roles.map((role) => (
+                            <option key={role.id} value={role.id}>
+                              {role.role_name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
 
                     <div>
-                      <label className="block mb-2 text-sm font-medium text-gray-700">Role</label>
-                      <select
-                        value={form.roleId}
-                        onChange={(e) => setForm({ ...form, roleId: e.target.value })}
-                        className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        required
-                      >
-                        <option value="">Select Role</option>
-                        {roles.map((role) => (
-                          <option key={role.id} value={role.id}>
-                            {role.role_name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block mb-2 text-sm font-medium text-gray-700">Status</label>
+                      <label className="mb-2 block text-sm font-medium text-[color:var(--text-secondary)]">Status</label>
                       <select
                         value={form.status}
                         onChange={(e) => setForm({ ...form, status: e.target.value })}
-                        className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="block w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-4 py-3 text-[color:var(--text-primary)] focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--focus-ring)]"
                       >
                         <option value="active">Active</option>
                         <option value="inactive">Inactive</option>
@@ -406,8 +406,8 @@ export default function UserRolePage() {
                     </div>
 
                     <div className="flex justify-end space-x-4 pt-4">
-                      <button type="button" onClick={onClose} className="inline-flex justify-center px-6 py-3 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">Cancel</button>
-                      <button type="submit" className="inline-flex justify-center px-6 py-3 text-sm font-medium text-white border border-transparent rounded-lg shadow-sm bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">{editingId? 'Update Role':'Create Role'}</button>
+                      <button type="button" onClick={onClose} className="inline-flex justify-center rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-6 py-3 text-sm font-medium text-[color:var(--text-secondary)] shadow-sm hover:bg-[color:var(--surface-hover)] focus:outline-none focus:ring-2 focus:ring-[color:var(--focus-ring)]">Cancel</button>
+                      <button type="submit" className="inline-flex justify-center rounded-lg bg-[color:var(--accent)] px-6 py-3 text-sm font-medium text-white shadow-sm hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-[color:var(--focus-ring)]">{editingId? 'Update Role':'Create Role'}</button>
                     </div>
                   </form>
                 </div>

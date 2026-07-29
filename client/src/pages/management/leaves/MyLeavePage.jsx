@@ -96,47 +96,47 @@ const MyLeavePage = () => {
   };
 
   return (
-    <div className="min-h-screen px-4 py-12 bg-gradient-to-br from-gray-50 to-gray-100 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-[color:var(--app-bg)] px-4 py-12 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
         <div className="mb-12 text-center">
-          <h1 className="mb-2 text-4xl font-extrabold text-gray-900">My Leave Requests</h1>
-          <p className="text-lg text-gray-600">View and search your leave requests</p>
+          <h1 className="mb-2 text-4xl font-extrabold text-[color:var(--text-primary)]">My Leave Requests</h1>
+          <p className="text-lg text-[color:var(--text-secondary)]">View and search your leave requests</p>
         </div>
         {error && (
-          <div className="mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+          <div className="mb-4 rounded border border-[color:var(--danger-soft)] bg-[color:var(--danger-soft)] px-4 py-3 text-[color:var(--danger)]">
             {error}
           </div>
         )}
         <div className="mb-6">
           <form
-            className="bg-white rounded-xl shadow p-4 flex flex-row flex-wrap items-end gap-4 w-full"
+            className="flex w-full flex-row flex-wrap items-end gap-4 rounded-xl border border-[color:var(--border)] bg-[color:var(--surface)] p-4 shadow-sm"
             onSubmit={e => {
               e.preventDefault();
               setFilter({ ...pendingFilter });
             }}
           >
             <div className="min-w-[150px] max-w-[200px] flex-1">
-              <label className="block text-xs font-semibold text-gray-600 mb-1">From Date</label>
+              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-[color:var(--text-muted)]">From Date</label>
               <input
                 type="date"
-                className="border rounded px-3 py-2 w-full"
+                className="w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-2 text-[color:var(--text-primary)] outline-none transition focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--focus-ring)]"
                 value={pendingFilter.from}
                 onChange={e => setPendingFilter(f => ({ ...f, from: e.target.value }))}
               />
             </div>
             <div className="min-w-[150px] max-w-[200px] flex-1">
-              <label className="block text-xs font-semibold text-gray-600 mb-1">To Date</label>
+              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-[color:var(--text-muted)]">To Date</label>
               <input
                 type="date"
-                className="border rounded px-3 py-2 w-full"
+                className="w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-2 text-[color:var(--text-primary)] outline-none transition focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--focus-ring)]"
                 value={pendingFilter.to}
                 onChange={e => setPendingFilter(f => ({ ...f, to: e.target.value }))}
               />
             </div>
             <div className="min-w-[120px] max-w-[140px] flex-1">
-              <label className="block text-xs font-semibold text-gray-600 mb-1">Year</label>
+              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-[color:var(--text-muted)]">Year</label>
               <select
-                className="border rounded px-3 py-2 w-full"
+                className="w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-2 text-[color:var(--text-primary)] outline-none transition hover:border-[color:var(--accent)] focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--focus-ring)]"
                 value={pendingFilter.year}
                 onChange={e => setPendingFilter(f => ({ ...f, year: Number(e.target.value) }))}
               >
@@ -146,50 +146,50 @@ const MyLeavePage = () => {
               </select>
             </div>
             <div className="relative w-full sm:w-72">
-              <label className="block text-xs font-semibold text-gray-600 mb-1">Search</label>
-              <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search leaves..." className="w-full py-2 pl-10 pr-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400 absolute left-3 top-9" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-[color:var(--text-muted)]">Search</label>
+              <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search leaves..." className="w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] py-2 pl-10 pr-4 text-[color:var(--text-primary)] outline-none transition hover:border-[color:var(--accent)] focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--focus-ring)]" />
+              <svg xmlns="http://www.w3.org/2000/svg" className="absolute left-3 top-9 h-5 w-5 text-[color:var(--text-muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
             </div>
             <button
               type="submit"
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition"
+              className="rounded-lg bg-[color:var(--accent)] px-4 py-2 font-semibold text-white transition hover:bg-[color:var(--accent-hover)]"
               style={{ minWidth: 100 }}
             >
               Search
             </button>
           </form>
         </div>
-        <div className="mb-10 overflow-hidden bg-white shadow-xl rounded-xl">
+        <div className="mb-10 overflow-hidden rounded-xl border border-[color:var(--border)] bg-[color:var(--surface)] shadow-xl">
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-blue-600">
+            <table className="min-w-full divide-y divide-[color:var(--border)]">
+              <thead className="bg-[color:var(--accent)]">
                 <tr>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">S.NO</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">From Date</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">To Date</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">Department</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">Reason</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white">S.NO</th>
+                  <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white">From Date</th>
+                  <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white">To Date</th>
+                  <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white">Department</th>
+                  <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white">Reason</th>
+                  <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white">Status</th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="divide-y divide-[color:var(--border)] bg-[color:var(--surface)]">
                 {loading ? (
-                  <tr><td colSpan="6" className="p-8 text-center text-gray-500">Loading...</td></tr>
+                  <tr><td colSpan="6" className="p-8 text-center text-[color:var(--text-secondary)]">Loading...</td></tr>
                 ) : paginatedLeaves.length === 0 ? (
-                  <tr><td colSpan="6" className="p-8 text-center text-gray-500">No leave requests found</td></tr>
+                  <tr><td colSpan="6" className="p-8 text-center text-[color:var(--text-secondary)]">No leave requests found</td></tr>
                 ) : (
                   paginatedLeaves.map((leave, idx) => (
-                    <tr key={leave.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{(currentPage - 1) * PAGE_SIZE + idx + 1}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{formatDate(leave.from_date)}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{formatDate(leave.to_date)}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{leave.department_name || '-'}</td>
-                      <td className="px-6 py-4 text-sm text-gray-900">{leave.leave_reason || '-'}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                          leave.status === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
-                          leave.status === 'Approved' ? 'bg-green-100 text-green-800' :
-                          'bg-red-100 text-red-800'
+                    <tr key={leave.id} className={idx % 2 === 0 ? 'bg-[color:var(--surface)]' : 'bg-[color:var(--surface-hover)]/60'}>
+                      <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-[color:var(--text-primary)]">{(currentPage - 1) * PAGE_SIZE + idx + 1}</td>
+                      <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-[color:var(--text-primary)]">{formatDate(leave.from_date)}</td>
+                      <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-[color:var(--text-primary)]">{formatDate(leave.to_date)}</td>
+                      <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-[color:var(--text-primary)]">{leave.department_name || '-'}</td>
+                      <td className="px-6 py-4 text-sm text-[color:var(--text-primary)]">{leave.leave_reason || '-'}</td>
+                      <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-[color:var(--text-primary)]">
+                        <span className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                          leave.status === 'Pending' ? 'bg-[color:var(--warning-soft)] text-[color:var(--warning)]' :
+                          leave.status === 'Approved' ? 'bg-[color:var(--success-soft)] text-[color:var(--success)]' :
+                          'bg-[color:var(--danger-soft)] text-[color:var(--danger)]'
                         }`}>
                           {leave.status}
                         </span>
@@ -204,17 +204,17 @@ const MyLeavePage = () => {
           {filteredLeaves.length > PAGE_SIZE && (
             <div className="flex justify-end items-center gap-2 px-6 pb-6">
               <button
-                className="px-3 py-1 rounded border border-gray-300 bg-white text-gray-700 disabled:opacity-50"
+                className="rounded border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-1 text-[color:var(--text-secondary)] transition hover:bg-[color:var(--surface-hover)] disabled:opacity-50"
                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
               >
                 Prev
               </button>
-              <span className="text-sm text-gray-700">
+              <span className="text-sm text-[color:var(--text-secondary)]">
                 Page {currentPage} of {Math.ceil(filteredLeaves.length / PAGE_SIZE)}
               </span>
               <button
-                className="px-3 py-1 rounded border border-gray-300 bg-white text-gray-700 disabled:opacity-50"
+                className="rounded border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-1 text-[color:var(--text-secondary)] transition hover:bg-[color:var(--surface-hover)] disabled:opacity-50"
                 onClick={() => setCurrentPage(p => Math.min(Math.ceil(filteredLeaves.length / PAGE_SIZE), p + 1))}
                 disabled={currentPage === Math.ceil(filteredLeaves.length / PAGE_SIZE)}
               >

@@ -52,13 +52,13 @@ const ChartTooltip = ({ active, payload, label }) => {
     return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
   };
   return (
-    <div className="rounded-lg border border-slate-700 bg-slate-950/95 px-3 py-2 text-xs shadow-lg backdrop-blur">
-      {label != null && <div className="mb-1 font-bold text-slate-100">{label}</div>}
+    <div className="rounded-lg border border-[color:var(--border)] bg-[color:var(--surface-elevated)]/95 px-3 py-2 text-xs shadow-lg backdrop-blur">
+      {label != null && <div className="mb-1 font-bold text-[color:var(--text-primary)]">{label}</div>}
       {payload.map((p, i) => (
         <div key={i} className="flex items-center gap-2">
           <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: p.color || p.stroke || p.fill }}></span>
-          <span className="font-semibold text-slate-400">{p.name}:</span>
-          <span className="font-bold text-slate-100">{formatTooltipValue(p.value)}</span>
+          <span className="font-semibold text-[color:var(--text-secondary)]">{p.name}:</span>
+          <span className="font-bold text-[color:var(--text-primary)]">{formatTooltipValue(p.value)}</span>
         </div>
       ))}
     </div>
@@ -83,7 +83,7 @@ const Industry40LineChart = ({
   const tf = isExpanded ? 13 : 12;
   return (
     <div className="flex h-full w-full flex-col">
-      {showHeader && <h2 className="mb-1 text-center text-base font-bold text-cyan-300">{title}</h2>}
+      {showHeader && <h2 className="mb-1 text-center text-base font-bold text-[color:var(--accent)]">{title}</h2>}
       <div className="min-h-0 flex-1">
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={data} margin={{ top: 10, right: 16, left: 0, bottom: 0 }}>
@@ -93,12 +93,12 @@ const Industry40LineChart = ({
                 <stop offset="100%" stopColor="#0284c7" />
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="4 4" stroke="rgba(59,130,246,0.12)" vertical={false} />
-            <XAxis dataKey="name" tick={{ fontSize: tf, fill: '#94a3b8', fontWeight: 800 }} tickLine={false} axisLine={{ stroke: 'rgba(148,163,184,0.3)' }} />
-            <YAxis domain={[0, yMax]} unit={unit} allowDecimals={allowDecimals} tick={{ fontSize: tf, fill: '#94a3b8', fontWeight: 800 }} tickLine={false} axisLine={false} width={38} />
-            <Tooltip content={<ChartTooltip />} cursor={{ fill: 'rgba(15,23,42,0.16)' }} />
+            <CartesianGrid strokeDasharray="4 4" stroke="color-mix(in srgb, var(--accent) 18%, transparent)" vertical={false} />
+            <XAxis dataKey="name" tick={{ fontSize: tf, fill: 'var(--text-muted)', fontWeight: 800 }} tickLine={false} axisLine={{ stroke: 'var(--border)' }} />
+            <YAxis domain={[0, yMax]} unit={unit} allowDecimals={allowDecimals} tick={{ fontSize: tf, fill: 'var(--text-muted)', fontWeight: 800 }} tickLine={false} axisLine={false} width={38} />
+            <Tooltip content={<ChartTooltip />} cursor={{ fill: 'color-mix(in srgb, var(--app-bg) 84%, transparent)' }} />
             <Bar dataKey="Actual" fill="url(#i40Bar)" radius={[6, 6, 0, 0]} maxBarSize={36} name="Actual">
-              <LabelList dataKey="Actual" position="top" formatter={(v) => unit ? `${Math.round(v)}${unit}` : Math.round(v)} style={{ fontSize: tf, fill: '#38bdf8', fontWeight: 800 }} />
+              <LabelList dataKey="Actual" position="top" formatter={(v) => unit ? `${Math.round(v)}${unit}` : Math.round(v)} style={{ fontSize: tf, fill: 'var(--accent)', fontWeight: 800 }} />
             </Bar>
           </ComposedChart>
         </ResponsiveContainer>
@@ -120,7 +120,7 @@ const SpeedometerGauge = ({ efficiency, month, year }) => {
   const angle = -180 + (value / 100) * 180;
   return (
     <div className="flex h-full w-full flex-col items-center justify-center" style={{ overflow: 'hidden' }}>
-      <div className="text-[10px] font-bold text-slate-100 sm:text-[11px] leading-none">{month} {year}</div>
+      <div className="text-[10px] font-bold text-[color:var(--text-primary)] sm:text-[11px] leading-none">{month} {year}</div>
       <div className="relative w-full flex-1 min-h-0 flex items-center justify-center">
         <svg
           viewBox="0 0 300 220"
@@ -148,8 +148,8 @@ const SpeedometerGauge = ({ efficiency, month, year }) => {
           <text x="292" y="204" fontSize="15" fontWeight="800" fill="#e5e7eb" textAnchor="end">100</text>
         </svg>
       </div>
-      <div className="text-center mt-0.5">
-        <div className="font-extrabold text-cyan-300 text-base sm:text-lg">{value.toFixed(1)}%</div>
+      <div className="mt-0.5 text-center">
+        <div className="text-base font-extrabold text-[color:var(--accent)] sm:text-lg">{value.toFixed(1)}%</div>
       </div>
     </div>
   );
@@ -163,8 +163,8 @@ const GreenFactoryBarChart = ({ title, subtitle, labels, values, showHeader = tr
   const tf = isExpanded ? 13 : 12;
   return (
     <div className="flex h-full w-full flex-col">
-      {showHeader && <h2 className="mb-1 text-center text-base font-bold text-cyan-300">{title}</h2>}
-      {showHeader && subtitle && <p className="mb-1 text-center text-xs font-semibold uppercase tracking-wide text-slate-400">{subtitle}</p>}
+      {showHeader && <h2 className="mb-1 text-center text-base font-bold text-[color:var(--accent)]">{title}</h2>}
+      {showHeader && subtitle && <p className="mb-1 text-center text-xs font-semibold uppercase tracking-wide text-[color:var(--text-muted)]">{subtitle}</p>}
       <div className="min-h-0 flex-1">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} margin={{ top: 10, right: 8, left: 0, bottom: 0 }}>
@@ -209,12 +209,12 @@ const ZeroAccidentsBarChart = ({ title, subtitle, labels, actuals, showHeader = 
       <div className="min-h-0 flex-1">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} margin={{ top: 10, right: 8, left: 0, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="4 4" stroke="rgba(59,130,246,0.12)" vertical={false} />
-            <XAxis dataKey="name" tick={{ fontSize: tf, fill: '#94a3b8', fontWeight: 700 }} tickLine={false} axisLine={{ stroke: 'rgba(148,163,184,0.3)' }} interval="preserveStartEnd" />
-            <YAxis domain={[0, yMax]} tick={{ fontSize: tf, fill: '#94a3b8', fontWeight: 700 }} tickLine={false} axisLine={false} width={38} allowDecimals={false} />
-            <Tooltip content={<ChartTooltip />} cursor={{ fill: 'rgba(15,23,42,0.16)' }} />
-            <Bar dataKey="Actual" fill="#2563eb" radius={[4, 4, 0, 0]} maxBarSize={36} name="Actual">
-              <LabelList dataKey="Actual" position="top" formatter={(v) => Math.round(v)} style={{ fontSize: tf, fill: '#93c5fd', fontWeight: 800 }} />
+            <CartesianGrid strokeDasharray="4 4" stroke="color-mix(in srgb, var(--accent) 18%, transparent)" vertical={false} />
+            <XAxis dataKey="name" tick={{ fontSize: tf, fill: 'var(--text-muted)', fontWeight: 700 }} tickLine={false} axisLine={{ stroke: 'var(--border)' }} interval="preserveStartEnd" />
+            <YAxis domain={[0, yMax]} tick={{ fontSize: tf, fill: 'var(--text-muted)', fontWeight: 700 }} tickLine={false} axisLine={false} width={38} allowDecimals={false} />
+            <Tooltip content={<ChartTooltip />} cursor={{ fill: 'color-mix(in srgb, var(--app-bg) 84%, transparent)' }} />
+            <Bar dataKey="Actual" fill="var(--accent)" radius={[4, 4, 0, 0]} maxBarSize={36} name="Actual">
+              <LabelList dataKey="Actual" position="top" formatter={(v) => Math.round(v)} style={{ fontSize: tf, fill: 'var(--accent)', fontWeight: 800 }} />
             </Bar>
           </BarChart>
         </ResponsiveContainer>
@@ -314,10 +314,10 @@ const PillarRadarChart = ({ pillars, onPillarClick, compact = false }) => {
   const chart = (
     <ResponsiveContainer width="100%" height="100%">
       <RadarChart data={data} outerRadius="78%">
-        <PolarGrid stroke="#e2e8f0" />
-        <PolarAngleAxis dataKey="subject" tick={{ fontSize: 12, fill: '#334155', fontWeight: 600 }} />
-        <PolarRadiusAxis tick={{ fontSize: 11, fill: '#94a3b8' }} />
-        <Radar dataKey="value" stroke="#2563eb" fill="#2563eb" fillOpacity={0.3} strokeWidth={2} />
+        <PolarGrid stroke="var(--border)" />
+        <PolarAngleAxis dataKey="subject" tick={{ fontSize: 12, fill: 'var(--text-primary)', fontWeight: 600 }} />
+        <PolarRadiusAxis tick={{ fontSize: 11, fill: 'var(--text-muted)' }} />
+        <Radar dataKey="value" stroke="var(--accent)" fill="var(--accent)" fillOpacity={0.3} strokeWidth={2} />
         <Tooltip content={<ChartTooltip />} />
       </RadarChart>
     </ResponsiveContainer>
@@ -332,14 +332,14 @@ const PillarRadarChart = ({ pillars, onPillarClick, compact = false }) => {
   }
 
   if (data.length === 0) {
-    return <div className="rounded-lg border border-slate-200 bg-white p-4 text-center text-gray-500 shadow-lg">No pillars available</div>;
+    return <div className="border border-[color:var(--border)] bg-[color:var(--surface)] p-2 text-center text-[color:var(--text-muted)] shadow-sm">No pillars available</div>;
   }
 
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-lg">
-      <div className="mb-3">
-        <h3 className="text-xl font-bold text-slate-800">Explore Pillars</h3>
-        <p className="text-sm text-slate-500">Radar view of pillar KPIs for the selected financial year</p>
+    <div className="border border-[color:var(--border)] bg-[color:var(--surface)] p-2 shadow-sm">
+      <div className="mb-2">
+        <h3 className="text-xl font-bold text-[color:var(--text-primary)]">Explore Pillars</h3>
+        <p className="text-sm text-[color:var(--text-muted)]">Radar view of pillar KPIs for the selected financial year</p>
       </div>
       <div className="flex flex-col items-start gap-6 lg:flex-row lg:items-center">
         <div className="h-[360px] w-full lg:w-[420px]">{chart}</div>
@@ -350,14 +350,14 @@ const PillarRadarChart = ({ pillars, onPillarClick, compact = false }) => {
                 key={d.pillar?.id || d.subject}
                 type="button"
                 onClick={() => onPillarClick?.(d.pillar)}
-                className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-left transition-colors hover:border-blue-300 hover:bg-blue-50"
+                className="rounded-lg border border-[color:var(--border)] bg-[color:var(--surface-hover)] px-4 py-3 text-left transition-colors hover:border-[color:var(--accent)] hover:bg-[color:var(--surface-elevated)]"
               >
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <div className="text-sm font-semibold text-slate-900">{d.pillar?.piller_name || d.pillar?.pillar_name || d.subject}</div>
-                    {d.pillar?.short_name && <div className="text-xs text-slate-500">{d.pillar.short_name}</div>}
+                    <div className="text-sm font-semibold text-[color:var(--text-primary)]">{d.pillar?.piller_name || d.pillar?.pillar_name || d.subject}</div>
+                    {d.pillar?.short_name && <div className="text-xs text-[color:var(--text-muted)]">{d.pillar.short_name}</div>}
                   </div>
-                  <div className="text-lg font-bold text-blue-700">{d.value}</div>
+                  <div className="text-lg font-bold text-[color:var(--accent)]">{d.value}</div>
                 </div>
               </button>
             ))}
@@ -383,7 +383,7 @@ const DepartmentPerformanceRadarChart = ({ departments, onDepartmentClick }) => 
         x={x}
         y={y}
         onClick={() => onDepartmentClick?.(dept)}
-        style={{ cursor: 'pointer', fontSize: 12, fill: '#334155', fontWeight: 600 }}
+        style={{ cursor: 'pointer', fontSize: 12, fill: 'var(--text-primary)', fontWeight: 600 }}
       >
         {payload?.value}
       </text>
@@ -392,20 +392,20 @@ const DepartmentPerformanceRadarChart = ({ departments, onDepartmentClick }) => 
 
   if (!data.length) {
     return (
-      <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-lg">
-        <div className="py-16 text-center text-gray-500">No department performance data available</div>
+      <div className="border border-[color:var(--border)] bg-[color:var(--surface)] p-2 shadow-sm">
+        <div className="py-8 text-center text-[color:var(--text-muted)]">No department performance data available</div>
       </div>
     );
   }
 
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-lg">
+    <div className="border border-[color:var(--border)] bg-[color:var(--surface)] p-2 shadow-sm">
       <div className="h-[460px] w-full">
         <ResponsiveContainer width="100%" height="100%">
           <RadarChart data={data} outerRadius="72%">
-            <PolarGrid stroke="#e2e8f0" />
+            <PolarGrid stroke="var(--border)" />
             <PolarAngleAxis dataKey="subject" tick={<CustomDepartmentTick />} />
-            <PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fontSize: 11, fill: '#94a3b8' }} tickFormatter={(v) => `${v}%`} />
+            <PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fontSize: 11, fill: 'var(--text-muted)' }} tickFormatter={(v) => `${v}%`} />
             <Radar dataKey="value" stroke="#15803d" fill="#15803d" fillOpacity={0.25} strokeWidth={2} onClick={(event) => onDepartmentClick?.(event?.activePayload?.[0]?.payload?.department)} />
             <Tooltip content={<ChartTooltip />} />
           </RadarChart>
@@ -571,7 +571,7 @@ function ManagementDashboard() {
   const StaffPerformanceList = ({ staffList, loading }) => {
     if (loading) {
       return (
-        <div className="rounded-lg border border-slate-200 bg-white p-6 text-center text-gray-500 shadow-lg">
+        <div className="border border-[color:var(--border)] bg-[color:var(--surface)] p-4 text-center text-[color:var(--text-muted)] shadow-sm">
           Loading staff performance...
         </div>
       );
@@ -579,7 +579,7 @@ function ManagementDashboard() {
 
     if (!staffList.length) {
       return (
-        <div className="rounded-lg border border-slate-200 bg-white p-6 text-center text-gray-500 shadow-lg">
+        <div className="border border-[color:var(--border)] bg-[color:var(--surface)] p-4 text-center text-[color:var(--text-muted)] shadow-sm">
           No staff data available
         </div>
       );
@@ -590,25 +590,25 @@ function ManagementDashboard() {
     const low = staffList.filter(s => s.performance < 33);
 
     const StaffCard = ({ staff }) => {
-      let perfColor = 'bg-red-100 text-red-700 border-red-300';
-      if (staff.performance >= 66) perfColor = 'bg-green-100 text-green-700 border-green-300';
-      else if (staff.performance >= 33) perfColor = 'bg-orange-100 text-orange-700 border-orange-300';
+      let perfColor = 'bg-[color:var(--danger-soft)] text-[color:var(--danger)] border-[color:var(--danger)]/30';
+      if (staff.performance >= 66) perfColor = 'bg-[color:var(--success-soft)] text-[color:var(--success)] border-[color:var(--success)]/30';
+      else if (staff.performance >= 33) perfColor = 'bg-[color:var(--accent-soft)] text-[color:var(--accent)] border-[color:var(--accent)]/30';
 
       const photoUrl = getPhotoUrl(staff.photo);
       return (
-        <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm flex items-center gap-3 hover:shadow-md transition-shadow">
+        <div className="flex items-center gap-3 rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] p-3 shadow-sm transition-shadow hover:shadow-md">
           <div className="flex-shrink-0">
             {photoUrl ? (
-              <img src={photoUrl} alt={staff.name} className="h-12 w-12 rounded-full object-cover border-2 border-white shadow-sm" />
+              <img src={photoUrl} alt={staff.name} className="h-12 w-12 rounded-full border-2 border-[color:var(--surface)] object-cover shadow-sm" />
             ) : (
-              <div className="h-12 w-12 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 font-bold text-xs border-2 border-white shadow-sm">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-[color:var(--surface)] bg-[color:var(--surface-hover)] text-xs font-bold text-[color:var(--text-secondary)] shadow-sm">
                 {staff.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
               </div>
             )}
           </div>
           <div className="flex-1 min-w-0">
-            <div className="font-semibold text-gray-900 truncate text-sm">{staff.name}</div>
-            <div className="text-xs text-gray-500 truncate">{staff.designation || 'No designation'}</div>
+            <div className="truncate text-sm font-semibold text-[color:var(--text-primary)]">{staff.name}</div>
+            <div className="truncate text-xs text-[color:var(--text-muted)]">{staff.designation || 'No designation'}</div>
           </div>
           <div className={`flex-shrink-0 px-2 py-0.5 rounded-full text-xs font-bold border ${perfColor}`}>
             {staff.performance}%
@@ -619,12 +619,12 @@ function ManagementDashboard() {
 
     const Column = ({ title, color, items }) => (
       <div className="flex flex-col gap-2">
-        <div className={`rounded-t-lg border border-b-0 px-3 py-2 text-center font-extrabold text-sm ${color}`}>
+        <div className={`border border-b-0 px-3 py-2 text-center text-sm font-extrabold ${color}`}>
           {title} ({items.length})
         </div>
-        <div className="flex-1 overflow-y-auto rounded-b-lg border border-t-0 bg-slate-50/50 p-2 space-y-2" style={{ maxHeight: '600px' }}>
+        <div className="flex-1 space-y-2 overflow-y-auto border-t-0 border-[color:var(--border)] bg-[color:var(--surface)]/60 p-2" style={{ maxHeight: '600px' }}>
           {items.length === 0 ? (
-            <div className="text-center text-gray-400 text-xs py-4">No staff</div>
+            <div className="py-4 text-center text-xs text-[color:var(--text-muted)]">No staff</div>
           ) : (
             items.map(staff => <StaffCard key={staff.id} staff={staff} />)
           )}
@@ -633,10 +633,10 @@ function ManagementDashboard() {
     );
 
     return (
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Column title="BEST" color="bg-green-100 text-green-800 border-green-300" items={best} />
-        <Column title="MEDIUM" color="bg-orange-100 text-orange-800 border-orange-300" items={medium} />
-        <Column title="LOW" color="bg-red-100 text-red-800 border-red-300" items={low} />
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <Column title="BEST" color="bg-[color:var(--success-soft)] text-[color:var(--success)] border-[color:var(--success)]/30" items={best} />
+        <Column title="MEDIUM" color="bg-[color:var(--accent-soft)] text-[color:var(--accent)] border-[color:var(--accent)]/30" items={medium} />
+        <Column title="LOW" color="bg-[color:var(--danger-soft)] text-[color:var(--danger)] border-[color:var(--danger)]/30" items={low} />
       </div>
     );
   };
@@ -1766,7 +1766,7 @@ function ManagementDashboard() {
   };
 
   return (
-    <div className="dashboard-dark-bg space-y-2 p-0.5 sm:p-1">
+    <div className="dashboard-dark-bg space-y-2 p-0.5 transition-colors duration-300 sm:p-1">
 
       {/* Header */}
       <div className="dashboard-panel-header px-4 py-1.5 sm:px-5 sm:py-2">
@@ -1777,7 +1777,7 @@ function ManagementDashboard() {
 
           <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
             {/* Fiscal Year Selector */}
-            <div className="flex items-center gap-0.5 rounded-lg border border-blue-200/40 bg-white px-1.5 py-0.5 shadow h-7">
+            <div className="flex h-7 items-center gap-0.5 rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-1.5 py-0.5 shadow">
               <button
                 onClick={() => {
                   const currentIndex = availableFiscalYears.indexOf(selectedFiscalYear);
@@ -1786,19 +1786,19 @@ function ManagementDashboard() {
                   }
                 }}
                 disabled={availableFiscalYears.length === 0 || availableFiscalYears.indexOf(selectedFiscalYear) <= 0}
-                className="rounded bg-blue-100 px-1.5 py-0 text-[10px] font-semibold text-blue-700 transition-colors hover:bg-blue-200 focus:outline-none focus:ring-1 focus:ring-blue-400 disabled:cursor-not-allowed disabled:opacity-40"
+                className="rounded bg-[color:var(--accent-soft)] px-1.5 py-0 text-[10px] font-semibold text-[color:var(--accent)] transition-colors hover:bg-[color:var(--surface-hover)] focus:outline-none focus:ring-1 focus:ring-[color:var(--focus-ring)] disabled:cursor-not-allowed disabled:opacity-40"
                 title="Previous Fiscal Year"
                 style={{ lineHeight: '1' }}
               >
                 ‹
               </button>
-              <span className="mr-0.5 text-[10px] font-medium text-gray-500">FY</span>
-              <span className="mr-0.5 text-xs font-bold text-gray-800">
+              <span className="mr-0.5 text-[10px] font-medium text-[color:var(--text-muted)]">FY</span>
+              <span className="mr-0.5 text-xs font-bold text-[color:var(--text-primary)]">
                 {selectedFiscalYear}-{(selectedFiscalYear + 1).toString().slice(-2)}
               </span>
-              <span className="mr-0.5 text-[10px] text-gray-400">Apr {selectedFiscalYear} - Mar {selectedFiscalYear + 1}</span>
+              <span className="mr-0.5 text-[10px] text-[color:var(--text-muted)]">Apr {selectedFiscalYear} - Mar {selectedFiscalYear + 1}</span>
               {availableFiscalYears.length > 0 && (
-                <span className="mr-0.5 text-[10px] text-gray-400">
+                <span className="mr-0.5 text-[10px] text-[color:var(--text-muted)]">
                   ({availableFiscalYears.indexOf(selectedFiscalYear) + 1} / {availableFiscalYears.length})
                 </span>
               )}
@@ -1810,7 +1810,7 @@ function ManagementDashboard() {
                   }
                 }}
                 disabled={availableFiscalYears.length === 0 || availableFiscalYears.indexOf(selectedFiscalYear) >= availableFiscalYears.length - 1}
-                className="rounded bg-blue-100 px-1.5 py-0 text-[10px] font-semibold text-blue-700 transition-colors hover:bg-blue-200 focus:outline-none focus:ring-1 focus:ring-blue-400 disabled:cursor-not-allowed disabled:opacity-40"
+                className="rounded bg-[color:var(--accent-soft)] px-1.5 py-0 text-[10px] font-semibold text-[color:var(--accent)] transition-colors hover:bg-[color:var(--surface-hover)] focus:outline-none focus:ring-1 focus:ring-[color:var(--focus-ring)] disabled:cursor-not-allowed disabled:opacity-40"
                 title="Next Fiscal Year"
                 style={{ lineHeight: '1' }}
               >
@@ -1824,7 +1824,7 @@ function ManagementDashboard() {
       {/* Performance Dashboard Section */}
       <div className="mt-0">
         {/* <h2 className="text-2xl text-center justify-center font-bold text-gray-800 mb-6">📊 Performance Dashboard</h2> */}
-        <div className="grid grid-cols-1 gap-1 md:grid-cols-2 lg:grid-cols-12 lg:grid-rows-3 lg:gap-1 lg:h-[calc(100vh-90px)] overflow-hidden">
+        <div className="grid grid-cols-1 gap-0 md:grid-cols-2 lg:grid-cols-12 lg:grid-rows-3 lg:gap-0 lg:h-[calc(100vh-90px)] overflow-hidden">
           {/* Plant Efficiency Speedometer */}
           <div className="w-full h-full min-h-0 lg:col-span-4 lg:row-span-1">
             <div className="dashboard-card flex h-full min-h-0 flex-col">
@@ -1838,12 +1838,12 @@ function ManagementDashboard() {
                 <span className="whitespace-normal break-words">Overall Plant Efficiency (OPE)</span>
               </button>
               {efficiencyLoading ? (
-                <div className="flex items-center justify-center p-8 text-slate-400 text-sm">Loading...</div>
+                <div className="flex items-center justify-center p-3 text-sm text-[color:var(--text-muted)]">Loading...</div>
               ) : monthlyEfficiency && monthlyEfficiency.length > 0 ? (
-                <div className="flex items-center justify-center gap-1 sm:gap-2 md:gap-4 relative w-full min-w-0 flex-1 min-h-0 overflow-hidden">
+                <div className="flex items-center justify-center gap-1 sm:gap-2 relative w-full min-w-0 flex-1 min-h-0 overflow-hidden">
                   <button
                     type="button"
-                    className="bg-slate-800/90 border border-slate-700 rounded-full w-6 h-6 sm:w-8 sm:h-8 md:w-9 md:h-9 flex items-center justify-center cursor-pointer text-sm sm:text-xl md:text-2xl text-slate-200 hover:bg-slate-700 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all flex-shrink-0 relative z-10"
+                    className="relative z-10 flex h-6 w-6 flex-shrink-0 cursor-pointer items-center justify-center rounded-full border border-[color:var(--border)] bg-[color:var(--surface-elevated)] text-sm text-[color:var(--text-secondary)] transition-all hover:bg-[color:var(--surface-hover)] hover:text-[color:var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-40 sm:h-8 sm:w-8 sm:text-xl md:h-9 md:w-9 md:text-2xl"
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
@@ -1879,7 +1879,7 @@ function ManagementDashboard() {
 
                   <button
                     type="button"
-                    className="bg-slate-800/90 border border-slate-700 rounded-full w-6 h-6 sm:w-8 sm:h-8 md:w-9 md:h-9 flex items-center justify-center cursor-pointer text-sm sm:text-xl md:text-2xl text-slate-200 hover:bg-slate-700 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all flex-shrink-0 relative z-10"
+                    className="relative z-10 flex h-6 w-6 flex-shrink-0 cursor-pointer items-center justify-center rounded-full border border-[color:var(--border)] bg-[color:var(--surface-elevated)] text-sm text-[color:var(--text-secondary)] transition-all hover:bg-[color:var(--surface-hover)] hover:text-[color:var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-40 sm:h-8 sm:w-8 sm:text-xl md:h-9 md:w-9 md:text-2xl"
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
@@ -1893,7 +1893,7 @@ function ManagementDashboard() {
                   </button>
                 </div>
               ) : (
-                <div className="flex items-center justify-center flex-1 h-full min-h-0 text-slate-400 text-sm font-medium">No data</div>
+                <div className="flex h-full min-h-0 flex-1 items-center justify-center text-sm font-medium text-[color:var(--text-muted)]">No data</div>
               )}
             </div>
           </div>
@@ -1909,7 +1909,7 @@ function ManagementDashboard() {
                 <span className="whitespace-normal break-words">Industry 4.0</span>
               </button>
               {industry40Loading ? (
-                <div className="flex items-center justify-center p-8 text-slate-400 text-sm">Loading...</div>
+                <div className="flex items-center justify-center p-3 text-sm text-[color:var(--text-muted)]">Loading...</div>
               ) : industry40Chart ? (
                 <div
                   className="flex-1 min-h-0 cursor-pointer flex"
@@ -1942,7 +1942,7 @@ function ManagementDashboard() {
                 <span className="whitespace-normal break-words">Zero Quality Complaints</span>
               </button>
               {zeroQualityLoading ? (
-                <div className="flex items-center justify-center p-8 text-slate-400 text-sm">Loading...</div>
+                <div className="flex items-center justify-center p-3 text-slate-400 text-sm">Loading...</div>
               ) : zeroQualityChart ? (
                 <div
                   className="flex-1 min-h-0 cursor-pointer flex"
@@ -1977,17 +1977,17 @@ function ManagementDashboard() {
                 <span className="text-sm sm:text-base">💰</span>
                 <span className="whitespace-normal break-words">Cost</span>
               </button>
-              <div className="flex flex-col md:flex-row h-full flex-1 bg-[#050816]">
+              <div className="flex flex-col md:flex-row h-full flex-1 bg-[color:var(--surface)]">
                 {/* Revenue Section */}
-                <div className="flex-1 px-0 pb-0 pt-0 md:px-0 md:pb-0 md:pt-0 flex flex-col md:border-r border-slate-800 min-w-0 h-full bg-[#050816]">
+                <div className="flex h-full min-w-0 flex-1 flex-col border-[color:var(--border)] bg-[color:var(--surface)] md:border-r px-0 pb-0 pt-0 md:px-0 md:pb-0 md:pt-0">
                   <button
                     onClick={() => handleKPITitleClick('Revenue')}
-                    className="text-[10px] md:text-xs font-bold text-slate-300 mb-0 text-center tracking-wide hover:text-cyan-300 transition-colors cursor-pointer px-1.5 md:px-2 py-0.5 rounded-md hover:bg-cyan-500/10 focus:outline-none focus:ring-1 focus:ring-cyan-400"
+                    className="mb-0 cursor-pointer rounded-md px-1.5 py-0.5 text-center text-[10px] font-bold tracking-wide text-[color:var(--text-secondary)] transition-colors hover:bg-[color:var(--surface-hover)] hover:text-[color:var(--accent)] focus:outline-none focus:ring-1 focus:ring-[color:var(--focus-ring)] md:px-2 md:text-xs"
                   >
                     REVENUE
                   </button>
                   {salesLoading ? (
-                    <div className="flex items-center justify-center p-1 md:p-2 text-slate-400 text-xs">Loading...</div>
+                    <div className="flex items-center justify-center p-1 text-xs text-[color:var(--text-muted)] md:p-2">Loading...</div>
                   ) : monthlySalesData && monthlySalesData.length > 0 ? (
                     (() => {
                       const activeIdx = Math.min(Math.max(selectedSalesIndex, 0), monthlySalesData.length - 1);
@@ -2002,17 +2002,17 @@ function ManagementDashboard() {
                           onClick={() => openExpandedChart('salesProfit', { monthlySalesData, selectedSalesIndex, monthlyProfitData, selectedProfitIndex })}
                           onKeyDown={(e) => e.key === 'Enter' && openExpandedChart('salesProfit', { monthlySalesData, selectedSalesIndex, monthlyProfitData, selectedProfitIndex })}
                         >
-                          <h5 className="text-[9px] md:text-[10px] font-bold text-slate-100 mb-0 whitespace-nowrap">
+                          <h5 className="mb-0 whitespace-nowrap text-[9px] font-bold text-[color:var(--text-primary)] md:text-[10px]">
                             {MONTH_LABELS[(salesData.month || 1) - 1]} {salesData.year || ''}
                           </h5>
                           <div className="flex items-center justify-center min-h-0 w-full relative" style={{ height: '100%' }}>
                             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                              <div className="text-sm md:text-base font-extrabold text-cyan-300 leading-tight text-center px-1">{formatINR(actual)}</div>
-                              <div className="text-[10px] md:text-[11px] font-semibold text-slate-300 leading-tight text-center px-1">of {formatINR(target)}</div>
+                              <div className="px-1 text-center text-sm font-extrabold leading-tight text-[color:var(--accent)] md:text-base">{formatINR(actual)}</div>
+                              <div className="px-1 text-center text-[10px] font-semibold leading-tight text-[color:var(--text-secondary)] md:text-[11px]">of {formatINR(target)}</div>
                             </div>
                             <ResponsiveContainer width="100%" height="100%">
                               <PieChart>
-                                <Tooltip content={<ChartTooltip />} cursor={{ fill: 'rgba(15,23,42,0.16)' }} />
+                                <Tooltip content={<ChartTooltip />} cursor={{ fill: 'color-mix(in srgb, var(--app-bg) 84%, transparent)' }} />
                                 <Pie
                                   data={[
                                     { name: 'Achieved', value: Math.max(pct, 0.0001) },
@@ -2026,8 +2026,8 @@ function ManagementDashboard() {
                                   stroke="none"
                                   isAnimationActive={false}
                                 >
-                                  <Cell fill="#0d47a1" />
-                                  <Cell fill="#e2e8f0" />
+                                  <Cell fill="var(--accent)" />
+                                  <Cell fill="var(--border)" />
                                 </Pie>
                               </PieChart>
                             </ResponsiveContainer>
@@ -2041,15 +2041,15 @@ function ManagementDashboard() {
                 </div>
 
                 {/* Profitability Section */}
-                <div className="flex-1 px-0 pb-0 pt-0 md:px-0 md:pb-0 md:pt-0 flex flex-col border-t border-slate-800 md:border-t-0 min-w-0 h-full">
+                <div className="flex h-full min-w-0 flex-1 flex-col border-t border-[color:var(--border)] px-0 pb-0 pt-0 md:border-t-0 md:px-0 md:pb-0 md:pt-0">
                   <button
                     onClick={() => handleKPITitleClick('Profitability')}
-                    className="text-[10px] md:text-xs font-bold text-slate-300 mb-0 text-center tracking-wide hover:text-emerald-300 transition-colors cursor-pointer px-1.5 md:px-2 py-0.5 rounded-md hover:bg-emerald-500/10 focus:outline-none focus:ring-1 focus:ring-emerald-400"
+                    className="mb-0 cursor-pointer rounded-md px-1.5 py-0.5 text-center text-[10px] font-bold tracking-wide text-[color:var(--text-secondary)] transition-colors hover:bg-[color:var(--surface-hover)] hover:text-[color:var(--success)] focus:outline-none focus:ring-1 focus:ring-[color:var(--focus-ring)] md:px-2 md:text-xs"
                   >
                     PROFITABILITY (YTD)
                   </button>
                   {profitabilityLoading ? (
-                    <div className="flex items-center justify-center p-1 md:p-2 text-slate-400 text-xs">Loading...</div>
+                    <div className="flex items-center justify-center p-1 text-xs text-[color:var(--text-muted)] md:p-2">Loading...</div>
                   ) : monthlyProfitData && monthlyProfitData.length > 0 ? (
                     (() => {
                       const profitData = monthlyProfitData[selectedProfitIndex] || { profit: 0, target: 100 };
@@ -2063,17 +2063,17 @@ function ManagementDashboard() {
                           onClick={() => openExpandedChart('salesProfit', { monthlySalesData, selectedSalesIndex, monthlyProfitData, selectedProfitIndex })}
                           onKeyDown={(e) => e.key === 'Enter' && openExpandedChart('salesProfit', { monthlySalesData, selectedSalesIndex, monthlyProfitData, selectedProfitIndex })}
                         >
-                          <h5 className="text-[9px] md:text-[10px] font-bold text-slate-100 mb-0 whitespace-nowrap">
+                          <h5 className="mb-0 whitespace-nowrap text-[9px] font-bold text-[color:var(--text-primary)] md:text-[10px]">
                             {MONTH_LABELS[(monthlyProfitData[selectedProfitIndex]?.month || 1) - 1]} {monthlyProfitData[selectedProfitIndex]?.year || ''}
                           </h5>
                           <div className="flex items-center justify-center min-h-0 w-full relative" style={{ height: '100%' }}>
                             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-10">
-                              <div className="text-sm md:text-base font-extrabold text-emerald-300 leading-tight text-center px-1">{profit.toFixed(1)}%</div>
-                              <div className="text-[10px] md:text-[11px] font-semibold text-slate-300 leading-tight text-center px-1">of {target.toFixed(1)}%</div>
+                              <div className="px-1 text-center text-sm font-extrabold leading-tight text-[color:var(--success)] md:text-base">{profit.toFixed(1)}%</div>
+                              <div className="px-1 text-center text-[10px] font-semibold leading-tight text-[color:var(--text-secondary)] md:text-[11px]">of {target.toFixed(1)}%</div>
                             </div>
                             <ResponsiveContainer width="100%" height="100%">
                               <PieChart>
-                                <Tooltip content={<ChartTooltip />} cursor={{ fill: 'rgba(15,23,42,0.16)' }} />
+                                <Tooltip content={<ChartTooltip />} cursor={{ fill: 'color-mix(in srgb, var(--app-bg) 84%, transparent)' }} />
                                 <Pie
                                   data={[
                                     { name: 'Achieved', value: Math.max(percentageAchieved, 0.0001) },
@@ -2087,8 +2087,8 @@ function ManagementDashboard() {
                                   stroke="none"
                                   isAnimationActive={false}
                                 >
-                                  <Cell fill="#15803d" />
-                                  <Cell fill="#e2e8f0" />
+                                  <Cell fill="var(--success)" />
+                                  <Cell fill="var(--border)" />
                                 </Pie>
                               </PieChart>
                             </ResponsiveContainer>
@@ -2116,7 +2116,7 @@ function ManagementDashboard() {
                 <span className="whitespace-normal break-words">On Time Delivery</span>
               </button>
               {onTimeDeliveryLoading ? (
-                <div className="flex items-center justify-center p-8 text-slate-400">Loading...</div>
+                <div className="flex items-center justify-center p-3 text-slate-400">Loading...</div>
               ) : onTimeDeliveryChart ? (
                 <div
                   className="flex-1 min-h-0 cursor-pointer flex"
@@ -2145,7 +2145,7 @@ function ManagementDashboard() {
                 <span className="whitespace-normal break-words">Zero Accidents</span>
               </button>
               {zeroAccidentsLoading ? (
-                <div className="flex items-center justify-center p-8 text-slate-400">Loading...</div>
+                <div className="flex items-center justify-center p-3 text-slate-400">Loading...</div>
               ) : zeroAccidentsChart ? (
                 <div
                   className="flex-1 min-h-0 cursor-pointer flex"
@@ -2173,7 +2173,7 @@ function ManagementDashboard() {
                 <span className="whitespace-normal break-words">Green Factory</span>
               </button>
               {greenFactoryLoading ? (
-                <div className="flex items-center justify-center p-8 text-slate-400">Loading...</div>
+                <div className="flex items-center justify-center p-3 text-slate-400">Loading...</div>
               ) : greenFactoryChart ? (
                 <div
                   className="flex-1 min-h-0 cursor-pointer flex"
@@ -2243,8 +2243,7 @@ function ManagementDashboard() {
 
       {/* Staff Performance Section */}
       <div className="mt-6">
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-700 via-blue-600 to-indigo-700 px-4 py-3 shadow-xl">
-          <div className="pointer-events-none absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(circle at 18px 18px, rgba(255,255,255,0.5) 1.5px, transparent 1.5px)', backgroundSize: '26px 26px' }}></div>
+        <div className="dashboard-panel-header px-4 py-3">
           <h2 className="relative text-lg font-extrabold tracking-tight text-white sm:text-xl">Staff Performance</h2>
         </div>
         <div className="mt-1">
@@ -2254,8 +2253,7 @@ function ManagementDashboard() {
 
       {/* Pillars Section */}
       <div className="mt-8">
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-700 via-blue-600 to-indigo-700 px-4 py-3 shadow-xl">
-          <div className="pointer-events-none absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(circle at 18px 18px, rgba(255,255,255,0.5) 1.5px, transparent 1.5px)', backgroundSize: '26px 26px' }}></div>
+        <div className="dashboard-panel-header px-4 py-3">
           <h2 className="relative text-lg font-extrabold tracking-tight text-white sm:text-xl">Pillars</h2>
         </div>
         <div className="mt-1">
@@ -2274,31 +2272,31 @@ function ManagementDashboard() {
 
 
       {expandedChart && expandedChartData && (
-        <div className="expanded-chart-modal-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm" onClick={closeExpandedChart}>
-          <div className="expanded-chart-modal-content rounded-xl border border-slate-700 bg-[#050816] shadow-2xl w-[95%] max-w-7xl h-[85vh] flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-[#0b1120] flex-wrap gap-3">
+        <div className="expanded-chart-modal-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={closeExpandedChart}>
+          <div className="expanded-chart-modal-content flex h-[85vh] w-[95%] flex-col overflow-hidden border border-[color:var(--border)] bg-[color:var(--surface)] shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[color:var(--border)] bg-[color:var(--surface-elevated)] px-6 py-4">
               <div className="flex items-center gap-3">
                 <button
                   type="button"
                   onClick={() => navigateChart('prev')}
-                  className="px-3 py-1 bg-slate-800 text-slate-100 hover:bg-slate-700 rounded-lg text-sm font-semibold transition-colors flex items-center gap-1 border border-slate-700"
+                  className="flex items-center gap-1 rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-1 text-sm font-semibold text-[color:var(--text-primary)] transition-colors hover:bg-[color:var(--surface-hover)]"
                   title="Previous Graph (or use Left Arrow)"
                 >
                   ◀ Prev
                 </button>
-                <span className="text-sm font-bold text-slate-300 bg-slate-900 border border-slate-700 px-2.5 py-1 rounded-md">
+                <span className="rounded-md border border-[color:var(--border)] bg-[color:var(--surface)] px-2.5 py-1 text-sm font-bold text-[color:var(--text-secondary)]">
                   {CHART_KEYS.indexOf(expandedChart) + 1} / {CHART_KEYS.length}
                 </span>
                 <button
                   type="button"
                   onClick={() => navigateChart('next')}
-                  className="px-3 py-1 bg-slate-800 text-slate-100 hover:bg-slate-700 rounded-lg text-sm font-semibold transition-colors flex items-center gap-1 border border-slate-700"
+                  className="flex items-center gap-1 rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-1 text-sm font-semibold text-[color:var(--text-primary)] transition-colors hover:bg-[color:var(--surface-hover)]"
                   title="Next Graph (or use Right Arrow)"
                 >
                   Next ▶
                 </button>
               </div>
-              <h2 className="text-xl font-bold text-white text-center flex-1 order-3 sm:order-none min-w-full sm:min-w-0">
+              <h2 className="order-3 min-w-full flex-1 text-center text-xl font-bold text-[color:var(--text-primary)] sm:order-none sm:min-w-0">
                 {expandedChart === 'plantEfficiency'
                   ? 'Plant Efficiency (Apr - Mar)'
                   : expandedChart === 'industry40'
@@ -2319,9 +2317,9 @@ function ManagementDashboard() {
                                   ? 'Revenue & Profitability'
                                   : 'Chart'}
               </h2>
-              <button className="text-2xl p-1 mr-2 text-slate-400 hover:text-white transition-colors focus:outline-none" onClick={closeExpandedChart}>✕</button>
+              <button className="mr-2 p-1 text-2xl text-[color:var(--text-muted)] transition-colors hover:text-[color:var(--text-primary)] focus:outline-none" onClick={closeExpandedChart}>✕</button>
             </div>
-            <div className="p-8 flex-1 overflow-y-auto flex flex-col justify-center bg-[#050816]">
+            <div className="flex flex-1 flex-col justify-center overflow-y-auto bg-[color:var(--surface)] p-4">
               {expandedChart === 'plantEfficiency' && (
                 <div className="flex flex-col items-center justify-center gap-6 w-full">
                   <div className="flex items-center justify-center gap-4 sm:gap-6 w-full">
@@ -2337,7 +2335,7 @@ function ManagementDashboard() {
                         setExpandedChartData({ ...expandedChartData, monthlyEfficiency: currentList, selectedFiscalIndex: nextIndex });
                       }}
                       disabled={(expandedChartData?.monthlyEfficiency || monthlyEfficiency).length <= 1}
-                      className="relative z-30 px-4 py-3 sm:px-6 sm:py-4 bg-gray-100 hover:bg-gray-200 text-gray-700 font-extrabold rounded-lg text-xl sm:text-2xl transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-md hover:scale-105 active:scale-95"
+                      className="relative z-30 cursor-pointer rounded-lg border border-[color:var(--border)] bg-[color:var(--surface-elevated)] px-4 py-3 text-xl font-extrabold text-[color:var(--text-primary)] shadow-md transition-all hover:scale-105 hover:bg-[color:var(--surface-hover)] active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 sm:px-6 sm:py-4 sm:text-2xl"
                       title="Previous Month"
                     >
                       ‹
@@ -2363,7 +2361,7 @@ function ManagementDashboard() {
                         setExpandedChartData({ ...expandedChartData, monthlyEfficiency: currentList, selectedFiscalIndex: nextIndex });
                       }}
                       disabled={(expandedChartData?.monthlyEfficiency || monthlyEfficiency).length <= 1}
-                      className="relative z-30 px-4 py-3 sm:px-6 sm:py-4 bg-gray-100 hover:bg-gray-200 text-gray-700 font-extrabold rounded-lg text-xl sm:text-2xl transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-md hover:scale-105 active:scale-95"
+                      className="relative z-30 cursor-pointer rounded-lg border border-[color:var(--border)] bg-[color:var(--surface-elevated)] px-4 py-3 text-xl font-extrabold text-[color:var(--text-primary)] shadow-md transition-all hover:scale-105 hover:bg-[color:var(--surface-hover)] active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 sm:px-6 sm:py-4 sm:text-2xl"
                       title="Next Month"
                     >
                       ›
@@ -2437,7 +2435,7 @@ function ManagementDashboard() {
 
               {expandedChart === 'themeEmployees' && (
                 <div className="flex items-center justify-center w-full h-full">
-                  <div className="rounded-xl border border-slate-800 bg-[#0b1120] p-8 shadow-sm flex flex-col h-full w-full max-w-4xl">
+                  <div className="flex h-full w-full max-w-4xl flex-col border border-[color:var(--border)] bg-[color:var(--surface-elevated)] p-4 shadow-sm">
                     <div className="flex-1 min-h-0">
                       <Box4EmployeesLineChart
                         title={expandedChartData?.title || 'No. of Employees Who Left'}
@@ -2452,18 +2450,18 @@ function ManagementDashboard() {
 
               {expandedChart === 'salesProfit' && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 h-full">
-                  <div className="flex flex-col justify-center rounded-xl border border-slate-800 bg-[#050816] p-8 shadow-sm">
-                    <h4 className="font-semibold text-xl mb-6 text-center text-white">Revenue</h4>
+                  <div className="flex flex-col justify-center border border-[color:var(--border)] bg-[color:var(--surface-elevated)] p-4 shadow-sm">
+                    <h4 className="mb-4 text-center text-xl font-semibold text-[color:var(--text-primary)]">Revenue</h4>
                     <div className="flex items-center justify-center gap-6">
                       <button
-                        className="bg-slate-800 border border-slate-700 rounded-full w-12 h-12 flex items-center justify-center text-2xl text-slate-100 hover:bg-slate-700 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed shadow-sm transition-transform hover:scale-105 active:scale-95"
+                        className="flex h-12 w-12 items-center justify-center rounded-full border border-[color:var(--border)] bg-[color:var(--surface)] text-2xl text-[color:var(--text-primary)] shadow-sm transition-transform hover:scale-105 hover:bg-[color:var(--surface-hover)] disabled:cursor-not-allowed disabled:opacity-40 active:scale-95"
                         onClick={(e) => { e.stopPropagation(); if (!monthlySalesData.length) return; setSelectedSalesIndex(selectedSalesIndex === 0 ? monthlySalesData.length - 1 : selectedSalesIndex - 1); }}
                         disabled={!monthlySalesData.length}
                       >
                         ‹
                       </button>
                       <div className="flex flex-col items-center">
-                        <h5 className="text-lg font-bold text-slate-100 mb-4">
+                        <h5 className="mb-4 text-lg font-bold text-[color:var(--text-primary)]">
                           {MONTH_LABELS[(monthlySalesData[selectedSalesIndex]?.month || 1) - 1]} {monthlySalesData[selectedSalesIndex]?.year || ''}
                         </h5>
                         <div className="flex items-center justify-center" style={{ width: 280, height: 280 }}>
@@ -2475,8 +2473,8 @@ function ManagementDashboard() {
                             return (
                               <div className="relative w-full h-full">
                                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-10">
-                                  <div className="text-2xl md:text-3xl font-extrabold text-cyan-300 leading-tight text-center px-2">{formatINR(actual)}</div>
-                                  <div className="text-xs md:text-sm font-semibold text-slate-300 leading-tight text-center px-2">of {formatINR(target)}</div>
+                                  <div className="px-2 text-center text-2xl font-extrabold leading-tight text-[color:var(--accent)] md:text-3xl">{formatINR(actual)}</div>
+                                  <div className="px-2 text-center text-xs font-semibold leading-tight text-[color:var(--text-secondary)] md:text-sm">of {formatINR(target)}</div>
                                 </div>
                                 <ResponsiveContainer width="100%" height="100%">
                                   <PieChart>
@@ -2493,8 +2491,8 @@ function ManagementDashboard() {
                                       stroke="none"
                                       isAnimationActive={false}
                                     >
-                                      <Cell fill="#0d47a1" />
-                                      <Cell fill="#e2e8f0" />
+                                      <Cell fill="var(--accent)" />
+                                      <Cell fill="var(--border)" />
                                     </Pie>
                                   </PieChart>
                                 </ResponsiveContainer>
@@ -2504,17 +2502,17 @@ function ManagementDashboard() {
                         </div>
                         <div className="flex flex-col gap-2 mt-6">
                           <div className="flex items-center gap-3 text-sm text-slate-300 font-medium">
-                            <span className="w-4 h-4 bg-[#0d47a1] rounded"></span>
+                            <span className="h-4 w-4 rounded bg-[color:var(--accent)]"></span>
                             <span>Actual: {formatINR(monthlySalesData[selectedSalesIndex]?.actual)}</span>
                           </div>
                           <div className="flex items-center gap-3 text-sm text-slate-300 font-medium">
-                            <span className="w-4 h-4 bg-[#0d47a1] rounded"></span>
+                            <span className="h-4 w-4 rounded bg-[color:var(--accent)]"></span>
                             <span>Target: {formatINR(monthlySalesData[selectedSalesIndex]?.target)}</span>
                           </div>
                         </div>
                       </div>
                       <button
-                        className="bg-slate-800 border border-slate-700 rounded-full w-12 h-12 flex items-center justify-center text-2xl text-slate-100 hover:bg-slate-700 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed shadow-sm transition-transform hover:scale-105 active:scale-95"
+                        className="flex h-12 w-12 items-center justify-center rounded-full border border-[color:var(--border)] bg-[color:var(--surface)] text-2xl text-[color:var(--text-primary)] shadow-sm transition-transform hover:scale-105 hover:bg-[color:var(--surface-hover)] disabled:cursor-not-allowed disabled:opacity-40 active:scale-95"
                         onClick={(e) => { e.stopPropagation(); if (!monthlySalesData.length) return; setSelectedSalesIndex(selectedSalesIndex === monthlySalesData.length - 1 ? 0 : selectedSalesIndex + 1); }}
                         disabled={!monthlySalesData.length}
                       >
@@ -2523,18 +2521,18 @@ function ManagementDashboard() {
                     </div>
                   </div>
 
-                  <div className="flex flex-col justify-center rounded-xl border border-slate-800 bg-[#050816] p-8 shadow-sm">
-                    <h4 className="font-semibold text-xl mb-6 text-center text-white">Profitability</h4>
+                  <div className="flex flex-col justify-center border border-[color:var(--border)] bg-[color:var(--surface-elevated)] p-4 shadow-sm">
+                    <h4 className="mb-4 text-center text-xl font-semibold text-[color:var(--text-primary)]">Profitability</h4>
                     <div className="flex items-center justify-center gap-6">
                       <button
-                        className="bg-slate-800 border border-slate-700 rounded-full w-12 h-12 flex items-center justify-center text-2xl text-slate-100 hover:bg-slate-700 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed shadow-sm transition-transform hover:scale-105 active:scale-95"
+                        className="flex h-12 w-12 items-center justify-center rounded-full border border-[color:var(--border)] bg-[color:var(--surface)] text-2xl text-[color:var(--text-primary)] shadow-sm transition-transform hover:scale-105 hover:bg-[color:var(--surface-hover)] disabled:cursor-not-allowed disabled:opacity-40 active:scale-95"
                         onClick={(e) => { e.stopPropagation(); if (!monthlyProfitData.length) return; setSelectedProfitIndex(selectedProfitIndex === 0 ? monthlyProfitData.length - 1 : selectedProfitIndex - 1); }}
                         disabled={!monthlyProfitData.length}
                       >
                         ‹
                       </button>
                       <div className="flex flex-col items-center">
-                        <h5 className="text-lg font-bold text-slate-100 mb-4">
+                        <h5 className="mb-4 text-lg font-bold text-[color:var(--text-primary)]">
                           {MONTH_LABELS[(monthlyProfitData[selectedProfitIndex]?.month || 1) - 1]} {monthlyProfitData[selectedProfitIndex]?.year || ''}
                         </h5>
                         <div className="flex items-center justify-center" style={{ width: 280, height: 280 }}>
@@ -2546,8 +2544,8 @@ function ManagementDashboard() {
                             return (
                               <div className="relative w-full h-full">
                                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-10">
-                                  <div className="text-2xl md:text-3xl font-extrabold text-emerald-300 leading-tight text-center px-2">{profit.toFixed(1)}%</div>
-                                  <div className="text-xs md:text-sm font-semibold text-slate-300 leading-tight text-center px-2">of {target.toFixed(1)}%</div>
+                                  <div className="px-2 text-center text-2xl font-extrabold leading-tight text-[color:var(--success)] md:text-3xl">{profit.toFixed(1)}%</div>
+                                  <div className="px-2 text-center text-xs font-semibold leading-tight text-[color:var(--text-secondary)] md:text-sm">of {target.toFixed(1)}%</div>
                                 </div>
                                 <ResponsiveContainer width="100%" height="100%">
                                   <PieChart>
@@ -2564,8 +2562,8 @@ function ManagementDashboard() {
                                       stroke="none"
                                       isAnimationActive={false}
                                     >
-                                      <Cell fill="#15803d" />
-                                      <Cell fill="#e2e8f0" />
+                                      <Cell fill="var(--success)" />
+                                      <Cell fill="var(--border)" />
                                     </Pie>
                                   </PieChart>
                                 </ResponsiveContainer>
@@ -2575,17 +2573,17 @@ function ManagementDashboard() {
                         </div>
                         <div className="flex flex-col gap-2 mt-6">
                           <div className="flex items-center gap-3 text-sm text-slate-300 font-medium">
-                            <span className="w-4 h-4 bg-[#15803d] rounded"></span>
+                            <span className="h-4 w-4 rounded bg-[color:var(--success)]"></span>
                             <span>Actual: {(monthlyProfitData[selectedProfitIndex]?.profit || 0).toFixed(1)}%</span>
                           </div>
                           <div className="flex items-center gap-3 text-sm text-slate-300 font-medium">
-                            <span className="w-4 h-4 bg-[#15803d] rounded"></span>
+                            <span className="h-4 w-4 rounded bg-[color:var(--success)]"></span>
                             <span>Target: {(monthlyProfitData[selectedProfitIndex]?.target || 0).toFixed(1)}%</span>
                           </div>
                         </div>
                       </div>
                       <button
-                        className="bg-slate-800 border border-slate-700 rounded-full w-12 h-12 flex items-center justify-center text-2xl text-slate-100 hover:bg-slate-700 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed shadow-sm transition-transform hover:scale-105 active:scale-95"
+                        className="flex h-12 w-12 items-center justify-center rounded-full border border-[color:var(--border)] bg-[color:var(--surface)] text-2xl text-[color:var(--text-primary)] shadow-sm transition-transform hover:scale-105 hover:bg-[color:var(--surface-hover)] disabled:cursor-not-allowed disabled:opacity-40 active:scale-95"
                         onClick={(e) => { e.stopPropagation(); if (!monthlyProfitData.length) return; setSelectedProfitIndex(selectedProfitIndex === monthlyProfitData.length - 1 ? 0 : selectedProfitIndex + 1); }}
                         disabled={!monthlyProfitData.length}
                       >

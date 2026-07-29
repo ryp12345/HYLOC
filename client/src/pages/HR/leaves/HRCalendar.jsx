@@ -369,11 +369,11 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 			case 'Approved':
 				return 'bg-green-500';
 			case 'Pending':
-				return 'bg-yellow-500';
+				return 'bg-[color:var(--warning)]';
 			case 'Rejected':
-				return 'bg-red-500';
+				return 'bg-[color:var(--danger)]';
 			default:
-				return 'bg-gray-500';
+				return 'bg-[color:var(--surface-hover)]0';
 		}
 	};
 
@@ -782,302 +782,306 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 
 	return (
 		<>
-			<div className="w-full space-y-6">
-				{error && (
-					<div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-						{error}
-					</div>
-				)}
+		<div className="w-full space-y-6 bg-[color:var(--app-bg)] text-[color:var(--text-primary)]">
+			{error && (
+				<div className="rounded border border-[color:var(--danger-soft)] bg-[color:var(--danger-soft)] px-4 py-3 text-[color:var(--danger)]">
+					{error}
+				</div>
+			)}
 
 
 
-				{/* Filter Section for All Org Leaves */}
-				<div className="bg-white rounded-lg shadow-lg p-6">
+			{/* Filter Section for All Org Leaves */}
+			<div className="bg-[color:var(--surface)] rounded-lg border border-[color:var(--border)] shadow-sm p-6">
 
-					<table className="w-full mb-4 border rounded-lg overflow-hidden">
-						<thead>
-							<tr>
-								<th colSpan="6" className="bg-blue-600 text-white text-lg font-semibold py-2 px-4 text-left">Leave Search Filter</th>
-							</tr>
-						</thead>
-						<tbody>
-							<tr>
-								<td className="py-2 px-2" colSpan="6">
-									<div className="flex flex-row items-end gap-4 w-full flex-wrap">
-										<div className="min-w-[150px] max-w-[200px] flex-1">
-											<label className="block text-xs font-semibold text-gray-600 mb-1">From Date</label>
+				<table className="w-full mb-4 border rounded-lg overflow-hidden">
+					<thead>
+						<tr>
+							<th colSpan="6" className="bg-[color:var(--accent)] text-white text-lg font-semibold py-2 px-4 text-left">Leave Search Filter</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr>
+							<td className="py-2 px-2" colSpan="6">
+								<div className="flex flex-row items-end gap-4 w-full flex-wrap">
+									<div className="min-w-[150px] max-w-[200px] flex-1">
+										<label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-[color:var(--text-muted)]">From Date</label>
+										<input
+											type="date"
+											className="w-full rounded border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-2 text-[color:var(--text-primary)]"
+											value={filter.from}
+											onChange={e => { setFilter(f => ({ ...f, from: e.target.value })); setCurrentPage(1); }}
+										/>
+									</div>
+									<div className="min-w-[150px] max-w-[200px] flex-1">
+										<label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-[color:var(--text-muted)]">To Date</label>
+										<input
+											type="date"
+											className="w-full rounded border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-2 text-[color:var(--text-primary)]"
+											value={filter.to}
+											onChange={e => { setFilter(f => ({ ...f, to: e.target.value })); setCurrentPage(1); }}
+										/>
+									</div>
+									<div className="min-w-[100px] max-w-[120px] flex-1">
+										<label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-[color:var(--text-muted)]">Year</label>
+										<select
+											className="w-full rounded border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-2 text-[color:var(--text-primary)]"
+											value={filter.year}
+											onChange={e => { setFilter(f => ({ ...f, year: Number(e.target.value) })); setCurrentPage(1); }}
+										>
+											{[currentYear - 1, currentYear, currentYear + 1].map(y => (
+												<option key={y} value={y}>{y}</option>
+											))}
+										</select>
+									</div>
+									<div className="min-w-[160px] max-w-[200px] flex-1">
+										<label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-[color:var(--text-muted)]">Department</label>
+										<select
+											className="w-full rounded border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-2 text-[color:var(--text-primary)]"
+											value={filter.department}
+											onChange={e => { setFilter(f => ({ ...f, department: e.target.value })); setCurrentPage(1); }}
+										>
+											<option value="all">All Departments</option>
+											{departmentOptions.map(dept => (
+												<option key={dept} value={dept}>{dept}</option>
+											))}
+										</select>
+									</div>
+									<div className="min-w-[180px] max-w-[240px] flex-1">
+										<label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-[color:var(--text-muted)]">Username</label>
+										<div className="relative">
+											<span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[color:var(--text-muted)]">
+												<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+													<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 1110.5 3a7.5 7.5 0 016.15 13.65z" />
+												</svg>
+											</span>
 											<input
-												type="date"
-												className="border rounded px-3 py-2 w-full"
-												value={filter.from}
-												onChange={e => { setFilter(f => ({ ...f, from: e.target.value })); setCurrentPage(1); }}
+												type="text"
+												className="w-full rounded border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-2 pl-10 text-[color:var(--text-primary)]"
+												placeholder="Search by username"
+												value={filter.username}
+												onChange={e => { setFilter(f => ({ ...f, username: e.target.value })); setCurrentPage(1); }}
 											/>
 										</div>
-										<div className="min-w-[150px] max-w-[200px] flex-1">
-											<label className="block text-xs font-semibold text-gray-600 mb-1">To Date</label>
-											<input
-												type="date"
-												className="border rounded px-3 py-2 w-full"
-												value={filter.to}
-												onChange={e => { setFilter(f => ({ ...f, to: e.target.value })); setCurrentPage(1); }}
-											/>
-										</div>
-										<div className="min-w-[100px] max-w-[120px] flex-1">
-											<label className="block text-xs font-semibold text-gray-600 mb-1">Year</label>
-											<select
-												className="border rounded px-3 py-2 w-full text-left"
-												value={filter.year}
-												onChange={e => { setFilter(f => ({ ...f, year: Number(e.target.value) })); setCurrentPage(1); }}
-											>
-												{[currentYear - 1, currentYear, currentYear + 1].map(y => (
-													<option key={y} value={y}>{y}</option>
-												))}
-											</select>
-										</div>
-										<div className="min-w-[160px] max-w-[200px] flex-1">
-											<label className="block text-xs font-semibold text-gray-600 mb-1">Department</label>
-											<select
-												className="border rounded px-3 py-2 w-full"
-												value={filter.department}
-												onChange={e => { setFilter(f => ({ ...f, department: e.target.value })); setCurrentPage(1); }}
-											>
-												<option value="all">All Departments</option>
-												{departmentOptions.map(dept => (
-													<option key={dept} value={dept}>{dept}</option>
-												))}
-											</select>
-										</div>
-										<div className="min-w-[180px] max-w-[240px] flex-1">
-											<label className="block text-xs font-semibold text-gray-600 mb-1">Username</label>
-											<div className="relative">
-												<span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
-													<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-														<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 1110.5 3a7.5 7.5 0 016.15 13.65z" />
-													</svg>
-												</span>
-												<input
-													type="text"
-													className="border rounded px-3 py-2 pl-10 w-full"
-													placeholder="Search by username"
-													value={filter.username}
-													onChange={e => { setFilter(f => ({ ...f, username: e.target.value })); setCurrentPage(1); }}
-												/>
-											</div>
-										</div>
-										<div className="flex flex-row items-end gap-2 ml-2">
+									</div>
+									<div className="flex flex-row items-end gap-2 ml-2">
+										<button
+											className="bg-[color:var(--accent)] text-white px-6 py-2 rounded font-semibold hover:bg-[color:var(--accent-hover)] transition"
+											onClick={() => {
+												if (filter.from || filter.to || filter.department !== 'all' || filter.username) {
+													setShowFilteredTable(true);
+													setCurrentPage(1);
+												} else if (filter.department === 'all') {
+													setShowFilteredTable(true);
+													setCurrentPage(1);
+												} else {
+													setShowFilteredTable(false);
+													alert('Please fill at least one filter to search.');
+												}
+											}}
+										>
+											Search
+										</button>
+										{showFilteredTable && (
 											<button
-												className="bg-blue-600 text-white px-6 py-2 rounded font-semibold hover:bg-blue-700 transition"
+												className="bg-[color:var(--surface-hover)] text-[color:var(--text-secondary)] px-4 py-2 rounded font-semibold hover:bg-[color:var(--surface)] transition"
 												onClick={() => {
-													if (filter.from || filter.to || filter.department !== 'all' || filter.username) {
-														setShowFilteredTable(true);
-														setCurrentPage(1);
-													} else if (filter.department === 'all') {
-														setShowFilteredTable(true);
-														setCurrentPage(1);
-													} else {
-														setShowFilteredTable(false);
-														alert('Please fill at least one filter to search.');
-													}
+													setShowFilteredTable(false);
+													setFilter({ from: '', to: '', year: currentYear, department: 'all', username: '' });
+													setCurrentPage(1);
 												}}
 											>
-												Search
+												Reset
 											</button>
-											{showFilteredTable && (
-												<button
-													className="bg-gray-200 text-gray-700 px-4 py-2 rounded font-semibold hover:bg-gray-300 transition"
-													onClick={() => {
-														setShowFilteredTable(false);
-														setFilter({ from: '', to: '', year: currentYear, department: 'all', username: '' });
-														setCurrentPage(1);
-													}}
-												>
-													Reset
-												</button>
-											)}
-										</div>
-									</div>
-								</td>
-							</tr>
-						</tbody>
-					</table>
-
-					{/* Filtered Table */}
-					{showFilteredTable && (
-						<div className="mt-6 overflow-hidden bg-white shadow-xl rounded-xl">
-							<div className="overflow-x-auto overflow-hidden rounded-t-lg">
-								<table className="min-w-full divide-y divide-gray-200">
-									<thead className="bg-blue-600">
-										<tr>
-											<th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">S.No</th>
-											<th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Name</th>
-											<th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Role</th>
-											<th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Department</th>
-											<th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Date Range</th>
-											<th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Duration</th>
-											<th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Reason</th>
-											<th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Status</th>
-											<th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Action</th>
-										</tr>
-									</thead>
-									<tbody className="bg-white divide-y divide-gray-200">
-										{loading ? (
-											<tr><td colSpan="9" className="p-8 text-center text-gray-500">Loading...</td></tr>
-										) : paginatedOrgLeaves.length === 0 ? (
-											<tr><td colSpan="9" className="p-8 text-center text-gray-500">No leaves found matching the filters</td></tr>
-										) : (
-											paginatedOrgLeaves.map((leave, idx) => (
-												<tr key={leave.id} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-colors duration-150`}>
-													<td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{(currentPage - 1) * itemsPerPage + idx + 1}</td>
-													<td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{leave.user_name || '-'}</td>
-													<td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{leave.user_role || '-'}</td>
-													<td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{leave.department_name || '-'}</td>
-													<td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{formatDateDisplay(leave.from_date)} - {formatDateDisplay(leave.to_date)}</td>
-													<td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{leave.credited_days} day(s)</td>
-													<td className="px-6 py-4 text-sm text-gray-900">{leave.leave_reason || '-'}</td>
-													<td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-														<span className={`px-3 py-1 rounded-full text-white text-xs font-semibold ${getLeaveBadgeColor(leave.status)}`}>
-															{leave.status}
-														</span>
-													</td>
-													<td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
-														<div className="flex justify-center gap-2">
-															<button
-																onClick={() => openEditForm(leave)}
-																className="p-2 text-white rounded-lg bg-blue-500 hover:bg-blue-600"
-																title="Edit leave"
-															>
-																<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-																	<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536M9 13l6.536-6.536a2 2 0 112.828 2.828L11.828 15.828a2 2 0 01-2.828 0L9 13z" />
-																</svg>
-															</button>
-															<button
-																onClick={() => { if (leave.status !== 'Approved' && leave.status !== 'Rejected') { if (window.confirm('Are you sure you want to cancel this leave?')) { handleCancelLeave(leave.id); } } }}
-																className={`p-2 text-white rounded-lg ${leave.status === 'Approved' || leave.status === 'Rejected' ? 'bg-gray-400 cursor-not-allowed' : 'bg-red-500 hover:bg-red-600'}`}
-																disabled={leave.status === 'Approved' || leave.status === 'Rejected'}
-																title="Delete leave"
-															>
-																<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-																	<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-																</svg>
-															</button>
-														</div>
-													</td>
-												</tr>
-											))
 										)}
-									</tbody>
-								</table>
-							</div>
-
-							{/* Pagination */}
-							{totalPages > 1 && (
-								<div className="flex justify-end items-center gap-2 p-4">
-									<button
-										className="px-3 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50"
-										disabled={currentPage === 1}
-										onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-									>Prev</button>
-									<span className="text-sm">Page {currentPage} of {totalPages}</span>
-									<button
-										className="px-3 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50"
-										disabled={currentPage === totalPages}
-										onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-									>Next</button>
+									</div>
 								</div>
-							)}
-						</div>
-					)}
-				</div>
+							</td>
+						</tr>
+					</tbody>
+				</table>
 
-				<div className="bg-white rounded-lg shadow-lg p-6">
-					<div className="flex items-center justify-between mb-6">
-						<div>
-							<h2 className="text-2xl font-bold text-gray-800">{title}</h2>
-							{/* <p className="text-sm text-gray-600">Pending leaves from Employees (&gt;2 days) and HODs</p> */}
+				{/* Filtered Table */}
+				{showFilteredTable && (
+					<div className="mt-6 overflow-hidden bg-[color:var(--surface)] shadow-xl rounded-xl border border-[color:var(--border)]">
+						<div className="overflow-x-auto overflow-hidden rounded-t-lg">
+							<table className="min-w-full divide-y divide-[color:var(--border)]">
+								<thead className="bg-[color:var(--accent)]">
+									<tr>
+										<th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">S.No</th>
+										<th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Name</th>
+										<th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Role</th>
+										<th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Department</th>
+										<th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Date Range</th>
+										<th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Duration</th>
+										<th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Reason</th>
+										<th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Status</th>
+										<th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Action</th>
+									</tr>
+								</thead>
+								<tbody className="bg-[color:var(--surface)] divide-y divide-[color:var(--border)]">
+									{loading ? (
+										<tr><td colSpan="9" className="p-8 text-center text-[color:var(--text-secondary)]">Loading...</td></tr>
+									) : paginatedOrgLeaves.length === 0 ? (
+										<tr><td colSpan="9" className="p-8 text-center text-[color:var(--text-secondary)]">No leaves found matching the filters</td></tr>
+									) : (
+										paginatedOrgLeaves.map((leave, idx) => (
+											<tr key={leave.id} className={`${idx % 2 === 0 ? 'bg-[color:var(--surface)]' : 'bg-[color:var(--surface-hover)]/60'} transition-colors duration-150 hover:bg-[color:var(--surface-hover)]`}>
+												<td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-[color:var(--text-primary)]">{(currentPage - 1) * itemsPerPage + idx + 1}</td>
+												<td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-[color:var(--text-primary)]">{leave.user_name || '-'}</td>
+												<td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-[color:var(--text-primary)]">{leave.user_role || '-'}</td>
+												<td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-[color:var(--text-primary)]">{leave.department_name || '-'}</td>
+												<td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-[color:var(--text-primary)]">{formatDateDisplay(leave.from_date)} - {formatDateDisplay(leave.to_date)}</td>
+												<td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-[color:var(--text-primary)]">{leave.credited_days} day(s)</td>
+												<td className="px-6 py-4 text-sm text-[color:var(--text-primary)]">{leave.leave_reason || '-'}</td>
+											<td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-[color:var(--text-primary)]">
+												<span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+													leave.status === 'Pending' ? 'bg-[color:var(--warning-soft)] text-[color:var(--warning)]' :
+													leave.status === 'Approved' ? 'bg-[color:var(--success-soft)] text-[color:var(--success)]' :
+													'bg-[color:var(--danger-soft)] text-[color:var(--danger)]'
+												}`}>
+													{leave.status}
+												</span>
+											</td>
+												<td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
+													<div className="flex justify-center gap-2">
+														<button
+															onClick={() => openEditForm(leave)}
+															className="p-2 text-white rounded-lg bg-[color:var(--accent)] hover:bg-[color:var(--accent-hover)]"
+															title="Edit leave"
+														>
+															<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+																<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536M9 13l6.536-6.536a2 2 0 112.828 2.828L11.828 15.828a2 2 0 01-2.828 0L9 13z" />
+															</svg>
+														</button>
+														<button
+															onClick={() => { if (leave.status !== 'Approved' && leave.status !== 'Rejected') { if (window.confirm('Are you sure you want to cancel this leave?')) { handleCancelLeave(leave.id); } } }}
+															className={`p-2 text-white rounded-lg ${leave.status === 'Approved' || leave.status === 'Rejected' ? 'bg-[color:var(--surface-hover)] cursor-not-allowed' : 'bg-[color:var(--danger)] hover:bg-[color:var(--danger-hover)]'}`}
+															disabled={leave.status === 'Approved' || leave.status === 'Rejected'}
+															title="Delete leave"
+														>
+															<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+																<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+															</svg>
+														</button>
+													</div>
+												</td>
+											</tr>
+										))
+									)}
+								</tbody>
+							</table>
 						</div>
 
-						<div className="flex items-center gap-4">
-							<div className="flex gap-2 bg-gray-100 p-1 rounded-lg">
+						{/* Pagination */}
+						{totalPages > 1 && (
+							<div className="flex justify-end items-center gap-2 p-4">
 								<button
-									onClick={() => setViewMode('month')}
-									className={`px-4 py-2 rounded transition-colors ${viewMode === 'month'
-										? 'bg-blue-600 text-white'
-										: 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-										}`}
-								>
-									Month
-								</button>
+									className="px-3 py-1 rounded border border-[color:var(--border)] bg-[color:var(--surface)] text-[color:var(--text-secondary)] hover:bg-[color:var(--surface-hover)] disabled:opacity-50"
+									disabled={currentPage === 1}
+									onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+								>Prev</button>
+								<span className="text-sm text-[color:var(--text-secondary)]">Page {currentPage} of {totalPages}</span>
 								<button
-									onClick={() => setViewMode('week')}
-									className={`px-4 py-2 rounded transition-colors ${viewMode === 'week'
-										? 'bg-blue-600 text-white'
-										: 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-										}`}
-								>
-									Week
-								</button>
-								<button
-									onClick={() => setViewMode('list')}
-									className={`px-4 py-2 rounded transition-colors ${viewMode === 'list'
-										? 'bg-blue-600 text-white'
-										: 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-										}`}
-								>
-									List
-								</button>
+									className="px-3 py-1 rounded border border-[color:var(--border)] bg-[color:var(--surface)] text-[color:var(--text-secondary)] hover:bg-[color:var(--surface-hover)] disabled:opacity-50"
+									disabled={currentPage === totalPages}
+									onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+								>Next</button>
 							</div>
-						</div>
+						)}
+					</div>
+				)}
+			</div>
+
+			<div className="bg-[color:var(--surface)] rounded-lg border border-[color:var(--border)] shadow-sm p-6">
+				<div className="flex items-center justify-between mb-6">
+					<div>
+						<h2 className="text-2xl font-bold text-[color:var(--text-primary)]">{title}</h2>
+						{/* <p className="text-sm text-[color:var(--text-secondary)]">Pending leaves from Employees (&gt;2 days) and HODs</p> */}
 					</div>
 
-					{loading ? (
-						<div className="py-10 text-center text-gray-500">Loading...</div>
-					) : (
-						<>
-							{viewMode === 'month' && (
-								<div>
-									<div className="mb-6 flex items-center justify-center gap-4">
-										<button
-											onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1))}
-											className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold text-lg"
-										>
-											&lt;
-										</button>
-										<h3 className="text-xl font-semibold text-gray-800 min-w-48 text-center">
-											{formatMonthYear(currentDate)}
-										</h3>
-										<button
-											onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1))}
-											className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold text-lg"
-										>
-											&gt;
-										</button>
-									</div>
+					<div className="flex items-center gap-4">
+						<div className="flex gap-2 bg-[color:var(--surface-hover)] p-1 rounded-lg">
+							<button
+								onClick={() => setViewMode('month')}
+								className={`px-4 py-2 rounded transition-colors ${viewMode === 'month'
+									? 'bg-[color:var(--accent)] text-white'
+									: 'bg-[color:var(--surface)] text-[color:var(--text-secondary)] hover:bg-[color:var(--surface-hover)]'
+									}`}
+							>
+								Month
+							</button>
+							<button
+								onClick={() => setViewMode('week')}
+								className={`px-4 py-2 rounded transition-colors ${viewMode === 'week'
+									? 'bg-[color:var(--accent)] text-white'
+									: 'bg-[color:var(--surface)] text-[color:var(--text-secondary)] hover:bg-[color:var(--surface-hover)]'
+									}`}
+							>
+								Week
+							</button>
+							<button
+								onClick={() => setViewMode('list')}
+								className={`px-4 py-2 rounded transition-colors ${viewMode === 'list'
+									? 'bg-[color:var(--accent)] text-white'
+									: 'bg-[color:var(--surface)] text-[color:var(--text-secondary)] hover:bg-[color:var(--surface-hover)]'
+									}`}
+							>
+								List
+							</button>
+						</div>
+					</div>
+				</div>
 
-									<div className="grid grid-cols-7 gap-1 mb-2">
-										{dayNames.map((day) => (
-											<div
-												key={day}
-												className="bg-blue-100 text-blue-800 font-semibold text-center py-2 rounded"
-											>
-												{day}
-											</div>
-										))}
-									</div>
+				{loading ? (
+					<div className="py-10 text-center text-[color:var(--text-secondary)]">Loading...</div>
+				) : (
+					<>
+						{viewMode === 'month' && (
+							<div>
+								<div className="mb-6 flex items-center justify-center gap-4">
+									<button
+										onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1))}
+										className="px-4 py-2 bg-[color:var(--accent)] text-white rounded-lg hover:bg-[color:var(--accent-hover)] transition-colors font-semibold text-lg"
+									>
+										&lt;
+									</button>
+									<h3 className="text-xl font-semibold text-[color:var(--text-primary)] min-w-48 text-center">
+										{formatMonthYear(currentDate)}
+									</h3>
+									<button
+										onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1))}
+										className="px-4 py-2 bg-[color:var(--accent)] text-white rounded-lg hover:bg-[color:var(--accent-hover)] transition-colors font-semibold text-lg"
+									>
+										&gt;
+									</button>
+								</div>
+
+								<div className="grid grid-cols-7 gap-1 mb-2">
+									{dayNames.map((day) => (
+										<div
+											key={day}
+											className="bg-[color:var(--accent-soft)] text-[color:var(--accent)] font-semibold text-center py-2 rounded"
+										>
+											{day}
+										</div>
+									))}
+								</div>
 									{/* Ticket Modal */}
 									{showTicketModal && (
 										<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-											<div className="bg-white rounded-lg shadow-xl w-full max-w-5xl max-h-[90vh] overflow-y-auto">
+											<div className="bg-[color:var(--surface)] rounded-lg shadow-xl w-full max-w-5xl max-h-[90vh] overflow-y-auto border border-[color:var(--border)]">
 												<div className="p-6">
 													<div className="flex items-center justify-between mb-4">
-														<h3 className="text-xl font-bold text-gray-800">Tickets</h3>
-														<button onClick={closeTicketModal} className="text-gray-500 hover:text-gray-700 text-2xl">×</button>
+														<h3 className="text-xl font-bold text-[color:var(--text-primary)]">Tickets</h3>
+														<button onClick={closeTicketModal} className="text-[color:var(--text-secondary)] hover:text-[color:var(--text-primary)] text-2xl">×</button>
 													</div>
 													{selectedTickets.length === 0 ? (
-														<div className="text-center text-gray-500 py-8">No tickets for this date</div>
+														<div className="text-center text-[color:var(--text-secondary)] py-8">No tickets for this date</div>
 													) : (
 														<div className="overflow-x-auto">
 															<table className="min-w-full text-sm border">
-																<thead className="bg-blue-600 text-white">
+																<thead className="bg-[color:var(--accent)] text-white">
 																	<tr>
 																		<th className="text-left px-4 py-2 border">S.No</th>
 																		<th className="text-left px-4 py-2 border">Title</th>
@@ -1117,22 +1121,22 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 											return (
 												<div
 													key={index}
-													className={`min-h-[110px] p-2 border rounded cursor-pointer ${date ? 'bg-white' : 'bg-gray-50'
-														} ${isToday(date) ? 'border-emerald-500' : 'border-gray-200'}`}
+													className={`min-h-[110px] p-2 border rounded cursor-pointer ${date ? 'bg-[color:var(--surface)]' : 'bg-[color:var(--surface-hover)]'
+														} ${isToday(date) ? 'border-[color:var(--success)]' : 'border-[color:var(--border)]'}`}
 													onClick={() => date && handleDateClick(date)}
 												>
 													{date && (
 														<>
-															<div className="text-sm font-semibold text-gray-700 mb-1">
+															<div className="text-sm font-semibold text-[color:var(--text-primary)] mb-1">
 																{date.getDate()}
 															</div>
 															{isToday(date) && (
-																<div className="text-blue-600 text-xs font-italic">Today</div>
+																<div className="text-[color:var(--accent)] text-xs font-italic">Today</div>
 															)}
 															{myLeave && (
 																<div className="mt-1">
 																	<button
-																		className="inline-flex items-center gap-2 bg-blue-600 text-white text-xs font-semibold px-2 py-0.5 rounded-full shadow-sm hover:bg-blue-700 focus:outline-none"
+																		className="inline-flex items-center gap-2 bg-[color:var(--accent)] text-white text-xs font-semibold px-2 py-0.5 rounded-full shadow-sm hover:bg-[color:var(--accent-hover)] focus:outline-none"
 																		title="Click to view/edit my leave"
 																		aria-label="View my leave"
 																		onClick={(e) => { e.stopPropagation(); handleDateClick(date); }}
@@ -1153,7 +1157,7 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 														const total = otherLeaves.length;
 														const earnedPct = total > 0 ? Math.round((earnedLeaveCount / total) * 100) : 50;
 														const deptBadgeStyle = (earnedLeaveCount > 0 && leaveWithoutPayCount > 0) ? { background: `linear-gradient(to right, #3b82f6 ${earnedPct}%, #ef4444 ${earnedPct}%)` } : null;
-														const deptBadgeClass = (earnedLeaveCount > 0 && leaveWithoutPayCount === 0) ? 'bg-blue-600 hover:bg-blue-700' : (leaveWithoutPayCount > 0 && earnedLeaveCount === 0) ? 'bg-red-600 hover:bg-red-700' : 'bg-purple-600 hover:bg-purple-700';
+														const deptBadgeClass = (earnedLeaveCount > 0 && leaveWithoutPayCount === 0) ? 'bg-[color:var(--accent)] hover:bg-[color:var(--accent-hover)]' : (leaveWithoutPayCount > 0 && earnedLeaveCount === 0) ? 'bg-[color:var(--danger)] hover:bg-[color:var(--danger-hover)]' : 'bg-[color:var(--accent)] hover:bg-[color:var(--accent-hover)]';
 														return (
 															<div className="mt-2">
 																<button
@@ -1166,7 +1170,7 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 																>
 																	<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" className="h-6 w-6" aria-hidden="true"><path d="M2 22C2 17.5817 5.58172 14 10 14C14.4183 14 18 17.5817 18 22H16C16 18.6863 13.3137 16 10 16C6.68629 16 4 18.6863 4 22H2ZM10 13C6.685 13 4 10.315 4 7C4 3.685 6.685 1 10 1C13.315 1 16 3.685 16 7C16 10.315 13.315 13 10 13ZM10 11C12.21 11 14 9.21 14 7C14 4.79 12.21 3 10 3C7.79 3 6 4.79 6 7C6 9.21 7.79 11 10 11ZM18.2837 14.7028C21.0644 15.9561 23 18.752 23 22H21C21 19.564 19.5483 17.4671 17.4628 16.5271L18.2837 14.7028ZM17.5962 3.41321C19.5944 4.23703 21 6.20361 21 8.5C21 11.3702 18.8042 13.7252 16 13.9776V11.9646C17.6967 11.7222 19 10.264 19 8.5C19 7.11935 18.2016 5.92603 17.041 5.35635L17.5962 3.41321Z" /></svg>
 																	{otherLeaves.length >= 1 && (
-																		<span className="bg-white text-purple-700 text-[10px] font-semibold rounded-full px-1 py-0.5">{otherLeaves.length}</span>
+																		<span className="bg-[color:var(--surface)] text-[color:var(--accent)] text-[10px] font-semibold rounded-full px-1 py-0.5">{otherLeaves.length}</span>
 																	)}
 																</button>
 															</div>
@@ -1177,14 +1181,14 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 														return dayTickets.length > 0 ? (
 															<div className="mt-2">
 																<button
-																	className="inline-flex items-center gap-2 bg-green-600 text-white text-xs font-semibold px-2 py-0.5 rounded-full shadow-sm hover:bg-green-700 focus:outline-none"
+																	className="inline-flex items-center gap-2 bg-[color:var(--success)] text-white text-xs font-semibold px-2 py-0.5 rounded-full shadow-sm hover:opacity-90 focus:outline-none"
 																	title={`View ${dayTickets.length} ticket(s)`}
 																	aria-label={`View ${dayTickets.length} ticket${dayTickets.length > 1 ? 's' : ''}`}
 																	onClick={(e) => { e.stopPropagation(); openTicketModal(date); }}
 																>
 																	<span aria-hidden="true" className="h-6 w-6 inline-flex items-center justify-center text-[24px]">🎫</span>
 																	{dayTickets.length >= 1 && (
-																		<span className="bg-white text-green-700 text-[10px] font-semibold rounded-full px-1 py-0.5">{dayTickets.length}</span>
+																		<span className="bg-[color:var(--surface)] text-[color:var(--success)] text-[10px] font-semibold rounded-full px-1 py-0.5">{dayTickets.length}</span>
 																	)}
 																</button>
 															</div>
@@ -1200,7 +1204,7 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 							{viewMode === 'week' && (
 								<div>
 									<div className="mb-6 text-center">
-										<h3 className="text-xl font-semibold text-gray-800">
+										<h3 className="text-xl font-semibold text-[color:var(--text-primary)]">
 											{formatWeekRange(weekDays[0])}
 										</h3>
 									</div>
@@ -1210,15 +1214,15 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 											const otherLeaves = (teamLeaves || []).filter(l => !isLeaveByCurrentUser(l));
 											const myLeave = getMyLeaveForDate(date);
 											return (
-												<div key={index} className="border rounded p-3">
-													<div className="text-sm font-semibold text-gray-700 mb-2">
+												<div key={index} className="rounded border border-[color:var(--border)] bg-[color:var(--surface)] p-3">
+													<div className="text-sm font-semibold text-[color:var(--text-primary)] mb-2">
 														{formatDate(date)}
 													</div>
 													<div className="space-y-1">
 														{myLeave && (
 															<div>
 																<button
-																	className="inline-flex items-center gap-2 bg-blue-600 text-white text-xs font-semibold px-2 py-0.5 rounded-full shadow-sm hover:bg-blue-700 focus:outline-none"
+																	className="inline-flex items-center gap-2 bg-[color:var(--accent)] text-white text-xs font-semibold px-2 py-0.5 rounded-full shadow-sm hover:bg-[color:var(--accent-hover)] focus:outline-none"
 																	title="Click to view/edit my leave"
 																	aria-label="View my leave"
 																	onClick={(e) => { e.stopPropagation(); handleDateClick(date); }}
@@ -1235,7 +1239,7 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 															const total = otherLeaves.length;
 															const earnedPct = total > 0 ? Math.round((earnedLeaveCount / total) * 100) : 50;
 															const deptBadgeStyle = (earnedLeaveCount > 0 && leaveWithoutPayCount > 0) ? { background: `linear-gradient(to right, #3b82f6 ${earnedPct}%, #ef4444 ${earnedPct}%)` } : null;
-															const deptBadgeClass = (earnedLeaveCount > 0 && leaveWithoutPayCount === 0) ? 'bg-blue-600 hover:bg-blue-700' : (leaveWithoutPayCount > 0 && earnedLeaveCount === 0) ? 'bg-red-600 hover:bg-red-700' : 'bg-purple-600 hover:bg-purple-700';
+															const deptBadgeClass = (earnedLeaveCount > 0 && leaveWithoutPayCount === 0) ? 'bg-[color:var(--accent)] hover:bg-[color:var(--accent-hover)]' : (leaveWithoutPayCount > 0 && earnedLeaveCount === 0) ? 'bg-[color:var(--danger)] hover:bg-[color:var(--danger-hover)]' : 'bg-[color:var(--accent)] hover:bg-[color:var(--accent-hover)]';
 															return (
 																<div>
 																	<button
@@ -1248,7 +1252,7 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 																	>
 																		<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="currentColor" className="h-6 w-6" aria-hidden="true"><path d="M2 22C2 17.5817 5.58172 14 10 14C14.4183 14 18 17.5817 18 22H16C16 18.6863 13.3137 16 10 16C6.68629 16 4 18.6863 4 22H2ZM10 13C6.685 13 4 10.315 4 7C4 3.685 6.685 1 10 1C13.315 1 16 3.685 16 7C16 10.315 13.315 13 10 13ZM10 11C12.21 11 14 9.21 14 7C14 4.79 12.21 3 10 3C7.79 3 6 4.79 6 7C6 9.21 7.79 11 10 11ZM18.2837 14.7028C21.0644 15.9561 23 18.752 23 22H21C21 19.564 19.5483 17.4671 17.4628 16.5271L18.2837 14.7028ZM17.5962 3.41321C19.5944 4.23703 21 6.20361 21 8.5C21 11.3702 18.8042 13.7252 16 13.9776V11.9646C17.6967 11.7222 19 10.264 19 8.5C19 7.11935 18.2016 5.92603 17.041 5.35635L17.5962 3.41321Z"></path></svg>
 																		{otherLeaves.length >= 1 && (
-																			<span className="bg-white text-purple-700 text-[10px] font-semibold rounded-full px-1 py-0.5">{otherLeaves.length}</span>
+																			<span className="bg-[color:var(--surface)] text-[color:var(--accent)] text-[10px] font-semibold rounded-full px-1 py-0.5">{otherLeaves.length}</span>
 																		)}
 																	</button>
 																</div>
@@ -1259,14 +1263,14 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 															return dayTickets.length > 0 ? (
 																<div>
 																	<button
-																		className="inline-flex items-center gap-2 bg-green-600 text-white text-xs font-semibold px-2 py-0.5 rounded-full shadow-sm hover:bg-green-700 focus:outline-none"
+																		className="inline-flex items-center gap-2 bg-[color:var(--success)] text-white text-xs font-semibold px-2 py-0.5 rounded-full shadow-sm hover:opacity-90 focus:outline-none"
 																		title={`View ${dayTickets.length} ticket(s)`}
 																		aria-label={`View ${dayTickets.length} ticket${dayTickets.length > 1 ? 's' : ''}`}
 																		onClick={(e) => { e.stopPropagation(); openTicketModal(date); }}
 																	>
 																		<span aria-hidden="true" className="h-6 w-6 inline-flex items-center justify-center text-[24px]">🎫</span>
 																		{dayTickets.length >= 1 && (
-																			<span className="bg-white text-green-700 text-[10px] font-semibold rounded-full px-1 py-0.5">{dayTickets.length}</span>
+																			<span className="bg-[color:var(--surface)] text-[color:var(--success)] text-[10px] font-semibold rounded-full px-1 py-0.5">{dayTickets.length}</span>
 																		)}
 																	</button>
 																</div>
@@ -1283,18 +1287,18 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 							{viewMode === 'list' && (
 								<div>
 									<div className="mb-6">
-										<h3 className="text-xl font-semibold text-gray-800 mb-4">
+										<h3 className="text-xl font-semibold text-[color:var(--text-primary)] mb-4">
 											My Leaves
 										</h3>
 										{myLeaves.length === 0 ? (
-											<div className="text-center py-8 text-gray-500 bg-gray-50 rounded-lg">
+											<div className="text-center py-8 text-[color:var(--text-secondary)] bg-[color:var(--surface-hover)] rounded-lg">
 												No leaves applied yet
 											</div>
 										) : (
 											<div className="overflow-x-auto mb-8">
-												<table className="min-w-full bg-white border rounded-lg shadow">
+												<table className="min-w-full bg-[color:var(--surface)] border rounded-lg border-[color:var(--border)] shadow">
 													<thead>
-														<tr className="bg-blue-100 text-blue-800">
+														<tr className="bg-[color:var(--accent-soft)] text-[color:var(--accent)]">
 															<th className="py-2 px-4 text-center">S.No</th>
 															<th className="py-2 px-4 text-center">Status</th>
 															<th className="py-2 px-4 text-center">Duration</th>
@@ -1304,7 +1308,7 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 													</thead>
 													<tbody>
 														{myLeaves.map((leave, idx) => (
-															<tr key={leave.id} className="border-b hover:bg-blue-50">
+															<tr key={leave.id} className="border-b border-[color:var(--border)] hover:bg-[color:var(--surface-hover)]">
 																<td className="py-2 px-4 text-center">{idx + 1}</td>
 																<td className="py-2 px-4 text-center">
 																	<span className={`px-3 py-1 rounded-full text-white text-sm ${getLeaveBadgeColor(leave.status)}`}>{leave.status}</span>
@@ -1319,7 +1323,7 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 																	<div className="flex justify-center gap-2">
 																		<button
 																			onClick={() => openEditForm(leave)}
-																			className="p-2 rounded bg-blue-500 text-white hover:bg-blue-600"
+																			className="p-2 rounded bg-[color:var(--accent)] text-white hover:bg-[color:var(--accent-hover)]"
 																			title="Edit leave"
 																		>
 																			<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1328,7 +1332,7 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 																		</button>
 																		<button
 																			onClick={() => handleCancelLeave(leave.id)}
-																			className="p-2 rounded bg-red-500 text-white hover:bg-red-600"
+																			className="p-2 rounded bg-[color:var(--danger)] text-white hover:bg-[color:var(--danger-hover)]"
 																			title="Cancel leave"
 																		>
 																			<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1346,31 +1350,31 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 									</div>
 
 									<div className="mb-6 text-center">
-										<h3 className="text-xl font-semibold text-gray-800">
+										<h3 className="text-xl font-semibold text-[color:var(--text-primary)]">
 											Pending Leaves in {formatMonthYear(currentDate)}
 										</h3>
 									</div>
 									{monthLeaves.length === 0 ? (
-										<div className="text-center text-gray-500">No pending leaves for this month</div>
+										<div className="text-center text-[color:var(--text-secondary)]">No pending leaves for this month</div>
 									) : (
 										<div className="space-y-3">
 											{monthLeaves.map((leave) => (
-												<div key={leave.id} className="border rounded p-4 bg-white">
+												<div key={leave.id} className="border border-[color:var(--border)] rounded p-4 bg-[color:var(--surface)]">
 													<div className="flex items-center justify-between mb-2">
-														<div className="font-semibold text-gray-800">
+														<div className="font-semibold text-[color:var(--text-primary)]">
 															{leave.user_name} ({leave.user_role})
 														</div>
-														<span className={`px-2 py-1 rounded-full text-white text-xs font-semibold ${getLeaveBadgeColor('Pending')}`}>
-															Pending
-														</span>
+													<span className="rounded bg-[color:var(--warning-soft)] px-2 py-1 text-xs text-[color:var(--warning)]">
+														Pending
+													</span>
 													</div>
-													<div className="text-sm text-gray-600">
+													<div className="text-sm text-[color:var(--text-secondary)]">
 														{formatFullDate(parseDateOnly(leave.from_date))} → {formatFullDate(parseDateOnly(leave.to_date))}
 													</div>
-													<div className="text-sm text-gray-600">
+													<div className="text-sm text-[color:var(--text-secondary)]">
 														Duration: {leave.credited_days} day(s)
 													</div>
-													<div className="text-sm text-gray-600">
+													<div className="text-sm text-[color:var(--text-secondary)]">
 														Reason: {leave.leave_reason}
 													</div>
 												</div>
@@ -1386,15 +1390,15 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 				{/* Date Detail Modal - For viewing my leave details */}
 				{showDateDetail && selectedDate && (
 					<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-						<div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+						<div className="bg-[color:var(--surface)] rounded-lg shadow-xl max-w-md w-full border border-[color:var(--border)]">
 							<div className="p-6">
 								<div className="flex justify-between items-center mb-4">
-									<h3 className="text-xl font-bold text-gray-800">
+									<h3 className="text-xl font-bold text-[color:var(--text-primary)]">
 										My Leave
 									</h3>
 									<button
 										onClick={handleCloseDateDetail}
-										className="text-gray-500 hover:text-gray-700 text-2xl"
+										className="text-[color:var(--text-secondary)] hover:text-[color:var(--text-primary)] text-2xl"
 									>
 										×
 									</button>
@@ -1405,9 +1409,9 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 									return leave ? (
 
 										<div className="overflow-x-auto">
-											<table className="min-w-full bg-white border rounded-lg">
+											<table className="min-w-full bg-[color:var(--surface)] border rounded-lg border-[color:var(--border)]">
 												<thead>
-													<tr className="bg-blue-600 text-white">
+													<tr className="bg-[color:var(--accent)] text-white">
 														<th className="py-2 px-4 text-left">S.No</th>
 														<th className="py-2 px-4 text-left">From</th>
 														<th className="py-2 px-4 text-left">To</th>
@@ -1418,7 +1422,7 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 													</tr>
 												</thead>
 												<tbody>
-													<tr className="border-b hover:bg-gray-50">
+													<tr className="border-b border-[color:var(--border)] hover:bg-[color:var(--surface-hover)]">
 														<td className="py-2 px-4">1</td>
 														<td className="py-2 px-4">{formatFullDate(parseDateOnly(leave.from_date))}</td>
 														<td className="py-2 px-4">{formatFullDate(parseDateOnly(leave.to_date))}</td>
@@ -1429,7 +1433,7 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 															<div className="flex justify-center gap-2">
 																<button
 																	onClick={() => { if (leave.status !== 'Approved' && leave.status !== 'Rejected') { openEditForm(leave); handleCloseDateDetail(); } }}
-																	className={`p-2 text-white transition-colors duration-200 ${leave.status === 'Approved' || leave.status === 'Rejected' ? 'bg-gray-400 cursor-not-allowed rounded-lg' : 'bg-blue-600 rounded-lg hover:bg-blue-700'}`}
+																	className={`p-2 text-white transition-colors duration-200 ${leave.status === 'Approved' || leave.status === 'Rejected' ? 'bg-[color:var(--surface-hover)] cursor-not-allowed rounded-lg' : 'bg-[color:var(--accent)] rounded-lg hover:bg-[color:var(--accent-hover)]'}`}
 																	disabled={leave.status === 'Approved' || leave.status === 'Rejected'}
 																	title="Edit Leave"
 																>
@@ -1439,7 +1443,7 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 																</button>
 																<button
 																	onClick={() => { if (leave.status !== 'Approved' && leave.status !== 'Rejected') { if (window.confirm('Are you sure you want to cancel this leave?')) { handleCancelLeave(leave.id); handleCloseDateDetail(); } } }}
-																	className={`p-2 text-white transition-colors duration-200 ${leave.status === 'Approved' || leave.status === 'Rejected' ? 'bg-gray-400 cursor-not-allowed rounded-lg' : 'bg-red-500 rounded-lg hover:bg-red-600'}`}
+																	className={`p-2 text-white transition-colors duration-200 ${leave.status === 'Approved' || leave.status === 'Rejected' ? 'bg-[color:var(--surface-hover)] cursor-not-allowed rounded-lg' : 'bg-[color:var(--danger)] rounded-lg hover:bg-[color:var(--danger-hover)]'}`}
 																	disabled={leave.status === 'Approved' || leave.status === 'Rejected'}
 																	title="Cancel Leave"
 																>
@@ -1463,15 +1467,15 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 				{/* Leave Application Form Modal */}
 				{showLeaveForm && (
 					<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-						<div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+						<div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] shadow-xl">
 							<div className="p-6">
 								<div className="flex justify-between items-center mb-4">
-									<h3 className="text-xl font-bold text-gray-800">
+									<h3 className="text-xl font-bold text-[color:var(--text-primary)]">
 										{editingLeave ? 'Edit Leave Application' : 'Apply for Leave'}
 									</h3>
 									<button
 										onClick={handleCloseLeaveForm}
-										className="text-gray-500 hover:text-gray-700 text-2xl"
+										className="text-[color:var(--text-secondary)] hover:text-[color:var(--text-primary)] text-2xl"
 									>
 										×
 									</button>
@@ -1480,19 +1484,19 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 								<form onSubmit={handleSubmitLeave} className="space-y-4">
 									<div className="grid grid-cols-12 gap-4 w-full items-start">
 										<div className="col-span-4">
-											<label className="block text-sm font-medium text-gray-700 mb-1">From Date *</label>
+											<label className="block text-sm font-medium text-[color:var(--text-primary)] mb-1">From Date *</label>
 											<input
 												type="date"
 												name="from_date"
 												value={leaveForm.from_date}
 												readOnly
 												required
-												className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base bg-gray-100 cursor-not-allowed"
+ 												className="w-full px-3 py-2 border border-[color:var(--border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[color:var(--focus-ring)] text-base bg-[color:var(--surface)] cursor-not-allowed"
 												style={{ fontVariantNumeric: 'tabular-nums', minWidth: '10.5rem', maxWidth: '13rem' }}
 											/>
 										</div>
 										<div className="col-span-4">
-											<label className="block text-sm font-medium text-gray-700 mb-1">To Date *</label>
+											<label className="block text-sm font-medium text-[color:var(--text-primary)] mb-1">To Date *</label>
 											<input
 												type="date"
 												name="to_date"
@@ -1500,27 +1504,27 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 												onChange={handleFormChange}
 												min={leaveForm.from_date}
 												required
-												className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base"
+												className="w-full px-3 py-2 border border-[color:var(--border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[color:var(--focus-ring)] text-base bg-[color:var(--surface)]"
 												style={{ fontVariantNumeric: 'tabular-nums', minWidth: '10.5rem', maxWidth: '13rem' }}
 											/>
 										</div>
 										<div className="col-span-2">
-											<label className="block text-sm font-medium text-gray-700 mb-1">Day Type</label>
+											<label className="block text-sm font-medium text-[color:var(--text-primary)] mb-1">Day Type</label>
 											<select
 												name="day_type"
 												value={leaveForm.day_type || 'full'}
 												onChange={handleFormChange}
 												required
-												className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base"
+												className="w-full px-3 py-2 border border-[color:var(--border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[color:var(--focus-ring)] text-base bg-[color:var(--surface)]"
 												disabled={leaveForm.from_date !== leaveForm.to_date}
 											>
-												<option value="full">Full day</option>
-												<option value="morning">Morning half</option>
-												<option value="afternoon">Afternoon half</option>
-											</select>
-										</div>
+ 												<option value="full">Full day</option>
+ 												<option value="morning">Morning half</option>
+ 												<option value="afternoon">Afternoon half</option>
+ 											</select>
+ 										</div>
 										<div className="col-span-2">
-											<label className="block text-sm font-medium text-gray-700 mb-1">Days</label>
+											<label className="block text-sm font-medium text-[color:var(--text-primary)] mb-1">Days</label>
 											<input
 												type="text"
 												inputMode="numeric"
@@ -1534,25 +1538,25 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 															: leaveForm.duration
 												}
 												readOnly
-												className="w-20 px-2 py-2 border border-gray-300 rounded-lg bg-gray-100 focus:outline-none text-center"
+ 												className="w-20 px-2 py-2 border border-[color:var(--border)] rounded-lg bg-[color:var(--surface)] focus:outline-none text-center text-[color:var(--text-primary)]"
 												style={{ minWidth: '3.5rem', maxWidth: '4.5rem' }}
 											/>
 										</div>
 									</div>
-									<p className="text-xs text-gray-500">
+									<p className="text-xs text-[color:var(--text-secondary)]">
 										Note: Half-day leaves are limited to a single day
 									</p>
 
 									{isHrUser && (
-										<div>
-											<label className="block text-sm font-medium text-gray-700 mb-1">Staff *</label>
-											<select
-												name="user_id"
-												value={leaveForm.user_id || ''}
-												onChange={handleFormChange}
-												required
-												className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base bg-white"
-											>
+ 										<div>
+ 											<label className="block text-sm font-medium text-[color:var(--text-primary)] mb-1">Staff *</label>
+ 											<select
+ 												name="user_id"
+ 												value={leaveForm.user_id || ''}
+ 												onChange={handleFormChange}
+ 												required
+ 												className="w-full px-3 py-2 border border-[color:var(--border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[color:var(--focus-ring)] text-base bg-[color:var(--surface)]"
+ 											>
 												<option value="">Select staff member</option>
 												{staffUsers.map((staff) => (
 													<option key={staff.id} value={staff.id}>
@@ -1564,7 +1568,7 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 									)}
 
 									<div>
-										<label className="block text-sm font-medium text-gray-700 mb-2">Leave Type *</label>
+										<label className="block text-sm font-medium text-[color:var(--text-primary)] mb-2">Leave Type *</label>
 										<div className="flex flex-wrap gap-4 items-end">
 											<label className={`inline-flex items-center gap-2 ${!hasLeaveBalance ? 'opacity-50 cursor-not-allowed' : ''}`}>
 												<input
@@ -1574,9 +1578,9 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 													checked={leaveForm.leave_type === 'Earned Leave'}
 													onChange={handleFormChange}
 													disabled={!hasLeaveBalance}
-													className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+													className="h-4 w-4 text-[color:var(--accent)] border-[color:var(--border)] focus:ring-[color:var(--focus-ring)]"
 												/>
-												<span className="text-sm text-gray-700">Earned Leave</span>
+												<span className="text-sm text-[color:var(--text-primary)]">Earned Leave</span>
 											</label>
 											<label className="inline-flex items-center gap-2">
 												<input
@@ -1585,9 +1589,9 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 													value="Duty Leave"
 													checked={leaveForm.leave_type === 'Duty Leave'}
 													onChange={handleFormChange}
-													className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+													className="h-4 w-4 text-[color:var(--accent)] border-[color:var(--border)] focus:ring-[color:var(--focus-ring)]"
 												/>
-												<span className="text-sm text-gray-700">Duty Leave</span>
+												<span className="text-sm text-[color:var(--text-primary)]">Duty Leave</span>
 											</label>
 											{!hasLeaveBalance && (
 												<label className="inline-flex items-center gap-2">
@@ -1597,23 +1601,23 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 														value="Leave without pay"
 														checked={leaveForm.leave_type === 'Leave without pay'}
 														onChange={handleFormChange}
-														className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+														className="h-4 w-4 text-[color:var(--accent)] border-[color:var(--border)] focus:ring-[color:var(--focus-ring)]"
 													/>
-													<span className="text-sm text-gray-700">Leave without pay</span>
+													<span className="text-sm text-[color:var(--text-primary)]">Leave without pay</span>
 												</label>
 											)}
 										</div>
 									</div>
 
 									<div>
-										<label className="block text-sm font-medium text-gray-700 mb-1">Reason for Leave *</label>
+										<label className="block text-sm font-medium text-[color:var(--text-primary)] mb-1">Reason for Leave *</label>
 										<textarea
 											name="leave_reason"
 											value={leaveForm.leave_reason}
 											onChange={handleFormChange}
 											required
 											rows="3"
-											className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+ 											className="w-full px-3 py-2 border border-[color:var(--border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[color:var(--focus-ring)] bg-[color:var(--surface)]"
 											placeholder="Please provide a reason for your leave..."
 										/>
 									</div>
@@ -1625,15 +1629,15 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 												name="available_on_phone"
 												checked={leaveForm.available_on_phone}
 												onChange={handleFormChange}
-												className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+												className="w-4 h-4 text-[color:var(--accent)] border-[color:var(--border)] rounded focus:ring-[color:var(--focus-ring)]"
 											/>
-											<label className="ml-2 text-sm text-gray-700">
+											<label className="ml-2 text-sm text-[color:var(--text-primary)]">
 												Available on phone during leave
 											</label>
 										</div>
 
-										<div className="bg-blue-50 p-3 rounded-lg">
-											<p className="text-sm text-gray-700">
+										<div className="bg-[color:var(--surface-hover)] border border-[color:var(--border)] p-3 rounded-lg">
+											<p className="text-sm text-[color:var(--text-primary)]">
 												<strong>Available Balance:</strong> {(selectedStaffBalance?.leave_balance ?? leaveBalance?.leave_balance) ?? 'N/A'} day(s)
 											</p>
 										</div>
@@ -1642,14 +1646,14 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 										<button
 											type="button"
 											onClick={handleCloseLeaveForm}
-											className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+											className="px-4 py-2 bg-[color:var(--danger)] text-white rounded hover:bg-[color:var(--danger-hover)]"
 										>
 											Cancel
 										</button>
 										<button
 											type="submit"
 											disabled={loading}
-											className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-400"
+											className="px-4 py-2 bg-[color:var(--accent)] text-white rounded hover:bg-[color:var(--accent-hover)] disabled:bg-[color:var(--surface-hover)]"
 										>
 											{loading ? 'Submitting...' : editingLeave ? 'Update Leave' : 'Submit Leave'}
 										</button>
@@ -1662,26 +1666,26 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 
 				{showLeaveModal && selectedLeaveDate && (
 					<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-						<div className="bg-white rounded-lg shadow-xl w-full max-w-5xl max-h-[90vh] overflow-y-auto">
+						<div className="bg-[color:var(--surface)] rounded-lg shadow-xl w-full max-w-5xl max-h-[90vh] overflow-y-auto border border-[color:var(--border)]">
 							<div className="p-6">
 								<div className="flex items-center justify-between mb-4">
-									<h3 className="text-xl font-bold text-gray-800">
+									<h3 className="text-xl font-bold text-[color:var(--text-primary)]">
 										Leave Details - {formatFullDate(selectedLeaveDate)}
 									</h3>
 									<button
 										onClick={closeLeaveModal}
-										className="text-gray-500 hover:text-gray-700 text-2xl"
+										className="text-[color:var(--text-secondary)] hover:text-[color:var(--text-primary)] text-2xl"
 									>
 										×
 									</button>
 								</div>
 
 								{selectedDateLeaves.length === 0 ? (
-									<div className="text-center text-gray-500 py-8">No leaves for this date</div>
+									<div className="text-center text-[color:var(--text-secondary)] py-8">No leaves for this date</div>
 								) : (
 									<div className="overflow-x-auto">
 										<table className="min-w-full text-sm border">
-											<thead className="bg-blue-600 text-white">
+											<thead className="bg-[color:var(--accent)] text-white">
 												<tr>
 													<th className="text-left px-4 py-2 border">S.No</th>
 													<th className="text-left px-4 py-2 border">User Name</th>
@@ -1696,7 +1700,7 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 											</thead>
 											<tbody>
 												{selectedDateLeaves.map((leave, idx) => (
-													<tr key={leave.id} className={`border-t ${isLeaveWithoutPay(leave) ? 'bg-red-50 border-l-4 border-red-600' : ''}`}>
+													<tr key={leave.id} className={`border-t ${isLeaveWithoutPay(leave) ? 'bg-[color:var(--danger-soft)] border-l-4 border-[color:var(--danger)]' : ''}`}>
 														<td className="px-4 py-2 border">{idx + 1}</td>
 														<td className="px-4 py-2 border">{leave.user_name}</td>
 														<td className="px-4 py-2 border">{leave.user_role || '—'}</td>
@@ -1704,7 +1708,7 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 														<td className="px-4 py-2 border">{formatFullDate(parseDateOnly(leave.to_date))}</td>
 														<td className="px-4 py-2 border">{leave.leave_reason || '—'}</td>
 														<td className="px-4 py-2 border">
-															<span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold text-white ${isLeaveWithoutPay(leave) ? 'bg-red-600' : 'bg-blue-600'}`}>
+															<span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold text-white ${isLeaveWithoutPay(leave) ? 'bg-[color:var(--danger)]' : 'bg-[color:var(--accent)]'}`}>
 																{leave.leave_type || '—'}
 															</span>
 														</td>
@@ -1717,7 +1721,7 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 															<div className="flex justify-center gap-2">
 																<button
 																	onClick={() => { openEditForm(leave); closeLeaveModal(); }}
-																	className="p-2 text-white rounded-lg bg-blue-500 hover:bg-blue-600"
+																	className="p-2 text-white rounded-lg bg-[color:var(--accent)] hover:bg-[color:var(--accent-hover)]"
 																	title="Edit leave"
 																>
 																	<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1726,7 +1730,7 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 																</button>
 																<button
 																	onClick={() => { if (leave.status !== 'Approved' && leave.status !== 'Rejected') { if (window.confirm('Are you sure you want to cancel this leave?')) { handleCancelLeave(leave.id); } } }}
-																	className={`p-2 text-white rounded-lg ${leave.status === 'Approved' || leave.status === 'Rejected' ? 'bg-gray-400 cursor-not-allowed' : 'bg-red-500 hover:bg-red-600'}`}
+																	className={`p-2 text-white rounded-lg ${leave.status === 'Approved' || leave.status === 'Rejected' ? 'bg-[color:var(--surface-hover)] cursor-not-allowed' : 'bg-[color:var(--danger)] hover:bg-[color:var(--danger-hover)]'}`}
 																	disabled={leave.status === 'Approved' || leave.status === 'Rejected'}
 																	title="Delete leave"
 																>

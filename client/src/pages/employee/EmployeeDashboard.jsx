@@ -160,24 +160,24 @@ function EmployeeDashboard() {
 
   return (
     <>
-      <div className="space-y-6">
+      <div className="space-y-6 text-[color:var(--text-primary)]">
         {/* Header */}
         <div className="mb-8">
           <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
             <div>
-              <h1 className="text-4xl font-bold text-gray-800 mb-2">Employee Dashboard</h1>
-              <p className="text-gray-600">Welcome, {user?.firstName} {user?.lastName}</p>
-              <p className="text-sm text-blue-700 mt-1 font-medium">Showing statistics for FY {formatFiscalYear(selectedFiscalYear)}</p>
+              <h1 className="mb-2 text-4xl font-bold text-[color:var(--text-primary)]">Employee Dashboard</h1>
+              <p className="text-[color:var(--text-secondary)]">Welcome, {user?.firstName} {user?.lastName}</p>
+              <p className="mt-1 text-sm font-medium text-[color:var(--accent)]">Showing statistics for FY {formatFiscalYear(selectedFiscalYear)}</p>
             </div>
             <div className="min-w-[180px]">
-              <label htmlFor="dashboard-fiscal-year" className="block text-sm font-semibold text-gray-700 mb-1">
+              <label htmlFor="dashboard-fiscal-year" className="mb-1 block text-sm font-semibold text-[color:var(--text-secondary)]">
                 Financial Year
               </label>
               <select
                 id="dashboard-fiscal-year"
                 value={selectedFiscalYear}
                 onChange={(e) => setSelectedFiscalYear(parseInt(e.target.value, 10))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:border-blue-500"
+                className="w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-2 text-sm text-[color:var(--text-primary)] focus:outline-none focus:border-[color:var(--accent)]"
               >
                 {fiscalYearOptions.map((year) => (
                   <option key={year} value={year}>
@@ -191,27 +191,27 @@ function EmployeeDashboard() {
 
         {/* KPI/KAIs Statistics */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-          <div className="bg-white p-6 rounded-lg shadow-lg border-l-4 border-blue-500 flex items-center gap-4">
+          <div className="flex items-center gap-4 rounded-lg border border-[color:var(--border)] border-l-4 border-l-[color:var(--accent)] bg-[color:var(--surface)] p-6 shadow-sm">
             <div className="text-4xl">📊</div>
             <div>
-              <div className="text-gray-500 text-sm font-semibold mb-1">My KPIs/KAIs</div>
-              <div className="text-3xl font-bold text-gray-800">{loading ? 0 : kpiStats.total}</div>
+              <div className="mb-1 text-sm font-semibold text-[color:var(--text-secondary)]">My KPIs/KAIs</div>
+              <div className="text-3xl font-bold text-[color:var(--text-primary)]">{loading ? 0 : kpiStats.total}</div>
             </div>
           </div>
           {/* Removed 'Assigned to you' box */}
-          <div className="bg-white p-6 rounded-lg shadow-lg border-l-4 border-purple-500 flex items-center gap-4">
+          <div className="flex items-center gap-4 rounded-lg border border-[color:var(--border)] border-l-4 border-l-[color:var(--accent)] bg-[color:var(--surface)] p-6 shadow-sm">
             <div className="text-4xl">📋</div>
             <div>
-              <div className="text-gray-500 text-sm font-semibold mb-1">Total Values Assigned</div>
-              <div className="text-3xl font-bold text-gray-800">{loading ? 0 : kpiStats.valuesAssigned}</div>
+              <div className="mb-1 text-sm font-semibold text-[color:var(--text-secondary)]">Total Values Assigned</div>
+              <div className="text-3xl font-bold text-[color:var(--text-primary)]">{loading ? 0 : kpiStats.valuesAssigned}</div>
             </div>
           </div>
           {/* Removed 'Measurement points' box */}
-          <div className="bg-white p-6 rounded-lg shadow-lg border-l-4 border-orange-500 flex items-center gap-4">
+          <div className="flex items-center gap-4 rounded-lg border border-[color:var(--border)] border-l-4 border-l-[color:var(--warning)] bg-[color:var(--surface)] p-6 shadow-sm">
             <div className="text-4xl">📈</div>
             <div>
-              <div className="text-gray-500 text-sm font-semibold mb-1">Avg Entries / KPI Value</div>
-              <div className="text-3xl font-bold text-gray-800">
+              <div className="mb-1 text-sm font-semibold text-[color:var(--text-secondary)]">Avg Entries / KPI Value</div>
+              <div className="text-3xl font-bold text-[color:var(--text-primary)]">
                 {loading ? '0.0 / 12' : `${kpiStats.avgEntriesPerKpiValue.toFixed(1)} / 12`}
               </div>
             </div>
@@ -222,16 +222,16 @@ function EmployeeDashboard() {
         
 
         {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+          <div className="rounded border border-[color:var(--danger-soft)] bg-[color:var(--danger-soft)] px-4 py-3 text-[color:var(--danger)]">
             {error}
           </div>
         )}
 
         {/* Quick Actions */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-xl font-bold text-gray-800 mb-4">Quick Actions</h2>
+        <div className="rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] p-6 shadow-sm">
+          <h2 className="mb-4 text-xl font-bold text-[color:var(--text-primary)]">Quick Actions</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <a href="/employee/kpikai" className="p-4 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition block text-center">
+            <a href="/employee/kpikai" className="block rounded-lg bg-[color:var(--accent)] p-4 text-center text-white transition hover:bg-[color:var(--accent-hover)]">
               <div className="font-semibold">View My KPIs/KAIs</div>
             </a>
           </div>

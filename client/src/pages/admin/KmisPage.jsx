@@ -73,10 +73,10 @@ function KmisPage() {
   // Show loading while checking auth
   if (authLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex min-h-screen items-center justify-center bg-[color:var(--app-bg)] text-[color:var(--text-primary)]">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
+          <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-[color:var(--accent)]"></div>
+          <p className="text-[color:var(--text-secondary)]">Loading...</p>
         </div>
       </div>
     );
@@ -756,11 +756,11 @@ function KmisPage() {
     const isMetadataMissing = !hasType || (isManual && !hasOperator);
     return (
       <div key={node.id} className="mb-2" style={{ marginLeft: depth * 16 }}>
-        <div className={`rounded-lg p-3 hover:shadow-md transition-shadow border ${isMetadataMissing ? 'bg-red-50 border-red-300' : 'bg-white border-gray-200'}`}>
+        <div className={`rounded-lg border p-3 transition-shadow hover:shadow-md ${isMetadataMissing ? 'border-[color:var(--danger-soft)] bg-[color:var(--danger-soft)]' : 'border-[color:var(--border)] bg-[color:var(--surface)]'}`}>
           <div className="flex items-center gap-2">
             <button
-              className={`w-6 h-6 flex items-center justify-center rounded text-sm ${
-                hasChildren ? 'text-blue-500 hover:bg-blue-50 cursor-pointer' : 'text-gray-300 cursor-default'
+              className={`flex h-6 w-6 items-center justify-center rounded text-sm ${
+                hasChildren ? 'cursor-pointer text-[color:var(--accent)] hover:bg-[color:var(--surface-hover)]' : 'cursor-default text-[color:var(--text-muted)]'
               }`}
               onClick={() => hasChildren && toggleExpand(node.id)}
               aria-label={hasChildren ? 'Toggle children' : 'No children'}
@@ -769,43 +769,43 @@ function KmisPage() {
               {hasChildren ? (isExpanded ? '▼' : '▶') : '•'}
             </button>
             <div className="flex-1">
-              <div className="font-medium text-gray-800 text-sm">{node.title}</div>
+              <div className="text-sm font-medium text-[color:var(--text-primary)]">{node.title}</div>
               <div className="flex gap-2 mt-1">
                 {(node.category_ids || [node.category_id]).map((cid) => (
-                  <span key={cid} className="inline-block px-2 py-0.5 bg-blue-100 text-blue-800 rounded text-xs font-medium">
+                  <span key={cid} className="inline-block rounded bg-[color:var(--accent-soft)] px-2 py-0.5 text-xs font-medium text-[color:var(--accent)]">
                     {getCategoryNameById(cid)}
                   </span>
                 ))}
                 {node.fin_year && (
-                  <span className="inline-block px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-xs">
+                  <span className="inline-block rounded bg-[color:var(--surface-hover)] px-2 py-0.5 text-xs text-[color:var(--text-secondary)]">
                     FY {node.fin_year}
                   </span>
                 )}
                 {hasType ? (
-                  <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${isComputed ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                  <span className={`inline-block rounded px-2 py-0.5 text-xs font-medium ${isComputed ? 'bg-[color:var(--success-soft)] text-[color:var(--success)]' : 'bg-[color:var(--warning-soft,rgba(245,158,11,0.14))] text-[color:var(--warning,#d97706)]'}`}>
                     {isComputed ? 'Computed' : 'Manual'}
                   </span>
                 ) : (
-                  <span className="inline-block px-2 py-0.5 bg-red-100 text-red-700 rounded text-xs font-medium">
+                  <span className="inline-block rounded bg-[color:var(--danger-soft)] px-2 py-0.5 text-xs font-medium text-[color:var(--danger)]">
                     Type Missing
                   </span>
                 )}
                 {isManual && hasOperator ? (
-                  <span className="inline-block px-2 py-0.5 bg-slate-100 text-slate-700 rounded text-xs">
+                  <span className="inline-block rounded bg-[color:var(--surface-hover)] px-2 py-0.5 text-xs text-[color:var(--text-secondary)]">
                     Data Operator: {getOperatorName(operatorId)}
                   </span>
                 ) : isManual ? (
-                  <span className="inline-block px-2 py-0.5 bg-red-100 text-red-700 rounded text-xs font-medium">
+                  <span className="inline-block rounded bg-[color:var(--danger-soft)] px-2 py-0.5 text-xs font-medium text-[color:var(--danger)]">
                    Data Operator Missing
                   </span>
                 ) : null}
               </div>
             </div>
             <div className="flex gap-1">
-              <button className="p-1.5 hover:bg-gray-100 rounded text-sm" type="button" onClick={() => handleView(node)} title="View">👁️</button>
-              <button className="p-1.5 hover:bg-gray-100 rounded text-sm" type="button" onClick={() => handleAddChild(node)} title="Add Child">➕</button>
-              <button className="p-1.5 hover:bg-gray-100 rounded text-sm" type="button" onClick={() => handleEdit(node)} title="Edit">✏️</button>
-              <button className="p-1.5 hover:bg-red-100 rounded text-sm text-red-600" type="button" onClick={() => handleDelete(node.id)} title="Delete">🗑️</button>
+              <button className="rounded p-1.5 text-sm hover:bg-[color:var(--surface-hover)]" type="button" onClick={() => handleView(node)} title="View">👁️</button>
+              <button className="rounded p-1.5 text-sm hover:bg-[color:var(--surface-hover)]" type="button" onClick={() => handleAddChild(node)} title="Add Child">➕</button>
+              <button className="rounded p-1.5 text-sm hover:bg-[color:var(--surface-hover)]" type="button" onClick={() => handleEdit(node)} title="Edit">✏️</button>
+              <button className="rounded p-1.5 text-sm text-[color:var(--danger)] hover:bg-[color:var(--danger-soft)]" type="button" onClick={() => handleDelete(node.id)} title="Delete">🗑️</button>
             </div>
           </div>
         </div>
@@ -868,17 +868,17 @@ function KmisPage() {
 
     return (
       <div key={node.id} className="mb-2" style={{ marginLeft: depth * 16 }}>
-        <div className="bg-white border border-gray-200 rounded-lg p-3 hover:bg-gray-50 transition-colors">
+        <div className="rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] p-3 transition-colors hover:bg-[color:var(--surface-hover)]">
           <div className="flex items-center gap-2">
             <input
               type="checkbox"
               checked={isSelected}
               onChange={() => toggleReplicateNodeSelection(node.id, allDescendants)}
-              className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-2 focus:ring-blue-500 flex-shrink-0"
+              className="h-4 w-4 flex-shrink-0 rounded border-[color:var(--border)] text-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--focus-ring)]"
             />
             <button
-              className={`w-6 h-6 flex items-center justify-center rounded text-sm flex-shrink-0 ${
-                hasChildren ? 'text-blue-500 hover:bg-blue-50 cursor-pointer' : 'text-gray-300 cursor-default'
+              className={`flex h-6 w-6 flex-shrink-0 items-center justify-center rounded text-sm ${
+                hasChildren ? 'cursor-pointer text-[color:var(--accent)] hover:bg-[color:var(--surface-hover)]' : 'cursor-default text-[color:var(--text-muted)]'
               }`}
               onClick={() => hasChildren && toggleReplicateNodeExpand(node.id)}
               type="button"
@@ -886,10 +886,10 @@ function KmisPage() {
               {hasChildren ? (isExpanded ? '▼' : '▶') : '•'}
             </button>
             <div className="flex-1 min-w-0">
-              <div className="font-medium text-gray-800 text-sm">{node.title}</div>
+              <div className="text-sm font-medium text-[color:var(--text-primary)]">{node.title}</div>
               <div className="flex gap-2 mt-1">
                 {(node.category_ids || [node.category_id]).map((cid) => (
-                  <span key={cid} className="inline-block px-2 py-0.5 bg-blue-100 text-blue-800 rounded text-xs font-medium">
+                  <span key={cid} className="inline-block rounded bg-[color:var(--accent-soft)] px-2 py-0.5 text-xs font-medium text-[color:var(--accent)]">
                     {getCategoryNameById(cid)}
                   </span>
                 ))}
@@ -1128,32 +1128,32 @@ function KmisPage() {
   };
 
   return (
-    <div className="w-full max-w-7xl mx-auto">
+    <div className="w-full max-w-7xl mx-auto bg-[color:var(--app-bg)] px-6 py-6 text-[color:var(--text-primary)]">
       <Notification show={notification.show} message={notification.message} type={notification.type} onClose={() => setNotification({ show: false, message: '', type: '' })} />
 
       <div className="mb-6">
         <div className="flex justify-between items-center flex-wrap gap-4">
-          <h2 className="text-3xl font-bold text-gray-800">Key Management Indicators (KMIs)</h2>
+          <h2 className="text-3xl font-bold text-[color:var(--text-primary)]">Key Management Indicators (KMIs)</h2>
           <div className="flex gap-3 flex-wrap">
-            <button className="bg-blue-500 hover:bg-blue-600 text-white px-5 py-2.5 rounded-md font-semibold flex items-center gap-2 transition-colors" onClick={handleAddNew}>
+            <button className="flex items-center gap-2 rounded-md bg-[color:var(--accent)] px-5 py-2.5 font-semibold text-white transition-colors hover:opacity-90" onClick={handleAddNew}>
               <span>+</span> Add KMI
             </button>
-            <button className="bg-gray-600 hover:bg-gray-700 text-white px-5 py-2.5 rounded-md font-semibold flex items-center gap-2 transition-colors" onClick={handleOpenReplicateModal}>
+            <button className="flex items-center gap-2 rounded-md bg-[color:var(--surface-hover)] px-5 py-2.5 font-semibold text-[color:var(--text-primary)] transition-colors hover:opacity-90" onClick={handleOpenReplicateModal}>
               <span>📋</span> Replicate from Previous Year
             </button>
           </div>
         </div>
       </div>
 
-      <div className="bg-white p-5 rounded-lg shadow mb-6">
+      <div className="mb-6 rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] p-5 shadow">
         <div className="flex gap-6 flex-wrap items-end">
           <div className="flex flex-col gap-2 flex-1 min-w-[250px]">
-            <label htmlFor="financial-year" className="text-sm font-semibold text-gray-700">Financial Year:</label>
+            <label htmlFor="financial-year" className="text-sm font-semibold text-[color:var(--text-secondary)]">Financial Year:</label>
             <select
               id="financial-year"
               value={selectedYear}
               onChange={(e) => setSelectedYear(e.target.value)}
-              className="px-3 py-2.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              className="rounded-md border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-2.5 text-sm text-[color:var(--text-primary)] focus:border-[color:var(--accent)] focus:outline-none focus:ring-2 focus:ring-[color:var(--focus-ring)]"
             >
               {financialYears.length === 0 ? (
                 <option value="">No financial years available</option>
@@ -1167,18 +1167,18 @@ function KmisPage() {
             </select>
           </div>
           <div className="flex flex-col gap-2 flex-1 min-w-[250px] relative">
-            <label htmlFor="search-kmi" className="text-sm font-semibold text-gray-700">Search KMI:</label>
+            <label htmlFor="search-kmi" className="text-sm font-semibold text-[color:var(--text-secondary)]">Search KMI:</label>
             <input
               id="search-kmi"
               type="text"
               placeholder="Search by title..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="px-3 py-2.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              className="rounded-md border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-2.5 text-sm text-[color:var(--text-primary)] focus:border-[color:var(--accent)] focus:outline-none focus:ring-2 focus:ring-[color:var(--focus-ring)]"
             />
             {searchQuery && (
               <button
-                className="absolute right-3 bottom-2.5 text-gray-500 hover:bg-gray-100 rounded-full w-6 h-6 flex items-center justify-center text-xl"
+                className="absolute bottom-2.5 right-3 flex h-6 w-6 items-center justify-center rounded-full text-xl text-[color:var(--text-muted)] hover:bg-[color:var(--surface-hover)]"
                 onClick={() => setSearchQuery('')}
                 type="button"
                 title="Clear search"
@@ -1190,32 +1190,32 @@ function KmisPage() {
         </div>
       </div>
 
-      {error && <div className="bg-red-100 text-red-800 px-4 py-3 rounded-md mb-4">{error}</div>}
+      {error && <div className="mb-4 rounded-md bg-[color:var(--danger-soft)] px-4 py-3 text-[color:var(--danger)]">{error}</div>}
 
       {loading ? (
-        <div className="text-center py-10 text-gray-500 text-base">Loading KMIs...</div>
+        <div className="py-10 text-center text-base text-[color:var(--text-secondary)]">Loading KMIs...</div>
       ) : (
-        <div className="bg-white p-5 rounded-lg shadow">
+        <div className="rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] p-5 shadow">
           <div className="mb-4 flex justify-end gap-2">
             <button
               type="button"
               onClick={handleExpandAll}
-              className="px-3 py-1.5 rounded-md text-sm font-medium border border-blue-200 text-blue-700 bg-blue-50 hover:bg-blue-100 transition-colors"
+              className="rounded-md border border-[color:var(--border)] bg-[color:var(--surface-hover)] px-3 py-1.5 text-sm font-medium text-[color:var(--text-primary)] transition-colors hover:opacity-90"
             >
               Expand All
             </button>
             <button
               type="button"
               onClick={handleCollapseAll}
-              className="px-3 py-1.5 rounded-md text-sm font-medium border border-gray-200 text-gray-700 bg-gray-50 hover:bg-gray-100 transition-colors"
+              className="rounded-md border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-1.5 text-sm font-medium text-[color:var(--text-secondary)] transition-colors hover:bg-[color:var(--surface-hover)]"
             >
               Collapse All
             </button>
           </div>
           {kpiTree.length === 0 ? (
-            <div className="text-center py-10 text-gray-500 text-base">No KPIs found for the selected year</div>
+            <div className="py-10 text-center text-base text-[color:var(--text-secondary)]">No KPIs found for the selected year</div>
           ) : getFilteredTree().length === 0 ? (
-            <div className="text-center py-10 text-gray-500 text-base">No KPIs match your search: <strong>"{searchQuery}"</strong></div>
+            <div className="py-10 text-center text-base text-[color:var(--text-secondary)]">No KPIs match your search: <strong>"{searchQuery}"</strong></div>
           ) : (
             getFilteredTree().map((node) => renderNode(node))
           )}
@@ -1223,21 +1223,21 @@ function KmisPage() {
       )}
 
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-5" onClick={() => setShowModal(false)}>
-          <div className="bg-white rounded-lg shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="flex justify-between items-center p-6 border-b border-gray-200">
-              <h3 className="text-xl font-bold text-gray-800">{editingKmi ? 'Edit KMI' : 'Add New KMI'}</h3>
-              <button className="text-gray-600 hover:bg-gray-100 w-8 h-8 rounded flex items-center justify-center text-2xl" onClick={() => setShowModal(false)}>×</button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-5 backdrop-blur-sm" onClick={() => setShowModal(false)}>
+          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-[color:var(--border)] p-6">
+              <h3 className="text-xl font-bold text-[color:var(--text-primary)]">{editingKmi ? 'Edit KMI' : 'Add New KMI'}</h3>
+              <button className="flex h-8 w-8 items-center justify-center rounded text-2xl text-[color:var(--text-secondary)] hover:bg-[color:var(--surface-hover)]" onClick={() => setShowModal(false)}>×</button>
             </div>
             <form onSubmit={handleSubmit} className="p-6">
               <div className="mb-5">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Financial Year *</label>
+                <label className="mb-2 block text-sm font-semibold text-[color:var(--text-secondary)]">Financial Year *</label>
                 <select
                   name="fin_year"
                   value={formData.fin_year}
                   onChange={handleChange}
                   required
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  className="w-full rounded-md border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-2.5 text-sm text-[color:var(--text-primary)] focus:border-[color:var(--accent)] focus:outline-none focus:ring-2 focus:ring-[color:var(--focus-ring)]"
                 >
                   <option value="">Select Financial Year</option>
                   {financialYears.map((year) => (
@@ -1248,7 +1248,7 @@ function KmisPage() {
                 </select>
               </div>
               <div className="mb-5">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Category *</label>
+                <label className="mb-2 block text-sm font-semibold text-[color:var(--text-secondary)]">Category *</label>
                 <div className="grid gap-2">
                   {categories.map((cat) => (
                     <label key={cat.id} className="flex items-center gap-2">
@@ -1256,9 +1256,9 @@ function KmisPage() {
                         type="checkbox"
                         checked={(formData.category_ids || []).includes(String(cat.id))}
                         onChange={() => handleCategoryToggle(String(cat.id))}
-                        className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-2 focus:ring-blue-500"
+                        className="h-4 w-4 rounded border-[color:var(--border)] text-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--focus-ring)]"
                       />
-                      <span className="text-sm text-gray-700">{cat.category_name}</span>
+                      <span className="text-sm text-[color:var(--text-secondary)]">{cat.category_name}</span>
                     </label>
                   ))}
                 </div>
@@ -1266,13 +1266,13 @@ function KmisPage() {
 
               {(formData.category_ids || []).includes('2') && (
                 <div className="mb-5">
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Department * <span className="text-red-500">(Required for Department KPI)</span></label>
+                  <label className="mb-2 block text-sm font-semibold text-[color:var(--text-secondary)]">Department * <span className="text-red-500">(Required for Department KPI)</span></label>
                   <select
                     name="department_id"
                     value={formData.department_id || ''}
                     onChange={handleChange}
                     required
-                    className="w-full px-3 py-2.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                    className="w-full rounded-md border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-2.5 text-sm text-[color:var(--text-primary)] focus:border-[color:var(--accent)] focus:outline-none focus:ring-2 focus:ring-[color:var(--focus-ring)]"
                   >
                     <option value="">Select Department</option>
                     {departments.map((dept) => (
@@ -1284,16 +1284,16 @@ function KmisPage() {
 
               {(formData.category_ids || []).includes('4') && (
                 <div className="mb-5">
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Employee * <span className="text-red-500">(Required for Employee KPI)</span></label>
+                  <label className="mb-2 block text-sm font-semibold text-[color:var(--text-secondary)]">Employee * <span className="text-red-500">(Required for Employee KPI)</span></label>
                   {(formData.category_ids || []).includes('2') && formData.department_id && (
-                    <p className="text-xs text-blue-600 mb-2">Showing employees from selected department only</p>
+                    <p className="mb-2 text-xs text-[color:var(--accent)]">Showing employees from selected department only</p>
                   )}
                   <select
                     name="emp_id"
                     value={formData.emp_id || ''}
                     onChange={handleChange}
                     required
-                    className="w-full px-3 py-2.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                    className="w-full rounded-md border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-2.5 text-sm text-[color:var(--text-primary)] focus:border-[color:var(--accent)] focus:outline-none focus:ring-2 focus:ring-[color:var(--focus-ring)]"
                   >
                     <option value="">Select Employee</option>
                     {((formData.category_ids || []).includes('2') && formData.department_id
@@ -1306,16 +1306,16 @@ function KmisPage() {
                 </div>
               )}
               <div className="mb-5">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Parent KPI</label>
+                <label className="mb-2 block text-sm font-semibold text-[color:var(--text-secondary)]">Parent KPI</label>
                 <input
                   type="text"
                   value={parentKPITitle}
                   readOnly
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-md text-sm bg-gray-50 text-gray-600"
+                  className="w-full rounded-md border border-[color:var(--border)] bg-[color:var(--surface-hover)] px-3 py-2.5 text-sm text-[color:var(--text-secondary)]"
                 />
               </div>
               <div className="mb-5">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">KPI Title *</label>
+                <label className="mb-2 block text-sm font-semibold text-[color:var(--text-secondary)]">KPI Title *</label>
                 <input
                   type="text"
                   name="title"
@@ -1323,14 +1323,14 @@ function KmisPage() {
                   onChange={handleChange}
                   required
                   placeholder="Enter KMI title"
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  className="w-full rounded-md border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-2.5 text-sm text-[color:var(--text-primary)] focus:border-[color:var(--accent)] focus:outline-none focus:ring-2 focus:ring-[color:var(--focus-ring)]"
                 />
               </div>
               <div className="flex justify-end gap-3 pt-4">
-                <button type="button" className="px-5 py-2.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50" onClick={() => setShowModal(false)}>
+                <button type="button" className="rounded-md border border-[color:var(--border)] px-5 py-2.5 text-sm font-medium text-[color:var(--text-secondary)] hover:bg-[color:var(--surface-hover)]" onClick={() => setShowModal(false)}>
                   Cancel
                 </button>
-                <button type="submit" className="px-5 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-md text-sm font-medium">
+                <button type="submit" className="rounded-md bg-[color:var(--accent)] px-5 py-2.5 text-sm font-medium text-white hover:opacity-90">
                   {editingKmi ? 'Update' : 'Create'}
                 </button>
               </div>
@@ -1340,36 +1340,36 @@ function KmisPage() {
       )}
 
       {showReplicateModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-5" onClick={() => setShowReplicateModal(false)}>
-          <div className="bg-white rounded-lg shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="flex justify-between items-center p-6 border-b border-gray-200">
-              <h3 className="text-xl font-bold text-gray-800">Replicate KMIs from Previous Year</h3>
-              <button className="text-gray-600 hover:bg-gray-100 w-8 h-8 rounded flex items-center justify-center text-2xl" onClick={() => setShowReplicateModal(false)}>×</button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-5 backdrop-blur-sm" onClick={() => setShowReplicateModal(false)}>
+          <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-[color:var(--border)] p-6">
+              <h3 className="text-xl font-bold text-[color:var(--text-primary)]">Replicate KMIs from Previous Year</h3>
+              <button className="flex h-8 w-8 items-center justify-center rounded text-2xl text-[color:var(--text-secondary)] hover:bg-[color:var(--surface-hover)]" onClick={() => setShowReplicateModal(false)}>×</button>
             </div>
             <div className="p-6">
               {replicateLoading ? (
-                <div className="text-center py-10 text-blue-500 text-base">Loading KMIs from {replicateFromYear}...</div>
+                <div className="py-10 text-center text-base text-[color:var(--accent)]">Loading KMIs from {replicateFromYear}...</div>
               ) : (
                 <>
-                  <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6 rounded">
-                    <p className="text-sm text-gray-700 mb-2">Select KMIs from <strong>{replicateFromYear}</strong> to replicate into <strong>{selectedYear}</strong></p>
-                    <p className="text-sm text-blue-700">✓ Selecting a parent KMI will automatically select all its child KMIs</p>
-                    <p className="text-sm text-blue-700">✓ Only KMI structure will be copied (no data points)</p>
-                    <p className="text-sm text-blue-700">✓ Department and Employee mappings will be replicated as well</p>
+                  <div className="mb-6 rounded border-l-4 border-[color:var(--accent)] bg-[color:var(--accent-soft)] p-4">
+                    <p className="mb-2 text-sm text-[color:var(--text-secondary)]">Select KMIs from <strong>{replicateFromYear}</strong> to replicate into <strong>{selectedYear}</strong></p>
+                    <p className="text-sm text-[color:var(--accent)]">✓ Selecting a parent KMI will automatically select all its child KMIs</p>
+                    <p className="text-sm text-[color:var(--accent)]">✓ Only KMI structure will be copied (no data points)</p>
+                    <p className="text-sm text-[color:var(--accent)]">✓ Department and Employee mappings will be replicated as well</p>
                   </div>
                   
                   {previousYearTree.length === 0 ? (
-                    <div className="text-center py-10 text-gray-500 text-base">No KMIs available in {replicateFromYear}</div>
+                    <div className="py-10 text-center text-base text-[color:var(--text-secondary)]">No KMIs available in {replicateFromYear}</div>
                   ) : (
-                    <div className="border border-gray-200 rounded-lg p-4 max-h-96 overflow-y-auto bg-gray-50">
+                    <div className="max-h-96 overflow-y-auto rounded-lg border border-[color:var(--border)] bg-[color:var(--surface-hover)] p-4">
                       {previousYearTree.map((node) => renderReplicateNode(node))}
                     </div>
                   )}
                 </>
               )}
             </div>
-            <div className="flex justify-between items-center p-6 border-t border-gray-200">
-              <div className="text-sm font-medium text-gray-700">
+            <div className="flex items-center justify-between border-t border-[color:var(--border)] p-6">
+              <div className="text-sm font-medium text-[color:var(--text-secondary)]">
                 {selectedKpisToReplicate.size > 0 && (
                   <span>{selectedKpisToReplicate.size} KMI(s) selected</span>
                 )}
@@ -1377,14 +1377,14 @@ function KmisPage() {
               <div className="flex gap-3">
                 <button 
                   type="button" 
-                  className="px-5 py-2.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50" 
+                  className="rounded-md border border-[color:var(--border)] px-5 py-2.5 text-sm font-medium text-[color:var(--text-secondary)] hover:bg-[color:var(--surface-hover)]" 
                   onClick={() => setShowReplicateModal(false)}
                 >
                   Cancel
                 </button>
                 <button 
                   type="button" 
-                  className="px-5 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-md text-sm font-medium disabled:bg-gray-300 disabled:cursor-not-allowed"
+                  className="rounded-md bg-[color:var(--accent)] px-5 py-2.5 text-sm font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                   onClick={handleReplicateKmis}
                   disabled={selectedKpisToReplicate.size === 0 || replicateLoading}
                 >

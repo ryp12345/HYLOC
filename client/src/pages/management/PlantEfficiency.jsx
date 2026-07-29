@@ -201,15 +201,15 @@ const SpeedometerGauge = ({ value, showLabel = false, showValue = true, isExpand
         />
 
         {/* Labels */}
-        <text x="8" y="204" fontSize="14" fontWeight="700" fill="#4b5563" textAnchor="start">0</text>
-        <text x="150" y="28" fontSize="14" fontWeight="700" fill="#4b5563" textAnchor="middle">50</text>
-        <text x="247" y="76" fontSize="14" fontWeight="700" fill="#4b5563" textAnchor="middle">75</text>
-        <text x="292" y="204" fontSize="14" fontWeight="700" fill="#4b5563" textAnchor="end">100</text>
+        <text x="8" y="204" fontSize="14" fontWeight="800" fill="var(--text-muted)" textAnchor="start">0</text>
+        <text x="150" y="28" fontSize="14" fontWeight="800" fill="var(--text-muted)" textAnchor="middle">50</text>
+        <text x="247" y="76" fontSize="14" fontWeight="800" fill="var(--text-muted)" textAnchor="middle">75</text>
+        <text x="292" y="204" fontSize="14" fontWeight="800" fill="var(--text-muted)" textAnchor="end">100</text>
       </svg>
       {showValue && (
-        <div className="text-center mt-0.5">
-          <div className="font-extrabold text-gray-800 text-base sm:text-lg">{efficiency.toFixed(1)}%</div>
-          {showLabel && <div className="text-sm text-gray-500 mt-1">Overall Equipment Efficiency</div>}
+        <div className="mt-0.5 text-center">
+          <div className="text-base font-extrabold text-[color:var(--text-primary)] sm:text-lg">{efficiency.toFixed(1)}%</div>
+          {showLabel && <div className="mt-1 text-sm text-[color:var(--text-secondary)]">Overall Equipment Efficiency</div>}
         </div>
       )}
     </div>
@@ -565,11 +565,11 @@ const PlantEfficiency = () => {
     const chartType = getChartType(kpi.title);
 
     return (
-      <div key={kpi.id} className="rounded-xl border border-gray-200 bg-white shadow-sm">
-        <div className="border-b border-blue-200 bg-blue-50 px-5 py-4">
+      <div key={kpi.id} className="border border-[color:var(--border)] bg-[color:var(--surface)] shadow-sm">
+        <div className="border-b border-[color:var(--border)] bg-[color:var(--surface-hover)] px-5 py-4">
           <div className="relative flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="flex-1 flex flex-col items-center text-center sm:justify-center">
-              <h3 className="w-full max-w-md text-lg font-semibold text-blue-900 text-center">
+              <h3 className="w-full max-w-md text-center text-lg font-semibold text-[color:var(--text-primary)]">
                 {kpi.title || 'Untitled KPI'}
               </h3>
               {/* <p className="mt-2 text-sm text-gray-500">{kpi?.category_name || kpi?.category || 'Uncategorized'}</p> */}
@@ -582,7 +582,7 @@ const PlantEfficiency = () => {
                     type="button"
                     onClick={() => moveKpiOrder(kpi.id, -1)}
                     disabled={isFirst}
-                    className="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+                    className="rounded-md border border-[color:var(--border)] bg-[color:var(--surface)] px-2 py-1 text-xs font-medium text-[color:var(--text-secondary)] hover:bg-[color:var(--surface-hover)] disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     ↑
                   </button>
@@ -590,7 +590,7 @@ const PlantEfficiency = () => {
                     type="button"
                     onClick={() => moveKpiOrder(kpi.id, 1)}
                     disabled={isLast}
-                    className="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+                    className="rounded-md border border-[color:var(--border)] bg-[color:var(--surface)] px-2 py-1 text-xs font-medium text-[color:var(--text-secondary)] hover:bg-[color:var(--surface-hover)] disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     ↓
                   </button>
@@ -601,9 +601,9 @@ const PlantEfficiency = () => {
         </div>
         <div className="px-5 py-5">
           {chartLoading ? (
-            <div className="flex h-64 items-center justify-center text-sm text-gray-500">Loading chart…</div>
+            <div className="flex h-64 items-center justify-center text-sm text-[color:var(--text-secondary)]">Loading chart…</div>
           ) : !hasData ? (
-            <div className="flex h-64 items-center justify-center text-sm text-gray-500">No monthly data available for this KPI.</div>
+            <div className="flex h-64 items-center justify-center text-sm text-[color:var(--text-secondary)]">No monthly data available for this KPI.</div>
           ) : chartType === 'SPEEDOMETER' ? (
             <div className="h-64 flex flex-col justify-between">
               {(() => {
@@ -616,14 +616,14 @@ const PlantEfficiency = () => {
 
                 return (
                   <>
-                    <div className="text-center mt-2 text-sm text-gray-600">{currentLabel}</div>
+                    <div className="mt-2 text-center text-sm text-[color:var(--text-secondary)]">{currentLabel}</div>
 
                     <div className="relative flex items-center justify-center flex-1 min-h-[150px]">
                       <button
                         type="button"
                         onClick={() => goToMonth(-1)}
                         disabled={!hasPrevMonth}
-                        className={`absolute left-0 -ml-4 flex h-9 w-9 items-center justify-center rounded-full border bg-white text-lg text-gray-600 shadow-sm transition ${!hasPrevMonth ? 'opacity-40 cursor-not-allowed' : 'hover:bg-gray-50'}`}
+                        className={`absolute left-0 -ml-4 flex h-9 w-9 items-center justify-center rounded-full border border-[color:var(--border)] bg-[color:var(--surface)] text-lg text-[color:var(--text-secondary)] shadow-sm transition ${!hasPrevMonth ? 'cursor-not-allowed opacity-40' : 'hover:bg-[color:var(--surface-hover)]'}`}
                       >
                         ‹
                       </button>
@@ -636,14 +636,14 @@ const PlantEfficiency = () => {
                         type="button"
                         onClick={() => goToMonth(1)}
                         disabled={!hasNextMonth}
-                        className={`absolute right-0 -mr-4 flex h-9 w-9 items-center justify-center rounded-full border bg-white text-lg text-gray-600 shadow-sm transition ${!hasNextMonth ? 'opacity-40 cursor-not-allowed' : 'hover:bg-gray-50'}`}
+                        className={`absolute right-0 -mr-4 flex h-9 w-9 items-center justify-center rounded-full border border-[color:var(--border)] bg-[color:var(--surface)] text-lg text-[color:var(--text-secondary)] shadow-sm transition ${!hasNextMonth ? 'cursor-not-allowed opacity-40' : 'hover:bg-[color:var(--surface-hover)]'}`}
                       >
                         ›
                       </button>
                     </div>
 
                     <div className="text-center mt-3">
-                      <div className="text-3xl font-extrabold text-gray-900">{val.toFixed(1)}%</div>
+                      <div className="text-3xl font-extrabold text-[color:var(--text-primary)]">{val.toFixed(1)}%</div>
                     </div>
                   </>
                 );
@@ -653,11 +653,10 @@ const PlantEfficiency = () => {
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <ComposedChart data={chart.data} margin={{ top: 16, right: 16, left: 0, bottom: 4 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                  <XAxis dataKey="label" tick={{ fontSize: 12, fill: '#4b5563' }} />
-                  <YAxis tick={{ fontSize: 12, fill: '#4b5563' }} />
-                  <Tooltip formatter={(value) => (value == null ? '-' : value.toString())} />
-                  <Legend verticalAlign="top" align="right" iconType="circle" />
+                  <XAxis dataKey="label" tick={{ fontSize: 12, fill: 'var(--text-muted)', fontWeight: 700 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 12, fill: 'var(--text-muted)', fontWeight: 700 }} axisLine={false} tickLine={false} />
+                  <Tooltip formatter={(value) => (value == null ? '-' : value.toString())} contentStyle={{ background: 'var(--surface-elevated)', border: '1px solid var(--border)', borderRadius: '0.75rem', color: 'var(--text-primary)' }} labelStyle={{ color: 'var(--text-primary)', fontWeight: 700 }} itemStyle={{ color: 'var(--text-secondary)' }} />
+                  <Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{ color: 'var(--text-secondary)', fontWeight: 700 }} />
                   <Bar dataKey="actual" name="Actual" fill="#2563eb" radius={[4, 4, 0, 0]} maxBarSize={40} />
                   <Line type="monotone" dataKey="target" name="Target" stroke="#10b981" strokeWidth={2} dot={false} />
                 </ComposedChart>
@@ -680,7 +679,7 @@ const PlantEfficiency = () => {
 
                 return (
                   <>
-                    <div className="absolute top-0 right-0 text-xs font-semibold text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                    <div className="absolute right-0 top-0 rounded bg-[color:var(--surface-hover)] px-2 py-1 text-xs font-semibold text-[color:var(--text-secondary)]">
                       Month: {label}
                     </div>
                     <ResponsiveContainer width="100%" height="100%">
@@ -696,12 +695,12 @@ const PlantEfficiency = () => {
                             <Cell key={`cell-${idx}`} fill={entry.color} />
                           ))}
                         </Pie>
-                        <Tooltip />
-                        <Legend verticalAlign="bottom" height={36} />
+                        <Tooltip contentStyle={{ background: 'var(--surface-elevated)', border: '1px solid var(--border)', borderRadius: '0.75rem', color: 'var(--text-primary)' }} labelStyle={{ color: 'var(--text-primary)', fontWeight: 700 }} itemStyle={{ color: 'var(--text-secondary)' }} />
+                        <Legend verticalAlign="bottom" height={36} wrapperStyle={{ color: 'var(--text-secondary)', fontWeight: 700 }} />
                       </PieChart>
                     </ResponsiveContainer>
                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none pb-8">
-                      <span className="text-xl font-bold text-gray-800">{actual}</span>
+                      <span className="text-xl font-bold text-[color:var(--text-primary)]">{actual}</span>
                     </div>
                   </>
                 );
@@ -711,11 +710,10 @@ const PlantEfficiency = () => {
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chart.data} margin={{ top: 16, right: 16, left: 0, bottom: 4 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                  <XAxis dataKey="label" tick={{ fontSize: 12, fill: '#4b5563' }} />
-                  <YAxis tick={{ fontSize: 12, fill: '#4b5563' }} />
-                  <Tooltip formatter={(value) => (value == null ? '-' : value.toString())} />
-                  <Legend verticalAlign="top" align="right" iconType="circle" />
+                  <XAxis dataKey="label" tick={{ fontSize: 12, fill: 'var(--text-muted)', fontWeight: 700 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 12, fill: 'var(--text-muted)', fontWeight: 700 }} axisLine={false} tickLine={false} />
+                  <Tooltip formatter={(value) => (value == null ? '-' : value.toString())} contentStyle={{ background: 'var(--surface-elevated)', border: '1px solid var(--border)', borderRadius: '0.75rem', color: 'var(--text-primary)' }} labelStyle={{ color: 'var(--text-primary)', fontWeight: 700 }} itemStyle={{ color: 'var(--text-secondary)' }} />
+                  <Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{ color: 'var(--text-secondary)', fontWeight: 700 }} />
                   <Bar dataKey="actual" name="Actual" fill="#2563eb" radius={[4, 4, 0, 0]} maxBarSize={40} />
                   <Bar dataKey="target" name="Target" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={40} />
                 </BarChart>
@@ -725,11 +723,10 @@ const PlantEfficiency = () => {
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={chart.data} margin={{ top: 16, right: 16, left: 0, bottom: 4 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                  <XAxis dataKey="label" tick={{ fontSize: 12, fill: '#4b5563' }} />
-                  <YAxis tick={{ fontSize: 12, fill: '#4b5563' }} />
-                  <Tooltip formatter={(value) => (value == null ? '-' : value.toString())} />
-                  <Legend verticalAlign="top" align="right" iconType="circle" />
+                  <XAxis dataKey="label" tick={{ fontSize: 12, fill: 'var(--text-muted)', fontWeight: 700 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 12, fill: 'var(--text-muted)', fontWeight: 700 }} axisLine={false} tickLine={false} />
+                  <Tooltip formatter={(value) => (value == null ? '-' : value.toString())} contentStyle={{ background: 'var(--surface-elevated)', border: '1px solid var(--border)', borderRadius: '0.75rem', color: 'var(--text-primary)' }} labelStyle={{ color: 'var(--text-primary)', fontWeight: 700 }} itemStyle={{ color: 'var(--text-secondary)' }} />
+                  <Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{ color: 'var(--text-secondary)', fontWeight: 700 }} />
                   <Line type="monotone" dataKey="actual" name="Actual" stroke="#2563eb" strokeWidth={2} dot={false} />
                   <Line type="monotone" dataKey="target" name="Target" stroke="#10b981" strokeWidth={2} dot={false} />
                 </LineChart>
@@ -744,33 +741,33 @@ const PlantEfficiency = () => {
   // Monthly OEE line-chart removed — the monthly view uses the Speedometer instead.
 
   const renderSpeedometerCard = () => (
-    <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+    <div className="border border-[color:var(--border)] bg-[color:var(--surface)] p-6 shadow-sm">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="inline-flex items-center rounded-md bg-blue-100 px-3 py-1 text-xl font-semibold text-blue-900">
+          <h2 className="inline-flex items-center rounded-md bg-[color:var(--accent-soft)] px-3 py-1 text-xl font-semibold text-[color:var(--accent)]">
             Overall Equipment Efficiency
           </h2>
-          <p className="mt-2 text-sm text-gray-500">Latest month performance with OEE ranges.</p>
+          <p className="mt-2 text-sm text-[color:var(--text-secondary)]">Latest month performance with OEE ranges.</p>
         </div>
         <div className="flex flex-col gap-3 sm:items-end">
-          <span className="text-sm text-gray-500">Month</span>
+          <span className="text-sm text-[color:var(--text-secondary)]">Month</span>
           <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={() => goToMonth(-1)}
               disabled={!hasPrevMonth}
-              className={`rounded-lg border px-3 py-2 text-sm font-medium ${hasPrevMonth ? 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50' : 'border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed'}`}
+              className={`rounded-lg border px-3 py-2 text-sm font-medium ${hasPrevMonth ? 'border-[color:var(--border)] bg-[color:var(--surface)] text-[color:var(--text-secondary)] hover:bg-[color:var(--surface-hover)]' : 'cursor-not-allowed border-[color:var(--border)] bg-[color:var(--surface-hover)] text-[color:var(--text-muted)]'}`}
             >
               Prev
             </button>
-            <span className="min-w-[4rem] text-center text-sm font-semibold text-gray-700">
+            <span className="min-w-[4rem] text-center text-sm font-semibold text-[color:var(--text-primary)]">
               {selectedMonthLabel || 'N/A'}
             </span>
             <button
               type="button"
               onClick={() => goToMonth(1)}
               disabled={!hasNextMonth}
-              className={`rounded-lg border px-3 py-2 text-sm font-medium ${hasNextMonth ? 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50' : 'border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed'}`}
+              className={`rounded-lg border px-3 py-2 text-sm font-medium ${hasNextMonth ? 'border-[color:var(--border)] bg-[color:var(--surface)] text-[color:var(--text-secondary)] hover:bg-[color:var(--surface-hover)]' : 'cursor-not-allowed border-[color:var(--border)] bg-[color:var(--surface-hover)] text-[color:var(--text-muted)]'}`}
             >
               Next
             </button>
@@ -782,7 +779,7 @@ const PlantEfficiency = () => {
           <SpeedometerGauge value={speedometerValue} />
         </div>
       </div>
-      <div className="mt-4 text-center text-sm text-gray-500">
+      <div className="mt-4 text-center text-sm text-[color:var(--text-secondary)]">
         {selectedMonthLabel ? `Showing latest month graph for ${selectedMonthLabel}.` : 'No monthly values available yet.'}
       </div>
     </div>
@@ -797,14 +794,14 @@ const PlantEfficiency = () => {
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
             placeholder="Search graphs by title, category, or year..."
-            className="w-full py-2 pl-10 pr-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-800 outline-none transition bg-white shadow-sm"
+            className="w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] py-2 pl-10 pr-4 text-sm text-[color:var(--text-primary)] outline-none transition focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--focus-ring)] shadow-sm"
           />
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400 absolute left-3 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg xmlns="http://www.w3.org/2000/svg" className="absolute left-3 top-2.5 h-5 w-5 text-[color:var(--text-muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
         </div>
 
-        <div className="flex items-center gap-1 bg-white rounded shadow px-2 py-1 border border-gray-200 h-9 min-h-0 self-start sm:self-auto">
+        <div className="flex h-9 min-h-0 items-center gap-1 self-start rounded border border-[color:var(--border)] bg-[color:var(--surface)] px-2 py-1 shadow sm:self-auto">
           <button
             type="button"
             onClick={() => {
@@ -814,19 +811,19 @@ const PlantEfficiency = () => {
               }
             }}
             disabled={availableFiscalYears.length === 0 || availableFiscalYears.indexOf(selectedFiscalYear) <= 0}
-            className="px-2 py-0.5 rounded bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors font-semibold text-xs focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-40 disabled:cursor-not-allowed"
+            className="rounded bg-[color:var(--accent-soft)] px-2 py-0.5 text-xs font-semibold text-[color:var(--accent)] transition-colors hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-[color:var(--focus-ring)] disabled:cursor-not-allowed disabled:opacity-40"
             title="Previous Fiscal Year"
             style={{ lineHeight: '1' }}
           >
             ‹
           </button>
-          <span className="text-xs text-gray-500 font-medium mr-1">FY</span>
-          <span className="text-sm font-bold text-gray-800 mr-1">
+          <span className="mr-1 text-xs font-semibold uppercase tracking-wide text-[color:var(--text-muted)]">FY</span>
+          <span className="mr-1 text-sm font-bold text-[color:var(--text-primary)]">
             {selectedFiscalYear}-{(selectedFiscalYear + 1).toString().slice(-2)}
           </span>
-          <span className="text-xs text-gray-400 mr-1 hidden sm:inline">Apr {selectedFiscalYear} - Mar {selectedFiscalYear + 1}</span>
+          <span className="mr-1 hidden text-xs font-semibold uppercase tracking-wide text-[color:var(--text-muted)] sm:inline">Apr {selectedFiscalYear} - Mar {selectedFiscalYear + 1}</span>
           {availableFiscalYears.length > 0 && (
-            <span className="text-xs text-gray-400 mr-1">
+            <span className="mr-1 text-xs font-semibold uppercase tracking-wide text-[color:var(--text-muted)]">
               ({availableFiscalYears.indexOf(selectedFiscalYear) + 1} / {availableFiscalYears.length})
             </span>
           )}
@@ -839,7 +836,7 @@ const PlantEfficiency = () => {
               }
             }}
             disabled={availableFiscalYears.length === 0 || availableFiscalYears.indexOf(selectedFiscalYear) >= availableFiscalYears.length - 1}
-            className="px-2 py-0.5 rounded bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors font-semibold text-xs focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-40 disabled:cursor-not-allowed"
+            className="rounded bg-[color:var(--accent-soft)] px-2 py-0.5 text-xs font-semibold text-[color:var(--accent)] transition hover:bg-[color:var(--accent)] hover:text-white focus:outline-none focus:ring-2 focus:ring-[color:var(--focus-ring)] disabled:cursor-not-allowed disabled:opacity-40"
             title="Next Fiscal Year"
             style={{ lineHeight: '1' }}
           >
@@ -850,11 +847,11 @@ const PlantEfficiency = () => {
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <label className="text-sm font-medium text-gray-700">Graph order</label>
+          <label className="text-xs font-semibold uppercase tracking-wide text-[color:var(--text-muted)]">Graph order</label>
           <select
             value={sortMode}
             onChange={(e) => setSortMode(e.target.value)}
-            className="rounded-lg border border-gray-300 bg-white py-2 px-3 text-sm text-gray-800 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+            className="rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-2 text-sm text-[color:var(--text-primary)] transition hover:border-[color:var(--accent)] hover:bg-[color:var(--surface-hover)] focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--focus-ring)]"
           >
             <option value="manual">Manual order</option>
             <option value="titleAsc">Title A → Z</option>
@@ -865,13 +862,13 @@ const PlantEfficiency = () => {
             <button
               type="button"
               onClick={resetChartOrder}
-              className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              className="rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-2 text-sm font-medium text-[color:var(--text-secondary)] transition hover:border-[color:var(--accent)] hover:bg-[color:var(--surface-hover)] hover:text-[color:var(--accent)]"
             >
               Reset order
             </button>
           )}
         </div>
-        <div className="text-sm text-gray-500">
+        <div className="text-sm font-semibold text-[color:var(--text-secondary)]">
           {orderedKpis.length === 0
             ? 'No graphs match your search.'
             : `${kpisWithData.length} graphs shown`}
@@ -884,14 +881,14 @@ const PlantEfficiency = () => {
           <button
             type="button"
             onClick={() => setViewMode('latest')}
-            className={`rounded-lg border px-3 py-2 text-sm font-medium ${viewMode === 'latest' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'}`}
+            className={`rounded-lg border px-3 py-2 text-sm font-medium transition ${viewMode === 'latest' ? 'border-[color:var(--accent)] bg-[color:var(--accent-soft)] text-[color:var(--accent)]' : 'border-[color:var(--border)] bg-[color:var(--surface)] text-[color:var(--text-secondary)] hover:border-[color:var(--accent)] hover:bg-[color:var(--surface-hover)] hover:text-[color:var(--accent)]'}`}
           >
             Latest month
           </button>
           <button
             type="button"
             onClick={() => setViewMode('monthly')}
-            className={`rounded-lg border px-3 py-2 text-sm font-medium ${viewMode === 'monthly' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'}`}
+            className={`rounded-lg border px-3 py-2 text-sm font-medium transition ${viewMode === 'monthly' ? 'border-[color:var(--accent)] bg-[color:var(--accent-soft)] text-[color:var(--accent)]' : 'border-[color:var(--border)] bg-[color:var(--surface)] text-[color:var(--text-secondary)] hover:border-[color:var(--accent)] hover:bg-[color:var(--surface-hover)] hover:text-[color:var(--accent)]'}`}
           >
             Monthly trend
           </button>
@@ -901,20 +898,20 @@ const PlantEfficiency = () => {
       {/* Overall Equipment Efficiency graph removed per request */}
 
       {loading ? (
-        <div className="rounded-xl border border-gray-200 bg-white p-8 text-center shadow-sm">
-          <p className="text-sm text-gray-600">Loading plant KPI list...</p>
+        <div className="border border-[color:var(--border)] bg-[color:var(--surface)] p-6 text-center shadow-sm">
+          <p className="text-sm text-[color:var(--text-secondary)]">Loading plant KPI list...</p>
         </div>
       ) : error ? (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+        <div className="border border-[color:var(--danger-soft)] bg-[color:var(--danger-soft)] p-4 text-sm text-[color:var(--danger)]">
           {error}
         </div>
       ) : orderedKpis.length === 0 ? (
-        <div className="rounded-xl border border-gray-200 bg-white p-8 text-center shadow-sm">
-          <p className="text-sm text-gray-600">No plant KPI graphs match your search or selected fiscal year.</p>
+        <div className="border border-[color:var(--border)] bg-[color:var(--surface)] p-6 text-center shadow-sm">
+          <p className="text-sm text-[color:var(--text-secondary)]">No plant KPI graphs match your search or selected fiscal year.</p>
         </div>
       ) : kpisWithData.length === 0 ? (
-        <div className="rounded-xl border border-gray-200 bg-white p-8 text-center shadow-sm">
-          <p className="text-sm text-gray-600">No monthly data available for the selected KPIs.</p>
+        <div className="border border-[color:var(--border)] bg-[color:var(--surface)] p-6 text-center shadow-sm">
+          <p className="text-sm text-[color:var(--text-secondary)]">No monthly data available for the selected KPIs.</p>
         </div>
       ) : (
         <div className="grid gap-6 xl:grid-cols-2">

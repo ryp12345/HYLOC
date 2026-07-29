@@ -550,11 +550,11 @@ function KmiDetail() {
     );
   }
   return (
-    <div className="w-full max-w-7xl mx-auto p-6">
+    <div className="w-full max-w-7xl mx-auto bg-[color:var(--app-bg)] p-6 text-[color:var(--text-primary)]">
       <Notification show={notification.show} message={notification.message} type={notification.type} onClose={() => setNotification({ show: false, message: '', type: '' })} />
       <div className="mb-6 flex justify-between items-center">
         <button
-          className="px-5 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-md text-sm font-medium"
+          className="rounded-md bg-[color:var(--accent)] px-5 py-2.5 text-sm font-medium text-white hover:opacity-90"
           onClick={() => {
             if (location.state?.fromKmisState) {
               navigate('/admin/kmis', { state: { fromKmisState: location.state.fromKmisState } });
@@ -565,59 +565,59 @@ function KmiDetail() {
         >
           ← Back to KMIs
         </button>
-        <h2 className="text-2xl font-bold text-gray-800">KMI Details</h2>
+        <h2 className="text-2xl font-bold text-[color:var(--text-primary)]">KMI Details</h2>
       </div>
-      <div className="bg-white rounded-lg shadow p-6 mb-6">
+      <div className="mb-6 rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] p-6 shadow">
         <div className="space-y-3">
           <div className="flex flex-col">
-            <span className="text-lg font-bold text-[#1B55C4]">{kmi.title}</span>
+            <span className="text-lg font-bold text-[color:var(--accent)]">{kmi.title}</span>
           </div>
           <div className="flex flex-col">
-            <span className="text-sm font-semibold text-gray-600 mb-1">Financial Year:</span>
-            <span className="inline-block px-3 py-1 bg-blue-100 text-blue-800 rounded text-sm font-medium w-fit">{kmi.fin_year || 'N/A'}</span>
+            <span className="mb-1 text-sm font-semibold text-[color:var(--text-secondary)]">Financial Year:</span>
+            <span className="inline-block w-fit rounded bg-[color:var(--accent-soft)] px-3 py-1 text-sm font-medium text-[color:var(--accent)]">{kmi.fin_year || 'N/A'}</span>
           </div>
         </div>
       </div>
       <div>
         <div className="flex justify-between items-center mb-4">
-          <h3 className="text-xl font-bold text-gray-800">KPI Values</h3>
-          <button className="px-5 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-md text-sm font-medium" onClick={handleAddNew}>
+          <h3 className="text-xl font-bold text-[color:var(--text-primary)]">KPI Values</h3>
+          <button className="rounded-md bg-[color:var(--accent)] px-5 py-2.5 text-sm font-medium text-white hover:opacity-90" onClick={handleAddNew}>
             + Add Value
           </button>
         </div>
         {kpiValues.length === 0 ? (
-          <div className="text-center py-10 text-gray-500 text-base">No KPI values found. Add your first value!</div>
+          <div className="py-10 text-center text-base text-[color:var(--text-secondary)]">No KPI values found. Add your first value!</div>
         ) : (
-          <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="overflow-hidden rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] shadow">
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-50 border-b border-gray-200">
+                <thead className="border-b border-[color:var(--border)] bg-[color:var(--surface-hover)]">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Type</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Data</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Data Operator</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Unit of Measurement</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Piller</th>
-                    <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">Target Required</th>
-                    <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-[color:var(--text-secondary)]">Type</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-[color:var(--text-secondary)]">Data</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-[color:var(--text-secondary)]">Data Operator</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-[color:var(--text-secondary)]">Unit of Measurement</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-[color:var(--text-secondary)]">Piller</th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-[color:var(--text-secondary)]">Target Required</th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-[color:var(--text-secondary)]">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200">
+                <tbody className="divide-y divide-[color:var(--border)]">
                   {kpiValues.map((value) => (
-                    <tr key={value.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-4 py-3 text-sm text-gray-800">
-                        <span className="inline-block px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-medium">
+                    <tr key={value.id} className="transition-colors hover:bg-[color:var(--surface-hover)]">
+                      <td className="px-4 py-3 text-sm text-[color:var(--text-secondary)]">
+                        <span className="inline-block rounded bg-[color:var(--accent-soft)] px-2 py-1 text-xs font-medium text-[color:var(--accent)]">
                           {value.kpi_type || 'manual'}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-sm font-medium text-gray-900">{value.data}</td>
-                      <td className="px-4 py-3 text-sm text-gray-600">
+                      <td className="px-4 py-3 text-sm font-medium text-[color:var(--text-primary)]">{value.data}</td>
+                      <td className="px-4 py-3 text-sm text-[color:var(--text-secondary)]">
                         {getOperatorName(value.data_operator ?? value['data operator'])}
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-600">{getUnitName(value.uom)}</td>
-                      <td className="px-4 py-3 text-sm text-gray-600">{getPillerName(value.piller_id)}</td>
+                      <td className="px-4 py-3 text-sm text-[color:var(--text-secondary)]">{getUnitName(value.uom)}</td>
+                      <td className="px-4 py-3 text-sm text-[color:var(--text-secondary)]">{getPillerName(value.piller_id)}</td>
                       <td className="px-4 py-3 text-sm text-center">
-                        <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${value.target_required ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}`}>
+                        <span className={`inline-block rounded px-2 py-1 text-xs font-medium ${value.target_required ? 'bg-[color:var(--success-soft)] text-[color:var(--success)]' : 'bg-[color:var(--accent-soft)] text-[color:var(--accent)]'}`}>
                           {value.target_required ? 'Yes' : 'No'}
                         </span>
                       </td>
@@ -625,7 +625,7 @@ function KmiDetail() {
                         <div className="flex items-center justify-center space-x-2">
                           <button
                             onClick={() => handleEdit(value)}
-                            className="p-2 text-white transition-colors duration-200 bg-blue-600 rounded-lg hover:bg-blue-700"
+                            className="rounded-lg bg-[color:var(--accent)] p-2 text-white transition-colors duration-200 hover:opacity-90"
                             title="Edit"
                           >
                             <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -634,7 +634,7 @@ function KmiDetail() {
                           </button>
                           <button
                             onClick={() => handleDelete(value.id)}
-                            className="p-2 text-white transition-colors duration-200 bg-red-600 rounded-lg hover:bg-red-700"
+                            className="rounded-lg bg-[color:var(--danger)] p-2 text-white transition-colors duration-200 hover:opacity-90"
                             title="Delete"
                           >
                             <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -652,15 +652,15 @@ function KmiDetail() {
         )}
       </div>
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-5" onClick={() => setShowModal(false)}>
-          <div className="bg-white rounded-lg shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="flex justify-between items-center p-6 border-b border-gray-200">
-              <h3 className="text-xl font-bold text-gray-800">{editingValue ? 'Edit KPI Value' : 'Add New KPI Value'}</h3>
-              <button className="text-gray-600 hover:bg-gray-100 w-8 h-8 rounded flex items-center justify-center text-2xl" onClick={() => setShowModal(false)}>×</button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-5 backdrop-blur-sm" onClick={() => setShowModal(false)}>
+          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-[color:var(--border)] p-6">
+              <h3 className="text-xl font-bold text-[color:var(--text-primary)]">{editingValue ? 'Edit KPI Value' : 'Add New KPI Value'}</h3>
+              <button className="flex h-8 w-8 items-center justify-center rounded text-2xl text-[color:var(--text-secondary)] hover:bg-[color:var(--surface-hover)]" onClick={() => setShowModal(false)}>×</button>
             </div>
             <form onSubmit={handleSubmit} className="p-6">
               <div className="mb-5">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Data/Name<span className='text-red-500'>*</span></label>
+                <label className="mb-2 block text-sm font-semibold text-[color:var(--text-secondary)]">Data/Name<span className='text-red-500'>*</span></label>
                 <input
                   type="text"
                   name="data"
@@ -668,17 +668,17 @@ function KmiDetail() {
                   onChange={handleChange}
                   required
                   placeholder="Enter data Value"
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  className="w-full rounded-md border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-2.5 text-sm text-[color:var(--text-primary)] focus:border-[color:var(--accent)] focus:outline-none focus:ring-2 focus:ring-[color:var(--focus-ring)]"
                 />
               </div>
               <div className="mb-5">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">KPI Type <span className='text-red-500'>*</span></label>
+                <label className="mb-2 block text-sm font-semibold text-[color:var(--text-secondary)]">KPI Type <span className='text-red-500'>*</span></label>
                 <select
                   name="kpi_type"
                   value={formData.kpi_type}
                   onChange={handleChange}
                   required
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  className="w-full rounded-md border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-2.5 text-sm text-[color:var(--text-primary)] focus:border-[color:var(--accent)] focus:outline-none focus:ring-2 focus:ring-[color:var(--focus-ring)]"
                 >
                   <option value="manual">Manual</option>
                   <option value="computed">Computed</option>
@@ -686,12 +686,12 @@ function KmiDetail() {
               </div>
               {formData.kpi_type === 'computed' && (
                 <div className="mb-5">
-                  <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center justify-between">
+                  <label className="mb-2 flex items-center justify-between text-sm font-semibold text-[color:var(--text-secondary)]">
                     <span>Computation Type</span>
                     <button
                       type="button"
                       onClick={() => setShowComputationTypeHelp(true)}
-                      className="ml-2 px-2 py-1 text-xs bg-blue-100 text-blue-600 hover:bg-blue-200 rounded flex items-center gap-1"
+                      className="ml-2 flex items-center gap-1 rounded bg-[color:var(--accent-soft)] px-2 py-1 text-xs text-[color:var(--accent)] hover:opacity-90"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -703,39 +703,39 @@ function KmiDetail() {
                     name="computation_type"
                     value={formData.computation_type}
                     onChange={handleChange}
-                    className="w-full px-3 py-2.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                    className="w-full rounded-md border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-2.5 text-sm text-[color:var(--text-primary)] focus:border-[color:var(--accent)] focus:outline-none focus:ring-2 focus:ring-[color:var(--focus-ring)]"
                   >
                     <option value="actual_computed">Actual computed using formula; target uses default</option>
                     <option value="target_computed">Actual manual; target computed using formula</option>
                     <option value="both">Both actual and target computed using formula</option>
                   </select>
-                  <p className="text-xs text-gray-600 mt-2">Option 1: System calculates both values | Option 2: System calculates actual, uses default for target | Option 3: User enters actual, system calculates target</p>
+                  <p className="mt-2 text-xs text-[color:var(--text-secondary)]">Option 1: System calculates both values | Option 2: System calculates actual, uses default for target | Option 3: User enters actual, system calculates target</p>
                 </div>
               )}
               {formData.kpi_type === 'computed' && (
                 <>
-                  <div className="mb-5 p-4 bg-blue-50 rounded-md border border-blue-200">
-                    <h4 className="text-sm font-semibold text-gray-700 mb-2">📋 Available KPI Values (for formula reference)</h4>
+                  <div className="mb-5 rounded-md border border-[color:var(--border)] bg-[color:var(--surface)] p-4">
+                    <h4 className="mb-2 text-sm font-semibold text-[color:var(--text-secondary)]">📋 Available KPI Values (for formula reference)</h4>
                     <div className="overflow-x-auto max-h-48 overflow-y-auto">
                       <table className="w-full text-xs">
-                        <thead className="bg-blue-100 sticky top-0">
+                        <thead className="sticky top-0 bg-[color:var(--surface-hover)]">
                           <tr>
-                            <th className="px-2 py-1 text-left">Use in Formula</th>
-                            <th className="px-2 py-1 text-left">KPI Value Name</th>
-                            <th className="px-2 py-1 text-left">Type</th>
+                            <th className="px-2 py-1 text-left text-[color:var(--text-secondary)]">Use in Formula</th>
+                            <th className="px-2 py-1 text-left text-[color:var(--text-secondary)]">KPI Value Name</th>
+                            <th className="px-2 py-1 text-left text-[color:var(--text-secondary)]">Type</th>
                           </tr>
                         </thead>
                         <tbody>
                           {kpiValues
                             .filter(kv => kv.id !== editingValue?.id)
                             .map((kv) => (
-                              <tr key={kv.id} className="border-b border-blue-100">
+                              <tr key={kv.id} className="border-b border-[color:var(--border)]">
                                 <td className="px-2 py-1">
-                                  <code className="bg-gray-100 px-1 rounded text-red-600">v{kv.id}</code>
+                                  <code className="rounded bg-[color:var(--surface-hover)] px-1 text-[color:var(--danger)]">v{kv.id}</code>
                                 </td>
                                 <td className="px-2 py-1">{kv.data}</td>
                                 <td className="px-2 py-1">
-                                  <span className="inline-block px-2 py-0.5 bg-blue-100 text-blue-800 rounded text-xs">
+                                  <span className="inline-block rounded bg-[color:var(--accent-soft)] px-2 py-0.5 text-xs text-[color:var(--accent)]">
                                     {kv.kpi_type || 'manual'}
                                   </span>
                                 </td>
@@ -747,12 +747,12 @@ function KmiDetail() {
                   </div>
 
                   <div className="mb-5">
-                    <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center justify-between">
+                    <label className="mb-2 flex items-center justify-between text-sm font-semibold text-[color:var(--text-secondary)]">
                       <span>Formula (for Actual) {formData.computation_type !== 'target_computed' && '*'}</span>
                       <button
                         type="button"
                         onClick={() => setShowFormulaHelp(true)}
-                        className="ml-2 px-2 py-1 text-xs bg-blue-100 text-blue-600 hover:bg-blue-200 rounded flex items-center gap-1"
+                        className="ml-2 flex items-center gap-1 rounded bg-[color:var(--accent-soft)] px-2 py-1 text-xs text-[color:var(--accent)] hover:opacity-90"
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -950,12 +950,12 @@ function KmiDetail() {
                 </>
               )}
               <div className="mb-5">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Unit of Measurement</label>
+                <label className="mb-2 block text-sm font-semibold text-[color:var(--text-secondary)]">Unit of Measurement</label>
                 <select
                   name="uom"
                   value={formData.uom}
                   onChange={handleChange}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  className="w-full rounded-md border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-2.5 text-sm text-[color:var(--text-primary)] focus:border-[color:var(--accent)] focus:outline-none focus:ring-2 focus:ring-[color:var(--focus-ring)]"
                 >
                   <option value="">Select Unit</option>
                   {units.length === 0 ? (
@@ -970,13 +970,13 @@ function KmiDetail() {
                 </select>
               </div>
               <div className="mb-5">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Assign Data Operator</label>
+                <label className="mb-2 block text-sm font-semibold text-[color:var(--text-secondary)]">Assign Data Operator</label>
                 <select
                   name="data_operator"
                   value={formData.data_operator}
                   onChange={handleChange}
                   disabled={formData.kpi_type === 'computed'}
-                  className={`w-full px-3 py-2.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 ${formData.kpi_type === 'computed' ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : 'bg-white'
+                  className={`w-full rounded-md border border-[color:var(--border)] px-3 py-2.5 text-sm focus:outline-none focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--focus-ring)] ${formData.kpi_type === 'computed' ? 'cursor-not-allowed bg-[color:var(--surface-hover)] text-[color:var(--text-muted)]' : 'bg-[color:var(--surface)] text-[color:var(--text-primary)]'
                     }`}
                 >
                   <option value="">Select Operator</option>
@@ -1003,12 +1003,12 @@ function KmiDetail() {
                 </select>
               </div>
               <div className="mb-5">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Piller</label>
+                <label className="mb-2 block text-sm font-semibold text-[color:var(--text-secondary)]">Piller</label>
                 <select
                   name="piller_id"
                   value={formData.piller_id || ''}
                   onChange={handleChange}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  className="w-full rounded-md border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-2.5 text-sm text-[color:var(--text-primary)] focus:border-[color:var(--accent)] focus:outline-none focus:ring-2 focus:ring-[color:var(--focus-ring)]"
                 >
                   <option value="">Select Pillar</option>
                   {pillers.map((piller) => (
@@ -1027,27 +1027,27 @@ function KmiDetail() {
                         name="target_required"
                         checked={formData.target_required}
                         onChange={handleChange}
-                        className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-2 focus:ring-blue-500"
+                        className="h-4 w-4 rounded border-[color:var(--border)] text-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--focus-ring)]"
                         id="target_required"
                       />
-                      <label htmlFor="target_required" className="text-sm font-medium text-gray-700 cursor-pointer">
+                      <label htmlFor="target_required" className="cursor-pointer text-sm font-medium text-[color:var(--text-secondary)]">
                         Target Required
                       </label>
                     </div>
-                    <span className={`ml-auto text-sm font-semibold ${formData.target_required ? 'text-green-600' : 'text-blue-600'}`}>
+                    <span className={`ml-auto text-sm font-semibold ${formData.target_required ? 'text-[color:var(--success)]' : 'text-[color:var(--accent)]'}`}>
                       {formData.target_required ? 'Yes' : 'No'}
                     </span>
                   </div>
                   {formData.target_required && (
                     <div className="mb-5">
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">Default Target Value</label>
+                      <label className="mb-2 block text-sm font-semibold text-[color:var(--text-secondary)]">Default Target Value</label>
                       <input
                         type="text"
                         name="default_target_value"
                         value={formData.default_target_value}
                         onChange={handleChange}
                         placeholder="e.g., 100, 50%"
-                        className="w-full px-3 py-2.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                        className="w-full rounded-md border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-2.5 text-sm text-[color:var(--text-primary)] focus:border-[color:var(--accent)] focus:outline-none focus:ring-2 focus:ring-[color:var(--focus-ring)]"
                       />
                     </div>
                   )}
@@ -1055,10 +1055,10 @@ function KmiDetail() {
               )}
 
               <div className="flex justify-end gap-3 pt-4">
-                <button type="button" className="px-5 py-2.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50" onClick={() => setShowModal(false)}>
+                <button type="button" className="rounded-md border border-[color:var(--border)] px-5 py-2.5 text-sm font-medium text-[color:var(--text-secondary)] hover:bg-[color:var(--surface-hover)]" onClick={() => setShowModal(false)}>
                   Cancel
                 </button>
-                <button type="submit" className="px-5 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-md text-sm font-medium">
+                <button type="submit" className="rounded-md bg-[color:var(--accent)] px-5 py-2.5 text-sm font-medium text-white hover:opacity-90">
                   {editingValue ? 'Update' : 'Create'}
                 </button>
               </div>

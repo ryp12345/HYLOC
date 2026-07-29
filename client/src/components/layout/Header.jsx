@@ -8,6 +8,7 @@ import NotificationDetail from '../common/NotificationDetail';
 import { getNotifications, markNotificationAsRead } from '../../api/notificationApi';
 import axios from '../../api/axios';
 import { API_URL } from '../../api/axios';
+import { useTheme } from '../../context/ThemeContext';
 
 const getPhotoUrl = (path) => {
   if (!path) return '';
@@ -31,6 +32,7 @@ const getPhotoUrl = (path) => {
 const Navbar = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const { theme, toggleTheme } = useTheme();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isChangePwdOpen, setIsChangePwdOpen] = useState(false);
@@ -134,53 +136,81 @@ const Navbar = () => {
   };
 
   return (
-    <nav className="bg-white text-gray-900 shadow-lg">
+    <nav className="border-b border-[color:var(--border)] bg-[color:var(--header-bg)] text-[color:var(--text-primary)] shadow-[0_12px_30px_-18px_rgba(15,23,42,0.45)] transition-colors duration-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center py-0 sm:py-0">
           {/* Logo - Left aligned */}
           <div className="flex-1 flex items-center justify-start">
-            <img
-              src="/hyloc-logo.png"
-              alt="Hyloc logo"
-              className="h-9 sm:h-10 w-auto max-w-[96px] sm:max-w-[108px] object-contain"
-            />
+            <div className={`transition-all duration-300 flex items-center justify-center ${theme === 'dark' ? 'bg-white px-2 py-1 rounded-lg' : ''}`}>
+              <img
+                src="/hyloc-logo.png"
+                alt="Hyloc logo"
+                className="h-9 sm:h-10 w-auto max-w-[96px] sm:max-w-[108px] object-contain"
+              />
+            </div>
           </div>
 
           {/* Logo - Centered */}
           <div className="flex-1 flex items-center justify-center">
-            <img
-              src="/hyloc_name.jpg"
-              alt="Hyloc Hydrotechnic Pvt Ltd"
-              className="h-12 sm:h-14 w-auto max-w-[350px] sm:max-w-[450px] object-contain"
-            />
+            <div className={`transition-all duration-300 flex items-center justify-center ${theme === 'dark' ? 'bg-white px-2 py-1.5 rounded-lg' : ''}`}>
+              <img
+                src="/hyloc_name.jpg"
+                alt="Hyloc Hydrotechnic Pvt Ltd"
+                className={`w-auto max-w-[350px] sm:max-w-[450px] object-contain ${theme === 'dark' ? 'h-9 sm:h-11 rounded-sm' : 'h-12 sm:h-14 mix-blend-multiply'}`}
+              />
+            </div>
           </div>
 
 
           {/* User Info & Menu - Right aligned */}
-          <div className="flex-1 flex justify-end items-center space-x-4 relative">
+          <div className="relative flex flex-1 items-center justify-end space-x-2 sm:space-x-4">
+            <button
+              type="button"
+              onClick={toggleTheme}
+              className="inline-flex items-center gap-2 rounded-full border border-[color:var(--border)] bg-[color:var(--surface-elevated)] px-3 py-2 text-sm font-semibold text-[color:var(--text-primary)] shadow-sm transition-colors hover:bg-[color:var(--surface-hover)] focus:outline-none focus:ring-2 focus:ring-[color:var(--focus-ring)] focus:ring-offset-2 focus:ring-offset-[color:var(--header-bg)]"
+              aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+              title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            >
+              {theme === 'dark' ? (
+                <>
+                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2m0 14v2m9-9h-2M5 12H3m15.364-6.364-1.414 1.414M7.05 16.95l-1.414 1.414m12.728 0-1.414-1.414M7.05 7.05 5.636 5.636" />
+                    <circle cx="12" cy="12" r="4" />
+                  </svg>
+                  <span className="hidden sm:inline">Light</span>
+                </>
+              ) : (
+                <>
+                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M21 12.8A8.5 8.5 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z" />
+                  </svg>
+                  <span className="hidden sm:inline">Dark</span>
+                </>
+              )}
+            </button>
             {/* Notification Bell */}
             <div className="relative" ref={notificationRef}>
               <button
-                className="relative p-2 rounded-full hover:bg-gray-100"
+                className="relative rounded-full p-2 hover:bg-[color:var(--surface-hover)] focus:outline-none focus:ring-2 focus:ring-[color:var(--focus-ring)]"
                 aria-label="Notifications"
                 onClick={() => setShowNotifications((prev) => !prev)}
               >
-                <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="h-6 w-6 text-[color:var(--text-secondary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 15V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v4a2.032 2.032 0 01-.595 1.405L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                 </svg>
                 {unreadCount > 0 && (
-                  <span className="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white bg-red-600 rounded-full">
+                  <span className="absolute right-0 top-0 inline-flex items-center justify-center rounded-full bg-[color:var(--danger)] px-2 py-1 text-xs font-bold leading-none text-white">
                     {unreadCount}
                   </span>
                 )}
               </button>
               {showNotifications && (
-                <div className="absolute right-0 mt-2 w-80 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
-                  <div className="p-4 border-b font-semibold text-gray-700 flex items-center justify-between">
+                <div className="absolute right-0 z-50 mt-2 max-h-96 w-80 overflow-y-auto rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] shadow-xl">
+                  <div className="flex items-center justify-between border-b border-[color:var(--border)] p-4 font-semibold text-[color:var(--text-primary)]">
                     <span>Notifications</span>
                     {notifications.length > 0 && (
                       <button
-                        className="text-blue-600 hover:underline text-sm font-medium"
+                        className="text-sm font-medium text-[color:var(--accent)] hover:underline"
                         onClick={() => setShowAllNotifications(true)}
                       >
                         View All
@@ -200,16 +230,16 @@ const Navbar = () => {
                       return d.getUTCMonth() !== now.getUTCMonth() || d.getUTCFullYear() !== now.getUTCFullYear();
                     });
                     if (notifications.length === 0) {
-                      return <div className="p-4 text-gray-500">No notifications</div>;
+                      return <div className="p-4 text-[color:var(--text-muted)]">No notifications</div>;
                     }
                     return <>
                       {currentMonthNotifications.length === 0 && (
-                        <div className="p-4 text-gray-500">No notifications for this month</div>
+                        <div className="p-4 text-[color:var(--text-muted)]">No notifications for this month</div>
                       )}
                       {currentMonthNotifications.map((n) => (
                         <div
                           key={n.id}
-                          className={`px-4 py-3 border-b last:border-b-0 cursor-pointer hover:bg-blue-50 ${n.is_read ? 'text-gray-500' : 'text-gray-900 font-semibold'}`}
+                          className={`cursor-pointer border-b last:border-b-0 px-4 py-3 hover:bg-[color:var(--surface-hover)] ${n.is_read ? 'text-[color:var(--text-muted)]' : 'font-semibold text-[color:var(--text-primary)]'}`}
                           onClick={async () => {
                             if (!n.is_read) {
                               await markNotificationAsRead(n.id);
@@ -254,11 +284,11 @@ const Navbar = () => {
 
                               return (
                                 <>
-                                  {firstLine ? <div className="text-sm text-gray-800">{firstLine}</div> : null}
-                                  <div className="text-sm text-gray-700 font-medium mt-1">{`Type: ${typeLabel}`}</div>
-                                  {titleText ? <div className="font-medium mt-1 truncate max-w-[18rem]">{`Title: ${titleText}`}</div> : null}
-                                  {descText ? <div className="text-sm text-gray-600 truncate max-w-[18rem] mt-1">{`Description: ${descText}`}</div> : null}
-                                  <div className="text-xs text-gray-400 mt-1">{new Date(n.created_at).toLocaleString()}</div>
+                                  {firstLine ? <div className="text-sm text-[color:var(--text-primary)]">{firstLine}</div> : null}
+                                  <div className="mt-1 text-sm font-medium text-[color:var(--text-secondary)]">{`Type: ${typeLabel}`}</div>
+                                  {titleText ? <div className="mt-1 max-w-[18rem] truncate font-medium text-[color:var(--text-primary)]">{`Title: ${titleText}`}</div> : null}
+                                  {descText ? <div className="mt-1 max-w-[18rem] truncate text-sm text-[color:var(--text-secondary)]">{`Description: ${descText}`}</div> : null}
+                                  <div className="mt-1 text-xs text-[color:var(--text-muted)]">{new Date(n.created_at).toLocaleString()}</div>
                                 </>
                               );
                             })()}
@@ -277,9 +307,9 @@ const Navbar = () => {
                 <div className="hidden md:block relative" ref={profileRef}>
                   <button
                     onClick={() => setIsProfileOpen(!isProfileOpen)}
-                    className="flex items-center space-x-2 px-3 py-2 rounded-lg hover:bg-gray-100 transition"
+                    className="flex items-center space-x-2 rounded-lg px-3 py-2 transition hover:bg-[color:var(--surface-hover)]"
                   >
-                    <div className="h-8 w-8 rounded-full bg-gray-200 text-gray-700 flex items-center justify-center text-sm font-semibold overflow-hidden">
+                    <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-[color:var(--surface-hover)] text-sm font-semibold text-[color:var(--text-secondary)]">
                       {profilePhoto ? (
                         <img
                           src={profilePhoto}
@@ -291,11 +321,11 @@ const Navbar = () => {
                         (user.firstName?.[0] || 'U').toUpperCase()
                       )}
                     </div>
-                    <span className="text-sm font-medium">
+                    <span className="text-sm font-medium text-[color:var(--text-primary)]">
                       {user.firstName} {user.lastName}
                     </span>
                     <svg
-                      className={`w-4 h-4 text-gray-500 transition ${isProfileOpen ? 'rotate-180' : ''}`}
+                      className={`h-4 w-4 text-[color:var(--text-muted)] transition ${isProfileOpen ? 'rotate-180' : ''}`}
                       viewBox="0 0 20 20"
                       fill="currentColor"
                     >
@@ -308,21 +338,21 @@ const Navbar = () => {
                   </button>
 
                   {isProfileOpen && (
-                    <div className="absolute right-0 mt-2 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
-                      <div className="px-4 py-3 border-b border-gray-100">
-                        <div className="text-sm font-medium text-gray-900">
+                    <div className="absolute right-0 z-50 mt-2 w-56 rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] shadow-xl">
+                      <div className="border-b border-[color:var(--border)] px-4 py-3">
+                        <div className="text-sm font-medium text-[color:var(--text-primary)]">
                           {user.firstName} {user.lastName}
                         </div>
-                        <div className={`mt-2 inline-flex px-2 py-0.5 rounded-full text-xs font-semibold ${user.role === 'admin'
-                          ? 'bg-red-100 text-red-700'
-                          : 'bg-green-100 text-green-700'
+                        <div className={`mt-2 inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${user.role === 'admin'
+                          ? 'bg-[color:var(--danger-soft)] text-[color:var(--danger)]'
+                          : 'bg-[color:var(--success-soft)] text-[color:var(--success)]'
                           }`}>
                           {user.role?.toUpperCase()}
                         </div>
                       </div>
                       <button
                         onClick={() => { navigate('/profile'); setIsProfileOpen(false); }}
-                        className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                        className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-[color:var(--text-secondary)] hover:bg-[color:var(--surface-hover)]"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
@@ -331,7 +361,7 @@ const Navbar = () => {
                       </button>
                       <button
                         onClick={() => { setIsChangePwdOpen(true); setIsProfileOpen(false); }}
-                        className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                        className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-[color:var(--text-secondary)] hover:bg-[color:var(--surface-hover)]"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
@@ -342,7 +372,7 @@ const Navbar = () => {
                       {roles.length > 1 && (
                         <button
                           onClick={() => { setIsRoleSwitchOpen(true); setIsProfileOpen(false); }}
-                          className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                          className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-[color:var(--text-secondary)] hover:bg-[color:var(--surface-hover)]"
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
@@ -353,7 +383,7 @@ const Navbar = () => {
 
                       <button
                         onClick={handleLogout}
-                        className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                        className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-[color:var(--danger)] hover:bg-[color:var(--danger-soft)]"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -367,7 +397,7 @@ const Navbar = () => {
                 {/* Mobile Menu Toggle */}
                 <button
                   onClick={() => setIsMenuOpen(!isMenuOpen)}
-                  className="md:hidden text-gray-700 hover:text-gray-900 focus:outline-none"
+                  className="md:hidden text-[color:var(--text-secondary)] hover:text-[color:var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[color:var(--focus-ring)]"
                 >
                   <svg
                     className="w-6 h-6"
@@ -393,7 +423,7 @@ const Navbar = () => {
         {/* Mobile Menu */}
         {isMenuOpen && user && (
           <div className="md:hidden pb-4 space-y-2">
-            <div className="text-sm text-gray-600">
+            <div className="text-sm text-[color:var(--text-secondary)]">
               {user.firstName} {user.lastName}
             </div>
             <div className={`px-3 py-1 rounded-full text-xs font-semibold w-fit ${user.role === 'admin'
@@ -404,7 +434,7 @@ const Navbar = () => {
             </div>
             <button
               onClick={() => { navigate('/profile'); setIsMenuOpen(false); }}
-              className="w-full bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition duration-200 text-sm font-semibold flex items-center justify-center gap-2"
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-[color:var(--surface-hover)] px-4 py-2 text-sm font-semibold text-[color:var(--text-primary)] transition duration-200 hover:bg-[color:var(--surface)]"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
@@ -413,7 +443,7 @@ const Navbar = () => {
             </button>
             <button
               onClick={() => { setIsChangePwdOpen(true); setIsMenuOpen(false); }}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition duration-200 text-sm font-semibold"
+              className="w-full rounded-lg bg-[color:var(--accent)] px-4 py-2 text-sm font-semibold text-white transition duration-200 hover:opacity-90"
             >
               Change Password
             </button>
@@ -421,7 +451,7 @@ const Navbar = () => {
             {roles.length > 1 && (
               <button
                 onClick={() => { setIsRoleSwitchOpen(true); setIsMenuOpen(false); }}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition duration-200 text-sm font-semibold"
+                className="w-full rounded-lg bg-[color:var(--accent)] px-4 py-2 text-sm font-semibold text-white transition duration-200 hover:opacity-90"
               >
                 Switch Role
               </button>
@@ -429,7 +459,7 @@ const Navbar = () => {
 
             <button
               onClick={handleLogout}
-              className="w-full bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition duration-200 text-sm font-semibold"
+              className="w-full rounded-lg bg-[color:var(--danger)] px-4 py-2 text-sm font-semibold text-white transition duration-200 hover:opacity-90"
             >
               Logout
             </button>
