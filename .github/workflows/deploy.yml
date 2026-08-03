@@ -1,52 +1,52 @@
-# name: Deploy Application
+name: Deploy Application
 
-# on:
-#   push:
-#     branches:
-#       - main
-#       - staging
+on:
+  push:
+    branches:
+      - main
+      - staging
 
-# jobs:
-#   deploy:
-#     runs-on: ubuntu-latest
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
 
-#     steps:
-#       - name: Deploy to Server
-#         uses: appleboy/ssh-action@v1.0.3
-#         with:
-#           host: ${{ secrets.SERVER_HOST }}
-#           username: ${{ secrets.SERVER_USER }}
-#           key: ${{ secrets.SERVER_SSH_KEY }}
-#           script: |
+    steps:
+      - name: Deploy to Server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
 
-#             if [ "${{ github.ref_name }}" = "main" ]; then
-#               APP_DIR="/var/www/hyloc"
-#               PM2_NAME="hyloc-backend"
-#               echo "🚀 Deploying to PRODUCTION"
-#             else
-#               APP_DIR="/var/www/hyloc-staging"
-#               PM2_NAME="hyloc-staging"
-#               echo "🧪 Deploying to STAGING"
-#             fi
+            if [ "${{ github.ref_name }}" = "main" ]; then
+              APP_DIR="/var/www/hyloc"
+              PM2_NAME="hyloc-backend"
+              echo "🚀 Deploying to PRODUCTION"
+            else
+              APP_DIR="/var/www/hyloc-staging"
+              PM2_NAME="hyloc-staging"
+              echo "🧪 Deploying to STAGING"
+            fi
 
-#             cd $APP_DIR
+            cd $APP_DIR
 
-#             echo "📥 Pulling latest code"
-#             git pull origin ${{ github.ref_name }}
+            echo "📥 Pulling latest code"
+            git pull origin ${{ github.ref_name }}
 
-#             echo "📦 Installing backend dependencies"
-#             cd backend
-#             npm install
+            echo "📦 Installing backend dependencies"
+            cd backend
+            npm install
 
-#             echo "🔄 Restarting backend"
-#             pm2 reload $PM2_NAME || pm2 start server.js --name $PM2_NAME
+            echo "🔄 Restarting backend"
+            pm2 reload $PM2_NAME || pm2 start server.js --name $PM2_NAME
 
-#             echo "🏗 Building frontend"
-#             cd ../client
-#             npm install
-#             npm run build
+            echo "🏗 Building frontend"
+            cd ../client
+            npm install
+            npm run build
 
-#             echo "♻ Reloading Nginx"
-#             sudo systemctl reload nginx
+            echo "♻ Reloading Nginx"
+            sudo systemctl reload nginx
 
-#             echo "✅ Deployment Successful"
+            echo "✅ Deployment Successful"
