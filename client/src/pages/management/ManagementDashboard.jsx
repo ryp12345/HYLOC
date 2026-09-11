@@ -476,6 +476,8 @@ function ManagementDashboard() {
   const [allUsers, setAllUsers] = useState([]);
   const [staffPerformanceData, setStaffPerformanceData] = useState({});
   const [staffPerformanceLoading, setStaffPerformanceLoading] = useState(false);
+  const [ticketPerformanceData, setTicketPerformanceData] = useState({});
+  const [ticketPerformanceLoading, setTicketPerformanceLoading] = useState(false);
   const [departmentStats, setDepartmentStats] = useState({
     total: 0
   });
@@ -550,9 +552,12 @@ function ManagementDashboard() {
     const activeUsers = allUsers.filter(u => (u.status || '').toLowerCase() === 'active');
     return activeUsers
       .map(user => {
-        if (!Object.prototype.hasOwnProperty.call(staffPerformanceData, user.id)) return null;
+        const hasKpiPerformance = Object.prototype.hasOwnProperty.call(staffPerformanceData, user.id);
+        const hasTicketPerformance = Object.prototype.hasOwnProperty.call(ticketPerformanceData, user.id);
+        if (!hasKpiPerformance && !hasTicketPerformance) return null;
 
         const performance = staffPerformanceData[user.id] || 0;
+        const ticketPerformance = ticketPerformanceData[user.id] || 0;
         const firstName = (user.firstname || '').trim();
         const middleName = (user.middlename || '').trim();
         const lastName = (user.lastname || '').trim();
@@ -563,11 +568,12 @@ function ManagementDashboard() {
           designation: user.designation_name || '',
           photo: user.staff_photo || '',
           performance,
+          ticketPerformance,
         };
       })
       .filter(Boolean)
       .sort((a, b) => b.performance - a.performance || a.name.localeCompare(b.name));
-  }, [allUsers, staffPerformanceData]);
+  }, [allUsers, staffPerformanceData, ticketPerformanceData]);
 
   const StaffPerformanceList = ({ staffList, loading }) => {
     if (loading) {
@@ -595,6 +601,10 @@ function ManagementDashboard() {
       if (staff.performance >= 66) perfColor = 'bg-[color:var(--success-soft)] text-[color:var(--success)] border-[color:var(--success)]/30';
       else if (staff.performance >= 33) perfColor = 'bg-[color:var(--accent-soft)] text-[color:var(--accent)] border-[color:var(--accent)]/30';
 
+      let ticketColor = 'bg-[color:var(--danger-soft)] text-[color:var(--danger)] border-[color:var(--danger)]/30';
+      if (staff.ticketPerformance >= 80) ticketColor = 'bg-[color:var(--success-soft)] text-[color:var(--success)] border-[color:var(--success)]/30';
+      else if (staff.ticketPerformance >= 50) ticketColor = 'bg-[color:var(--accent-soft)] text-[color:var(--accent)] border-[color:var(--accent)]/30';
+
       const photoUrl = getPhotoUrl(staff.photo);
       return (
         <div className="flex items-center gap-3 rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] p-3 shadow-sm transition-shadow hover:shadow-md">
@@ -610,9 +620,14 @@ function ManagementDashboard() {
           <div className="flex-1 min-w-0">
             <div className="truncate text-sm font-semibold text-[color:var(--text-primary)]">{staff.name}</div>
             <div className="truncate text-xs text-[color:var(--text-muted)]">{staff.designation || 'No designation'}</div>
-          </div>
-          <div className={`flex-shrink-0 px-2 py-0.5 rounded-full text-xs font-bold border ${perfColor}`}>
-            {staff.performance}%
+            <div className="mt-1 flex flex-wrap gap-1.5">
+              <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold ${perfColor}`}>
+                KPI {staff.performance}%
+              </span>
+              <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold ${ticketColor}`}>
+                Ticket {staff.ticketPerformance}%
+              </span>
+            </div>
           </div>
         </div>
       );
@@ -768,6 +783,51 @@ function ManagementDashboard() {
     loadStaffPerformance();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cachedKpiValues, allUsers, selectedFiscalYear]);
+
+  useEffect(() => {
+    const loadTicketPerformance = async () => {
+      if (!allUsers.length) {
+        setTicketPerformanceData({});
+        return;
+      }
+
+      setTicketPerformanceLoading(true);
+      try {
+        const response = await api.get('/tickets/reports', { params: { fiscalYear: selectedFiscalYear } });
+        const assigneeBreakdown = response?.data?.data?.assignee_breakdown || [];
+        const assigneeNameToId = new Map();
+
+        allUsers.forEach((user) => {
+          const firstName = (user.firstname || '').trim();
+          const middleName = (user.middlename || '').trim();
+          const lastName = (user.lastname || '').trim();
+          const fullName = [firstName, middleName, lastName].filter(Boolean).join(' ').trim() || user.email || `User ${user.id}`;
+          assigneeNameToId.set(fullName.toLowerCase(), user.id);
+        });
+
+        const performanceByUserId = {};
+        assigneeBreakdown.forEach((entry) => {
+          const assignedCount = Number(entry.assigned_count) || 0;
+          const overdueCount = Number(entry.overdue_count) || 0;
+          const rawScore = assignedCount > 0 ? ((assignedCount - overdueCount) / assignedCount) * 100 : 0;
+          const score = Math.max(0, Math.min(100, Math.round(rawScore)));
+          const matchedUserId = Number(entry.id) || assigneeNameToId.get(String(entry.name || '').toLowerCase());
+          if (Number.isFinite(matchedUserId) && matchedUserId > 0) {
+            performanceByUserId[matchedUserId] = score;
+          }
+        });
+
+        setTicketPerformanceData(performanceByUserId);
+      } catch (error) {
+        console.error('Error loading ticket performance:', error);
+        setTicketPerformanceData({});
+      } finally {
+        setTicketPerformanceLoading(false);
+      }
+    };
+
+    loadTicketPerformance();
+  }, [allUsers, selectedFiscalYear]);
 
   const fetchStatistics = async () => {
     try {
