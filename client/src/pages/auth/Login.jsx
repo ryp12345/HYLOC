@@ -19,8 +19,6 @@ function Login() {
     confirmPassword: ''
   });
 
-
-
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
@@ -130,21 +128,21 @@ function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4" style={{ backgroundColor: '#001f3f' }}>
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl p-8">
+    <div className="auth-bg min-h-screen flex items-center justify-center p-4">
+      <div className="w-full max-w-md bg-[color:var(--surface)] rounded-2xl shadow-2xl p-8">
         <div className="text-center mb-8">
           <div className="flex items-center justify-center mb-4">
             <img
-              src="/hyloc_name.jpg"
+              src="/hyloc_name_transparent.png"
               alt="Hyloc Hydrotechnic Pvt Ltd"
               className="h-auto w-full max-w-[325px] max-h-28 object-contain"
             />
           </div>
         </div>
 
-        <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">
+        {/* <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">
           {isLogin ? 'Login' : 'Register'}
-        </h2>
+        </h2> */}
 
         {error && (
           <div className="mb-6 p-4 bg-red-50 border-2 border-red-500 rounded-lg shadow-lg transition-all duration-300">
@@ -182,7 +180,7 @@ function Login() {
               onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); passwordRef.current?.focus(); } }}
               placeholder="Enter your employee ID"
               disabled={loading}
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-purple-200 transition duration-200 bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--accent-soft)] transition duration-200 bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
             />
           </div>
 
@@ -199,7 +197,7 @@ function Login() {
                   onChange={handleChange}
                   placeholder="Enter your email"
                   disabled={loading}
-                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-purple-200 transition duration-200 bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--accent-soft)] transition duration-200 bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 />
               </div>
             </>
@@ -218,7 +216,7 @@ function Login() {
                 onChange={handleChange}
                 placeholder="Enter your password"
                 disabled={loading}
-                className="w-full px-4 py-3 pr-12 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-purple-200 transition duration-200 bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full px-4 py-3 pr-12 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--accent-soft)] transition duration-200 bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
               />
               <button
                 type="button"
@@ -253,7 +251,7 @@ function Login() {
                   onChange={handleChange}
                   placeholder="Confirm your password"
                   disabled={loading}
-                  className="w-full px-4 py-3 pr-12 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition duration-200 bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full px-4 py-3 pr-12 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--accent-soft)] transition duration-200 bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 />
                 <button
                   type="button"
@@ -279,7 +277,7 @@ function Login() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full mt-6 bg-gradient-to-r  hover:to-blue-800 text-white font-bold py-3 rounded-lg transition duration-200 transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed" style={{ backgroundColor: '#001f3f' }}
+            className="w-full mt-6 bg-gradient-to-r hover:to-blue-800 text-white font-bold py-3 rounded-lg transition duration-200 transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed bg-[color:var(--accent)]"
           >
             {loading ? 'Loading...' : (isLogin ? 'Login' : 'Register')}
           </button>

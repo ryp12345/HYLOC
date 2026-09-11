@@ -141,24 +141,20 @@ const Navbar = () => {
         <div className="flex items-center py-0 sm:py-0">
           {/* Logo - Left aligned */}
           <div className="flex-1 flex items-center justify-start">
-            <div className={`transition-all duration-300 flex items-center justify-center ${theme === 'dark' ? 'bg-white px-2 py-1 rounded-lg' : ''}`}>
-              <img
-                src="/hyloc-logo.png"
-                alt="Hyloc logo"
-                className="h-9 sm:h-10 w-auto max-w-[96px] sm:max-w-[108px] object-contain"
-              />
-            </div>
+            <img
+              src="/hyloc-logo_transparent.png"
+              alt="Hyloc logo"
+              className="h-9 sm:h-10 w-auto max-w-[96px] sm:max-w-[108px] object-contain"
+            />
           </div>
 
           {/* Logo - Centered */}
           <div className="flex-1 flex items-center justify-center">
-            <div className={`transition-all duration-300 flex items-center justify-center ${theme === 'dark' ? 'bg-white px-2 py-1.5 rounded-lg' : ''}`}>
-              <img
-                src="/hyloc_name.jpg"
-                alt="Hyloc Hydrotechnic Pvt Ltd"
-                className={`w-auto max-w-[350px] sm:max-w-[450px] object-contain ${theme === 'dark' ? 'h-9 sm:h-11 rounded-sm' : 'h-12 sm:h-14 mix-blend-multiply'}`}
-              />
-            </div>
+            <img
+              src="/hyloc_name_transparent.png"
+              alt="Hyloc Hydrotechnic Pvt Ltd"
+              className="h-12 sm:h-14 w-auto max-w-[350px] sm:max-w-[450px] object-contain"
+            />
           </div>
 
 
@@ -427,8 +423,8 @@ const Navbar = () => {
               {user.firstName} {user.lastName}
             </div>
             <div className={`px-3 py-1 rounded-full text-xs font-semibold w-fit ${user.role === 'admin'
-              ? 'bg-red-100 text-red-700'
-              : 'bg-green-100 text-green-700'
+              ? 'bg-[color:var(--danger-soft)] text-[color:var(--danger)]'
+              : 'bg-[color:var(--success-soft)] text-[color:var(--success)]'
               }`}>
               {user.role?.toUpperCase()}
             </div>

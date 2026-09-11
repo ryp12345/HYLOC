@@ -388,7 +388,7 @@ export default function MgtKmiDetail() {
       </div>
       <div className="bg-white rounded-lg shadow p-3 mb-3">
         <div className="flex items-center gap-3 mb-1">
-          <span className="text-base font-bold text-[#1B55C4]">{kmi.title}</span>
+          <span className="text-base font-bold text-[color:var(--accent)]">{kmi.title}</span>
           <span className="text-xs font-semibold text-gray-600">Financial Year:</span>
           <span className="inline-block px-2 py-0.5 bg-blue-100 text-blue-800 rounded text-xs font-medium w-fit">{kmi.fin_year || 'N/A'}</span>
         </div>
@@ -720,9 +720,9 @@ export default function MgtKmiDetail() {
                                               Actual: d.actual_value,
                                               ...(value.target_required ? { Target: d.target_value } : {})
                                             })) || []} margin={{ top: 10, right: 30, left: 0, bottom: 5 }}>
-                                              <CartesianGrid strokeDasharray="3 3" />
-                                              <XAxis dataKey="name" fontSize={10} />
-                                              <YAxis fontSize={10} />
+                                               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                                               <XAxis dataKey="name" fontSize={10} tick={{ fill: 'var(--text-muted)' }} />
+                                               <YAxis fontSize={10} tick={{ fill: 'var(--text-muted)' }} />
                                               <Tooltip />
                                               <Legend />
                                               <Bar dataKey="Actual" fill="#2563eb" radius={[4, 4, 0, 0]} />

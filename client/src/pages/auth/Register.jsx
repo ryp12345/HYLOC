@@ -48,12 +48,12 @@ function Register() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-600 via-purple-700 to-purple-800 p-4">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl p-8">
+      <div className="auth-bg min-h-screen flex items-center justify-center p-4">
+      <div className="w-full max-w-md bg-[color:var(--surface)] rounded-2xl shadow-2xl p-8">
         <div className="text-center mb-8">
           <div className="flex items-center justify-center mb-4">
             <img
-              src="/hyloc_name.jpg"
+              src="/hyloc_name_transparent.png"
               alt="Hyloc Hydrotechnic Pvt Ltd"
               className="h-auto w-full max-w-[325px] max-h-28 object-contain"
             />
@@ -82,7 +82,7 @@ function Register() {
               onChange={handleChange}
               placeholder="Enter first name"
               disabled={loading}
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition duration-200 bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--accent-soft)] transition duration-200 bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
             />
           </div>
 
@@ -97,7 +97,7 @@ function Register() {
               onChange={handleChange}
               placeholder="Enter last name"
               disabled={loading}
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition duration-200 bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--accent-soft)] transition duration-200 bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
             />
           </div>
 
@@ -112,7 +112,7 @@ function Register() {
               onChange={handleChange}
               placeholder="Enter your email"
               disabled={loading}
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition duration-200 bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--accent-soft)] transition duration-200 bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
             />
           </div>
 
@@ -128,7 +128,7 @@ function Register() {
                 onChange={handleChange}
                 placeholder="Enter your password"
                 disabled={loading}
-                className="w-full px-4 py-3 pr-12 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition duration-200 bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full px-4 py-3 pr-12 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--accent-soft)] transition duration-200 bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
               />
               <button
                 type="button"
@@ -162,7 +162,7 @@ function Register() {
                 onChange={handleChange}
                 placeholder="Confirm your password"
                 disabled={loading}
-                className="w-full px-4 py-3 pr-12 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition duration-200 bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full px-4 py-3 pr-12 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--accent-soft)] transition duration-200 bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
               />
               <button
                 type="button"
@@ -187,7 +187,7 @@ function Register() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full mt-6 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold py-3 rounded-lg transition duration-200 transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full mt-6 bg-[color:var(--accent)] hover:bg-[color:var(--accent-hover)] text-white font-bold py-3 rounded-lg transition duration-200 transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? 'Registering...' : 'Register'}
           </button>

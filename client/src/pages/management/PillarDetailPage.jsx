@@ -100,7 +100,7 @@ const KPILineChart = ({
                   y1={y}
                   x2={svgWidth - padding}
                   y2={y}
-                  stroke="rgba(148, 163, 184, 0.24)"
+                  stroke="var(--border)"
                   strokeWidth="1"
                   strokeDasharray="5,5"
                 />
@@ -109,7 +109,7 @@ const KPILineChart = ({
                   y={y + 4}
                   textAnchor="end"
                   fontSize="10"
-                  fill="rgba(226, 232, 240, 0.75)"
+                  fill="var(--text-muted)"
                 >
                   {formatY(tick)}
                 </text>
@@ -118,8 +118,8 @@ const KPILineChart = ({
           });
         })()}
 
-        <line x1={padding} y1={padding} x2={padding} y2={svgHeight - padding} stroke="rgba(148, 163, 184, 0.45)" strokeWidth="2" />
-        <line x1={padding} y1={svgHeight - padding} x2={svgWidth - padding} y2={svgHeight - padding} stroke="rgba(148, 163, 184, 0.45)" strokeWidth="2" />
+        <line x1={padding} y1={padding} x2={padding} y2={svgHeight - padding} stroke="var(--border)" strokeWidth="2" />
+        <line x1={padding} y1={svgHeight - padding} x2={svgWidth - padding} y2={svgHeight - padding} stroke="var(--border)" strokeWidth="2" />
 
         <path d={targetPath} stroke="rgba(251, 191, 36, 0.8)" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round" opacity="0.8" />
         <path d={actualPath} stroke="rgba(56, 189, 248, 0.95)" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" />
@@ -130,9 +130,9 @@ const KPILineChart = ({
           const y = getY(val);
           return (
             <g key={`target-${idx}`}>
-              <circle cx={x} cy={y} r="4" fill="rgba(251, 191, 36, 0.95)" stroke="rgba(15, 23, 42, 0.9)" strokeWidth="1" opacity="0.85" />
+              <circle cx={x} cy={y} r="4" fill="rgba(251, 191, 36, 0.95)" stroke="var(--surface)" strokeWidth="1" opacity="0.85" />
               {showPointLabels && (
-                <text x={x} y={y - 10} textAnchor="middle" fontSize="10" fill="rgba(226, 232, 240, 0.75)">
+                <text x={x} y={y - 10} textAnchor="middle" fontSize="10" fill="var(--text-muted)">
                   {formatVal(val)}
                 </text>
               )}
@@ -146,9 +146,9 @@ const KPILineChart = ({
           const y = getY(val);
           return (
             <g key={`actual-${idx}`}>
-              <circle cx={x} cy={y} r="4" fill="rgba(56, 189, 248, 0.95)" stroke="rgba(15, 23, 42, 0.9)" strokeWidth="1" />
+              <circle cx={x} cy={y} r="4" fill="rgba(56, 189, 248, 0.95)" stroke="var(--surface)" strokeWidth="1" />
               {showPointLabels && (
-                <text x={x} y={y + 15} textAnchor="middle" fontSize="10" fill="rgba(226, 232, 240, 0.75)">
+                <text x={x} y={y + 15} textAnchor="middle" fontSize="10" fill="var(--text-muted)">
                   {formatVal(val)}
                 </text>
               )}
@@ -160,7 +160,7 @@ const KPILineChart = ({
         {showAxisLabels && labels.map((label, idx) => {
           const x = getX(idx);
           return (
-            <text key={`x-label-${idx}`} x={x} y={svgHeight - padding + 20} textAnchor="middle" fontSize="10" fill="rgba(226, 232, 240, 0.8)">
+            <text key={`x-label-${idx}`} x={x} y={svgHeight - padding + 20} textAnchor="middle" fontSize="10" fill="var(--text-muted)">
               {label}
             </text>
           );

@@ -156,7 +156,7 @@ export default function AssociationsPage() {
   useEffect(() => { setPage(1); }, [search, rows]);
 
   return (
-    <div className="min-h-screen px-4 py-12 bg-gradient-to-br from-gray-50 to-gray-100 sm:px-6 lg:px-8">
+    <div className="min-h-screen px-4 py-12 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-[color:var(--app-bg)] dark:to-[color:var(--surface)] sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
         <Notification show={notification.show} message={notification.message} type={notification.type} onClose={() => setNotification({ show: false, message: '', type: '' })} />
         <div className="mb-12 text-center">

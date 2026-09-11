@@ -124,7 +124,7 @@ const SpeedometerGauge = ({ value, showLabel = false, showValue = true, isExpand
         <path
           d="M 12 180 A 138 138 0 0 1 288 180"
           fill="none"
-          stroke="#e5e7eb"
+          stroke="var(--border)"
           strokeWidth="24"
           strokeLinecap="round"
         />
@@ -157,10 +157,10 @@ const SpeedometerGauge = ({ value, showLabel = false, showValue = true, isExpand
         />
 
         {/* Tick Marks */}
-        <line x1="18" y1="180" x2="32" y2="180" stroke="#374151" strokeWidth="3" />
-        <line x1="150" y1="42" x2="150" y2="58" stroke="#374151" strokeWidth="3" />
-        <line x1="247" y1="82" x2="235" y2="90" stroke="#374151" strokeWidth="3" />
-        <line x1="282" y1="180" x2="268" y2="180" stroke="#374151" strokeWidth="3" />
+        <line x1="18" y1="180" x2="32" y2="180" stroke="var(--text-muted)" strokeWidth="3" />
+        <line x1="150" y1="42" x2="150" y2="58" stroke="var(--text-muted)" strokeWidth="3" />
+        <line x1="247" y1="82" x2="235" y2="90" stroke="var(--text-muted)" strokeWidth="3" />
+        <line x1="282" y1="180" x2="268" y2="180" stroke="var(--text-muted)" strokeWidth="3" />
 
         {/* Needle */}
         <g
@@ -197,7 +197,7 @@ const SpeedometerGauge = ({ value, showLabel = false, showValue = true, isExpand
           cx="150"
           cy="180"
           r="5"
-          fill="#fff"
+          fill="var(--surface)"
         />
 
         {/* Labels */}
@@ -674,7 +674,7 @@ const PlantEfficiency = () => {
 
                 const pieData = [
                   { name: 'Actual', value: actual, color: '#2563eb' },
-                  { name: 'Target/Remaining', value: Math.max(0, target - actual), color: '#e5e7eb' },
+                  { name: 'Target/Remaining', value: Math.max(0, target - actual), color: 'var(--border)' },
                 ];
 
                 return (

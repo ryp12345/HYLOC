@@ -28,7 +28,6 @@ body {
   font-family: 'Inter', 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #f5f7fa;
 }
 
 code {
@@ -534,4 +533,100 @@ code {
   font-size: 0.72rem;
   box-shadow: 0 12px 30px -10px rgba(15, 23, 42, 0.3);
   backdrop-filter: blur(8px);
+}
+
+.dark .glass-card {
+  background: linear-gradient(158deg, rgba(15, 23, 42, 0.92) 0%, rgba(17, 24, 39, 0.82) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.2),
+    0 10px 30px -12px rgba(0, 0, 0, 0.4),
+    0 2px 8px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+.dark .glass-card::before {
+  background: radial-gradient(circle at top center, rgba(56, 189, 248, 0.06), transparent 45%);
+}
+.dark .glass-card::after {
+  background: linear-gradient(180deg, rgba(255,255,255,0.02) 0%, transparent 100%);
+}
+.dark .glass-card:hover {
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.25),
+    0 22px 44px -16px rgba(0, 0, 0, 0.5),
+    0 4px 12px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+.dark .glass-card.elev-1 {
+  box-shadow: 0 6px 20px -14px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+.dark .glass-card.elev-2 {
+  box-shadow: 0 12px 30px -14px rgba(0, 0, 0, 0.35), 0 3px 8px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+.dark .glass-card.elev-3 {
+  box-shadow: 0 20px 44px -16px rgba(0, 0, 0, 0.45), 0 4px 12px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.dark .modal-content {
+  background: rgba(15, 23, 42, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow:
+    0 30px 70px -20px rgba(0, 0, 0, 0.6),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+.dark .modal-bar {
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0));
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.dark .modal-close:hover {
+  background: rgba(30, 41, 59, 0.9);
+}
+.dark .page-header {
+  background:
+    radial-gradient(900px 300px at 0% 0%, rgba(56, 189, 248, 0.08), transparent 60%),
+    linear-gradient(120deg, #0b1120 0%, #1e3a8a 45%, #4c1d95 100%);
+}
+.dark .app-bg {
+  background:
+    radial-gradient(1100px 520px at 12% -8%, rgba(56, 189, 248, 0.04), transparent 60%),
+    radial-gradient(1000px 520px at 100% 0%, rgba(124, 58, 237, 0.03), transparent 55%),
+    radial-gradient(900px 600px at 50% 120%, rgba(22, 163, 74, 0.03), transparent 60%),
+    linear-gradient(180deg, #020617 0%, #020617 45%, #0b1120 100%);
+}
+.dark .glass-arrow {
+  background: rgba(15, 23, 42, 0.9);
+  color: #94a3b8;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 6px 16px -8px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+.dark .glass-arrow:hover:not(:disabled) {
+  background: #0f172a;
+  color: var(--accent, #38bdf8);
+}
+.dark .kpi-head { color: var(--text-primary, #e2e8f0); }
+.dark .kpi-head .kpi-icon {
+  background: var(--accent-soft, rgba(56, 189, 248, 0.14));
+  color: var(--accent, #38bdf8);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+.dark .kpi-head .kpi-sub { color: var(--text-muted, #94a3b8); }
+.dark .kpi-head:hover { color: var(--accent, #38bdf8); }
+.dark .sub-tag { color: var(--text-muted, #94a3b8); }
+.dark .sub-tag:hover {
+  color: var(--accent, #38bdf8);
+  background: rgba(56, 189, 248, 0.06);
+}
+.dark .section-title h2 { color: var(--text-primary, #e2e8f0); }
+.dark .section-title .bar {
+  background: linear-gradient(180deg, #38bdf8, #a78bfa);
+  box-shadow: 0 4px 12px rgba(56, 189, 248, 0.3);
+}
+.dark .gauge-value { color: var(--text-primary, #e2e8f0); }
+.dark .gauge-status { color: var(--text-muted, #94a3b8); }
+.dark .donut-center-value { color: var(--text-primary, #e2e8f0); }
+.dark .donut-center-sub { color: var(--text-muted, #94a3b8); }
+.dark .glass-tooltip {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(15, 23, 42, 0.92);
+  box-shadow: 0 12px 30px -10px rgba(0, 0, 0, 0.5);
 }

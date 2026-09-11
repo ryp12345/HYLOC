@@ -225,7 +225,7 @@ const MANAGEMENT_LOSS_SERIES = [
 
 /* ══════════════ CHART COLORS ══════════════ */
 
-const REMAINING_FILL = '#e5e7eb';
+const REMAINING_FILL = 'var(--border)';
 const CHART_COLORS = {
   ope: '#1d4ed8',
   oee: '#16a34a',
@@ -1012,7 +1012,7 @@ const KPIDetailPage = () => {
                 type="monotone"
                 dataKey="target"
                 name="MANAGEMENT LOSS TIME - TARGET"
-                stroke="#374151"
+                stroke="var(--text-muted)"
                 strokeWidth={2.5}
                 dot={{ r: 4 }}
                 activeDot={{ r: 6 }}
@@ -1226,7 +1226,7 @@ const KPIDetailPage = () => {
                             type="monotone"
                             dataKey="target"
                             name="MANAGEMENT LOSS TIME - TARGET"
-                            stroke="#374151"
+                            stroke="var(--text-muted)"
                             strokeWidth={1.5}
                             dot={false}
                             connectNulls

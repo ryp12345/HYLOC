@@ -128,11 +128,11 @@ const ForgotPasswordPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4" style={{ backgroundColor: '#001f3f' }}>
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl p-8">
+    <div className="auth-bg min-h-screen flex items-center justify-center p-4">
+      <div className="w-full max-w-md bg-[color:var(--surface)] rounded-2xl shadow-2xl p-8">
         <div className="text-center mb-6">
           <div className="flex items-center justify-center mb-4">
-            <img src="/hyloc_name.jpg" alt="Hyloc Hydrotechnic Pvt Ltd" className="h-auto w-full max-w-[325px] max-h-28 object-contain" />
+            <img src="/hyloc_name_transparent.png" alt="Hyloc Hydrotechnic Pvt Ltd" className="h-auto w-full max-w-[325px] max-h-28 object-contain" />
           </div>
         </div>
         <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">Forgot Password</h2>
@@ -152,7 +152,7 @@ const ForgotPasswordPage = () => {
               <label className="block text-sm font-semibold text-gray-700 mb-2">Email</label>
               <input
                 type="email"
-                className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg bg-gray-50 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg bg-gray-50 focus:outline-none focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--accent-soft)]"
                 placeholder="Enter your email"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
@@ -160,7 +160,7 @@ const ForgotPasswordPage = () => {
                 disabled={loading}
               />
             </div>
-            <button type="submit" disabled={loading} className="w-full mt-2 bg-gradient-to-r  text-white font-bold py-3 rounded-lg" style={{ backgroundColor: '#001f3f' }}>
+            <button type="submit" disabled={loading} className="w-full mt-2 bg-[color:var(--accent)] text-white font-bold py-3 rounded-lg">
               {loading ? 'Sending OTP...' : 'Send OTP'}
             </button>
           </form>
@@ -188,7 +188,7 @@ const ForgotPasswordPage = () => {
                 ))}
               </div>
             </div>
-            <button type="submit" disabled={loading} className="w-full mt-2 bg-gradient-to-r text-white font-bold py-3 rounded-lg" style={{ backgroundColor: '#001f3f' }}>
+            <button type="submit" disabled={loading} className="w-full mt-2 bg-[color:var(--accent)] text-white font-bold py-3 rounded-lg">
               {loading ? 'Verifying...' : 'Verify OTP'}
             </button>
             <button type="button" className="w-full mt-2 text-blue-600  underline" onClick={handleRequestOtp} disabled={loading}>
@@ -203,7 +203,7 @@ const ForgotPasswordPage = () => {
               <div className="relative">
                 <input
                   type={showNewPassword ? 'text' : 'password'}
-                  className="w-full px-4 py-3 pr-12 border-2 border-gray-200 rounded-lg bg-gray-50 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                  className="w-full px-4 py-3 pr-12 border-2 border-gray-200 rounded-lg bg-gray-50 focus:outline-none focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--accent-soft)]"
                   value={newPassword}
                   onChange={e => setNewPassword(e.target.value)}
                   required
@@ -234,7 +234,7 @@ const ForgotPasswordPage = () => {
               <div className="relative">
                 <input
                   type={showConfirmPassword ? 'text' : 'password'}
-                  className="w-full px-4 py-3 pr-12 border-2 border-gray-200 rounded-lg bg-gray-50 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                  className="w-full px-4 py-3 pr-12 border-2 border-gray-200 rounded-lg bg-gray-50 focus:outline-none focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--accent-soft)]"
                   value={confirmPassword}
                   onChange={e => setConfirmPassword(e.target.value)}
                   required
@@ -260,7 +260,7 @@ const ForgotPasswordPage = () => {
                 </button>
               </div>
             </div>
-            <button type="submit" disabled={loading} className="w-full mt-2 bg-gradient-to-r text-white font-bold py-3 rounded-lg" style={{ backgroundColor: '#001f3f' }}>
+            <button type="submit" disabled={loading} className="w-full mt-2 bg-[color:var(--accent)] text-white font-bold py-3 rounded-lg">
               {loading ? 'Resetting...' : 'Reset Password'}
             </button>
           </form>

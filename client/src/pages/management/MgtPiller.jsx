@@ -44,7 +44,7 @@ export default function MgtPiller() {
   useEffect(() => { setPage(1); }, [search, rows]);
 
   return (
-    <div className="min-h-screen px-4 py-12 bg-gradient-to-br from-gray-50 to-gray-100 sm:px-6 lg:px-8">
+    <div className="min-h-screen px-4 py-12 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-[color:var(--app-bg)] dark:to-[color:var(--surface)] sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
         <div className="mb-12 text-center">
           <h1 className="mb-2 text-4xl font-extrabold text-gray-900">Pillars</h1>

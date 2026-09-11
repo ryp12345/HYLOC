@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 import { getKPIs } from '../../api/kpiApi';
 import { getPillers } from '../../api/pillerApi';
 import { getUsers } from '../../api/userApi';
@@ -128,24 +129,24 @@ const SpeedometerGauge = ({ efficiency, month, year }) => {
           style={{ maxWidth: '100%', maxHeight: '100%' }}
           title={`${month} ${year}: ${value.toFixed(1)}%`}
         >
-          <path d="M 12 180 A 138 138 0 0 1 288 180" fill="none" stroke="#e5e7eb" strokeWidth="24" strokeLinecap="round" />
+          <path d="M 12 180 A 138 138 0 0 1 288 180" fill="none" stroke="var(--border)" strokeWidth="24" strokeLinecap="round" />
           <path d="M 12 180 A 138 138 0 0 1 150 42" fill="none" stroke="#ef4444" strokeWidth="24" strokeLinecap="round" />
           <path d="M 150 42 A 138 138 0 0 1 247 82" fill="none" stroke="#eab308" strokeWidth="24" strokeLinecap="round" />
           <path d="M 247 82 A 138 138 0 0 1 288 180" fill="none" stroke="#22c55e" strokeWidth="24" strokeLinecap="round" />
-          <line x1="18" y1="180" x2="32" y2="180" stroke="#374151" strokeWidth="3" />
-          <line x1="150" y1="42" x2="150" y2="58" stroke="#374151" strokeWidth="3" />
-          <line x1="247" y1="82" x2="235" y2="90" stroke="#374151" strokeWidth="3" />
-          <line x1="282" y1="180" x2="268" y2="180" stroke="#374151" strokeWidth="3" />
+          <line x1="18" y1="180" x2="32" y2="180" stroke="var(--text-muted)" strokeWidth="3" />
+          <line x1="150" y1="42" x2="150" y2="58" stroke="var(--text-muted)" strokeWidth="3" />
+          <line x1="247" y1="82" x2="235" y2="90" stroke="var(--text-muted)" strokeWidth="3" />
+          <line x1="282" y1="180" x2="268" y2="180" stroke="var(--text-muted)" strokeWidth="3" />
           <g transform={`rotate(${angle}, 150, 180)`} style={{ transition: "transform 0.7s cubic-bezier(0.34, 1.56, 0.64, 1)" }}>
             <line x1="150" y1="180" x2="272" y2="180" stroke={color} strokeWidth="5" strokeLinecap="round" />
             <polygon points="272,180 255,171 255,189" fill={color} />
           </g>
           <circle cx="150" cy="180" r="14" fill={color} />
-          <circle cx="150" cy="180" r="5" fill="#fff" />
-          <text x="8" y="204" fontSize="15" fontWeight="800" fill="#e5e7eb" textAnchor="start">0</text>
-          <text x="150" y="28" fontSize="15" fontWeight="800" fill="#e5e7eb" textAnchor="middle">50</text>
-          <text x="246" y="64" fontSize="15" fontWeight="800" fill="#e5e7eb" textAnchor="middle">75</text>
-          <text x="292" y="204" fontSize="15" fontWeight="800" fill="#e5e7eb" textAnchor="end">100</text>
+          <circle cx="150" cy="180" r="5" fill="var(--surface)" />
+          <text x="8" y="204" fontSize="15" fontWeight="800" fill="var(--text-muted)" textAnchor="start">0</text>
+          <text x="150" y="28" fontSize="15" fontWeight="800" fill="var(--text-muted)" textAnchor="middle">50</text>
+          <text x="246" y="64" fontSize="15" fontWeight="800" fill="var(--text-muted)" textAnchor="middle">75</text>
+          <text x="292" y="204" fontSize="15" fontWeight="800" fill="var(--text-muted)" textAnchor="end">100</text>
         </svg>
       </div>
       <div className="mt-0.5 text-center">
@@ -174,12 +175,12 @@ const GreenFactoryBarChart = ({ title, subtitle, labels, values, showHeader = tr
                 <stop offset="100%" stopColor="#059669" />
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="4 4" stroke="rgba(59,130,246,0.12)" vertical={false} />
-            <XAxis dataKey="name" tick={{ fontSize: tf, fill: '#94a3b8', fontWeight: 800 }} tickLine={false} axisLine={{ stroke: 'rgba(148,163,184,0.3)' }} />
-            <YAxis domain={[0, yMax]} unit="%" tick={{ fontSize: tf, fill: '#94a3b8', fontWeight: 800 }} tickLine={false} axisLine={false} width={38} />
-            <Tooltip content={<ChartTooltip />} cursor={{ fill: 'rgba(15,23,42,0.16)' }} />
+            <CartesianGrid strokeDasharray="4 4" stroke="var(--border)" vertical={false} />
+            <XAxis dataKey="name" tick={{ fontSize: tf, fill: 'var(--text-muted)', fontWeight: 800 }} tickLine={false} axisLine={{ stroke: 'var(--border)' }} />
+            <YAxis domain={[0, yMax]} unit="%" tick={{ fontSize: tf, fill: 'var(--text-muted)', fontWeight: 800 }} tickLine={false} axisLine={false} width={38} />
+            <Tooltip content={<ChartTooltip />} cursor={{ fill: 'color-mix(in srgb, var(--app-bg) 84%, transparent)' }} />
             <Bar dataKey="Value" fill="url(#gfBar)" radius={[6, 6, 0, 0]} maxBarSize={48} name="Value">
-              <LabelList dataKey="Value" position="top" formatter={(v) => `${Math.round(v)}%`} style={{ fontSize: tf, fill: '#86efac', fontWeight: 800 }} />
+              <LabelList dataKey="Value" position="top" formatter={(v) => `${Math.round(v)}%`} style={{ fontSize: tf, fill: 'var(--text-primary)', fontWeight: 800 }} />
             </Bar>
           </BarChart>
         </ResponsiveContainer>
@@ -242,12 +243,12 @@ const OnTimeDeliveryBarChart = ({ title, subtitle, labels, actuals, targets, sho
                 <stop offset="100%" stopColor="#15803d" />
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="4 4" stroke="rgba(59,130,246,0.12)" vertical={false} />
-            <XAxis dataKey="name" tick={{ fontSize: tf, fill: '#94a3b8', fontWeight: 700 }} tickLine={false} axisLine={{ stroke: 'rgba(148,163,184,0.3)' }} />
-            <YAxis domain={[0, yMax]} tick={{ fontSize: tf, fill: '#94a3b8', fontWeight: 700 }} tickLine={false} axisLine={false} width={38} />
-            <Tooltip content={<ChartTooltip />} cursor={{ fill: 'rgba(15,23,42,0.16)' }} />
+            <CartesianGrid strokeDasharray="4 4" stroke="var(--border)" vertical={false} />
+            <XAxis dataKey="name" tick={{ fontSize: tf, fill: 'var(--text-muted)', fontWeight: 700 }} tickLine={false} axisLine={{ stroke: 'var(--border)' }} interval="preserveStartEnd" />
+            <YAxis domain={[0, yMax]} tick={{ fontSize: tf, fill: 'var(--text-muted)', fontWeight: 700 }} tickLine={false} axisLine={false} width={38} />
+            <Tooltip content={<ChartTooltip />} cursor={{ fill: 'color-mix(in srgb, var(--app-bg) 84%, transparent)' }} />
             <Bar dataKey="Achieved" fill="url(#otdBar)" radius={[4, 4, 0, 0]} maxBarSize={36} name="Achieved">
-              <LabelList dataKey="Achieved" position="top" formatter={(v) => `${Math.round(v)}%`} style={{ fontSize: tf, fill: '#86efac', fontWeight: 800 }} />
+              <LabelList dataKey="Achieved" position="top" formatter={(v) => `${Math.round(v)}%`} style={{ fontSize: tf, fill: 'var(--text-primary)', fontWeight: 800 }} />
             </Bar>
             <Line dataKey="Target" stroke="#f59e0b" strokeWidth={3} dot={{ r: 4, fill: '#f59e0b', strokeWidth: 0 }} activeDot={{ r: 6 }} name="Target" />
           </ComposedChart>
@@ -279,12 +280,12 @@ const Box4EmployeesLineChart = ({ title, subtitle, labels, values, showAxisLabel
                 <stop offset="100%" stopColor="#ef4444" stopOpacity={0} />
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="4 4" stroke="rgba(59,130,246,0.12)" vertical={false} />
-            <XAxis dataKey="name" tick={{ fontSize: tf, fill: '#94a3b8', fontWeight: 800 }} tickLine={false} axisLine={{ stroke: 'rgba(148,163,184,0.3)' }} />
-            <YAxis domain={[0, yMax]} allowDecimals={false} tick={{ fontSize: tf, fill: '#94a3b8', fontWeight: 800 }} tickLine={false} axisLine={false} width={38} />
-            <Tooltip content={<ChartTooltip />} cursor={{ stroke: '#cbd5e1', strokeDasharray: '4 4' }} />
+            <CartesianGrid strokeDasharray="4 4" stroke="var(--border)" vertical={false} />
+            <XAxis dataKey="name" tick={{ fontSize: tf, fill: 'var(--text-muted)', fontWeight: 800 }} tickLine={false} axisLine={{ stroke: 'var(--border)' }} />
+            <YAxis domain={[0, yMax]} allowDecimals={false} tick={{ fontSize: tf, fill: 'var(--text-muted)', fontWeight: 800 }} tickLine={false} axisLine={false} width={38} />
+            <Tooltip content={<ChartTooltip />} cursor={{ stroke: 'var(--border)', strokeDasharray: '4 4' }} />
             <Area type="monotone" dataKey="Count" stroke="#ef4444" strokeWidth={3} fill="url(#employeeArea)" dot={{ r: 3, fill: '#ef4444', strokeWidth: 0 }} activeDot={{ r: 5 }} name="Count">
-              <LabelList dataKey="Count" position="top" formatter={(v) => Math.round(v)} style={{ fontSize: tf, fill: '#fda4af', fontWeight: 800 }} />
+              <LabelList dataKey="Count" position="top" formatter={(v) => Math.round(v)} style={{ fontSize: tf, fill: 'var(--text-primary)', fontWeight: 800 }} />
             </Area>
           </AreaChart>
         </ResponsiveContainer>

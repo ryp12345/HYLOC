@@ -520,10 +520,10 @@ export default function TicketsAnalysisReport() {
                     <div className="h-[200px] w-full">
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={departmentChartData} layout="vertical" margin={{ top: 4, right: 12, left: 12, bottom: 4 }}>
-                          <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f1f5f9" />
+                          <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="var(--border)" />
                           <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11, fontWeight: 800, fill: 'var(--text-primary)' }} tickLine={false} axisLine={false} width={34} />
                           <YAxis type="category" dataKey="name" width={80} tick={{ fontSize: 11, fontWeight: 800, fill: 'var(--text-primary)' }} tickLine={false} axisLine={{ stroke: 'var(--text-secondary)' }} />
-                          <Tooltip content={<ChartTooltip />} cursor={{ fill: '#f8fafc' }} />
+                           <Tooltip content={<ChartTooltip />} cursor={{ fill: 'color-mix(in srgb, var(--app-bg) 84%, transparent)' }} />
                           <Bar dataKey="value" radius={[0, 3, 3, 0]} maxBarSize={18}>
                             {departmentChartData.map((entry, index) => (
                               <Cell key={entry.name} fill={COLORS_PALETTE[index % COLORS_PALETTE.length]} />
