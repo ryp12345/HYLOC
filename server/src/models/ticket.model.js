@@ -219,11 +219,13 @@ exports.getTicketReportsData = async (userId, role, fiscalYear = null, db = pool
     const ids = Array.isArray(t.assigned_to_ids) ? t.assigned_to_ids : (t.assigned_to ? [t.assigned_to] : []);
     for (const aid of ids) {
       const key = String(aid);
-      if (!assigneeCounts[key]) assigneeCounts[key] = { assigned_count: 0, overdue_count: 0, id: aid };
+      if (!assigneeCounts[key]) assigneeCounts[key] = { assigned_count: 0, overdue_count: 0, completed_count: 0, id: aid };
       assigneeCounts[key].assigned_count += 1;
       const s = String(t.status || '').toLowerCase();
       const isOpen = ['open', 'assigned', 'in progress', 'pending'].includes(s);
+      const isCompleted = ['closed', 'rejected'].includes(s);
       const isOverdue = isOpen && t.overdue_days > 0;
+      if (isCompleted) assigneeCounts[key].completed_count += 1;
       if (isOverdue) assigneeCounts[key].overdue_count += 1;
     }
   }
@@ -256,6 +258,11 @@ exports.getTicketReportsData = async (userId, role, fiscalYear = null, db = pool
     title: t.title,
     priority: t.priority,
     department: t.department,
+    assignee: (() => {
+      const ids = Array.isArray(t.assigned_to_ids) ? t.assigned_to_ids : (t.assigned_to ? [t.assigned_to] : []);
+      const names = ids.map((id) => assigneeNames[id] || `User ${id}`).filter(Boolean);
+      return names.join(', ') || '—';
+    })(),
     due_date: t.due_date,
     overdue_days: t.overdueDays,
   }));

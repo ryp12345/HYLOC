@@ -14,4 +14,4 @@ server/src/config/db.js
 server/src/server.js
 server/public/uploads/users
 
-server\public\uploads\tickets
+server/public/uploads/tickets/

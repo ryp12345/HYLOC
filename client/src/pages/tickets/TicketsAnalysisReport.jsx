@@ -293,6 +293,8 @@ export default function TicketsAnalysisReport() {
       { header: 'S.No', key: 'SNo', width: 8 },
       { header: 'Assignee', key: 'Assignee', width: 24 },
       { header: 'Assigned', key: 'Assigned', width: 12 },
+      { header: 'Completed', key: 'Completed', width: 12 },
+      { header: 'Completion %', key: 'CompletionPercent', width: 14 },
       { header: 'Overdue', key: 'Overdue', width: 12 },
     ];
     const assigneeData = (report.assignee_breakdown || [])
@@ -301,6 +303,8 @@ export default function TicketsAnalysisReport() {
         SNo: idx + 1,
         Assignee: a.name,
         Assigned: a.assigned_count || 0,
+        Completed: a.completed_count || 0,
+        CompletionPercent: a.assigned_count > 0 ? `${Math.round(((a.completed_count || 0) / a.assigned_count) * 100)}%` : '0%',
         Overdue: a.overdue_count || 0,
       }));
     addSheet('Assignee Performance', assigneeData, assigneeColumns);
@@ -324,6 +328,7 @@ export default function TicketsAnalysisReport() {
     const overdueColumns = [
       { header: 'S.No', key: 'S.No', width: 8 },
       { header: 'Title', key: 'Title', width: 32 },
+      { header: 'Assignee', key: 'Assignee', width: 24 },
       { header: 'Priority', key: 'Priority', width: 12 },
       { header: 'Department', key: 'Department', width: 20 },
       { header: 'Due Date', key: 'Due Date', width: 14 },
@@ -332,6 +337,7 @@ export default function TicketsAnalysisReport() {
     const overdueData = (report.overdue_table || []).map((t, idx) => ({
       'S.No': idx + 1,
       Title: t.title || '—',
+      Assignee: t.assignee || '—',
       Priority: t.priority || '—',
       Department: t.department || '—',
       'Due Date': t.due_date ? formatDate(t.due_date) : '—',
@@ -589,6 +595,8 @@ export default function TicketsAnalysisReport() {
                           <th className="px-3 py-2 text-left text-[11px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">S.No</th>
                           <th className="px-3 py-2 text-left text-[11px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">Assignee</th>
                           <th className="px-3 py-2 text-left text-[11px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">Assigned</th>
+                          <th className="px-3 py-2 text-left text-[11px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">Completed</th>
+                          <th className="px-3 py-2 text-left text-[11px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">Performance %</th>
                           <th className="px-3 py-2 text-left text-[11px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">Overdue</th>
                         </tr>
                       </thead>
@@ -598,6 +606,8 @@ export default function TicketsAnalysisReport() {
                             <td className="px-3 py-2 font-medium text-[color:var(--text-primary)] text-sm">{idx + 1}</td>
                             <td className="px-3 py-2 text-[color:var(--text-secondary)] text-sm">{a.name}</td>
                             <td className="px-3 py-2 text-[color:var(--text-secondary)] text-sm">{a.assigned_count || 0}</td>
+                            <td className="px-3 py-2 text-[color:var(--text-secondary)] text-sm">{a.completed_count || 0}</td>
+                            <td className="px-3 py-2 text-[color:var(--text-secondary)] text-sm font-semibold">{a.assigned_count > 0 ? `${Math.round(((a.completed_count || 0) / a.assigned_count) * 100)}%` : '0%'}</td>
                             <td className="px-3 py-2">
                               <span className="font-bold text-sm text-red-600 dark:text-red-400">{a.overdue_count || 0}</span>
                             </td>
@@ -621,6 +631,7 @@ export default function TicketsAnalysisReport() {
                         <tr>
                           <th className="px-3 py-2 text-left text-[11px] font-bold text-red-700 dark:text-red-400 uppercase tracking-wider">S.No</th>
                           <th className="px-3 py-2 text-left text-[11px] font-bold text-red-700 dark:text-red-400 uppercase tracking-wider">Title</th>
+                          <th className="px-3 py-2 text-left text-[11px] font-bold text-red-700 dark:text-red-400 uppercase tracking-wider">Assignee</th>
                           <th className="px-3 py-2 text-left text-[11px] font-bold text-red-700 dark:text-red-400 uppercase tracking-wider">Priority</th>
                           <th className="px-3 py-2 text-left text-[11px] font-bold text-red-700 dark:text-red-400 uppercase tracking-wider">Department</th>
                           <th className="px-3 py-2 text-left text-[11px] font-bold text-red-700 dark:text-red-400 uppercase tracking-wider">Due Date</th>
@@ -632,6 +643,7 @@ export default function TicketsAnalysisReport() {
                           <tr key={t.id} className="hover:bg-[color:var(--surface-hover)] transition">
                             <td className="px-3 py-2 font-medium text-[color:var(--text-primary)] text-sm">{idx + 1}</td>
                             <td className="px-3 py-2 text-[color:var(--text-secondary)] text-sm max-w-[160px] truncate">{t.title || '—'}</td>
+                            <td className="px-3 py-2 text-[color:var(--text-secondary)] text-sm max-w-[180px] truncate">{t.assignee || '—'}</td>
                             <td className="px-3 py-2">
                               <span className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${(String(t.priority || '').toLowerCase() === 'high' || String(t.priority || '').toLowerCase() === 'critical')
                                 ? 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300'
