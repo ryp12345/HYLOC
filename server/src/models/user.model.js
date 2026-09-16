@@ -164,10 +164,7 @@ exports.updateUser = async (id, updates) => {
       const roleId = roleIdResult.rows[0]?.id;
       
       if (roleId) {
-        // Mark existing roles inactive
-        await client.query('UPDATE user_roles SET status = $1 WHERE user_id = $2', ['inactive', id]);
-
-        // Activate existing user-role row, or insert a new one (no unique constraint required)
+        // Activate existing user-role row, or insert a new one without changing other assignments
         const existingRoleResult = await client.query(
           'SELECT id FROM user_roles WHERE user_id = $1 AND role_id = $2',
           [id, roleId]
