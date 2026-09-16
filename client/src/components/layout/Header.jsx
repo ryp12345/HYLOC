@@ -144,7 +144,7 @@ const Navbar = () => {
             <img
               src="/hyloc-logo_transparent.png"
               alt="Hyloc logo"
-              className="h-9 sm:h-10 w-auto max-w-[96px] sm:max-w-[108px] object-contain"
+              className="header-logo h-9 sm:h-10 w-auto max-w-[96px] sm:max-w-[108px] object-contain"
             />
           </div>
 

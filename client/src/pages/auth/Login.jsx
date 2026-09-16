@@ -131,11 +131,16 @@ function Login() {
     <div className="auth-bg min-h-screen flex items-center justify-center p-4">
       <div className="w-full max-w-md bg-[color:var(--surface)] rounded-2xl shadow-2xl p-8">
         <div className="text-center mb-8">
-          <div className="flex items-center justify-center mb-4">
+          <div className="flex flex-col items-center justify-center gap-3 mb-4">
+            <img
+              src="/hyloc-logo_transparent.png"
+              alt="Hyloc logo"
+              className="header-logo h-9 sm:h-10 w-auto max-w-[96px] sm:max-w-[108px] object-contain"
+            />
             <img
               src="/hyloc_name_transparent.png"
               alt="Hyloc Hydrotechnic Pvt Ltd"
-              className="h-auto w-full max-w-[325px] max-h-28 object-contain"
+              className="h-auto w-full max-w-[325px] max-h-24 object-contain dark:drop-shadow-[0_1px_0_rgba(0,0,0,0.25)]"
             />
           </div>
         </div>
