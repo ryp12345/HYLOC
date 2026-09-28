@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { getMyLeaveBalance } from '../../api/leaveApi';
+import { getMyTickets } from '../../api/ticketApi';
 import { getEmployeeKPIValues, getKPIValueMonthlyData, getKPIs } from '../../api/kpiApi';
 
 // Monthly data for month M is due by this day of month M+1.
@@ -129,6 +130,7 @@ const EMPTY_STATS = {
   total: 0,
   kpiCount: 0,
   kaiCount: 0,
+  ticketCount: 0,
   achievement: { met: 0, evaluated: 0, percent: null },
   onTime: { onTime: 0, expected: 0, late: 0, percent: null },
   trend: { improved: 0, declined: 0, steady: 0 },
@@ -172,6 +174,10 @@ function EmployeeDashboard() {
         // Fetch leave balance
         const leaveRes = await getMyLeaveBalance(selectedFiscalYear);
         setLeaveBalance(leaveRes.data?.data || null);
+
+        // Fetch tickets assigned to or created by the current user
+        const ticketsRes = await getMyTickets();
+        const myTickets = Array.isArray(ticketsRes.data?.data) ? ticketsRes.data.data : [];
 
         // Fetch assigned KPIs/KAIs - Use the employee-specific endpoint
         const [kpiEmpRes, kpisRes] = await Promise.all([
@@ -287,6 +293,7 @@ function EmployeeDashboard() {
           total: assignedKpiIds.length,
           kpiCount: assignedKpiIds.length - kaiCount,
           kaiCount,
+          ticketCount: myTickets.length,
           achievement: { ...achievement, percent: toPercent(achievement.met, achievement.evaluated) },
           onTime: { ...onTime, percent: toPercent(onTime.onTime, onTime.expected) },
           trend,
@@ -323,7 +330,7 @@ function EmployeeDashboard() {
             <div>
               <h1 className="mb-2 text-4xl font-bold text-[color:var(--text-primary)]">Employee Dashboard</h1>
               <p className="text-[color:var(--text-secondary)]">Welcome, {user?.firstName} {user?.lastName}</p>
-              <p className="mt-1 text-sm font-medium text-[color:var(--accent)]">Showing statistics for FY {formatFiscalYear(selectedFiscalYear)}</p>
+              {/* <p className="mt-1 text-sm font-medium text-[color:var(--accent)]">Showing statistics for FY {formatFiscalYear(selectedFiscalYear)}</p> */}
             </div>
             <div className="min-w-[180px]">
               <label htmlFor="dashboard-fiscal-year" className="mb-1 block text-sm font-semibold text-[color:var(--text-secondary)]">
@@ -392,6 +399,13 @@ function EmployeeDashboard() {
                   : 'Needs at least two months of results'
             }
             color={loading || trendTotal === 0 ? COLOR_NEUTRAL : trend.improved >= trend.declined ? COLOR_SUCCESS : COLOR_WARNING}
+          />
+          <StatCard
+            icon="🎫"
+            label="My Tickets"
+            value={loading ? '—' : kpiStats.ticketCount}
+            sub={loading ? null : 'Tickets linked to your login'}
+            color="var(--accent)"
           />
         </div>
 
@@ -479,14 +493,14 @@ function EmployeeDashboard() {
         )}
 
         {/* Quick Actions */}
-        <div className="rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] p-6 shadow-sm">
+        {/* <div className="rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] p-6 shadow-sm">
           <h2 className="mb-4 text-xl font-bold text-[color:var(--text-primary)]">Quick Actions</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <a href="/employee/kpikai" className="block rounded-lg bg-[color:var(--accent)] p-4 text-center text-white transition hover:bg-[color:var(--accent-hover)]">
               <div className="font-semibold">View My KPIs/KAIs</div>
             </a>
           </div>
-        </div>
+        </div> */}
       </div>
     </>
   );
