@@ -6,6 +6,7 @@ import RoleSwitchModal from '../common/RoleSwitchModal';
 import ViewAllNotification from '../common/ViewAllNotification';
 import NotificationDetail from '../common/NotificationDetail';
 import { getNotifications, markNotificationAsRead } from '../../api/notificationApi';
+import { getNotificationLines, getNotificationTypeLabel } from '../../utils/notificationMessage';
 import axios from '../../api/axios';
 import { API_URL } from '../../api/axios';
 import { useTheme } from '../../context/ThemeContext';
@@ -247,36 +248,16 @@ const Navbar = () => {
                         >
                           <div>
                             {(() => {
-                              const normalized = (n.message || '').replace(/\s+Title:/i, '\nTitle:').replace(/\s+Description:/i, '\nDescription:');
-                              const lines = normalized.split('\n').map(l => l.trim()).filter(Boolean);
+                              const lines = getNotificationLines(n.message);
+                              const typeLabel = getNotificationTypeLabel(n);
 
-                              // First visible line should be the stored first line (backend now prepends 'You have a notification')
-                              const firstLine = lines[0] || '';
-
-                              // Derive a friendly Type label from notification.type and message content when needed
-                              const deriveTypeLabel = (notif) => {
-                                const t = String(notif.type || '').toLowerCase();
-                                const msg = String(notif.message || '');
-                                if (/^ticket_overdue(:|$)/i.test(t) || t === 'ticket_overdue') return 'Ticket overdue';
-                                if (t === 'ticket_status') {
-                                  if (/rejected/i.test(msg) || /^Type:\s*Ticket rejected/i.test(msg)) return 'Ticket rejected';
-                                  return 'Ticket status changed';
-                                }
-                                if (t === 'ticket') {
-                                  if (/you were assigned/i.test(msg)) return 'Ticket assigned';
-                                  return 'Ticket created';
-                                }
-                                if (t === 'ticket_edit') return 'Ticket updated';
-                                if (t === 'leave') return 'Leave';
-                                return 'Ticket';
-                              };
-
-                              const typeLabel = deriveTypeLabel(n);
+                              // Headline is the message's first free-text line ("Type:" lines duplicate the label below)
+                              const firstLine = lines.find(l => !/^(title|description|type):/i.test(l)) || '';
 
                               const titleLine = lines.find(l => l.toLowerCase().startsWith('title:'));
                               const descLine = lines.find(l => l.toLowerCase().startsWith('description:'));
-                              const titleText = titleLine ? titleLine.split(':').slice(1).join(':').trim() : (lines[1] || '');
-                              const descText = descLine ? descLine.split(':').slice(1).join(':').trim() : (lines.filter(l => l !== titleLine && l !== firstLine)[1] || lines.slice(2).join(' '));
+                              const titleText = titleLine ? titleLine.split(':').slice(1).join(':').trim() : '';
+                              const descText = descLine ? descLine.split(':').slice(1).join(':').trim() : '';
 
                               return (
                                 <>

@@ -63,7 +63,7 @@ exports.createUserRole = async (req, res) => {
       const role = await roleModel.getRoleById(roleId);
       if (user && role) {
         await notificationModel.createNotification({
-          created_by: req.user?.id || userId, // If available, use the admin/actor's id
+          created_by: req.user?.userId || userId, // The admin/actor who assigned the role
           assigned_to: userId,
           message: `Congratulations ${user.firstname} ${user.lastname}! You have been assigned the role of ${role.role_name}.`,
           type: 'role-assignment',

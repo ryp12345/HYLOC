@@ -195,7 +195,7 @@ exports.createUser = async (req, res) => {
     try {
       const notificationModel = require('../models/notification.model');
       await notificationModel.createNotification({
-        created_by: newUser.id, // or system/admin id if available
+        created_by: req.user?.userId || newUser.id, // The admin who created the account
         assigned_to: newUser.id,
         message: `Welcome ${firstName} ${lastName}! Your account has been created.`,
         type: 'greeting',

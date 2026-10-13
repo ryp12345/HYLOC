@@ -1,10 +1,10 @@
 import React from 'react';
+import { getNotificationLines } from '../../utils/notificationMessage';
 
 export default function NotificationDetail({ show, notification, onClose }) {
   if (!show || !notification) return null;
 
-  const normalized = (notification.message || '').replace(/\s+Title:/i, '\nTitle:').replace(/\s+Description:/i, '\nDescription:');
-  const lines = normalized.split('\n').map(l => l.trim()).filter(Boolean);
+  const lines = getNotificationLines(notification.message);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">

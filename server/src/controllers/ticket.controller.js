@@ -445,41 +445,17 @@ exports.updateTicket = async (req, res) => {
       // don't block on DB error
     }
 
-    // On any status change, notify creator and all HODs (no assignee notification)
-    let sentStatusNotification = false;
-    if (payload.status && payload.status !== existing.status) {
-      try {
-        const pool = require('../config/db');
-        // Find all users with HOD role
-        const hodRes = await pool.query(`
-          SELECT u.id FROM users u
-          JOIN user_roles ur ON ur.user_id = u.id
-          JOIN roles r ON r.id = ur.role_id
-          WHERE r.role_name = 'HOD' AND ur.status = 'active'
-        `);
-        const hodIds = hodRes.rows.map(r => r.id).filter(id => id !== existing.user_id);
-        
-        if (payload.status === 'Rejected') {
-          const reqRoleNorm = requesterRole ? String(requesterRole).toLowerCase() : '';
-          if (reqRoleNorm !== 'management') {
-            return res.status(403).json({ success: false, message: 'Only Management users can reject tickets' });
-          }
-
-          try {
-            const creatorMessage = `Type: Ticket rejected\nTitle: ${existing.title}\nDescription: ${existing.description || ''}`;
-            await notificationModel.createNotification({ created_by: requesterId, assigned_to: existing.user_id, message: creatorMessage, type: 'ticket_status' });
-          } catch (e) {
-            console.error('Error handling Rejected transition:', e);
-          }
-        }
-        sentStatusNotification = true;
-      } catch (notifErr) {
-        console.error('Status-change notification error:', notifErr);
+    // Status-change notifications are sent after the update commits (see below)
+    const statusChanged = Boolean(payload.status && payload.status !== existing.status);
+    if (statusChanged && payload.status === 'Rejected') {
+      const reqRoleNorm = requesterRole ? String(requesterRole).toLowerCase() : '';
+      if (reqRoleNorm !== 'management') {
+        return res.status(403).json({ success: false, message: 'Only Management users can reject tickets' });
       }
     }
 
     // If not a status change, but other fields were edited, notify the assignee (if any)
-    if (!sentStatusNotification) {
+    if (!statusChanged) {
       // Check if any editable field other than status was changed
       const editableFields = ['title', 'description', 'priority', 'due_date', 'attachment'];
       const changedFields = editableFields.filter(f => {
@@ -535,6 +511,24 @@ exports.updateTicket = async (req, res) => {
       }
     } catch (notifErr) {
       console.error('Update ticket notification error:', notifErr);
+    }
+
+    // On status change, notify the creator and current assignees (not the user who made the change)
+    try {
+      if (statusChanged) {
+        const recipientIds = Array.from(new Set([existing.user_id, ...assigneeIds].map(Number)))
+          .filter((recipientId) => recipientId && recipientId !== Number(requesterId));
+        const tTitle = updated.title || '';
+        const tDesc = updated.description || '';
+        const message = updated.status === 'Rejected'
+          ? `Type: Ticket rejected\nTitle: ${tTitle}\nDescription: ${tDesc}`
+          : `Ticket status changed to ${updated.status}.\nTitle: ${tTitle}\nDescription: ${tDesc}`;
+        await Promise.all(
+          recipientIds.map((recipientId) => notificationModel.createNotification({ created_by: requesterId, assigned_to: recipientId, message, type: 'ticket_status' }))
+        );
+      }
+    } catch (notifErr) {
+      console.error('Status-change notification error:', notifErr);
     }
 
     try {

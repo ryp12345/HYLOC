@@ -1,21 +1,19 @@
-
 const express = require('express');
 const router = express.Router();
 const notificationController = require('../controllers/notification.controller');
 const { authenticate } = require('../middlewares/auth.middleware');
 
-// Get notifications for the logged-in user (assigned_to)
-router.get('/my', authenticate, notificationController.getMyNotifications);
+// Notifications are created server-side only (leave, ticket, user and role flows),
+// so there is no public create endpoint. Every route is scoped to the logged-in user.
+router.use(authenticate);
 
-// Create notification
-router.post('/', notificationController.createNotification);
-// Get all notifications
-router.get('/', notificationController.getAllNotifications);
-// Get notification by ID
+// Get notifications for the logged-in user (assigned_to)
+router.get('/my', notificationController.getMyNotifications);
+// Get one of the logged-in user's notifications by ID
 router.get('/:id', notificationController.getNotificationById);
-// Update notification
+// Mark one of the logged-in user's notifications as read
 router.put('/:id', notificationController.updateNotification);
-// Delete notification
+// Delete one of the logged-in user's notifications
 router.delete('/:id', notificationController.deleteNotification);
 
 module.exports = router;

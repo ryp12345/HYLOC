@@ -1,20 +1,9 @@
 const pool = require('../config/db');
 
-// Get all notifications
-exports.getAllNotifications = async () => {
+// Get notification by ID, only if it belongs to the given user
+exports.getNotificationById = async (id, userId) => {
   try {
-    const result = await pool.query('SELECT * FROM notifications ORDER BY created_at DESC');
-    return result.rows;
-  } catch (error) {
-    console.error('Database error in getAllNotifications:', error);
-    throw error;
-  }
-};
-
-// Get notification by ID
-exports.getNotificationById = async (id) => {
-  try {
-    const result = await pool.query('SELECT * FROM notifications WHERE id = $1', [id]);
+    const result = await pool.query('SELECT * FROM notifications WHERE id = $1 AND assigned_to = $2', [id, userId]);
     return result.rows[0];
   } catch (error) {
     console.error('Database error in getNotificationById:', error);
@@ -37,12 +26,7 @@ exports.getNotificationsForUser = async (userId) => {
 exports.createNotification = async ({ created_by, assigned_to, message, type = null, is_read = false }) => {
   try {
     // Ensure message is a string
-    let msg = typeof message === 'string' ? message : String(message || '');
-    // Prepend the required first line if not already present
-    const prefix = 'You have a notification';
-    if (!msg.startsWith(prefix)) {
-      msg = `${prefix}\n${msg}`;
-    }
+    const msg = typeof message === 'string' ? message : String(message || '');
 
     const result = await pool.query(
       'INSERT INTO notifications (created_by, assigned_to, message, type, is_read, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) RETURNING *',
@@ -55,12 +39,12 @@ exports.createNotification = async ({ created_by, assigned_to, message, type = n
   }
 };
 
-// Mark notification as read
-exports.markAsRead = async (id) => {
+// Mark notification as read, only if it belongs to the given user
+exports.markAsRead = async (id, userId) => {
   try {
     const result = await pool.query(
-      'UPDATE notifications SET is_read = true, updated_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING *',
-      [id]
+      'UPDATE notifications SET is_read = true, updated_at = CURRENT_TIMESTAMP WHERE id = $1 AND assigned_to = $2 RETURNING *',
+      [id, userId]
     );
     return result.rows[0];
   } catch (error) {
@@ -69,10 +53,10 @@ exports.markAsRead = async (id) => {
   }
 };
 
-// Delete notification
-exports.deleteNotification = async (id) => {
+// Delete notification, only if it belongs to the given user
+exports.deleteNotification = async (id, userId) => {
   try {
-    const result = await pool.query('DELETE FROM notifications WHERE id = $1 RETURNING *', [id]);
+    const result = await pool.query('DELETE FROM notifications WHERE id = $1 AND assigned_to = $2 RETURNING *', [id, userId]);
     return result.rows[0];
   } catch (error) {
     console.error('Database error in deleteNotification:', error);

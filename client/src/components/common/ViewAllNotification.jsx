@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { getNotifications, markNotificationAsRead, deleteNotification } from '../../api/notificationApi';
+import { getNotificationLines } from '../../utils/notificationMessage';
 
 export default function ViewAllNotification({ show, onClose, title }) {
   const [notifications, setNotifications] = useState([]);
@@ -141,12 +142,9 @@ export default function ViewAllNotification({ show, onClose, title }) {
                                   aria-label="Select notification"
                                 />
                                 <div>
-                                  {(() => {
-                                    const normalized = (n.message || '').replace(/\s+Title:/i, '\nTitle:').replace(/\s+Description:/i, '\nDescription:');
-                                    return normalized.split('\n').map((line, idx) => (
-                                      <div key={idx} className={idx === 0 ? '' : 'text-sm text-[color:var(--text-secondary)]'}>{line}</div>
-                                    ));
-                                  })()}
+                                  {getNotificationLines(n.message).map((line, idx) => (
+                                    <div key={idx} className={idx === 0 ? '' : 'text-sm text-[color:var(--text-secondary)]'}>{line}</div>
+                                  ))}
                                   <div className="mt-1 text-xs text-[color:var(--text-muted)]">{new Date(n.created_at).toLocaleString()}</div>
                                 </div>
                               </div>
@@ -189,7 +187,7 @@ export default function ViewAllNotification({ show, onClose, title }) {
                                   aria-label="Select notification"
                                 />
                                 <div>
-                                  {(n.message || '').split('\n').map((line, idx) => (
+                                  {getNotificationLines(n.message).map((line, idx) => (
                                     <div key={idx} className={idx === 0 ? '' : 'text-sm text-[color:var(--text-secondary)]'}>{line}</div>
                                   ))}
                                   <div className="mt-1 text-xs text-[color:var(--text-muted)]">{new Date(n.created_at).toLocaleString()}</div>

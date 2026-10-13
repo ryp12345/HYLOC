@@ -565,25 +565,23 @@ exports.cancelLeave = async (leaveId, userId, userRole) => {
     // 4. Delete leave
     await leaveModel.deleteLeave(leaveId, client);
 
-    // 5. Delete related notifications (alternate person)
-    if (existingLeave.alternate_person) {
-      await client.query(
-        'DELETE FROM notifications WHERE created_by = $1 AND assigned_to = (SELECT id FROM users WHERE empid = $2) AND type = $3',
-        [ownerId, existingLeave.alternate_person, 'leave']
-      );
-    }
-    ////////////////////Notification code///////////////////////////
-    // Remove all notifications related to this leave request.
-    // Since notifications currently don't track a leave_id, remove any
-    // notification of type 'leave' that was created by or assigned to
-    // the user who owned the leave. This is a code-only cleanup (no DB
-    // migration). It may be refined later by adding a leave_id to
-    // notifications for precise deletes.
+    // 5. Delete notifications about this leave (sent to HODs, management and the
+    // alternate person, or received by the owner). Notifications don't store a
+    // leave_id, so they are matched on the leave's start date, which appears in
+    // every leave message either as YYYY-MM-DD (on apply) or as Date#toDateString()
+    // (on approve/reject/change). Leave notifications for the owner's other leaves
+    // are left alone.
     await client.query('SAVEPOINT notification_cleanup');
     try {
+      const isoFrom = toDateOnly(existingLeave.from_date);
+      const [yyyy, mm, dd] = String(isoFrom).split('-').map(Number);
+      const readableFrom = new Date(yyyy, mm - 1, dd).toDateString();
       await client.query(
-        'DELETE FROM notifications WHERE LOWER(type) = $1 AND (created_by = $2 OR assigned_to = $2)',
-        ['leave', ownerId]
+        `DELETE FROM notifications
+         WHERE LOWER(type) = 'leave'
+           AND (created_by = $1 OR assigned_to = $1)
+           AND (message LIKE $2 OR message LIKE $3)`,
+        [ownerId, `%${isoFrom}%`, `%${readableFrom}%`]
       );
     } catch (notifDelErr) {
       // Keep the cancellation even if this cleanup fails
