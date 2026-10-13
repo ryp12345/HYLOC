@@ -78,6 +78,8 @@ exports.createKPIDataValue = async (kpiValueId, value, valueType, month, year) =
     const result = await pool.query(
       `INSERT INTO kpi_data_value (kpi_value_id, value, value_type, month, year, created_at, updated_at)
        VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
+       ON CONFLICT (kpi_value_id, month, year, value_type)
+       DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()
        RETURNING id, kpi_value_id, value, value_type, month, year, created_at, updated_at`,
       [kpiValueId, value, valueType, month, year]
     );
@@ -98,7 +100,8 @@ exports.updateKPIDataValue = async (id, value, valueType) => {
            updated_at = NOW()
        WHERE id = $3
        RETURNING id, kpi_value_id, value, value_type, month, year, created_at, updated_at`,
-      [value || null, valueType || null, id]
+      // 0 is a valid value; only an omitted/empty value keeps the stored one
+      [value === undefined || value === '' ? null : value, valueType || null, id]
     );
     return result.rows[0];
   } catch (error) {

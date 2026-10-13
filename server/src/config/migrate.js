@@ -23,7 +23,7 @@ const runMigrations = async () => {
 
     // Read and execute seeder files
     const seedersDir = path.join(__dirname, '../../database/seeders');
-    const seederFiles = fs.readdirSync(seedersDir).sort();
+    const seederFiles = fs.existsSync(seedersDir) ? fs.readdirSync(seedersDir).sort() : [];
 
     for (const file of seederFiles) {
       if (file.endsWith('.sql')) {

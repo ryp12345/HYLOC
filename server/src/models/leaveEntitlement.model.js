@@ -46,13 +46,13 @@ exports.createOrGetEntitlement = async (userId, year, leaveEntitled = 0.0) => {
  * @param {number} year - Calendar year
  * @returns {Promise<Object|null>} Entitlement record or null
  */
-exports.getEntitlementByUserAndYear = async (userId, year) => {
+exports.getEntitlementByUserAndYear = async (userId, year, executor = db) => {
   const query = `
     SELECT * FROM leaves_entitlement
     WHERE user_id = $1 AND year = $2
   `;
-  
-  const result = await db.query(query, [userId, year]);
+
+  const result = await executor.query(query, [userId, year]);
   return result.rows[0] || null;
 };
 
@@ -176,12 +176,23 @@ exports.updateEntitlement = async (userId, year, updateData) => {
  * @param {number} year - Calendar year
  * @returns {Promise<Object>} Balance details
  */
-exports.getLeaveBalance = async (userId, year) => {
-  const entitlement = await exports.getEntitlementByUserAndYear(userId, year);
-  
+exports.getLeaveBalance = async (userId, year, client = null) => {
+  const entitlement = await exports.getEntitlementByUserAndYear(userId, year, client || db);
+
   if (!entitlement) {
-    // Create default entitlement if doesn't exist
-    const newEntitlement = await exports.createOrGetEntitlement(userId, year);
+    // Create default entitlement if doesn't exist (inside the caller's transaction when one is given)
+    let newEntitlement;
+    if (client) {
+      await client.query(
+        `INSERT INTO leaves_entitlement (user_id, year, leave_entitled, leaves_accumulated, leaves_availed)
+         VALUES ($1, $2, 0.0, 0.0, 0.0)
+         ON CONFLICT (user_id, year) DO NOTHING`,
+        [userId, year]
+      );
+      newEntitlement = await exports.getEntitlementByUserAndYear(userId, year, client);
+    } else {
+      newEntitlement = await exports.createOrGetEntitlement(userId, year);
+    }
     return {
       user_id: userId,
       year: year,

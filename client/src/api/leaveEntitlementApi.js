@@ -8,11 +8,11 @@ export const getEntitlements = (year, token) =>
 export const getStaffWithStatus = (year, token) =>
   axios.get(`${BASE_URL}/staff?year=${year}`);
 
-export const getMonthlyWorkingDaysStaff = (month, token) =>
-  axios.get(`${BASE_URL}/monthly/staff?month=${month}`);
+export const getMonthlyWorkingDaysStaff = (month, token, year) =>
+  axios.get(`${BASE_URL}/monthly/staff`, { params: { month, year } });
 
-export const importMonthlyWorkingDays = (month, assignments, token) =>
-  axios.post(`${BASE_URL}/monthly/import`, { month, assignments });
+export const importMonthlyWorkingDays = (month, assignments, token, year) =>
+  axios.post(`${BASE_URL}/monthly/import`, { month, year, assignments });
 
 export const importLeaveEntitlements = (assignments, token) =>
   axios.post(`${BASE_URL}/import`, { assignments });

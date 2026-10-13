@@ -1,4 +1,5 @@
 const pool = require('../config/db');
+const { columnExists } = require('../utils/schema');
 
 const normalizeIdList = (values) => {
   const list = Array.isArray(values)
@@ -85,7 +86,9 @@ exports.getTicketReportsData = async (userId, role, fiscalYear = null, db = pool
     const result = await db.query(
       `SELECT t.id, t.title, t.priority, t.status, t.user_id, t.due_date, t.created_at, t.updated_at,
               d.department_name AS department,
-              (CURRENT_DATE - t.due_date::date) AS overdue_days
+              (CURRENT_DATE - t.due_date::date) AS overdue_days,
+              COALESCE((to_jsonb(t)->>'closed_at')::timestamp, t.updated_at) AS resolved_at,
+              (COALESCE((to_jsonb(t)->>'closed_at')::timestamp, t.updated_at)::date - t.due_date::date) AS closed_late_days
        FROM tickets t
        LEFT JOIN users u ON u.id = t.user_id
        LEFT JOIN departments d ON d.id = u.department_id
@@ -98,7 +101,9 @@ exports.getTicketReportsData = async (userId, role, fiscalYear = null, db = pool
     const base =
       `SELECT t.id, t.title, t.priority, t.status, t.user_id, t.due_date, t.created_at, t.updated_at,
               d.department_name AS department,
-              (CURRENT_DATE - t.due_date::date) AS overdue_days
+              (CURRENT_DATE - t.due_date::date) AS overdue_days,
+              COALESCE((to_jsonb(t)->>'closed_at')::timestamp, t.updated_at) AS resolved_at,
+              (COALESCE((to_jsonb(t)->>'closed_at')::timestamp, t.updated_at)::date - t.due_date::date) AS closed_late_days
        FROM tickets t
        LEFT JOIN users u ON u.id = t.user_id
        LEFT JOIN departments d ON d.id = u.department_id
@@ -116,7 +121,9 @@ exports.getTicketReportsData = async (userId, role, fiscalYear = null, db = pool
         const hodQuery = `
           SELECT t.id, t.title, t.priority, t.status, t.user_id, t.due_date, t.created_at, t.updated_at,
                  d.department_name AS department,
-                 (CURRENT_DATE - t.due_date::date) AS overdue_days
+                 (CURRENT_DATE - t.due_date::date) AS overdue_days,
+                 COALESCE((to_jsonb(t)->>'closed_at')::timestamp, t.updated_at) AS resolved_at,
+                 (COALESCE((to_jsonb(t)->>'closed_at')::timestamp, t.updated_at)::date - t.due_date::date) AS closed_late_days
           FROM tickets t
           LEFT JOIN users u ON u.id = t.user_id
           LEFT JOIN departments d ON d.id = u.department_id
@@ -167,11 +174,13 @@ exports.getTicketReportsData = async (userId, role, fiscalYear = null, db = pool
     }
     topCreators[creatorKey].count += 1;
 
-    if (status === 'closed' || CLOSED_STATUSES.includes(status)) {
+    // Resolution time: closed tickets only (rejections are not resolutions),
+    // measured to the closing time rather than the last edit
+    if (status === 'closed') {
       const created = new Date(t.created_at);
-      const updated = new Date(t.updated_at);
-      if (!isNaN(created) && !isNaN(updated)) {
-        const diffHours = (updated - created) / (1000 * 60 * 60);
+      const resolved = new Date(t.resolved_at || t.updated_at);
+      if (!isNaN(created) && !isNaN(resolved)) {
+        const diffHours = (resolved - created) / (1000 * 60 * 60);
         totalResolutionTimeSum += diffHours;
         totalResolutionCount += 1;
       }
@@ -208,7 +217,8 @@ exports.getTicketReportsData = async (userId, role, fiscalYear = null, db = pool
     const mk = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
     if (!monthlyTrendsMap[mk]) monthlyTrendsMap[mk] = { month: mk, Open: 0, Closed: 0, Rejected: 0, total: 0 };
     const s = String(t.status || '').toLowerCase();
-    const statusKey = s.charAt(0).toUpperCase() + s.slice(1);
+    // All open-like statuses count as Open so the buckets always add up to the total
+    const statusKey = OPEN_STATUSES.includes(s) ? 'Open' : s.charAt(0).toUpperCase() + s.slice(1);
     if (monthlyTrendsMap[mk][statusKey] !== undefined) monthlyTrendsMap[mk][statusKey] += 1;
     monthlyTrendsMap[mk].total += 1;
   }
@@ -219,14 +229,18 @@ exports.getTicketReportsData = async (userId, role, fiscalYear = null, db = pool
     const ids = Array.isArray(t.assigned_to_ids) ? t.assigned_to_ids : (t.assigned_to ? [t.assigned_to] : []);
     for (const aid of ids) {
       const key = String(aid);
-      if (!assigneeCounts[key]) assigneeCounts[key] = { assigned_count: 0, overdue_count: 0, completed_count: 0, id: aid };
+      if (!assigneeCounts[key]) assigneeCounts[key] = { assigned_count: 0, overdue_count: 0, closed_late_count: 0, completed_count: 0, id: aid };
       assigneeCounts[key].assigned_count += 1;
       const s = String(t.status || '').toLowerCase();
-      const isOpen = ['open', 'assigned', 'in progress', 'pending'].includes(s);
-      const isCompleted = ['closed', 'rejected'].includes(s);
-      const isOverdue = isOpen && t.overdue_days > 0;
+      const isOpen = OPEN_STATUSES.includes(s);
+      const isCompleted = CLOSED_STATUSES.includes(s);
+      // Still open and past the due date
+      const isOverdue = isOpen && t.due_date && t.overdue_days > 0;
+      // Closed after the due date
+      const isClosedLate = s === 'closed' && t.due_date && t.closed_late_days > 0;
       if (isCompleted) assigneeCounts[key].completed_count += 1;
       if (isOverdue) assigneeCounts[key].overdue_count += 1;
+      if (isClosedLate) assigneeCounts[key].closed_late_count += 1;
     }
   }
 
@@ -287,11 +301,11 @@ exports.getTicketReportsData = async (userId, role, fiscalYear = null, db = pool
     data: {
       summary: {
         total_tickets: tickets.length,
-        open_tickets: statusDistribution['open'] || 0,
+        open_tickets: openTickets.length,
         closed_tickets: (statusDistribution['closed'] || 0) + (statusDistribution['rejected'] || 0),
         overdue_tickets: overdueTickets.length,
         avg_resolution_hours: avgResolutionHours,
-        avg_resolution_display: avgResolutionDays > 0 ? `${avgResolutionDays}d ${avgResolutionRemainingHours}h remaining` : `${avgResolutionRemainingHours}h remaining`,
+        avg_resolution_display: avgResolutionDays > 0 ? `${avgResolutionDays}d ${avgResolutionRemainingHours}h` : `${avgResolutionRemainingHours}h`,
       },
       status_distribution: statusDistribution,
       priority_distribution: priorityDistribution,
@@ -465,7 +479,16 @@ exports.updateTicket = async (id, data, db = pool) => {
   if (data.user_id !== undefined) { fields.push(`user_id = $${idx++}`); values.push(data.user_id); }
   if (data.due_date !== undefined) { fields.push(`due_date = $${idx++}`); values.push(data.due_date); }
   if (data.attachment !== undefined) { fields.push(`attachment = $${idx++}`); values.push(data.attachment); }
-  if (data.status !== undefined) { fields.push(`status = $${idx++}`); values.push(data.status); }
+  if (data.status !== undefined) {
+    fields.push(`status = $${idx++}`);
+    values.push(data.status);
+    // Keep the first closing time; clear it if the ticket is reopened
+    // (closed_at only exists once migration 018 has been applied)
+    if (await columnExists('tickets', 'closed_at')) {
+      fields.push(`closed_at = CASE WHEN LOWER($${idx++}::text) IN ('closed', 'rejected') THEN COALESCE(closed_at, NOW()) ELSE NULL END`);
+      values.push(String(data.status));
+    }
+  }
 
   if (fields.length === 0) return await exports.getTicketById(id, db);
 

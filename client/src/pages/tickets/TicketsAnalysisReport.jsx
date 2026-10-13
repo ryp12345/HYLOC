@@ -179,7 +179,8 @@ export default function TicketsAnalysisReport() {
     const raw = report?.monthly_trends || [];
     return raw.map((item) => ({
       ...item,
-      monthLabel: MONTH_LABELS[Number(item.month.split('-')[1]) - 4] || item.month,
+      // Fiscal order: Apr (4) -> index 0 ... Mar (3) -> index 11
+      monthLabel: MONTH_LABELS[(Number(item.month.split('-')[1]) + 8) % 12] || item.month,
     }));
   }, [report]);
 

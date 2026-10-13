@@ -405,7 +405,8 @@ const PlantEfficiency = () => {
   }, [overallChart, selectedMonthLabel]);
 
   const speedometerValue = useMemo(() => {
-    const rawValue = Number(selectedMonthData?.actual ?? selectedMonthData?.target ?? 0);
+    // Show the achieved value only; a month without an actual shows 0, never the target
+    const rawValue = Number(selectedMonthData?.actual ?? 0);
     if (!Number.isFinite(rawValue)) return 0;
     return Math.min(100, Math.max(0, rawValue));
   }, [selectedMonthData]);
@@ -484,19 +485,28 @@ const PlantEfficiency = () => {
           kpiValueIdsByYear[year].push(...ids);
         });
 
-        // Fetch monthly rows for each year group and merge
+        // Fetch monthly rows for each fiscal year group and merge.
+        // The endpoint filters by calendar year, so a fiscal year (Apr-Mar) needs both
+        // calendar years, keeping only April-December of the first and January-March of the second.
         const monthlyRows = [];
         for (const [yearKey, ids] of Object.entries(kpiValueIdsByYear)) {
           const uniq = [...new Set(ids)];
           if (uniq.length === 0) continue;
+          const fiscalYear = Number(yearKey);
           try {
-            // request rows for this year's KPI value ids
-            // API expects numeric year (starting fiscal year)
-            // use Number(yearKey) just in case
             // eslint-disable-next-line no-await-in-loop
-            const resp = await api.post('/kpi-data-values/multiple', { kpiValueIds: uniq, year: Number(yearKey) }, { signal });
-            const rows = Array.isArray(resp?.data?.data) ? resp.data.data : Array.isArray(resp?.data) ? resp.data : [];
-            monthlyRows.push(...rows);
+            const responses = await Promise.all([fiscalYear, fiscalYear + 1].map((calendarYear) =>
+              api.post('/kpi-data-values/multiple', { kpiValueIds: uniq, year: calendarYear }, { signal })
+            ));
+            responses.forEach((resp) => {
+              const rows = Array.isArray(resp?.data?.data) ? resp.data.data : Array.isArray(resp?.data) ? resp.data : [];
+              rows.forEach((row) => {
+                const month = Number(row?.month);
+                const year = Number(row?.year);
+                const inFiscalYear = (year === fiscalYear && month >= 4) || (year === fiscalYear + 1 && month <= 3);
+                if (inFiscalYear) monthlyRows.push(row);
+              });
+            });
           } catch (err) {
             // ignore partial failures for a year, continue with other years
             console.error('Failed to load monthly rows for year', yearKey, err);

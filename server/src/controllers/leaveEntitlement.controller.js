@@ -5,7 +5,9 @@ const userModel = require('../models/user.model');
 /**
  * Compute leave_entitled from NoOFDays (working days) and joining date rules:
  *  - Joining year         → 0  (regardless of NoOFDays)
- *  - Any year after       → min(ceil(noOfDays / 20), 15)
+ *  - Any year after       → min(round-half-up(noOfDays / 20), 15)
+ *                           e.g. 230 days → 11.5 → 12; 225 days → 11.25 → 11
+ * The annual scheduler (leaveEntitlement.service.js) applies the same rule.
  *
  * @param {number} noOfDays   - Working days entered in the NoOFDays column
  * @param {Date}   joiningDate - Employee joining date (created_at)
@@ -25,6 +27,20 @@ function getValidatedMonth(monthValue) {
   }
   return month;
 }
+
+// Attendance can be entered for the current or the previous year (e.g. December in January).
+// Defaults to the current year when no year is given.
+function getValidatedAttendanceYear(yearValue) {
+  const currentYear = new Date().getFullYear();
+  if (yearValue === undefined || yearValue === null || yearValue === '') return currentYear;
+  const year = Number(yearValue);
+  if (!Number.isInteger(year) || year < currentYear - 1 || year > currentYear) {
+    return null;
+  }
+  return year;
+}
+
+const daysInMonth = (year, month) => new Date(year, month, 0).getDate();
 
 // List entitlements for a year
 exports.listEntitlements = async (req, res) => {
@@ -58,13 +74,14 @@ exports.listStaffWithStatus = async (req, res) => {
   }
 };
 
-// List staff with monthly working-day status for the current year and selected month
+// List staff with monthly working-day status for the selected year (default: current) and month
 exports.listStaffWithMonthlyWorkingDaysStatus = async (req, res) => {
   try {
     const month = getValidatedMonth(req.query.month);
     if (!month) return res.status(400).json({ error: 'Valid month is required' });
 
-    const year = new Date().getFullYear();
+    const year = getValidatedAttendanceYear(req.query.year);
+    if (!year) return res.status(400).json({ error: 'Year must be the current or previous year' });
     const users = await userModel.getAllUsers();
     const monthlyWorkingDays = await employeeMonthlyWorkingDaysModel.getMonthlyWorkingDays(year, month);
     const monthlyMap = new Map(monthlyWorkingDays.map((record) => [record.user_id, record]));
@@ -90,7 +107,9 @@ exports.importMonthlyWorkingDays = async (req, res) => {
     if (!month) return res.status(400).json({ error: 'Valid month is required' });
     if (!Array.isArray(assignments)) return res.status(400).json({ error: 'assignments array required' });
 
-    const year = new Date().getFullYear();
+    const year = getValidatedAttendanceYear(req.body.year);
+    if (!year) return res.status(400).json({ error: 'Year must be the current or previous year' });
+    const maxDays = daysInMonth(year, month);
     const allUsers = await userModel.getAllUsers();
     const userMap = new Map(allUsers.map((user) => [user.id, user]));
     const userMapByEmpid = new Map(
@@ -116,7 +135,7 @@ exports.importMonthlyWorkingDays = async (req, res) => {
       }
 
       const noOfDays = Number(assignment.no_of_days ?? assignment.noOfDays ?? assignment.noOfDays);
-      if (!user || !Number.isFinite(noOfDays) || noOfDays < 0) {
+      if (!user || !Number.isFinite(noOfDays) || noOfDays < 0 || noOfDays > maxDays) {
         continue;
       }
 

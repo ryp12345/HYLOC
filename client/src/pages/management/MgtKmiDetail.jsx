@@ -2,6 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import axios from '../../api/axios';
+import { calculateAchievement } from '../../utils/kpiAchievement';
+
+// Calendar order: index + 1 = month number
+const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 export default function MgtKmiDetail() {
   const { id } = useParams();
@@ -263,9 +267,10 @@ export default function MgtKmiDetail() {
     if (!hasActual) return null; // At minimum, we need actual values
 
     // Calculate with whatever data we have
-    const validData = data.filter(d => d.target_value !== null && d.actual_value !== null);
-    const dataWithTarget = data.filter(d => d.target_value !== null && d.target_value !== undefined);
-    const dataWithActual = data.filter(d => d.actual_value !== null && d.actual_value !== undefined);
+    const hasNumber = (v) => v !== null && v !== undefined && v !== '' && Number.isFinite(Number(v));
+    const validData = data.filter(d => hasNumber(d.target_value) && hasNumber(d.actual_value));
+    const dataWithTarget = data.filter(d => hasNumber(d.target_value));
+    const dataWithActual = data.filter(d => hasNumber(d.actual_value));
 
     let achievements = [];
     let bestMonth = null;
@@ -297,25 +302,34 @@ export default function MgtKmiDetail() {
           const midPoint = Math.floor(dataWithActual.length / 2);
           const firstHalfAvg = dataWithActual.slice(0, midPoint).reduce((sum, d) => sum + parseFloat(d.actual_value), 0) / midPoint;
           const secondHalfAvg = dataWithActual.slice(midPoint).reduce((sum, d) => sum + parseFloat(d.actual_value), 0) / (dataWithActual.length - midPoint);
-          const percentChange = ((secondHalfAvg - firstHalfAvg) / firstHalfAvg) * 100;
-          trend = percentChange > 10 ? 'improving' : percentChange < -10 ? 'declining' : 'stable';
+          if (firstHalfAvg === 0) {
+            // No base to compare a percentage against: use the direction of the change
+            trend = secondHalfAvg === firstHalfAvg ? 'stable' : (secondHalfAvg > firstHalfAvg ? 'improving' : 'declining');
+          } else {
+            const percentChange = ((secondHalfAvg - firstHalfAvg) / Math.abs(firstHalfAvg)) * 100;
+            trend = percentChange > 10 ? 'improving' : percentChange < -10 ? 'declining' : 'stable';
+          }
         }
       }
     } else {
       // For KPIs with target requirement, calculate achievement
       if (validData.length > 0) {
-        achievements = validData.map(d => ({
-          month: d.month,
-          year: d.year,
-          achievement: d.target_value !== 0 ? (d.actual_value / d.target_value) * 100 : 0,
-          variance: d.actual_value - d.target_value
-        }));
+        achievements = validData
+          .map(d => ({
+            month: d.month,
+            year: d.year,
+            achievement: calculateAchievement(d.actual_value, d.target_value),
+            variance: Number(d.actual_value) - Number(d.target_value)
+          }))
+          .filter(a => a.achievement !== null);
 
-        avgAchievement = achievements.reduce((sum, a) => sum + a.achievement, 0) / achievements.length;
+        avgAchievement = achievements.length > 0
+          ? achievements.reduce((sum, a) => sum + a.achievement, 0) / achievements.length
+          : 0;
 
         const sortedByAchievement = [...achievements].sort((a, b) => b.achievement - a.achievement);
-        bestMonth = sortedByAchievement[0];
-        worstMonth = sortedByAchievement[sortedByAchievement.length - 1];
+        bestMonth = sortedByAchievement[0] || null;
+        worstMonth = sortedByAchievement[sortedByAchievement.length - 1] || null;
 
         // Calculate trend
         if (achievements.length > 1) {
@@ -329,7 +343,10 @@ export default function MgtKmiDetail() {
 
     const totalTarget = dataWithTarget.reduce((sum, d) => sum + parseFloat(d.target_value || 0), 0);
     const totalActual = dataWithActual.reduce((sum, d) => sum + parseFloat(d.actual_value || 0), 0);
-    overallAchievement = totalTarget !== 0 ? (totalActual / totalTarget) * 100 : 0;
+    // Overall achievement compares actual and target over the same months (those with both)
+    const pairedTarget = validData.reduce((sum, d) => sum + parseFloat(d.target_value), 0);
+    const pairedActual = validData.reduce((sum, d) => sum + parseFloat(d.actual_value), 0);
+    overallAchievement = calculateAchievement(pairedActual, pairedTarget) ?? 0;
 
     return {
       targetRequired,

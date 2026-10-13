@@ -155,6 +155,8 @@ Examples:
 3. Use commas correctly in functions.
 4. Ensure dependent KPI values exist for the same month/year.
 5. Prefer explicit references (v123:actual or v123:target) in mixed formulas.
+6. A formula cannot depend on its own KPI value, directly or through other computed KPIs.
+7. A division by zero produces no value for that month; use IF to handle a zero denominator (see example 6).
 
 ## 7) Common Errors and Fixes
 
@@ -166,7 +168,11 @@ Examples:
 - Cause: Missing bracket/comma or invalid token.
 - Fix: Re-check brackets, commas, and function names.
 
-3. Wrong result due to value type
+3. Error: Circular dependency / KPI value does not exist
+- Cause: The formula refers back to its own KPI value, or to a KPI value that does not exist.
+- Fix: Check the v<ID> references; the message names the KPI value involved.
+
+4. Wrong result due to value type
 - Cause: Formula used v123 (default) where explicit actual/target was needed.
 - Fix: Use v123:actual or v123:target.
 

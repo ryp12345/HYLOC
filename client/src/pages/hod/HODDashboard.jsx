@@ -3,6 +3,8 @@ import { useAuth } from '../../context/AuthContext';
 import { getUsersByDepartment } from '../../api/userApi';
 import { getDepartmentLeaves } from '../../api/leaveApi';
 import api from '../../api/axios';
+import { getEmployeeKPIValues } from '../../api/kpiApi';
+import { calculateAchievement } from '../../utils/kpiAchievement';
 
 function HODDashboard() {
 	const { user } = useAuth();
@@ -91,20 +93,23 @@ function HODDashboard() {
 			u => u.id !== user.id
 			);
 
-			// Get KPI values for department employees
-			const kpiValuesResponse = await api.get('/kpi-values');
-			const allKpiValues = kpiValuesResponse.data?.data || [];
-
-			// Filter KPI values for department employees
-			const departmentKpiValues = allKpiValues.filter(kv => 
-				departmentEmployees.some(emp => emp.id === kv.employee_id)
+			// Get the KPI values each department employee enters data for (data operator)
+			const valueResponses = await Promise.allSettled(
+				departmentEmployees.map(emp => getEmployeeKPIValues(emp.id))
 			);
+			const valuesById = new Map();
+			valueResponses.forEach(result => {
+				if (result.status !== 'fulfilled') return;
+				(result.value?.data?.data || []).forEach(kv => valuesById.set(kv.id, kv));
+			});
+			const departmentKpiValues = Array.from(valuesById.values());
 
 			const teamKPIsAssigned = departmentKpiValues.length;
 
-			// Get current year and month
+			// Get current year and month, and the fiscal year (April-March) they belong to
 			const currentYear = new Date().getFullYear();
 			const currentMonth = new Date().getMonth() + 1;
+			const currentFiscalYear = currentMonth >= 4 ? currentYear : currentYear - 1;
 
 			// Check for pending updates and calculate average achievement
 			let pendingCount = 0;
@@ -113,22 +118,21 @@ function HODDashboard() {
 
 			for (const kv of departmentKpiValues) {
 				try {
-					const monthlyDataResponse = await api.get(`/kpi-values/${kv.id}/monthly-data/${currentYear}`);
+					const monthlyDataResponse = await api.get(`/kpi-values/${kv.id}/monthly-data/${currentFiscalYear}`);
 					const monthlyData = monthlyDataResponse.data?.data || [];
-					
-					const currentMonthData = monthlyData.find(m => 
+
+					const currentMonthData = monthlyData.find(m =>
 						Number(m.month) === currentMonth && Number(m.year) === currentYear
 					);
 
-					if (!currentMonthData || !currentMonthData.actual_value) {
+					// An actual of 0 is a real entry, not a pending one
+					const actualValue = currentMonthData?.actual_value;
+					if (actualValue === null || actualValue === undefined || actualValue === '') {
 						pendingCount++;
 					} else {
-						const target = Number(currentMonthData.target_value || 0);
-						const actual = Number(currentMonthData.actual_value || 0);
-						
-						if (target > 0) {
-							const achievement = Math.min(100, (actual / target) * 100);
-							totalAchievement += achievement;
+						const achievement = calculateAchievement(actualValue, currentMonthData.target_value);
+						if (achievement != null) {
+							totalAchievement += Math.min(100, achievement);
 							achievementCount++;
 						}
 					}

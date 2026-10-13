@@ -6,7 +6,9 @@ const MONTH_NAMES = [
 ];
 
 const MonthlyAttendancePage = ({ token: propToken }) => {
-  const currentYear = new Date().getFullYear();
+  const thisYear = new Date().getFullYear();
+  // Attendance can be entered for this year or last year (e.g. December uploaded in January)
+  const [currentYear, setCurrentYear] = useState(thisYear);
   const [month, setMonth] = useState(new Date().getMonth() + 1);
   const [monthlyStaff, setMonthlyStaff] = useState([]);
   const [monthlyLoading, setMonthlyLoading] = useState(false);
@@ -19,7 +21,7 @@ const MonthlyAttendancePage = ({ token: propToken }) => {
   const successTimeoutRef = useRef(null);
   const token = propToken || localStorage.getItem('accessToken');
 
-  useEffect(() => { loadMonthlyData(); }, [month, token]);
+  useEffect(() => { loadMonthlyData(); }, [month, currentYear, token]);
 
   const parseCsvLine = (line) => {
     const cells = [];
@@ -42,7 +44,7 @@ const MonthlyAttendancePage = ({ token: propToken }) => {
     if (!token) { setError('No authentication token found. Please login.'); return; }
     setMonthlyLoading(true);
     try {
-      const response = await getMonthlyWorkingDaysStaff(month, token);
+      const response = await getMonthlyWorkingDaysStaff(month, token, currentYear);
       setMonthlyStaff(response.data?.staff || []);
     } catch (err) {
       setError(err.response?.data?.error || err.message || 'Failed to load monthly working days');
@@ -94,6 +96,7 @@ const MonthlyAttendancePage = ({ token: propToken }) => {
       if (idxEmpId === undefined || idxDays === undefined) throw new Error('CSV headers must include EmployeeID and NoOFDays');
       const staffByEmpId = new Map(monthlyStaff.filter(s=>s.empid!==null&&s.empid!==undefined).map(s=>[String(s.empid).trim().toLowerCase(), s]));
       const staffById = new Map(monthlyStaff.map(s=>[String(s.id), s]));
+      const maxDaysInMonth = new Date(currentYear, month, 0).getDate();
       const unmatchedIds = new Set(); const invalidRows = []; const mappedByUser = new Map(); let skippedRows = 0;
       for (let i = 1; i < lines.length; i++) {
         const rowNumber = i + 1; const cells = parseCsvLine(lines[i]);
@@ -103,7 +106,7 @@ const MonthlyAttendancePage = ({ token: propToken }) => {
         if (!empIdRaw && !userIdRaw && !daysRaw) { skippedRows++; continue; }
         if ((!empIdRaw && !userIdRaw) || !daysRaw) { invalidRows.push(rowNumber); continue; }
         const leaveDays = Number(daysRaw);
-        if (!Number.isFinite(leaveDays) || leaveDays < 0) { invalidRows.push(rowNumber); continue; }
+        if (!Number.isFinite(leaveDays) || leaveDays < 0 || leaveDays > maxDaysInMonth) { invalidRows.push(rowNumber); continue; }
         let staffMatch = null;
         if (userIdRaw) {
           const uid = Number(userIdRaw);
@@ -114,7 +117,7 @@ const MonthlyAttendancePage = ({ token: propToken }) => {
         mappedByUser.set(String(staffMatch.id), { user_id: staffMatch.id, no_of_days: leaveDays });
       }
       const assignments = Array.from(mappedByUser.values());
-      if (assignments.length > 0) await importMonthlyWorkingDays(month, assignments, token);
+      if (assignments.length > 0) await importMonthlyWorkingDays(month, assignments, token, currentYear);
       await loadMonthlyData();
       setUploadSummary({ fileName: file.name, totalDataRows: lines.length - 1, updatedUsers: assignments.length, unmatchedEmployeeIds: Array.from(unmatchedIds), invalidRows, skippedRows });
       if (uploadSummaryTimeoutRef.current) clearTimeout(uploadSummaryTimeoutRef.current);
@@ -167,9 +170,12 @@ const MonthlyAttendancePage = ({ token: propToken }) => {
           <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <h2 className="text-2xl font-bold text-[color:var(--text-primary)]">Monthly Working Days Input</h2>
-              <p className="mt-1 text-sm text-[color:var(--text-secondary)]">Select a month for the current year ({currentYear}), download the template, fill NoOfDays, and upload it back.</p>
+              <p className="mt-1 text-sm text-[color:var(--text-secondary)]">Select the year and month, download the template, fill NoOfDays, and upload it back.</p>
             </div>
             <div className="flex w-full flex-col gap-3 sm:flex-row lg:w-auto">
+              <select value={currentYear} onChange={(e)=>setCurrentYear(Number(e.target.value))} aria-label="Year" className="border border-[color:var(--border)] px-4 py-2 rounded-lg bg-[color:var(--surface)] text-[color:var(--text-primary)] focus:ring-2 focus:ring-[color:var(--focus-ring)] focus:border-[color:var(--focus-ring)]">
+                {[thisYear, thisYear - 1].map((y) => (<option key={y} value={y}>{y}</option>))}
+              </select>
               <select value={month} onChange={(e)=>setMonth(Number(e.target.value))} className="border border-[color:var(--border)] px-4 py-2 rounded-lg bg-[color:var(--surface)] text-[color:var(--text-primary)] focus:ring-2 focus:ring-[color:var(--focus-ring)] focus:border-[color:var(--focus-ring)]">
                 {MONTH_NAMES.map((monthName, index) => (<option key={monthName} value={index+1}>{monthName}</option>))}
               </select>
@@ -179,7 +185,7 @@ const MonthlyAttendancePage = ({ token: propToken }) => {
           </div>
           <div className="mt-6 grid gap-4 md:grid-cols-3">
             <div className="rounded-lg border border-[color:var(--border)] bg-[color:var(--surface-hover)] p-4"><div className="text-sm font-medium text-[color:var(--text-muted)]">Month</div><div className="mt-1 text-xl font-semibold text-[color:var(--text-primary)]">{MONTH_NAMES[month - 1]}</div></div>
-            <div className="rounded-lg border border-[color:var(--border)] bg-[color:var(--surface-hover)] p-4"><div className="text-sm font-medium text-[color:var(--text-muted)]">Current Year</div><div className="mt-1 text-xl font-semibold text-[color:var(--text-primary)]">{currentYear}</div></div>
+            <div className="rounded-lg border border-[color:var(--border)] bg-[color:var(--surface-hover)] p-4"><div className="text-sm font-medium text-[color:var(--text-muted)]">Year</div><div className="mt-1 text-xl font-semibold text-[color:var(--text-primary)]">{currentYear}</div></div>
             <div className="rounded-lg border border-[color:var(--border)] bg-[color:var(--surface-hover)] p-4"><div className="text-sm font-medium text-[color:var(--text-muted)]">Monthly Coverage</div><div className="mt-1 text-xl font-semibold text-[color:var(--text-primary)]">{monthlyAssignedCount} / {monthlyStaff.length}</div></div>
           </div>
           <input ref={fileInputRef} type="file" accept=".csv,text/csv" onChange={handleUploadCsv} className="hidden" />

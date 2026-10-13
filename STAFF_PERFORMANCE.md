@@ -24,6 +24,7 @@ Performance is derived from KPI data values for the selected fiscal year.
 
 - Result is clamped to a maximum of `100%`.
 - If `target = 0` or either value is missing, that month's data point is skipped.
+- The same rule is used on the HOD dashboard, KPI detail, pillar and KMI detail pages (`client/src/utils/kpiAchievement.js`).
 - KPIs with `target_required = false` are excluded from the staff performance score.
 
 ### Per-KPI Average
@@ -42,7 +43,7 @@ For each KPI value assigned to an employee:
 Staff Performance = Average of all KPI scores assigned to that employee
 ```
 
-If an employee has no valid KPI data in the selected fiscal year, their score is `0`.
+If an employee has no valid KPI data in the selected fiscal year (but has a ticket score), their KPI score shows as `0`.
 
 ---
 
@@ -128,4 +129,4 @@ The staff performance calculation triggers via `useEffect` when any of these dep
 ## Notes
 
 - The dashboard shows only active users.
-- If no valid KPI values exist for an employee in the selected fiscal year, the score is `0`.
+- Staff with neither a KPI score nor a ticket score are not listed.

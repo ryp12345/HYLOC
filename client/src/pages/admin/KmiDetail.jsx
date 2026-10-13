@@ -280,7 +280,7 @@ function KmiDetail() {
       computation_type: computationType,
       target_formula: targetFormula,
       target_source_kpi_value_ids: targetSourceIds,
-      default_target_value: value.default_target_value || ''
+      default_target_value: value.default_target_value ?? ''
     });
     setShowModal(true);
   };
@@ -398,7 +398,7 @@ function KmiDetail() {
         target_source_kpi_value_ids: (formData.kpi_type === 'computed' && formData.computation_type === 'target_computed')
           ? targetFormulaVars.map(tok => Number(targetVarSelections[tok])).filter(n => !Number.isNaN(n))
           : null,
-        default_target_value: formData.default_target_value || null
+        default_target_value: formData.default_target_value === '' ? null : formData.default_target_value
       };
 
       if (editingValue) {

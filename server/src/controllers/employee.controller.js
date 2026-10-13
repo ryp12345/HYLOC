@@ -177,7 +177,9 @@ exports.submitKPIData = async (req, res) => {
       shouldComputeTarget = true;
     }
 
-    if (isComputed && hasFormula && (actualValue === null || actualValue === undefined || actualValue === '') && (targetValue !== null && targetValue !== undefined && targetValue !== '')) {
+    // Computed actual: whenever the KPI has a formula and no actual was typed in
+    // (whether or not a target was submitted in the same request)
+    if (isComputed && hasFormula && (actualValue === null || actualValue === undefined || actualValue === '')) {
       shouldComputeActual = true;
     }
 
@@ -239,86 +241,55 @@ exports.submitKPIData = async (req, res) => {
         results.push(actualResult.rows[0]);
         shouldRecalculate = true;
       }
-
-      // compute target via target_formula if applicable
-      if (shouldComputeTarget) {
-        try {
-          const computedTarget = await KPICalculationService.calculateKPIValue(kpiValueId, month, year, empId, 'target');
-          if (computedTarget !== null && computedTarget !== undefined && !Number.isNaN(computedTarget)) {
-            const existingTarget = await pool.query(
-              `SELECT id FROM kpi_data_value 
-               WHERE kpi_value_id = $1 AND month = $2 AND year = $3 AND value_type = $4`,
-              [kpiValueId, month, year, 'target']
-            );
-
-            if (existingTarget.rows.length > 0) {
-              const targetResult = await pool.query(
-                `UPDATE kpi_data_value
-                 SET value = $1, updated_at = CURRENT_TIMESTAMP
-                 WHERE id = $2
-                 RETURNING *`,
-                [parseFloat(computedTarget), existingTarget.rows[0].id]
-              );
-              results.push(targetResult.rows[0]);
-            } else {
-              const targetResult = await pool.query(
-                `INSERT INTO kpi_data_value (kpi_value_id, value, value_type, month, year)
-                 VALUES ($1, $2, $3, $4, $5)
-                 RETURNING *`,
-                [kpiValueId, parseFloat(computedTarget), 'target', month, year]
-              );
-              results.push(targetResult.rows[0]);
-            }
-          }
-        } catch (err) {
-          // don't fail the request if computation fails due to missing dependencies
-          if (err.message && err.message.includes('Missing required dependencies')) {
-            console.warn(`Skipping target computation for KPI Value ${kpiValueId}: ${err.message}`);
-          } else {
-            await logError(err, 'employee.controller.computeTarget', req.user?.id);
-          }
-        }
-      }
     }
 
-    // Option 2: compute actual using formula when appropriate
-    if (shouldComputeActual) {
+    // Compute a value from the KPI's formula and store it.
+    // Missing source data or a division by zero means "no value yet", not an error.
+    const computeAndStore = async (valueType) => {
       try {
-        const computedActual = await KPICalculationService.calculateKPIValue(kpiValueId, month, year, empId, 'actual');
-        if (computedActual !== null && computedActual !== undefined && !Number.isNaN(computedActual)) {
-          const existingActual = await pool.query(
-            `SELECT id FROM kpi_data_value 
-             WHERE kpi_value_id = $1 AND month = $2 AND year = $3 AND value_type = $4`,
-            [kpiValueId, month, year, 'actual']
-          );
+        const computed = await KPICalculationService.calculateKPIValue(kpiValueId, month, year, empId, valueType);
+        if (typeof computed !== 'number' || !Number.isFinite(computed)) return;
 
-          if (existingActual.rows.length > 0) {
-            const actualResult = await pool.query(
-              `UPDATE kpi_data_value
-               SET value = $1, updated_at = CURRENT_TIMESTAMP
-               WHERE id = $2
-               RETURNING *`,
-              [parseFloat(computedActual), existingActual.rows[0].id]
-            );
-            results.push(actualResult.rows[0]);
-          } else {
-            const actualResult = await pool.query(
-              `INSERT INTO kpi_data_value (kpi_value_id, value, value_type, month, year)
-               VALUES ($1, $2, $3, $4, $5)
-               RETURNING *`,
-              [kpiValueId, parseFloat(computedActual), 'actual', month, year]
-            );
-            results.push(actualResult.rows[0]);
-          }
-        }
+        const existing = await pool.query(
+          `SELECT id FROM kpi_data_value
+           WHERE kpi_value_id = $1 AND month = $2 AND year = $3 AND value_type = $4`,
+          [kpiValueId, month, year, valueType]
+        );
+
+        const saved = existing.rows.length > 0
+          ? await pool.query(
+            `UPDATE kpi_data_value
+             SET value = $1, updated_at = CURRENT_TIMESTAMP
+             WHERE id = $2
+             RETURNING *`,
+            [computed, existing.rows[0].id]
+          )
+          : await pool.query(
+            `INSERT INTO kpi_data_value (kpi_value_id, value, value_type, month, year)
+             VALUES ($1, $2, $3, $4, $5)
+             RETURNING *`,
+            [kpiValueId, computed, valueType, month, year]
+          );
+        results.push(saved.rows[0]);
+        shouldRecalculate = true;
       } catch (err) {
-        // don't fail the request if computation fails due to missing dependencies
-        if (err.message && err.message.includes('Missing required dependencies')) {
-          console.warn(`Skipping actual computation for KPI Value ${kpiValueId}: ${err.message}`);
+        const message = err.message || '';
+        if (message.includes('Missing required dependencies') || message.includes('not a finite number')) {
+          console.warn(`Skipping ${valueType} computation for KPI Value ${kpiValueId}: ${message}`);
         } else {
-          await logError(err, 'employee.controller.computeActual', req.user?.id);
+          await logError(err, `employee.controller.compute${valueType === 'target' ? 'Target' : 'Actual'}`, req.user?.id);
         }
       }
+    };
+
+    // Option 3: compute target via target_formula when no target was entered
+    if (shouldComputeTarget) {
+      await computeAndStore('target');
+    }
+
+    // Option 2: compute actual using formula when no actual was entered
+    if (shouldComputeActual) {
+      await computeAndStore('actual');
     }
 
     // Recalculate dependent computed KPIs once if anything changed

@@ -18,6 +18,7 @@ import {
 import { getKPIById, getChildKPIs, getKPIValuesByKPI, getMonthlyDataByKPIValue } from '../../api/kpiApi';
 import { getUserById } from '../../api/userApi';
 import { useAuth } from '../../context/AuthContext';
+import { calculateAchievement } from '../../utils/kpiAchievement';
 
 const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const FISCAL_MONTHS = [4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2, 3];
@@ -193,23 +194,14 @@ const normalizeMetricName = (value) => String(value || '').toUpperCase().replace
 
 const hasAllMetricTokens = (label, tokens) => tokens.every((token) => label.includes(token));
 
-const isInverseMetric = (metricName) => {
-  const inversePatterns = [
-    'NO OPERATOR', 'NO ', 'NOT ', 'UN', 'LOSS', 'LOSSES', 'DEFECT', 'FAILURE',
-    'ERROR', 'DOWNTIME', 'DELAY', 'REJECT', 'SCRAP', 'WASTE', 'BREAKDOWN',
-    'ABSENT', 'TURNOVER', 'ACCIDENT', 'INCIDENT', 'VIOLATION'
-  ];
-  const upperName = metricName.toUpperCase();
-  return inversePatterns.some(pattern => upperName.includes(pattern));
-};
-
-const calculateAchievementRate = (actual, target, metricName) => {
-  if (!target || target === 0) return 0;
-  if (isInverseMetric(metricName)) {
-    if (actual === 0) return 100;
-    return Math.min((target / actual) * 100, 100);
-  }
-  return (actual / target) * 100;
+/**
+ * Achievement % for a metric card (actual / target).
+ * Without a usable target, the actual is shown as a percentage (capped at 100) as before.
+ */
+const getMetricPercent = (actual, target) => {
+  if (actual == null) return 0;
+  const achievement = calculateAchievement(actual, target);
+  return achievement ?? Math.min(actual, 100);
 };
 
 /* ══════════════ MANAGEMENT LOSS SERIES DEFINITION ══════════════ */
@@ -412,7 +404,7 @@ const KPIDetailPage = () => {
           candidates.push({
             id: `node-${node?.kpi?.id || 'x'}-${value.id}`,
             title: value?.data || nodeTitle,
-            rows,
+                rows,
           });
         });
         walkNodes(node?.children || []);
@@ -612,7 +604,8 @@ const KPIDetailPage = () => {
   /** Big donut card with trend line — for OPE / OEE */
   const EfficiencyDonutCard = ({ metric, title, accentColor, targetColor, monthIdx, onExpand }) => {
     const rawActual = Number.isFinite(metric?.actualValues?.[monthIdx]) ? metric.actualValues[monthIdx] : null;
-    const rawTarget = Number.isFinite(metric?.targetValues?.[monthIdx]) ? metric.targetValues[monthIdx] : 0;
+    const hasMonthTarget = Number.isFinite(metric?.targetValues?.[monthIdx]);
+    const rawTarget = hasMonthTarget ? metric.targetValues[monthIdx] : 0;
     const selectedMonthLabel = metric?.labels?.[monthIdx] || '-';
 
     if (!metric || rawActual == null) {
@@ -633,7 +626,7 @@ const KPIDetailPage = () => {
       );
     }
 
-    const pct = rawTarget > 0 ? (rawActual / rawTarget) * 100 : Math.min(rawActual, 100);
+    const pct = getMetricPercent(rawActual, hasMonthTarget ? rawTarget : null);
     const clampedPct = Math.min(Math.max(pct, 0), 100);
 
     const donutData = [
@@ -722,7 +715,8 @@ const KPIDetailPage = () => {
   /** Small donut card for AE / PE / QE */
   const EfficiencyPieBox = ({ metric, title, color, monthIdx, onExpand }) => {
     const rawActual = Number.isFinite(metric?.actualValues?.[monthIdx]) ? metric.actualValues[monthIdx] : null;
-    const rawTarget = Number.isFinite(metric?.targetValues?.[monthIdx]) ? metric.targetValues[monthIdx] : 0;
+    const hasMonthTarget = Number.isFinite(metric?.targetValues?.[monthIdx]);
+    const rawTarget = hasMonthTarget ? metric.targetValues[monthIdx] : 0;
 
     if (rawActual == null) {
       return (
@@ -739,7 +733,7 @@ const KPIDetailPage = () => {
       );
     }
 
-    const pct = rawTarget > 0 ? (rawActual / rawTarget) * 100 : Math.min(rawActual, 100);
+    const pct = getMetricPercent(rawActual, hasMonthTarget ? rawTarget : null);
     const clampedPct = Math.min(Math.max(pct, 0), 100);
 
     const donutData = [
@@ -783,10 +777,9 @@ const KPIDetailPage = () => {
     const rawActual = metric.latestActual;
     const rawTarget = metric.latestTarget;
     const hasTarget = rawTarget != null && rawTarget > 0;
-    const pct = hasTarget ? (rawActual / rawTarget) * 100 : (rawActual != null ? Math.min(rawActual, 100) : 0);
+    const pct = getMetricPercent(rawActual, rawTarget);
     const clampedPct = Math.min(Math.max(pct, 0), 100);
 
-    const isInverse = isInverseMetric(metric.title);
     const cardColor = clampedPct >= 100 ? '#16a34a' : clampedPct >= 90 ? '#f59e0b' : clampedPct >= 80 ? '#f97316' : '#ef4444';
 
     const donutData = [
@@ -858,7 +851,8 @@ const KPIDetailPage = () => {
     if (!metric) return <div className="py-8 text-center text-[color:var(--text-secondary)]">No data available</div>;
 
     const rawActual = Number.isFinite(metric.actualValues?.[selectedMonthIdx]) ? metric.actualValues[selectedMonthIdx] : null;
-    const rawTarget = Number.isFinite(metric.targetValues?.[selectedMonthIdx]) ? metric.targetValues[selectedMonthIdx] : 0;
+    const hasMonthTarget = Number.isFinite(metric.targetValues?.[selectedMonthIdx]);
+    const rawTarget = hasMonthTarget ? metric.targetValues[selectedMonthIdx] : 0;
     const selectedMonthLabel = metric.labels?.[selectedMonthIdx] || '-';
 
     const isMainMetric = ['ope', 'oee', 'ae', 'pe', 'qe'].includes(chartKey);
@@ -867,13 +861,12 @@ const KPIDetailPage = () => {
     if (!isMainMetric) {
       const la = metric.latestActual;
       const lt = metric.latestTarget;
-      const hasTarget = lt != null && lt > 0;
-      const p = hasTarget ? (la / lt) * 100 : (la != null ? Math.min(la, 100) : 0);
+      const p = getMetricPercent(la, lt);
       const cp = Math.min(Math.max(p, 0), 100);
       accentColor = cp >= 100 ? '#16a34a' : cp >= 90 ? '#f59e0b' : cp >= 80 ? '#f97316' : '#ef4444';
     }
 
-    const pct = rawTarget > 0 && rawActual != null ? (rawActual / rawTarget) * 100 : (rawActual != null ? Math.min(rawActual, 100) : 0);
+    const pct = getMetricPercent(rawActual, hasMonthTarget ? rawTarget : null);
     const clampedPct = rawActual != null ? Math.min(Math.max(pct, 0), 100) : 0;
 
     const donutData = rawActual != null ? [

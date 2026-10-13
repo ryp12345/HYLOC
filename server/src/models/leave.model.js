@@ -5,7 +5,7 @@ const db = require('../config/db');
  * @param {Object} leaveData - Leave application data
  * @returns {Promise<Object>} Created leave record
  */
-exports.createLeave = async (leaveData) => {
+exports.createLeave = async (leaveData, executor = db) => {
   const query = `
     INSERT INTO leaves (
       user_id, from_date, to_date, leave_duration, credited_days,
@@ -30,8 +30,8 @@ exports.createLeave = async (leaveData) => {
     leaveData.status || 'Pending',
     leaveData.approved_by || null
   ];
-  
-  const result = await db.query(query, values);
+
+  const result = await executor.query(query, values);
   return result.rows[0];
 };
 
@@ -189,7 +189,7 @@ exports.getAllLeaves = async (filters = {}) => {
  * @param {Object} updateData - Data to update
  * @returns {Promise<Object|null>} Updated leave record or null
  */
-exports.updateLeave = async (id, updateData) => {
+exports.updateLeave = async (id, updateData, executor = db) => {
   const allowedFields = [
     'from_date', 'to_date', 'leave_duration', 'credited_days',
     'leave_reason', 'alternate_person', 'additional_alternate',
@@ -222,8 +222,8 @@ exports.updateLeave = async (id, updateData) => {
     WHERE id = $${paramCount}
     RETURNING *
   `;
-  
-  const result = await db.query(query, values);
+
+  const result = await executor.query(query, values);
   return result.rows[0] || null;
 };
 
@@ -232,10 +232,32 @@ exports.updateLeave = async (id, updateData) => {
  * @param {number} id - Leave ID
  * @returns {Promise<boolean>} True if deleted, false otherwise
  */
-exports.deleteLeave = async (id) => {
+exports.deleteLeave = async (id, executor = db) => {
   const query = 'DELETE FROM leaves WHERE id = $1 RETURNING id';
-  const result = await db.query(query, [id]);
+  const result = await executor.query(query, [id]);
   return result.rowCount > 0;
+};
+
+/**
+ * Get a user's active (Pending/Approved) leaves that overlap a date range
+ * @param {number} userId - User ID
+ * @param {string} fromDate - YYYY-MM-DD
+ * @param {string} toDate - YYYY-MM-DD
+ * @param {number|null} excludeLeaveId - Leave to ignore (the one being edited)
+ * @returns {Promise<Array>} Overlapping leave records
+ */
+exports.findActiveLeavesInRange = async (userId, fromDate, toDate, excludeLeaveId = null, executor = db) => {
+  const query = `
+    SELECT id, from_date, to_date, leave_duration, status
+    FROM leaves
+    WHERE user_id = $1
+      AND status IN ('Pending', 'Approved')
+      AND from_date <= $3::date
+      AND to_date >= $2::date
+      AND ($4::int IS NULL OR id <> $4::int)
+  `;
+  const result = await executor.query(query, [userId, fromDate, toDate, excludeLeaveId]);
+  return result.rows;
 };
 
 /**
@@ -369,24 +391,8 @@ exports.approveLeave = async (leaveId, approverId) => {
   return result.rows[0] || null;
 };
 
-/**
- * Reject a leave
- * @param {number} leaveId - Leave ID
- * @param {number} rejectorId - ID of user rejecting
- * @returns {Promise<Object|null>} Updated leave record
- */
-exports.rejectLeave = async (leaveId, rejectorId) => {
-  const query = `
-    UPDATE leaves
-    SET status = 'Rejected',
-        approved_by = $1
-    WHERE id = $2
-    RETURNING *
-  `;
-
-  const result = await db.query(query, [rejectorId, leaveId]);
-  return result.rows[0] || null;
-};
+// Rejecting a leave also returns its Earned Leave days to the applicant's balance,
+// so it is done in leaveService.rejectLeave inside a transaction.
 
 /**
  * Get total leaves availed by user in a year

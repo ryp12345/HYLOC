@@ -4,6 +4,7 @@ import { getPillerById } from '../../api/pillerApi';
 import { getKPIValuesByPillar, getMonthlyDataByKPIValue } from '../../api/kpiApi';
 import { getAllUnitMasters } from '../../api/unitMasterApi';
 import { getUserById } from '../../api/userApi';
+import { calculateAchievement } from '../../utils/kpiAchievement';
 
 const FISCAL_MONTHS = [
   { label: 'Apr', month: 4, yearOffset: 0 },
@@ -298,9 +299,10 @@ export default function PillarDetailPage() {
       return '';
     };
 
-    const toNumberOrZero = (value) => {
+    const toNumberOrNull = (value) => {
+      if (value === null || value === undefined || value === '') return null;
       const numeric = Number(value);
-      return Number.isFinite(numeric) ? numeric : 0;
+      return Number.isFinite(numeric) ? numeric : null;
     };
 
     const pickLatestRow = (rows) => {
@@ -318,17 +320,12 @@ export default function PillarDetailPage() {
         Number(entry.month) === month && Number(entry.year) === year
       ));
 
+      // Only rows for this exact month and year: falling back to the same month of
+      // another year would show last year's figures in this fiscal year
       const typedRows = monthEntries.filter((entry) => normalizeValueType(entry.value_type) === type);
       const typedEntry = pickLatestRow(typedRows);
       if (typedEntry) {
-        return toNumberOrZero(typedEntry.value);
-      }
-
-      const monthOnlyRows = data.filter((entry) => Number(entry.month) === month);
-      const monthOnlyTypedRows = monthOnlyRows.filter((entry) => normalizeValueType(entry.value_type) === type);
-      const monthOnlyTypedEntry = pickLatestRow(monthOnlyTypedRows);
-      if (monthOnlyTypedEntry) {
-        return toNumberOrZero(monthOnlyTypedEntry.value);
+        return toNumberOrNull(typedEntry.value);
       }
 
       const aggregatedRows = monthEntries.filter((entry) =>
@@ -338,34 +335,28 @@ export default function PillarDetailPage() {
 
       if (aggregatedEntry) {
         return type === 'target'
-          ? toNumberOrZero(aggregatedEntry.target_value)
-          : toNumberOrZero(aggregatedEntry.actual_value);
+          ? toNumberOrNull(aggregatedEntry.target_value)
+          : toNumberOrNull(aggregatedEntry.actual_value);
       }
 
-      const monthOnlyAggregatedRows = monthOnlyRows.filter((entry) =>
-        type === 'target' ? entry.target_value !== undefined : entry.actual_value !== undefined
-      );
-      const monthOnlyAggregatedEntry = pickLatestRow(monthOnlyAggregatedRows);
-      if (monthOnlyAggregatedEntry) {
-        return type === 'target'
-          ? toNumberOrZero(monthOnlyAggregatedEntry.target_value)
-          : toNumberOrZero(monthOnlyAggregatedEntry.actual_value);
-      }
-
-      return 0;
+      return null;
     };
 
-    const actuals = FISCAL_MONTHS.map(({ month, yearOffset }) =>
+    // null = no value for that month
+    const actualValues = FISCAL_MONTHS.map(({ month, yearOffset }) =>
       getMonthValue(month, fiscalYear + yearOffset, 'actual')
     );
 
-    const targets = FISCAL_MONTHS.map(({ month, yearOffset }) =>
+    const targetValues = FISCAL_MONTHS.map(({ month, yearOffset }) =>
       getMonthValue(month, fiscalYear + yearOffset, 'target')
     );
 
     return {
-      actuals,
-      targets,
+      // The chart draws missing months at 0
+      actuals: actualValues.map((v) => v ?? 0),
+      targets: targetValues.map((v) => v ?? 0),
+      actualValues,
+      targetValues,
       labels: FISCAL_MONTHS.map(({ label }) => label),
     };
   };
@@ -393,13 +384,25 @@ export default function PillarDetailPage() {
   const analysis = kpiValues.map(kpiVal => {
     const chartData = getChartData(kpiVal.id);
     const currencyUnit = isRupeeUnit(kpiVal.uom);
-    const avgActual = chartData.actuals.filter(v => v > 0).length > 0
-      ? chartData.actuals.reduce((a, b) => a + b, 0) / chartData.actuals.filter(v => v > 0).length
-      : 0;
-    const avgTarget = chartData.targets.filter(v => v > 0).length > 0
-      ? chartData.targets.reduce((a, b) => a + b, 0) / chartData.targets.filter(v => v > 0).length
-      : 0;
-    const achievementPercent = avgTarget > 0 ? (avgActual / avgTarget) * 100 : 0;
+    const average = (values) => {
+      const present = values.filter(v => v !== null);
+      return present.length > 0 ? present.reduce((a, b) => a + b, 0) / present.length : 0;
+    };
+    // Averages include genuine zero (and negative) months; months with no entry are left out
+    const avgActual = average(chartData.actualValues);
+    const avgTarget = average(chartData.targetValues);
+    // Achievement compares actual and target over the same months (those that have both)
+    const pairedMonths = chartData.actualValues
+      .map((actual, idx) => ({ actual, target: chartData.targetValues[idx] }))
+      .filter(m => m.actual !== null && m.target !== null);
+    const achievement = pairedMonths.length > 0
+      ? calculateAchievement(
+        average(pairedMonths.map(m => m.actual)),
+        average(pairedMonths.map(m => m.target))
+      )
+      : null;
+    const hasAchievement = achievement !== null;
+    const achievementPercent = hasAchievement ? achievement : 0;
 
     return {
       kpiVal,
@@ -407,9 +410,17 @@ export default function PillarDetailPage() {
       currencyUnit,
       avgActual,
       avgTarget,
-      achievementPercent
+      achievementPercent,
+      hasAchievement
     };
   });
+
+  // Summary counts and average only include KPIs whose achievement can be calculated
+  const scoredAnalysis = analysis.filter(a => a.hasAchievement);
+  const averageAchievementText = scoredAnalysis.length > 0
+    ? `${(scoredAnalysis.reduce((sum, a) => sum + a.achievementPercent, 0) / scoredAnalysis.length).toFixed(1)}%`
+    : 'N/A';
+
 
   const [userCache, setUserCache] = useState({});
 
@@ -495,19 +506,19 @@ export default function PillarDetailPage() {
               <div className="rounded border border-[color:var(--border)] bg-[color:var(--surface-hover)] p-4">
                 <div className="mb-2 text-sm text-[color:var(--text-secondary)]">On Track</div>
                 <div className="text-3xl font-bold text-[color:var(--success)]">
-                  {analysis.filter(a => a.achievementPercent >= 100).length}
+                  {scoredAnalysis.filter(a => a.achievementPercent >= 100).length}
                 </div>
               </div>
               <div className="rounded border border-[color:var(--border)] bg-[color:var(--surface-hover)] p-4">
                 <div className="mb-2 text-sm text-[color:var(--text-secondary)]">Below Target</div>
                 <div className="text-3xl font-bold text-[color:var(--danger)]">
-                  {analysis.filter(a => a.achievementPercent < 100).length}
+                  {scoredAnalysis.filter(a => a.achievementPercent < 100).length}
                 </div>
               </div>
               <div className="rounded border border-[color:var(--border)] bg-[color:var(--surface-hover)] p-4">
                 <div className="mb-2 text-sm text-[color:var(--text-secondary)]">Avg Achievement</div>
                 <div className="text-3xl font-bold text-[color:var(--accent)]">
-                  {(analysis.reduce((sum, a) => sum + a.achievementPercent, 0) / analysis.length).toFixed(1)}%
+                  {averageAchievementText}
                 </div>
               </div>
             </div>
@@ -538,7 +549,7 @@ export default function PillarDetailPage() {
                     <div className={`rounded border border-[color:var(--border)] p-4 ${item.achievementPercent >= 100 ? 'bg-[color:var(--success-soft)]' : 'bg-[color:var(--danger-soft)]'}`}>
                       <div className="text-sm text-[color:var(--text-secondary)]">Achievement %</div>
                       <div className={`text-2xl font-bold ${item.achievementPercent >= 100 ? 'text-[color:var(--success)]' : 'text-[color:var(--danger)]'}`}>
-                        {item.achievementPercent.toFixed(1)}%
+                        {item.hasAchievement ? `${item.achievementPercent.toFixed(1)}%` : 'N/A'}
                       </div>
                     </div>
                   </div>
@@ -596,19 +607,19 @@ export default function PillarDetailPage() {
               <div className="rounded border border-[color:var(--border)] bg-[color:var(--surface-hover)] p-4">
                 <div className="mb-2 text-sm text-[color:var(--text-secondary)]">On Track</div>
                 <div className="text-3xl font-bold text-[color:var(--success)]">
-                  {analysis.filter(a => a.achievementPercent >= 100).length}
+                  {scoredAnalysis.filter(a => a.achievementPercent >= 100).length}
                 </div>
               </div>
               <div className="rounded border border-[color:var(--border)] bg-[color:var(--surface-hover)] p-4">
                 <div className="mb-2 text-sm text-[color:var(--text-secondary)]">Below Target</div>
                 <div className="text-3xl font-bold text-[color:var(--danger)]">
-                  {analysis.filter(a => a.achievementPercent < 100).length}
+                  {scoredAnalysis.filter(a => a.achievementPercent < 100).length}
                 </div>
               </div>
               <div className="rounded border border-[color:var(--border)] bg-[color:var(--surface-hover)] p-4">
                 <div className="mb-2 text-sm text-[color:var(--text-secondary)]">Avg Achievement</div>
                 <div className="text-3xl font-bold text-[color:var(--accent)]">
-                  {(analysis.reduce((sum, a) => sum + a.achievementPercent, 0) / analysis.length).toFixed(1)}%
+                  {averageAchievementText}
                 </div>
               </div>
             </div>

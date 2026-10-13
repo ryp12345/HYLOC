@@ -17,7 +17,8 @@ The report includes an `assignee_breakdown` array with these fields:
 - `id` - user id
 - `name` - assignee display name
 - `assigned_count` - total tickets assigned in the selected fiscal year
-- `overdue_count` - assigned tickets that were overdue while still open
+- `overdue_count` - assigned tickets that are still open and past their due date
+- `closed_late_count` - assigned tickets that were closed after their due date
 
 The report is generated in [server/src/models/ticket.model.js](server/src/models/ticket.model.js) and exposed through [server/src/controllers/ticket.controller.js](server/src/controllers/ticket.controller.js).
 
@@ -26,13 +27,13 @@ The report is generated in [server/src/models/ticket.model.js](server/src/models
 The ticket performance score is calculated per user as:
 
 ```text
-Ticket Performance = round(((assigned_count - overdue_count) / assigned_count) × 100)
+Ticket Performance = round(((assigned_count - overdue_count - closed_late_count) / assigned_count) × 100)
 ```
 
 ### In Plain Terms
 
 - Start with all tickets assigned to the user in the selected fiscal year.
-- Subtract tickets that became overdue while still open.
+- Subtract tickets that are still open past their due date, and tickets that were closed after their due date.
 - Convert the remaining share into a percentage.
 - Round to the nearest whole number.
 
@@ -41,12 +42,13 @@ Ticket Performance = round(((assigned_count - overdue_count) / assigned_count) �
 If a user had:
 
 - `assigned_count = 20`
-- `overdue_count = 3`
+- `overdue_count = 2`
+- `closed_late_count = 1`
 
 Then:
 
 ```text
-Ticket Performance = round(((20 - 3) / 20) × 100)
+Ticket Performance = round(((20 - 2 - 1) / 20) × 100)
                     = round(85)
                     = 85%
 ```
@@ -72,7 +74,7 @@ The report uses open-like statuses such as:
 - `In Progress`
 - `Pending`
 
-Closed or rejected tickets are not counted as overdue in the report.
+Closed or rejected tickets are not counted as overdue. A ticket counts as **closed late** when it was closed after its due date; the closing time is stored in `tickets.closed_at` (tickets closed before this column existed use their last update time). Rejected tickets never count as late.
 
 ## How It Appears In the UI
 

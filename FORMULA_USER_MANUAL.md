@@ -40,11 +40,14 @@ Notes:
 
 - Arithmetic: `+`, `-`, `*`, `/`, `%`
 - Parentheses: `(`, `)`
-- Comparisons: `>`, `<`, `>=`, `<=`, `=`, `!=`
-- Logical tokens allowed by validator: `&`, `|`
+- Comparisons: `>`, `<`, `>=`, `<=`, `=`, `!=` (also `≥`, `≤`, `<>`)
+- Logical: `&` (and), `|` (or), e.g. `IF(v1 > 0 & v2 > 0, 1, 0)`
+- Negative numbers and unary minus work anywhere, e.g. `v1-v2` when v2 is negative, or `v1 * -1`
 
-Note on equality:
-- In formula text, `=` is converted internally for comparison checks in expressions.
+Notes:
+- `=` compares two values for equality.
+- Comparisons and logical operators return 1 (true) or 0 (false).
+- Functions can be nested, e.g. `ROUND(SUM(v1, v2) / v3, 2)`.
 
 ## 4. Supported Functions
 
@@ -76,33 +79,39 @@ Note on equality:
   - `ROUND(v401)`
 
 ### 4.7 `IF`
-- Syntax: `IF(condition, trueValue, falseValue)`
+- Syntax: `IF(condition, trueValue, falseValue)` (falseValue is optional and defaults to 0)
+- Only the branch that is taken is evaluated, so `IF(v2 = 0, 0, v1 / v2)` is a safe division.
 - Example: `IF(v501:actual >= v501:target, 100, 0)`
 
 ### 4.8 `CUMSUM`
 - Syntax: `CUMSUM(v123)`
 - Computes cumulative sum from fiscal-year start (April) up to current month.
 - Works for the active calculation value type (actual or target).
+- The referenced KPI must have a value for the month being calculated.
+- If the referenced KPI's unit is `%`, the total is converted to a fraction (e.g. 95% + 97% + 98% = 2.9).
+- When an earlier month is corrected, cumulative KPIs for the later months of that fiscal year are recalculated too.
 - Example: `CUMSUM(v701) / v702 * 100`
 
 ## 5. Validation Rules
 
-A formula is considered valid when:
-- Parentheses are balanced.
-- It contains allowed characters/tokens.
+Formulas are checked when a KPI value is saved; an invalid formula is rejected with a message. A formula is valid when:
+- Its syntax is correct (balanced parentheses, known functions with the right number of arguments, no unknown characters).
 - At least one KPI variable reference (`v<id>`) exists.
+- Every referenced KPI value exists.
+- It does not depend on its own KPI value, directly or through other computed KPIs (circular dependency).
 
 ## 6. How Calculation Runs
 
 During monthly save:
-- If `target_formula` exists and target is empty, system attempts to compute target.
-- If `formula` exists for computed KPI and actual is empty (with qualifying input), system attempts to compute actual.
-- Dependent computed KPIs can be recalculated after source updates.
+- If `target_formula` exists and no target is entered, the system computes the target.
+- If `formula` exists for a computed KPI and no actual is entered, the system computes the actual.
+- Computed KPIs that depend on the saved value (through `formula` or `target_formula`) are recalculated, including KPIs that depend on those in turn.
 
 ## 7. Missing Dependency Behavior
 
 - If required dependency values are missing for the month/year, computation is skipped and not stored.
 - Typical reason: referenced KPI value has no actual/target entry for that period.
+- A result that is not a number (for example a division by zero) is also not stored. Use `IF` to handle a zero denominator explicitly.
 
 ## 8. Formula Examples
 

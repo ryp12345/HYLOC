@@ -5,6 +5,10 @@ const entitlementModel = require('../models/leaveEntitlement.model');
 const EARNED_LEAVE_TYPES = new Set(['earned leave']);
 const LWP_LEAVE_TYPES = new Set(['leave without pay']);
 const DUTY_LEAVE_TYPES = new Set(['duty leave']);
+const HALF_DAY_DURATIONS = new Set(['Morning Half', 'Afternoon Half']);
+// Only these statuses hold days against the Earned Leave balance
+const BALANCE_HOLDING_STATUSES = new Set(['Pending', 'Approved']);
+
 const isEarnedLeaveType = (leaveType) => {
   const normalized = String(leaveType || '').trim().toLowerCase();
   return EARNED_LEAVE_TYPES.has(normalized);
@@ -21,17 +25,71 @@ const isDutyLeaveType = (leaveType) => {
 };
 
 /**
+ * Normalise a date to YYYY-MM-DD.
+ * pg returns DATE columns as Date objects at local midnight, so local components are used.
+ */
+const toDateOnly = (value) => {
+  if (value instanceof Date) {
+    if (Number.isNaN(value.getTime())) return value;
+    const yyyy = value.getFullYear();
+    const mm = String(value.getMonth() + 1).padStart(2, '0');
+    const dd = String(value.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  }
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}/.test(value)) {
+    return value.slice(0, 10);
+  }
+  return value;
+};
+
+// Leave days are charged to the calendar year of the leave's start date
+const yearOfDate = (value) => parseInt(String(toDateOnly(value)).slice(0, 4), 10);
+
+/** Days a leave currently holds against the Earned Leave balance. */
+const earnedDaysHeld = (leave) => {
+  if (!isEarnedLeaveType(leave.leave_type)) return 0;
+  if (!BALANCE_HOLDING_STATUSES.has(leave.status)) return 0;
+  const days = parseFloat(leave.credited_days);
+  return Number.isNaN(days) ? 0 : days;
+};
+
+/**
+ * Throw if the requested dates overlap another Pending/Approved leave of the same user.
+ * Two half days on the same date are allowed when they are different halves.
+ */
+const assertNoOverlap = async (executor, userId, fromDate, toDate, leaveDuration, excludeLeaveId = null) => {
+  const existing = await leaveModel.findActiveLeavesInRange(userId, fromDate, toDate, excludeLeaveId, executor);
+
+  const conflicting = existing.find((leave) => {
+    const sameSingleDay = fromDate === toDate
+      && toDateOnly(leave.from_date) === fromDate
+      && toDateOnly(leave.to_date) === fromDate;
+    const differentHalves = HALF_DAY_DURATIONS.has(leaveDuration)
+      && HALF_DAY_DURATIONS.has(leave.leave_duration)
+      && leaveDuration !== leave.leave_duration;
+    return !(sameSingleDay && differentHalves);
+  });
+
+  if (conflicting) {
+    const from = toDateOnly(conflicting.from_date);
+    const to = toDateOnly(conflicting.to_date);
+    const range = from === to ? from : `${from} to ${to}`;
+    throw new Error(`Leave dates overlap with an existing ${conflicting.status.toLowerCase()} leave (${range})`);
+  }
+};
+
+/**
  * Check if user is eligible to apply for leave
  * Based on Rule 1: Only Employee, HOD, and Management roles can apply
  */
 exports.checkLeaveEligibility = async (userId, userRole) => {
   // Check if user has Employee, HOD, or Management role
   const canApplyForLeave = ['Employee', 'HOD', 'Management'].includes(userRole);
-  
+
   // Get user status from database
   const userQuery = 'SELECT status FROM users WHERE id = $1';
   const result = await db.query(userQuery, [userId]);
-  
+
   if (!result.rows.length) {
     return {
       canApply: false,
@@ -41,18 +99,18 @@ exports.checkLeaveEligibility = async (userId, userRole) => {
       currentRole: userRole
     };
   }
-  
+
   const user = result.rows[0];
   const isActive = user.status === 'active';
-  
+
   return {
     canApply: canApplyForLeave && isActive,
     isEmployeeRole: canApplyForLeave,
     isActive: isActive,
     currentRole: userRole,
-      reason: !canApplyForLeave 
+      reason: !canApplyForLeave
         ? 'Only Employee, HOD, and Management roles can apply for leave'
-      : !isActive 
+      : !isActive
       ? 'User account is not active'
       : null
   };
@@ -62,36 +120,39 @@ exports.checkLeaveEligibility = async (userId, userRole) => {
  * Validate date format and sequence
  * Based on Rule 3: Date Validation
  */
-exports.validateLeaveDates = (fromDate, toDate) => {
+exports.validateLeaveDates = (fromDateInput, toDateInput) => {
+  const fromDate = toDateOnly(fromDateInput);
+  const toDate = toDateOnly(toDateInput);
+
   // Check date format (YYYY-MM-DD)
   const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-  
+
   if (!fromDate) {
     return { valid: false, error: 'from_date is required' };
   }
-  
+
   if (!dateRegex.test(fromDate)) {
     return { valid: false, error: 'Invalid from_date format. Expect YYYY-MM-DD' };
   }
-  
+
   const normalizedToDate = toDate || fromDate;
-  
+
   if (!dateRegex.test(normalizedToDate)) {
     return { valid: false, error: 'Invalid to_date format. Expect YYYY-MM-DD' };
   }
-  
+
   const from = new Date(fromDate);
   const to = new Date(normalizedToDate);
-  
+
   if (isNaN(from.getTime()) || isNaN(to.getTime())) {
     return { valid: false, error: 'Invalid date values' };
   }
-  
+
   if (to < from) {
     return { valid: false, error: 'to_date cannot be earlier than from_date' };
   }
-  
-  return { valid: true, normalizedToDate };
+
+  return { valid: true, normalizedFromDate: fromDate, normalizedToDate };
 };
 
 /**
@@ -100,23 +161,23 @@ exports.validateLeaveDates = (fromDate, toDate) => {
  */
 exports.calculateCreditedDays = (fromDate, toDate, leaveDuration) => {
   const MS_PER_DAY = 1000 * 60 * 60 * 24;
-  
-  const from = new Date(fromDate);
-  const to = new Date(toDate);
-  
-  let normalizedToDate = toDate;
+
+  const from = new Date(toDateOnly(fromDate));
+  const to = new Date(toDateOnly(toDate));
+
+  let normalizedToDate = toDateOnly(toDate);
   let creditedDays = 0;
-  
+
   if (leaveDuration === 'Morning Half' || leaveDuration === 'Afternoon Half') {
     // Half day leaves must be same day
-    normalizedToDate = fromDate;
+    normalizedToDate = toDateOnly(fromDate);
     creditedDays = 0.5;
   } else {
-    // Full Day: calculate difference
+    // Full Day: calculate difference (calendar days, inclusive)
     const daysDiff = Math.round((to - from) / MS_PER_DAY) + 1;
     creditedDays = Math.round(daysDiff * 10) / 10;
   }
-  
+
   return { creditedDays, normalizedToDate };
 };
 
@@ -128,47 +189,33 @@ exports.applyLeave = async (userId, leaveData, userRole) => {
   const client = await db.connect();
   try {
     await client.query('BEGIN');
-    
+
     // 1. Check eligibility
     const eligibility = await exports.checkLeaveEligibility(userId, userRole);
     if (!eligibility.canApply) {
       throw new Error(eligibility.reason || 'Not eligible to apply for leave');
     }
-    
+
     // 2. Validate dates
     const dateValidation = exports.validateLeaveDates(leaveData.from_date, leaveData.to_date);
     if (!dateValidation.valid) {
       throw new Error(dateValidation.error);
     }
-    
+    const fromDate = dateValidation.normalizedFromDate;
+    const leaveDuration = leaveData.leave_duration || 'Full Day';
+
     // 3. Calculate credited days
     const { creditedDays, normalizedToDate } = exports.calculateCreditedDays(
-      leaveData.from_date,
+      fromDate,
       dateValidation.normalizedToDate,
-      leaveData.leave_duration || 'Full Day'
+      leaveDuration
     );
-    
-    // 4. Get current year
-    const year = new Date(leaveData.from_date).getFullYear();
 
-    const requestedLeaveType = String(leaveData.leave_type || '').trim();
+    // 4. Reject requests that overlap an existing Pending/Approved leave
+    await assertNoOverlap(client, userId, fromDate, normalizedToDate, leaveDuration);
 
-    if (isDutyLeaveType(requestedLeaveType)) {
-      const dutyLeaveRecord = await createLeaveSegment({
-        from_date: leaveData.from_date,
-        to_date: normalizedToDate,
-        leave_duration: leaveData.leave_duration || 'Full Day',
-        credited_days: creditedDays,
-        leave_type: 'Duty Leave'
-      });
-
-      await client.query('COMMIT');
-      return dutyLeaveRecord;
-    }
-
-    // 5. Determine earned/LWP based on balance
-    const balanceInfo = await entitlementModel.getLeaveBalance(userId, year);
-    const availableBalance = parseFloat(balanceInfo.leave_balance || 0);
+    // 5. Year the leave is charged to
+    const year = yearOfDate(fromDate);
 
     const toDateString = (date) => {
       const yyyy = date.getFullYear();
@@ -201,11 +248,30 @@ exports.applyLeave = async (userId, leaveData, userRole) => {
         available_on_phone: leaveData.available_on_phone !== undefined ? leaveData.available_on_phone : true,
         status: leaveStatus,
         approved_by: approvedBy
-      });
+      }, client);
     };
 
-    // 6. Create leave record(s)
-    const leaveDuration = leaveData.leave_duration || 'Full Day';
+    const requestedLeaveType = String(leaveData.leave_type || '').trim();
+
+    if (isDutyLeaveType(requestedLeaveType)) {
+      // Duty leave does not use the Earned Leave balance
+      const dutyLeaveRecord = await createLeaveSegment({
+        from_date: fromDate,
+        to_date: normalizedToDate,
+        leave_duration: leaveDuration,
+        credited_days: creditedDays,
+        leave_type: 'Duty Leave'
+      });
+
+      await client.query('COMMIT');
+      return dutyLeaveRecord;
+    }
+
+    // 6. Determine earned/LWP based on balance
+    const balanceInfo = await entitlementModel.getLeaveBalance(userId, year, client);
+    const availableBalance = parseFloat(balanceInfo.leave_balance || 0);
+
+    // 7. Create leave record(s)
     const isFullDay = leaveDuration === 'Full Day';
     let leaveRecord = null;
 
@@ -213,7 +279,7 @@ exports.applyLeave = async (userId, leaveData, userRole) => {
       // Half-day leave: no split across multiple records
       const leaveType = availableBalance >= creditedDays ? 'Earned Leave' : 'Leave without pay';
       leaveRecord = await createLeaveSegment({
-        from_date: leaveData.from_date,
+        from_date: fromDate,
         to_date: normalizedToDate,
         leave_duration: leaveDuration,
         credited_days: creditedDays,
@@ -226,7 +292,7 @@ exports.applyLeave = async (userId, leaveData, userRole) => {
     } else if (availableBalance >= creditedDays) {
       // All earned leave
       leaveRecord = await createLeaveSegment({
-        from_date: leaveData.from_date,
+        from_date: fromDate,
         to_date: normalizedToDate,
         leave_duration: leaveDuration,
         credited_days: creditedDays,
@@ -237,7 +303,7 @@ exports.applyLeave = async (userId, leaveData, userRole) => {
     } else if (availableBalance <= 0) {
       // All leave without pay
       leaveRecord = await createLeaveSegment({
-        from_date: leaveData.from_date,
+        from_date: fromDate,
         to_date: normalizedToDate,
         leave_duration: leaveDuration,
         credited_days: creditedDays,
@@ -249,7 +315,7 @@ exports.applyLeave = async (userId, leaveData, userRole) => {
       const leaveWithoutPayDays = creditedDays - earnedLeaveDays;
 
       const records = [];
-      let currentDate = leaveData.from_date;
+      let currentDate = fromDate;
 
       if (earnedLeaveDays > 0) {
         const earnedLeaveTo = addDays(currentDate, earnedLeaveDays - 1);
@@ -278,9 +344,9 @@ exports.applyLeave = async (userId, leaveData, userRole) => {
       }
       leaveRecord = records.length === 1 ? records[0] : { split: true, records };
     }
-    
+
     await client.query('COMMIT');
-    
+
     return leaveRecord;
   } catch (error) {
     await client.query('ROLLBACK');
@@ -291,32 +357,63 @@ exports.applyLeave = async (userId, leaveData, userRole) => {
 };
 
 /**
+ * Move Earned Leave days held by a leave from its old state to its new state.
+ * Rejected/Cancelled leaves hold no days; Pending/Approved Earned Leave holds its credited days.
+ */
+const rebalanceEarnedLeave = async (client, userId, oldLeave, newLeave) => {
+  const oldHeld = earnedDaysHeld(oldLeave);
+  const newHeld = earnedDaysHeld(newLeave);
+  const oldYear = yearOfDate(oldLeave.from_date);
+  const newYear = yearOfDate(newLeave.from_date);
+
+  const ensureBalance = async (year, daysNeeded) => {
+    if (daysNeeded <= 0) return;
+    const balanceInfo = await entitlementModel.getLeaveBalance(userId, year, client);
+    const availableBalance = parseFloat(balanceInfo.leave_balance || 0);
+    if (availableBalance < daysNeeded) {
+      throw new Error('Insufficient leave balance for update');
+    }
+  };
+
+  if (oldYear === newYear) {
+    const difference = newHeld - oldHeld;
+    if (difference === 0) return;
+    await ensureBalance(newYear, difference);
+    await entitlementModel.updateLeavesAvailed(userId, newYear, difference, client);
+    return;
+  }
+
+  // The leave moved to another year: return the days to the old year, charge the new one
+  if (oldHeld !== 0) {
+    await entitlementModel.updateLeavesAvailed(userId, oldYear, -oldHeld, client);
+  }
+  if (newHeld !== 0) {
+    await ensureBalance(newYear, newHeld);
+    await entitlementModel.updateLeavesAvailed(userId, newYear, newHeld, client);
+  }
+};
+
+/**
  * Update leave with balance adjustment (allowing all statuses)
  */
 exports.updatePendingLeave = async (leaveId, userId, updateData, userRole) => {
   const client = await db.connect();
   try {
     await client.query('BEGIN');
-    
+
     // 1. Get existing leave
     const existingLeave = await leaveModel.getLeaveById(leaveId);
-    
+
     if (!existingLeave) {
       throw new Error('Leave not found');
     }
-    
+
     // 2. Check permissions (case-insensitive, robust)
     const isOwner = existingLeave.user_id === userId;
     const normalizedRole = (userRole || '').trim().toLowerCase();
     const isHodOrMgmt = ["hod", "management"].includes(normalizedRole);
     const isHr = normalizedRole === 'hr';
     const canManageAnyLeave = isHodOrMgmt || isHr;
-
-    // Debug log for troubleshooting
-    console.log('[Leave Update] User:', userId, 'Role:', userRole, 'Normalized:', normalizedRole, 'LeaveId:', leaveId, 'Owner:', existingLeave.user_id);
-
-    let updatedFields = { ...updateData };
-    let newCreditedDays = existingLeave.credited_days;
 
     if (!isOwner) {
       // Allow HR, HOD, and Management to edit staff leaves
@@ -330,77 +427,93 @@ exports.updatePendingLeave = async (leaveId, userId, updateData, userRole) => {
           throw new Error('HOD can only update leaves of Employees.');
         }
       }
-    } else {
-      // Owner can update all fields as before
     }
 
-    // HR, HOD, and Management can update all fields for leaves they manage.
-    // Keep the original owner's balance in sync when credited days change.
-    if (!isOwner && canManageAnyLeave) {
-      if (updateData.from_date || updateData.to_date || updateData.leave_duration) {
-        const fromDate = updateData.from_date || existingLeave.from_date;
-        const toDate = updateData.to_date || existingLeave.to_date;
-        const duration = updateData.leave_duration || existingLeave.leave_duration;
-        const dateValidation = exports.validateLeaveDates(fromDate, toDate);
-        if (!dateValidation.valid) {
-          throw new Error(dateValidation.error);
-        }
-        const { creditedDays, normalizedToDate } = exports.calculateCreditedDays(
-          fromDate,
-          dateValidation.normalizedToDate,
-          duration
-        );
-        newCreditedDays = creditedDays;
-        updatedFields.to_date = normalizedToDate;
-        updatedFields.credited_days = creditedDays;
+    const updatedFields = { ...updateData };
+
+    // 3. Recalculate credited days when dates or duration change
+    const datesChanged = Boolean(updateData.from_date || updateData.to_date || updateData.leave_duration);
+    const newFromDate = toDateOnly(updateData.from_date || existingLeave.from_date);
+    let newToDate = toDateOnly(existingLeave.to_date);
+    let newCreditedDays = existingLeave.credited_days;
+    const newDuration = updateData.leave_duration || existingLeave.leave_duration;
+
+    if (datesChanged) {
+      const dateValidation = exports.validateLeaveDates(newFromDate, updateData.to_date || existingLeave.to_date);
+      if (!dateValidation.valid) {
+        throw new Error(dateValidation.error);
       }
-    } else if (isOwner) {
-      // Owner can update all fields as before
-      if (updateData.from_date || updateData.to_date || updateData.leave_duration) {
-        const fromDate = updateData.from_date || existingLeave.from_date;
-        const toDate = updateData.to_date || existingLeave.to_date;
-        const duration = updateData.leave_duration || existingLeave.leave_duration;
-        // Validate new dates
-        const dateValidation = exports.validateLeaveDates(fromDate, toDate);
-        if (!dateValidation.valid) {
-          throw new Error(dateValidation.error);
-        }
-        // Calculate new credited days
-        const { creditedDays, normalizedToDate } = exports.calculateCreditedDays(
-          fromDate,
-          dateValidation.normalizedToDate,
-          duration
-        );
-        newCreditedDays = creditedDays;
-        updatedFields.to_date = normalizedToDate;
-        updatedFields.credited_days = creditedDays;
-      }
+      const { creditedDays, normalizedToDate } = exports.calculateCreditedDays(
+        newFromDate,
+        dateValidation.normalizedToDate,
+        newDuration
+      );
+      newCreditedDays = creditedDays;
+      newToDate = normalizedToDate;
+      if (updateData.from_date) updatedFields.from_date = newFromDate;
+      updatedFields.to_date = normalizedToDate;
+      updatedFields.credited_days = creditedDays;
+    }
+
+    const newLeaveState = {
+      leave_type: updateData.leave_type || existingLeave.leave_type,
+      status: updateData.status || existingLeave.status,
+      credited_days: newCreditedDays,
+      from_date: newFromDate
+    };
+
+    // 4. The updated leave must not overlap another active leave
+    if (BALANCE_HOLDING_STATUSES.has(newLeaveState.status)
+      && (datesChanged || !BALANCE_HOLDING_STATUSES.has(existingLeave.status))) {
+      await assertNoOverlap(client, existingLeave.user_id, newFromDate, newToDate, newDuration, existingLeave.id);
     }
 
     // 5. Update leave record
-    const updatedLeave = await leaveModel.updateLeave(leaveId, updatedFields);
+    const updatedLeave = await leaveModel.updateLeave(leaveId, updatedFields, client);
 
-    // 6. Adjust balance if credited_days changed (only for owner)
-    if (isOwner || canManageAnyLeave) {
-      const oldCreditedDays = parseFloat(existingLeave.credited_days);
-      const difference = newCreditedDays - oldCreditedDays;
-      if (difference !== 0) {
-        if (isEarnedLeaveType(existingLeave.leave_type)) {
-          const year = new Date(existingLeave.from_date).getFullYear();
-          if (difference > 0) {
-            const balanceInfo = await entitlementModel.getLeaveBalance(existingLeave.user_id, year);
-            const availableBalance = parseFloat(balanceInfo.leave_balance || 0);
-            if (availableBalance < difference) {
-              throw new Error('Insufficient leave balance for update');
-            }
-          }
-          await entitlementModel.updateLeavesAvailed(existingLeave.user_id, year, difference, client);
-        }
-      }
-    }
+    // 6. Keep the owner's Earned Leave balance in step with days, type, year and status
+    await rebalanceEarnedLeave(client, existingLeave.user_id, existingLeave, newLeaveState);
 
     await client.query('COMMIT');
     return updatedLeave;
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+};
+
+/**
+ * Reject a pending leave and return its Earned Leave days to the applicant's balance
+ * @returns {Promise<Object|null>} Updated leave, or null if it was no longer pending
+ */
+exports.rejectLeave = async (leaveId, rejectorId) => {
+  const client = await db.connect();
+  try {
+    await client.query('BEGIN');
+
+    const result = await client.query(
+      `UPDATE leaves
+       SET status = 'Rejected',
+           approved_by = $1
+       WHERE id = $2 AND status = 'Pending'
+       RETURNING *`,
+      [rejectorId, leaveId]
+    );
+    const rejectedLeave = result.rows[0] || null;
+
+    if (rejectedLeave) {
+      await rebalanceEarnedLeave(
+        client,
+        rejectedLeave.user_id,
+        { ...rejectedLeave, status: 'Pending' },
+        rejectedLeave
+      );
+    }
+
+    await client.query('COMMIT');
+    return rejectedLeave;
   } catch (error) {
     await client.query('ROLLBACK');
     throw error;
@@ -417,14 +530,14 @@ exports.cancelLeave = async (leaveId, userId, userRole) => {
   const client = await db.connect();
   try {
     await client.query('BEGIN');
-    
+
     // 1. Get existing leave
     const existingLeave = await leaveModel.getLeaveById(leaveId);
-    
+
     if (!existingLeave) {
       throw new Error('Leave not found');
     }
-    
+
     // 2. Check ownership
     const normalizedRole = (userRole || '').trim().toLowerCase();
     const canManageAnyLeave = ['hr', 'hod', 'management'].includes(normalizedRole);
@@ -432,29 +545,31 @@ exports.cancelLeave = async (leaveId, userId, userRole) => {
     if (existingLeave.user_id !== userId && !canManageAnyLeave) {
       throw new Error('Forbidden: You can only cancel your own leaves');
     }
-    
-    // 3. Restore full balance for all statuses
+
+    // The leave's owner, which is not necessarily the person cancelling it
+    const ownerId = existingLeave.user_id;
+
+    // 3. Return any Earned Leave days the leave still holds (Rejected leaves hold none)
     const creditedDays = parseFloat(existingLeave.credited_days);
-    const fromDate = new Date(existingLeave.from_date);
-    const year = fromDate.getFullYear();
-    
-    if (isEarnedLeaveType(existingLeave.leave_type)) {
+    const daysHeld = earnedDaysHeld(existingLeave);
+
+    if (daysHeld > 0) {
       await entitlementModel.updateLeavesAvailed(
-        userId,
-        year,
-        -creditedDays,
+        ownerId,
+        yearOfDate(existingLeave.from_date),
+        -daysHeld,
         client
       );
     }
-    
+
     // 4. Delete leave
-    await leaveModel.deleteLeave(leaveId);
+    await leaveModel.deleteLeave(leaveId, client);
 
     // 5. Delete related notifications (alternate person)
     if (existingLeave.alternate_person) {
-      await db.query(
+      await client.query(
         'DELETE FROM notifications WHERE created_by = $1 AND assigned_to = (SELECT id FROM users WHERE empid = $2) AND type = $3',
-        [userId, existingLeave.alternate_person, 'leave']
+        [ownerId, existingLeave.alternate_person, 'leave']
       );
     }
     ////////////////////Notification code///////////////////////////
@@ -464,24 +579,27 @@ exports.cancelLeave = async (leaveId, userId, userRole) => {
     // the user who owned the leave. This is a code-only cleanup (no DB
     // migration). It may be refined later by adding a leave_id to
     // notifications for precise deletes.
+    await client.query('SAVEPOINT notification_cleanup');
     try {
-      await db.query(
+      await client.query(
         'DELETE FROM notifications WHERE LOWER(type) = $1 AND (created_by = $2 OR assigned_to = $2)',
-        ['leave', userId]
+        ['leave', ownerId]
       );
     } catch (notifDelErr) {
+      // Keep the cancellation even if this cleanup fails
+      await client.query('ROLLBACK TO SAVEPOINT notification_cleanup');
       console.error('Error deleting related notifications on leave cancel:', notifDelErr);
     }
-    
+
     await client.query('COMMIT');
-    
+
     return {
       type: 'full',
       message: 'Leave cancelled successfully',
       cancelledDays: creditedDays,
       retainedDays: 0
     };
-    
+
   } catch (error) {
     await client.query('ROLLBACK');
     throw error;

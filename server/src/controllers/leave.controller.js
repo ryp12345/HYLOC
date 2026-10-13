@@ -894,7 +894,14 @@ exports.rejectLeave = async (req, res, next) => {
       // proceed
     }
     
-    const rejectedLeave = await leaveModel.rejectLeave(leaveId, rejectorId);
+    // Rejects and returns the leave's Earned Leave days to the applicant's balance
+    const rejectedLeave = await leaveService.rejectLeave(leaveId, rejectorId);
+    if (!rejectedLeave) {
+      return res.status(400).json({
+        success: false,
+        message: 'Leave is not in pending status'
+      });
+    }
 
     // Notify applicant about rejection
     try {

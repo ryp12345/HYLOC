@@ -1065,33 +1065,42 @@ function KmisPage() {
         }
       }
 
-      // Second pass: update source references in new KPI values
+      // Second pass: point the copied formulas at the new year's KPI values.
+      // Formulas were copied with the previous year's v<id> references; remap the formula text
+      // and the source id arrays using the old -> new KPI value id mapping.
+      const remapId = (id) => kpiValueMapping[id] || kpiValueMapping[String(id)] || id;
+      const remapFormula = (formula) => {
+        if (!formula) return formula;
+        return formula
+          .replace(/v(d+)(?![0-9])/gi, (match, id) => (remapId(id) !== id ? `v${remapId(id)}` : match))
+          .replace(/CUMSUM(s*(d+)s*)/gi, (match, id) => (remapId(id) !== id ? `CUMSUM(v${remapId(id)})` : match));
+      };
+      const remapIds = (ids) => (Array.isArray(ids) ? ids.map((id) => Number(remapId(id))) : ids);
+
       try {
         const allNewValsRes = await axios.get('/kpi-values');
         const allNewVals = allNewValsRes.data.data || [];
+        const newKpiIdSet = new Set(newKpiIds.map(String));
 
-        for (const newKpiId of newKpiIds) {
-          const valuesForKpi = allNewVals.filter(v => v.kpi_id === newKpiId);
-          for (const kv of valuesForKpi) {
-            let needsUpdate = false;
-            let updatedSource = kv.source_kpi_value_ids;
-            let updatedTargetSource = kv.target_source_kpi_value_ids;
+        for (const kv of allNewVals.filter((v) => newKpiIdSet.has(String(v.kpi_id)))) {
+          const formula = remapFormula(kv.formula);
+          const targetFormula = remapFormula(kv.target_formula);
+          const sourceIds = remapIds(kv.source_kpi_value_ids);
+          const targetSourceIds = remapIds(kv.target_source_kpi_value_ids);
 
-            if (Array.isArray(kv.source_kpi_value_ids)) {
-              updatedSource = kv.source_kpi_value_ids.map(old => kpiValueMapping[old] || old);
-              if (JSON.stringify(updatedSource) !== JSON.stringify(kv.source_kpi_value_ids)) needsUpdate = true;
-            }
-            if (Array.isArray(kv.target_source_kpi_value_ids)) {
-              updatedTargetSource = kv.target_source_kpi_value_ids.map(old => kpiValueMapping[old] || old);
-              if (JSON.stringify(updatedTargetSource) !== JSON.stringify(kv.target_source_kpi_value_ids)) needsUpdate = true;
-            }
+          const changed = formula !== kv.formula
+            || targetFormula !== kv.target_formula
+            || JSON.stringify(sourceIds) !== JSON.stringify(kv.source_kpi_value_ids)
+            || JSON.stringify(targetSourceIds) !== JSON.stringify(kv.target_source_kpi_value_ids);
 
-            if (needsUpdate) {
-              await axios.put(`/kpi-values/${kv.id}`, {
-                source_kpi_value_ids: updatedSource,
-                target_source_kpi_value_ids: updatedTargetSource
-              });
-            }
+          if (changed) {
+            // Only these fields are sent; the server keeps every other field as it is
+            await axios.put(`/kpi-values/${kv.id}`, {
+              formula,
+              target_formula: targetFormula,
+              source_kpi_value_ids: sourceIds,
+              target_source_kpi_value_ids: targetSourceIds
+            });
           }
         }
       } catch (err) {

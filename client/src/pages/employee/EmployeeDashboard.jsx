@@ -202,15 +202,13 @@ function EmployeeDashboard() {
         const kaiCount = assignedKpiIds.filter((id) => isKai(kpiById.get(id))).length;
 
         // Load monthly target/actual rows for every assigned KPI value in this FY
-        const yearsToLoad = [selectedFiscalYear, selectedFiscalYear + 1];
+        // (the endpoint returns April of the start year through March of the next)
         const monthlyResults = await Promise.allSettled(
           assignedKpis.map(async (kv) => {
-            const yearRows = await Promise.all(
-              yearsToLoad.map((year) =>
-                getKPIValueMonthlyData(kv.id, year).then((r) => r.data?.data || []).catch(() => [])
-              )
-            );
-            return yearRows.flat().filter((row) => isInFiscalYear(row, selectedFiscalYear));
+            const rows = await getKPIValueMonthlyData(kv.id, selectedFiscalYear)
+              .then((r) => r.data?.data || [])
+              .catch(() => []);
+            return rows.filter((row) => isInFiscalYear(row, selectedFiscalYear));
           })
         );
 

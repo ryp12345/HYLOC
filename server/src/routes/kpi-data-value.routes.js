@@ -2,6 +2,10 @@ const express = require('express');
 const router = express.Router();
 const kpiDataValueController = require('../controllers/kpi-data-value.controller');
 const { authenticate } = require('../middlewares/auth.middleware');
+const { authorize } = require('../middlewares/role.middleware');
+
+// Only administrators may create, change or delete KPI definitions and stored values
+const canManageKpis = authorize('admin', 'super admin');
 
 // Apply authentication middleware to all routes
 router.use(authenticate);
@@ -19,12 +23,12 @@ router.post('/multiple', kpiDataValueController.getMultipleKPIValuesData);
 router.get('/:id', kpiDataValueController.getKPIDataValueById);
 
 // Create KPI data value
-router.post('/', kpiDataValueController.createKPIDataValue);
+router.post('/', canManageKpis, kpiDataValueController.createKPIDataValue);
 
 // Update KPI data value
-router.put('/:id', kpiDataValueController.updateKPIDataValue);
+router.put('/:id', canManageKpis, kpiDataValueController.updateKPIDataValue);
 
 // Delete KPI data value
-router.delete('/:id', kpiDataValueController.deleteKPIDataValue);
+router.delete('/:id', canManageKpis, kpiDataValueController.deleteKPIDataValue);
 
 module.exports = router;

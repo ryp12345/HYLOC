@@ -251,7 +251,7 @@ exports.getHODByDepartment = async (departmentId) => {
     ORDER BY u.firstname, u.lastname
   `;
 
-  const result = await client.query(query, [departmentId]);
+  const result = await db.query(query, [departmentId]);
   return result.rows;
 };
 

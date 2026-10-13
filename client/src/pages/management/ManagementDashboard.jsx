@@ -7,6 +7,7 @@ import { getPillers } from '../../api/pillerApi';
 import { getUsers } from '../../api/userApi';
 import { getDepartments } from '../../api/departmentApi';
 import api, { API_URL } from '../../api/axios';
+import { calculateAchievement } from '../../utils/kpiAchievement';
 import {
   ResponsiveContainer,
   LineChart,
@@ -111,7 +112,9 @@ const Industry40LineChart = ({
 
 // Speedometer Gauge Component for Plant Efficiency
 const SpeedometerGauge = ({ efficiency, month, year }) => {
-  const value = Math.max(0, Math.min(100, Number(efficiency) || 0));
+  // null/undefined = no data for the month (shown as "No data", not as 0%)
+  const hasData = efficiency !== null && efficiency !== undefined && Number.isFinite(Number(efficiency));
+  const value = hasData ? Math.max(0, Math.min(100, Number(efficiency))) : 0;
   let color = '#ef4444';
   if (value > 75) {
     color = '#22c55e';
@@ -127,7 +130,7 @@ const SpeedometerGauge = ({ efficiency, month, year }) => {
           viewBox="0 0 300 220"
           className="w-full h-auto"
           style={{ maxWidth: '100%', maxHeight: '100%' }}
-          title={`${month} ${year}: ${value.toFixed(1)}%`}
+          title={`${month} ${year}: ${hasData ? `${value.toFixed(1)}%` : 'No data'}`}
         >
           <path d="M 12 180 A 138 138 0 0 1 288 180" fill="none" stroke="var(--border)" strokeWidth="24" strokeLinecap="round" />
           <path d="M 12 180 A 138 138 0 0 1 150 42" fill="none" stroke="#ef4444" strokeWidth="24" strokeLinecap="round" />
@@ -150,7 +153,7 @@ const SpeedometerGauge = ({ efficiency, month, year }) => {
         </svg>
       </div>
       <div className="mt-0.5 text-center">
-        <div className="text-base font-extrabold text-[color:var(--accent)] sm:text-lg">{value.toFixed(1)}%</div>
+        <div className="text-base font-extrabold text-[color:var(--accent)] sm:text-lg">{hasData ? `${value.toFixed(1)}%` : 'No data'}</div>
       </div>
     </div>
   );
@@ -369,12 +372,14 @@ const PillarRadarChart = ({ pillars, onPillarClick, compact = false }) => {
   );
 };
 
+// Number of KPIs mapped to each department for the selected fiscal year
 const DepartmentPerformanceRadarChart = ({ departments, onDepartmentClick }) => {
   const data = (departments || []).map((department, index) => ({
     subject: department?.name || `Department ${index + 1}`,
-    value: Math.max(0, Math.min(100, Number(department?.value) || 0)),
+    value: Math.max(0, Number(department?.value) || 0),
     department,
   }));
+  const maxCount = Math.max(1, ...data.map((d) => d.value));
 
   const CustomDepartmentTick = (props) => {
     const { x, y, payload } = props;
@@ -394,7 +399,7 @@ const DepartmentPerformanceRadarChart = ({ departments, onDepartmentClick }) => 
   if (!data.length) {
     return (
       <div className="border border-[color:var(--border)] bg-[color:var(--surface)] p-2 shadow-sm">
-        <div className="py-8 text-center text-[color:var(--text-muted)]">No department performance data available</div>
+        <div className="py-8 text-center text-[color:var(--text-muted)]">No department KPI mappings available</div>
       </div>
     );
   }
@@ -406,8 +411,8 @@ const DepartmentPerformanceRadarChart = ({ departments, onDepartmentClick }) => 
           <RadarChart data={data} outerRadius="72%">
             <PolarGrid stroke="var(--border)" />
             <PolarAngleAxis dataKey="subject" tick={<CustomDepartmentTick />} />
-            <PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fontSize: 11, fill: 'var(--text-muted)' }} tickFormatter={(v) => `${v}%`} />
-            <Radar dataKey="value" stroke="#15803d" fill="#15803d" fillOpacity={0.25} strokeWidth={2} onClick={(event) => onDepartmentClick?.(event?.activePayload?.[0]?.payload?.department)} />
+            <PolarRadiusAxis angle={90} domain={[0, maxCount]} allowDecimals={false} tick={{ fontSize: 11, fill: 'var(--text-muted)' }} />
+            <Radar name="KPIs mapped" dataKey="value" stroke="#15803d" fill="#15803d" fillOpacity={0.25} strokeWidth={2} onClick={(event) => onDepartmentClick?.(event?.activePayload?.[0]?.payload?.department)} />
             <Tooltip content={<ChartTooltip />} />
           </RadarChart>
         </ResponsiveContainer>
@@ -514,23 +519,12 @@ function ManagementDashboard() {
   const [selectedFiscalYear, setSelectedFiscalYear] = useState(getCurrentFiscalYear());
   const [availableFiscalYears, setAvailableFiscalYears] = useState([]);
   const [cachedKpiValues, setCachedKpiValues] = useState([]);
+  // Real KPI counts per department (not rescaled to look like a percentage score)
   const departmentPerformanceForChart = useMemo(() => {
-    if (!departmentPerformance.length) return [];
-
-    const maxObservedValue = Math.max(
-      ...departmentPerformance.map((department) => Number(department?.value) || 0),
-      0
-    );
-
-    return departmentPerformance.map((department) => {
-      const currentValue = Number(department?.value) || 0;
-      const currentPercent = maxObservedValue > 0 ? Math.round((currentValue / maxObservedValue) * 100) : 0;
-
-      return {
-        ...department,
-        value: currentValue > 0 ? currentPercent : 0,
-      };
-    });
+    return departmentPerformance.map((department) => ({
+      ...department,
+      value: Number(department?.value) || 0,
+    }));
   }, [departmentPerformance]);
 
   const getPhotoUrl = (path) => {
@@ -808,8 +802,9 @@ function ManagementDashboard() {
         const performanceByUserId = {};
         assigneeBreakdown.forEach((entry) => {
           const assignedCount = Number(entry.assigned_count) || 0;
-          const overdueCount = Number(entry.overdue_count) || 0;
-          const rawScore = assignedCount > 0 ? ((assignedCount - overdueCount) / assignedCount) * 100 : 0;
+          // Late = still open past the due date, or closed after the due date
+          const lateCount = (Number(entry.overdue_count) || 0) + (Number(entry.closed_late_count) || 0);
+          const rawScore = assignedCount > 0 ? ((assignedCount - lateCount) / assignedCount) * 100 : 0;
           const score = Math.max(0, Math.min(100, Math.round(rawScore)));
           const matchedUserId = Number(entry.id) || assigneeNameToId.get(String(entry.name || '').toLowerCase());
           if (Number.isFinite(matchedUserId) && matchedUserId > 0) {
@@ -1068,14 +1063,11 @@ function ManagementDashboard() {
           const monthlyAchievements = [];
 
           Object.values(byMonth).forEach(m => {
-            const actual = m.actual;
-            const target = m.target;
+            // Skips months with a missing value or no usable target
+            const achievement = calculateAchievement(m.actual, m.target);
+            if (achievement == null) return;
 
-            if (actual == null || target == null || target === 0) return;
-
-            const achievement = Math.min((actual / target) * 100, 100);
-
-            monthlyAchievements.push(achievement);
+            monthlyAchievements.push(Math.min(achievement, 100));
           });
 
           if (monthlyAchievements.length > 0) {
@@ -1361,15 +1353,19 @@ function ManagementDashboard() {
           }
           //console.log(`Month ${month}/${year} - Target:`, targetRow, 'Actual:', actualRow);
 
+          if (!actualRow) {
+            efficiencyByIndex[idx] = null; // no data for this month
+            continue;
+          }
           const target = targetRow ? parseNumeric(targetRow.value) : 0;
-          const actual = actualRow ? parseNumeric(actualRow.value) : 0;
+          const actual = parseNumeric(actualRow.value);
           // If target is missing, assume actual is already a percent value.
           const efficiency = target > 0 ? Math.min(100, (actual / target) * 100) : Math.min(100, actual);
           efficiencyByIndex[idx] = Math.round(efficiency * 10) / 10;
           //console.log(`Month ${month}/${year} - Efficiency calculated: ${efficiencyByIndex[idx]}% (actual: ${actual}, target: ${target})`);
         } catch (err) {
           //console.warn(`Failed to load efficiency for month ${month}, year ${year}:`, err);
-          efficiencyByIndex[idx] = 0;
+          efficiencyByIndex[idx] = null;
         }
       }
 
@@ -1379,7 +1375,7 @@ function ManagementDashboard() {
       const monthly = FISCAL_MONTH_SEQUENCE.map((entry, idx) => ({
         month: entry.month,
         year: entry.year,
-        efficiency: efficiencyByIndex[idx] || 0,
+        efficiency: efficiencyByIndex[idx] ?? null,
       })).slice(0, Math.min(sliceEnd, 12));
 
       setMonthlyEfficiency(monthly);
@@ -1799,7 +1795,8 @@ function ManagementDashboard() {
           }
 
           const actualValue = actualRow ? parseNumeric(actualRow.value) : 0;
-          const targetValue = targetRow ? parseNumeric(targetRow.value) : 100;
+          // null = no target entered for the month (do not invent one)
+          const targetValue = targetRow ? parseNumeric(targetRow.value) : null;
           console.log(`    ✅ Profitability data: month=${month}, year=${year}, profit=${actualValue}, target=${targetValue}`);
 
           profitByMonth.push({
@@ -1810,7 +1807,7 @@ function ManagementDashboard() {
           });
         } catch (err) {
           console.warn(`Failed to load data for month ${month}, year ${year}:`, err);
-          profitByMonth.push({ month, year, profit: 0, target: 100 });
+          profitByMonth.push({ month, year, profit: 0, target: null });
         }
       }
 
@@ -1932,7 +1929,7 @@ function ManagementDashboard() {
                     }}
                   >
                     <SpeedometerGauge
-                      efficiency={monthlyEfficiency[selectedFiscalIndex]?.efficiency || 0}
+                      efficiency={monthlyEfficiency[selectedFiscalIndex]?.efficiency ?? null}
                       month={MONTH_LABELS[(monthlyEfficiency[selectedFiscalIndex]?.month || 1) - 1]}
                       year={monthlyEfficiency[selectedFiscalIndex]?.year || ''}
                     />
@@ -2113,10 +2110,11 @@ function ManagementDashboard() {
                     <div className="flex items-center justify-center p-1 text-xs text-[color:var(--text-muted)] md:p-2">Loading...</div>
                   ) : monthlyProfitData && monthlyProfitData.length > 0 ? (
                     (() => {
-                      const profitData = monthlyProfitData[selectedProfitIndex] || { profit: 0, target: 100 };
+                      const profitData = monthlyProfitData[selectedProfitIndex] || { profit: 0, target: null };
                       const profit = profitData.profit;
                       const target = profitData.target;
-                      const percentageAchieved = target > 0 ? Math.min((profit / target) * 100, 100) : 0;
+                      // Without a target the ring shows the profit % itself, as before
+                      const percentageAchieved = target > 0 ? Math.min((profit / target) * 100, 100) : Math.min(Math.max(profit, 0), 100);
                       return (
                         <div className="flex flex-col items-center flex-1 min-w-0 justify-center h-full cursor-pointer"
                           role="button"
@@ -2130,7 +2128,7 @@ function ManagementDashboard() {
                           <div className="flex items-center justify-center min-h-0 w-full relative" style={{ height: '100%' }}>
                             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-10">
                               <div className="px-1 text-center text-sm font-extrabold leading-tight text-[color:var(--success)] md:text-base">{profit.toFixed(1)}%</div>
-                              <div className="px-1 text-center text-[10px] font-semibold leading-tight text-[color:var(--text-secondary)] md:text-[11px]">of {target.toFixed(1)}%</div>
+                              <div className="px-1 text-center text-[10px] font-semibold leading-tight text-[color:var(--text-secondary)] md:text-[11px]">{target != null ? `of ${target.toFixed(1)}%` : 'No target set'}</div>
                             </div>
                             <ResponsiveContainer width="100%" height="100%">
                               <PieChart>
@@ -2289,6 +2287,7 @@ function ManagementDashboard() {
       <div className="mt-6">
         <div className="dashboard-panel-header px-4 py-3">
           <h2 className="relative text-lg font-extrabold tracking-tight text-white sm:text-xl">Department KPI Dashboard</h2>
+          <p className="relative text-xs text-white/80">Number of KPIs mapped to each department this fiscal year</p>
         </div>
         <div className="mt-1">
           <DepartmentPerformanceRadarChart
@@ -2404,7 +2403,7 @@ function ManagementDashboard() {
                     <div className="flex-1 min-w-0 flex items-center justify-center">
                       <div className="w-full max-w-3xl" style={{ aspectRatio: '300/220' }}>
                         <SpeedometerGauge
-                          efficiency={(expandedChartData?.monthlyEfficiency || monthlyEfficiency)[expandedChartData?.selectedFiscalIndex !== undefined ? expandedChartData.selectedFiscalIndex : selectedFiscalIndex]?.efficiency || 0}
+                          efficiency={(expandedChartData?.monthlyEfficiency || monthlyEfficiency)[expandedChartData?.selectedFiscalIndex !== undefined ? expandedChartData.selectedFiscalIndex : selectedFiscalIndex]?.efficiency ?? null}
                           month={MONTH_LABELS[((expandedChartData?.monthlyEfficiency || monthlyEfficiency)[expandedChartData?.selectedFiscalIndex !== undefined ? expandedChartData.selectedFiscalIndex : selectedFiscalIndex]?.month || 1) - 1]}
                           year={(expandedChartData?.monthlyEfficiency || monthlyEfficiency)[expandedChartData?.selectedFiscalIndex !== undefined ? expandedChartData.selectedFiscalIndex : selectedFiscalIndex]?.year || ''}
                         />
@@ -2598,15 +2597,15 @@ function ManagementDashboard() {
                         </h5>
                         <div className="flex items-center justify-center" style={{ width: 280, height: 280 }}>
                           {(() => {
-                            const profitData = monthlyProfitData[selectedProfitIndex] || { profit: 0, target: 100 };
+                            const profitData = monthlyProfitData[selectedProfitIndex] || { profit: 0, target: null };
                             const profit = profitData.profit;
                             const target = profitData.target;
-                            const pct = target > 0 ? Math.min((profit / target) * 100, 100) : 0;
+                            const pct = target > 0 ? Math.min((profit / target) * 100, 100) : Math.min(Math.max(profit, 0), 100);
                             return (
                               <div className="relative w-full h-full">
                                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-10">
                                   <div className="px-2 text-center text-2xl font-extrabold leading-tight text-[color:var(--success)] md:text-3xl">{profit.toFixed(1)}%</div>
-                                  <div className="px-2 text-center text-xs font-semibold leading-tight text-[color:var(--text-secondary)] md:text-sm">of {target.toFixed(1)}%</div>
+                                  <div className="px-2 text-center text-xs font-semibold leading-tight text-[color:var(--text-secondary)] md:text-sm">{target != null ? `of ${target.toFixed(1)}%` : 'No target set'}</div>
                                 </div>
                                 <ResponsiveContainer width="100%" height="100%">
                                   <PieChart>
@@ -2639,7 +2638,7 @@ function ManagementDashboard() {
                           </div>
                           <div className="flex items-center gap-3 text-sm text-slate-300 font-medium">
                             <span className="h-4 w-4 rounded bg-[color:var(--success)]"></span>
-                            <span>Target: {(monthlyProfitData[selectedProfitIndex]?.target || 0).toFixed(1)}%</span>
+                            <span>Target: {monthlyProfitData[selectedProfitIndex]?.target != null ? `${monthlyProfitData[selectedProfitIndex].target.toFixed(1)}%` : 'Not set'}</span>
                           </div>
                         </div>
                       </div>

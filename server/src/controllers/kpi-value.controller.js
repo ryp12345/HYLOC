@@ -1,5 +1,18 @@
 const kpiValueModel = require('../models/kpi-value.model');
 const pool = require('../config/db');
+const KPICalculationService = require('../services/kpiCalculation.service');
+
+const hasText = (value) => value !== null && value !== undefined && String(value).trim() !== '';
+
+// Reject invalid or circular formulas before they are stored
+const validateFormulas = async (kpiValueId, formula, targetFormula) => {
+  if (!hasText(formula) && !hasText(targetFormula)) return { valid: true };
+  return KPICalculationService.validateComputedFormulas({
+    kpiValueId,
+    formula: hasText(formula) ? formula : null,
+    targetFormula: hasText(targetFormula) ? targetFormula : null
+  });
+};
 
 exports.getAllKPIValues = async (req, res) => {
   try {
@@ -277,15 +290,14 @@ exports.getMonthlyData = async (req, res) => {
       });
     }
 
-    // For a financial year starting in fyYear, we need to get data from:
+    // A financial year starting in fyYear covers:
     // - April to December of fyYear
     // - January to March of (fyYear + 1)
-    // So we query for year = fyYear OR year = (fyYear + 1)
-
     const result = await pool.query(
       `SELECT id, kpi_value_id, month, year, value, value_type, created_at, updated_at
        FROM kpi_data_value
-       WHERE kpi_value_id = $1 AND (year = $2 OR year = $3)
+       WHERE kpi_value_id = $1
+         AND ((year = $2 AND month >= 4) OR (year = $3 AND month <= 3))
        ORDER BY year, month ASC`,
       [kpiValueId, fyYear, fyYear + 1]
     );
@@ -299,13 +311,21 @@ exports.getMonthlyData = async (req, res) => {
           month: row.month,
           year: row.year,
           target_value: null,
-          actual_value: null
+          actual_value: null,
+          target_created_at: null,
+          target_updated_at: null,
+          actual_created_at: null,
+          actual_updated_at: null
         };
       }
       if (row.value_type === 'target') {
         monthlyDataMap[key].target_value = row.value;
+        monthlyDataMap[key].target_created_at = row.created_at;
+        monthlyDataMap[key].target_updated_at = row.updated_at;
       } else if (row.value_type === 'actual') {
         monthlyDataMap[key].actual_value = row.value;
+        monthlyDataMap[key].actual_created_at = row.created_at;
+        monthlyDataMap[key].actual_updated_at = row.updated_at;
       }
     });
 
@@ -348,6 +368,15 @@ exports.createKPIValue = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'kpi_id and data are required'
+      });
+    }
+
+    const formulaCheck = await validateFormulas(null, formula, target_formula);
+    if (!formulaCheck.valid) {
+      return res.status(400).json({
+        success: false,
+        message: formulaCheck.error,
+        error: formulaCheck.error
       });
     }
 
@@ -399,6 +428,15 @@ exports.updateKPIValue = async (req, res) => {
       target_formula,
       target_source_kpi_value_ids
     } = req.body;
+
+    const formulaCheck = await validateFormulas(id, formula, target_formula);
+    if (!formulaCheck.valid) {
+      return res.status(400).json({
+        success: false,
+        message: formulaCheck.error,
+        error: formulaCheck.error
+      });
+    }
 
     const kpiValue = await kpiValueModel.updateKPIValue(id, {
       data,

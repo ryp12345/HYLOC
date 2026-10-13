@@ -96,6 +96,13 @@ exports.getKPIValueByData = async (dataValue) => {
   }
 };
 
+const RETURNING_COLUMNS = `id, data, kpi_id, "data operator" AS data_operator, target_required, uom, kpi_type,
+           piller_id, formula, source_kpi_value_ids, default_target_value, computation_type,
+           target_formula, target_source_kpi_value_ids, created_at, updated_at`;
+
+// '' and undefined are stored as NULL; 0 is a valid value (e.g. a zero-accident target)
+const toNullable = (value) => (value === undefined || value === '' ? null : value);
+
 // Create KPI value
 exports.createKPIValue = async (kpiValue) => {
   try {
@@ -113,12 +120,12 @@ exports.createKPIValue = async (kpiValue) => {
     } = kpiValue;
 
     const result = await pool.query(
-      `INSERT INTO kpi_values 
-       (data, kpi_id, "data operator", target_required, uom, kpi_type, piller_id, 
-        formula, source_kpi_value_ids, default_target_value, computation_type, target_formula, target_source_kpi_value_ids, created_at, updated_at)
+      `INSERT INTO kpi_values
+       (data, kpi_id, "data operator", target_required, uom, kpi_type, piller_id,
+        formula, source_kpi_value_ids, default_target_value, computation_type, target_formula, target_source_kpi_value_ids,
+        created_at, updated_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW(), NOW())
-       RETURNING id, data, kpi_id, "data operator" AS data_operator, target_required, uom, kpi_type, 
-                 piller_id, formula, source_kpi_value_ids, default_target_value, computation_type, target_formula, target_source_kpi_value_ids, created_at, updated_at`,
+       RETURNING ${RETURNING_COLUMNS}`,
       [
         data,
         kpi_id,
@@ -129,7 +136,7 @@ exports.createKPIValue = async (kpiValue) => {
         piller_id || null,
         formula || null,
         source_kpi_value_ids || null,
-        default_target_value || null,
+        toNullable(default_target_value),
         kpiValue.computation_type || null,
         kpiValue.target_formula || null,
         kpiValue.target_source_kpi_value_ids || null
@@ -143,56 +150,43 @@ exports.createKPIValue = async (kpiValue) => {
 };
 
 // Update KPI value
+// Only fields present in the request are changed; an omitted field keeps its stored value.
+// data, kpi_id, target_required and kpi_type are never cleared (null keeps the stored value).
 exports.updateKPIValue = async (id, kpiValue) => {
   try {
-    const {
-      data,
-      kpi_id,
-      data_operator,
-      target_required,
-      uom,
-      kpi_type,
-      piller_id,
-      formula,
-      source_kpi_value_ids,
-      default_target_value
-    } = kpiValue;
+    const columns = [
+      { key: 'data', column: 'data', keepOnNull: true },
+      { key: 'kpi_id', column: 'kpi_id', keepOnNull: true },
+      { key: 'data_operator', column: '"data operator"', toValue: v => v || null },
+      { key: 'target_required', column: 'target_required', keepOnNull: true },
+      { key: 'uom', column: 'uom', toValue: v => v || null },
+      { key: 'kpi_type', column: 'kpi_type', keepOnNull: true },
+      { key: 'piller_id', column: 'piller_id', toValue: v => v || null },
+      { key: 'formula', column: 'formula', toValue: v => v || null },
+      { key: 'source_kpi_value_ids', column: 'source_kpi_value_ids', toValue: v => v || null },
+      { key: 'default_target_value', column: 'default_target_value', toValue: toNullable },
+      { key: 'computation_type', column: 'computation_type', toValue: v => v || null },
+      { key: 'target_formula', column: 'target_formula', toValue: v => v || null },
+      { key: 'target_source_kpi_value_ids', column: 'target_source_kpi_value_ids', toValue: v => v || null }
+    ];
 
+    const setClause = [];
+    const values = [];
+    for (const { key, column, keepOnNull, toValue } of columns) {
+      const raw = kpiValue[key];
+      if (raw === undefined) continue;
+      if (keepOnNull && (raw === null || raw === '')) continue;
+      values.push(toValue ? toValue(raw) : raw);
+      setClause.push(`${column} = $${values.length}`);
+    }
+
+    values.push(id);
     const result = await pool.query(
       `UPDATE kpi_values
-       SET data = COALESCE($1, data),
-         kpi_id = COALESCE($2, kpi_id),
-         "data operator" = $3,
-         target_required = COALESCE($4, target_required),
-         uom = $5,
-         kpi_type = COALESCE($6, kpi_type),
-         piller_id = $7,
-         formula = $8,
-         source_kpi_value_ids = $9,
-         default_target_value = $10,
-         computation_type = $11,
-         target_formula = $12,
-         target_source_kpi_value_ids = $13,
-         updated_at = NOW()
-       WHERE id = $14
-       RETURNING id, data, kpi_id, "data operator" AS data_operator, target_required, uom, kpi_type, 
-           piller_id, formula, source_kpi_value_ids, default_target_value, computation_type, target_formula, target_source_kpi_value_ids, created_at, updated_at`,
-      [
-        data || null,
-        kpi_id || null,
-        data_operator !== undefined ? data_operator : null,
-        target_required !== undefined ? target_required : null,
-        uom || null,
-        kpi_type || null,
-        piller_id || null,
-        formula || null,
-        source_kpi_value_ids || null,
-        default_target_value || null,
-        kpiValue.computation_type || null,
-        kpiValue.target_formula || null,
-        kpiValue.target_source_kpi_value_ids || null,
-        id
-      ]
+       SET ${[...setClause, 'updated_at = NOW()'].join(', ')}
+       WHERE id = $${values.length}
+       RETURNING ${RETURNING_COLUMNS}`,
+      values
     );
     return result.rows[0];
   } catch (error) {
