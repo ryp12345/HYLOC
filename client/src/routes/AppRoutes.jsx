@@ -13,6 +13,7 @@ import HRLeaveEntitlementPage from '../pages/HR/leaves/LeaveEntitlementPage';
 import ManagementDashboard from '../pages/management/ManagementDashboard';
 import KPIDetailPage from '../pages/management/KPIDetailPage';
 import PlantEfficiency from '../pages/management/PlantEfficiency';
+import KpiDataAudit from '../pages/management/KpiDataAudit';
 import MgtPiller from '../pages/management/MgtPiller';
 import PillarDetailPage from '../pages/management/PillarDetailPage';
 import MgtKmiPage from '../pages/management/MgtKmiPage';
@@ -75,7 +76,7 @@ const DashboardLayout = ({ children }) => {
   return (
     <div className="flex min-h-screen bg-[color:var(--app-bg)] text-[color:var(--text-primary)] transition-colors duration-300">
       <Sidebar />
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col min-w-0">
         <Header />
         <main className="flex-1 bg-[color:var(--app-bg)] p-2 transition-colors duration-300">
           {children}
@@ -450,6 +451,18 @@ const AppRoutes = () => {
               <ProtectedRoute>
                 <DashboardLayout>
                   <PlantEfficiency />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* KPI Data Audit Page */}
+          <Route
+            path="/management/kpi-data-audit"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <KpiDataAudit />
                 </DashboardLayout>
               </ProtectedRoute>
             }

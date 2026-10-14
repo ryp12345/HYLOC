@@ -37,6 +37,12 @@ export const getKPIValues = async () => {
   return await axios.get('/kpi-values');
 };
 
+// KPI data audit: all KPI values with monthly actual/target values for a fiscal year
+// fy is the year the fiscal year starts in (2026 = Apr 2026 to Mar 2027)
+export const getKPIDataAudit = async (fy) => {
+  return await axios.get('/kpi-values/data-audit', { params: { fy } });
+};
+
 export const getKPIValueById = async (id) => {
   return await axios.get(`/kpi-values/${id}`);
 };

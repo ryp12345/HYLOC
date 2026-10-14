@@ -13,6 +13,9 @@ router.use(authenticate);
 // Get all KPI values (with optional kpi_id query parameter)
 router.get('/', kpiValueController.getAllKPIValues);
 
+// KPI data audit for one fiscal year (management and administrators) - must be before /:id
+router.get('/data-audit', authorize('management', 'admin', 'super admin'), kpiValueController.getDataAudit);
+
 // Get KPI value by data field (query parameter) - must be before /:id
 router.get('/by-data', kpiValueController.getKPIValueByData);
 

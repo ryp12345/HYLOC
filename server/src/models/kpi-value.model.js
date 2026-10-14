@@ -208,3 +208,48 @@ exports.deleteKPIValue = async (id) => {
     throw error;
   }
 };
+
+// Every KPI value with its owner, department, pillar and unit, plus its actual and
+// target values for each month of the fiscal year starting April of fiscalYearStart.
+// Department is the KPI's mapped department, or else the data operator's department.
+exports.getDataAudit = async (fiscalYearStart) => {
+  try {
+    const result = await pool.query(
+      `SELECT kv.id, kv.kpi_id, COALESCE(NULLIF(TRIM(kv.data), ''), k.title) AS description,
+              k.title AS kpi_title, k.fin_year, c.category_name, kv.kpi_type, kv.formula,
+              kv."data operator" AS data_operator,
+              NULLIF(TRIM(CONCAT_WS(' ', u.firstname, u.lastname)), '') AS user_name,
+              COALESCE(kd.department_names, ud.department_name) AS department,
+              p.piller_name, p.short_name AS piller_short_name,
+              um.unit_name, um.symbol AS unit_symbol,
+              COALESCE(dv.values, '[]'::json) AS monthly_values
+       FROM kpi_values kv
+       JOIN kpis k ON k.id = kv.kpi_id
+       LEFT JOIN categories c ON c.id = k.category_id
+       LEFT JOIN users u ON u.empid = kv."data operator"
+       LEFT JOIN departments ud ON ud.id = u.department_id
+       LEFT JOIN pillers p ON p.id = kv.piller_id
+       LEFT JOIN unit_master um ON um.id = kv.uom
+       LEFT JOIN LATERAL (
+         SELECT STRING_AGG(DISTINCT d.department_name, ', ') AS department_names
+         FROM kpi_departments kdep
+         JOIN departments d ON d.id = kdep.department_id
+         WHERE kdep.kpi_id = k.id
+       ) kd ON TRUE
+       LEFT JOIN LATERAL (
+         SELECT JSON_AGG(JSON_BUILD_OBJECT(
+                  'month', kdv.month, 'year', kdv.year,
+                  'value_type', LOWER(kdv.value_type), 'value', kdv.value)) AS values
+         FROM kpi_data_value kdv
+         WHERE kdv.kpi_value_id = kv.id
+           AND ((kdv.year = $1 AND kdv.month >= 4) OR (kdv.year = $1 + 1 AND kdv.month <= 3))
+       ) dv ON TRUE
+       ORDER BY c.id, description`,
+      [fiscalYearStart]
+    );
+    return result.rows;
+  } catch (error) {
+    console.error('Database error in getDataAudit:', error);
+    throw error;
+  }
+};

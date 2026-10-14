@@ -502,3 +502,30 @@ exports.deleteKPIValue = async (req, res) => {
 
 
 
+
+// KPI data audit: every KPI value with its monthly actual and target values for one fiscal year
+// fy is the calendar year the fiscal year starts in (2026 = Apr 2026 to Mar 2027)
+exports.getDataAudit = async (req, res) => {
+  try {
+    const fiscalYearStart = Number.parseInt(req.query.fy, 10);
+    if (!Number.isInteger(fiscalYearStart) || fiscalYearStart < 2000 || fiscalYearStart > 2100) {
+      return res.status(400).json({
+        success: false,
+        message: 'fy must be the year the fiscal year starts in, e.g. 2026'
+      });
+    }
+
+    const rows = await kpiValueModel.getDataAudit(fiscalYearStart);
+    res.status(200).json({
+      success: true,
+      message: 'KPI data audit retrieved successfully',
+      data: rows
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve KPI data audit',
+      error: error.message
+    });
+  }
+};
