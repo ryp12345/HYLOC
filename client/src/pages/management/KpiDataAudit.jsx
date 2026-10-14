@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { getKPIDataAudit } from '../../api/kpiApi';
+import { getKPIDataAudit, getKPIs } from '../../api/kpiApi';
 
 // Fiscal year runs April to March; fy is the calendar year it starts in
 const FISCAL_MONTHS = [4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2, 3];
@@ -126,11 +126,33 @@ const KpiDataAudit = () => {
 
   const monthColumns = useMemo(() => getMonthColumns(fiscalYear), [fiscalYear]);
 
-  const fiscalYearOptions = useMemo(() => {
-    const years = [];
-    for (let year = currentFiscalYear + 1; year >= 2024; year -= 1) years.push(year);
-    return years;
-  }, [currentFiscalYear]);
+  // Same fiscal years as the dashboard: the ones KPIs are defined for (fin_year such as "2026-27")
+  const [fiscalYearOptions, setFiscalYearOptions] = useState([currentFiscalYear]);
+
+  useEffect(() => {
+    const loadFiscalYears = async () => {
+      try {
+        const response = await getKPIs();
+        const kpis = Array.isArray(response?.data?.data) ? response.data.data : [];
+        const years = [...new Set(
+          kpis
+            .map((kpi) => Number.parseInt(String(kpi.fin_year || '').match(/\d{4}/)?.[0], 10))
+            .filter((year) => Number.isInteger(year))
+        )].sort((a, b) => a - b);
+        if (!years.length) return;
+        setFiscalYearOptions(years);
+        // Like the dashboard, move to the closest defined fiscal year when the current one has no KPIs
+        setFiscalYear((selected) =>
+          years.includes(selected)
+            ? selected
+            : years.reduce((closest, year) => (Math.abs(year - selected) < Math.abs(closest - selected) ? year : closest))
+        );
+      } catch (loadError) {
+        console.error('Failed to load fiscal years:', loadError);
+      }
+    };
+    loadFiscalYears();
+  }, []);
 
   const loadData = useCallback(async () => {
     setLoading(true);
