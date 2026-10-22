@@ -46,9 +46,9 @@ router.get('/assignable', userController.getAssignableUsers);
 router.get('/', authorize('admin', 'management', 'HR'), userController.getAllUsers);
 router.get('/department/:id', authorize('admin', 'management', 'hod'), userController.getUsersByDepartment);
 router.get('/:id', userController.getUserById);
-router.post('/', authorize('admin'), uploadUser.single('staffPhoto'), userController.createUser);
+router.post('/', authorize('admin', 'management'), uploadUser.single('staffPhoto'), userController.createUser);
 router.patch('/:id/reset-password', authorize('admin', 'management'), userController.resetUserPassword);
-router.put('/:id', authorize('admin'), seedExistingEmpidForUpload, uploadUser.single('staffPhoto'), userController.updateUser);
-router.delete('/:id', authorize('admin'), userController.deleteUser);
+router.put('/:id', authorize('admin', 'management'), seedExistingEmpidForUpload, uploadUser.single('staffPhoto'), userController.updateUser);
+router.delete('/:id', authorize('admin', 'management'), userController.deleteUser);
 
 module.exports = router;

@@ -14,13 +14,13 @@ router.get('/', designationController.getAllDesignations);
 // Get designation by ID (accessible by any authenticated user)
 router.get('/:id', designationController.getDesignationById);
 
-// Create designation (only admin)
-router.post('/', authorize('admin'), designationController.createDesignation);
+// Create designation (admin and management)
+router.post('/', authorize('admin', 'management'), designationController.createDesignation);
 
-// Update designation (only admin)
-router.put('/:id', authorize('admin'), designationController.updateDesignation);
+// Update designation (admin and management)
+router.put('/:id', authorize('admin', 'management'), designationController.updateDesignation);
 
-// Delete designation (only admin)
-router.delete('/:id', authorize('admin'), designationController.deleteDesignation);
+// Delete designation (admin and management)
+router.delete('/:id', authorize('admin', 'management'), designationController.deleteDesignation);
 
 module.exports = router;

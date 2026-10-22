@@ -14,13 +14,13 @@ router.get('/', authorize('admin', 'management'), pillerController.getAllPillers
 // Get piller by ID (accessible by admin and management)
 router.get('/:id', authorize('admin', 'management'), pillerController.getPillerById);
 
-// Create piller (only admin)
-router.post('/', authorize('admin'), pillerController.createPiller);
+// Create piller (admin and management)
+router.post('/', authorize('admin', 'management'), pillerController.createPiller);
 
-// Update piller (only admin)
-router.put('/:id', authorize('admin'), pillerController.updatePiller);
+// Update piller (admin and management)
+router.put('/:id', authorize('admin', 'management'), pillerController.updatePiller);
 
-// Delete piller (only admin)
-router.delete('/:id', authorize('admin'), pillerController.deletePiller);
+// Delete piller (admin and management)
+router.delete('/:id', authorize('admin', 'management'), pillerController.deletePiller);
 
 module.exports = router;

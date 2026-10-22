@@ -14,13 +14,13 @@ router.get('/', authorize('admin', 'management'), roleController.getAllRoles);
 // Get role by ID (accessible by admin and management)
 router.get('/:id', authorize('admin', 'management'), roleController.getRoleById);
 
-// Create role (only admin)
-router.post('/', authorize('admin'), roleController.createRole);
+// Create role (admin and management)
+router.post('/', authorize('admin', 'management'), roleController.createRole);
 
-// Update role (only admin)
-router.put('/:id', authorize('admin'), roleController.updateRole);
+// Update role (admin and management)
+router.put('/:id', authorize('admin', 'management'), roleController.updateRole);
 
-// Delete role (only admin)
-router.delete('/:id', authorize('admin'), roleController.deleteRole);
+// Delete role (admin and management)
+router.delete('/:id', authorize('admin', 'management'), roleController.deleteRole);
 
 module.exports = router;

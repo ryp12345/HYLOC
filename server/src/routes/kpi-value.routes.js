@@ -4,8 +4,8 @@ const kpiValueController = require('../controllers/kpi-value.controller');
 const { authenticate } = require('../middlewares/auth.middleware');
 const { authorize } = require('../middlewares/role.middleware');
 
-// Only administrators may create, change or delete KPI definitions and stored values
-const canManageKpis = authorize('admin', 'super admin');
+// Only administrators and management may create, change or delete KPI definitions and stored values
+const canManageKpis = authorize('admin', 'super admin', 'management');
 
 // Apply authentication middleware to all routes
 router.use(authenticate);

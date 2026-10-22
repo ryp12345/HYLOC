@@ -29,28 +29,32 @@ const Sidebar = () => {
     return roleValue === 'management' ? '/management/kpikai' : '/employee/kpikai';
   };
 
+  // Master data menu shared by admin and management
+  const masterMenu = {
+    name: 'Master',
+    icon: '🧰',
+    submenu: [
+      { name: 'Roles', path: '/admin/roles', icon: '🔐' },
+      { name: 'Department', path: '/admin/departments', icon: '🏢' },
+      { name: 'Designation', path: '/admin/designations', icon: '🏷️' },
+      { name: 'Users', path: '/admin/users', icon: '👥' },
+      { name: "KMI's", path: '/admin/kmis', icon: '📚' },
+      { name: 'Unit Master', path: '/admin/unit-master', icon: '📏' },
+      { name: 'Pillars', path: '/admin/pillers', icon: '🏛️' },
+      { name: 'User-Roles', path: '/admin/user-roles', icon: '🧩' },
+    ],
+  };
+
   const adminLinks = [
     { name: 'Dashboard', path: getDashboardPath(), icon: '📊' },
     { name: 'KMI/Global Objectives', path: '/admin/global-objectives', icon: '📊' },
-    {
-      name: 'Master',
-      icon: '🧰',
-      submenu: [
-        { name: 'Roles', path: '/admin/roles', icon: '🔐' },
-        { name: 'Department', path: '/admin/departments', icon: '🏢' },
-        { name: 'Designation', path: '/admin/designations', icon: '🏷️' },
-        { name: 'Users', path: '/admin/users', icon: '👥' },
-        { name: "KMI's", path: '/admin/kmis', icon: '📚' },
-        { name: 'Unit Master', path: '/admin/unit-master', icon: '📏' },
-        { name: 'Pillars', path: '/admin/pillers', icon: '🏛️' },
-        { name: 'User-Roles', path: '/admin/user-roles', icon: '🧩' },
-      ],
-    },
+    masterMenu,
     { name: 'Tickets', path: '/tickets', icon: '🎫' },
   ];
 
   const managementLinks = [
     { name: 'KMI/Global Objectives', path: getDashboardPath(), icon: '📊' },
+    masterMenu,
     { name: 'PLANT KPI', path: '/management/plant-efficiency', icon: '🏭' },
     { name: 'My KPIs/KAIs', path: getKpiKaiPath(), icon: '📈' },
     { name: 'KPI Data Audit', path: '/management/kpi-data-audit', icon: '🧾' },

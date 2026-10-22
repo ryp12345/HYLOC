@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import Notification from '../../components/common/Notification';
 import { getUsers, createUser, updateUser, deleteUser, resetUserPassword } from '../../api/userApi';
 import { getDepartments } from '../../api/departmentApi';
@@ -46,6 +47,7 @@ const initialForm = {
 
 export default function UsersPage() {
   const { user } = useAuth();
+  const location = useLocation();
   const [rows, setRows] = useState([]);
   const [search, setSearch] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState('');
@@ -65,7 +67,10 @@ export default function UsersPage() {
   const [resetTarget, setResetTarget] = useState(null);
   const [resetError, setResetError] = useState('');
   const [resetLoading, setResetLoading] = useState(false);
-  const isManagementView = String(user?.role?.name || user?.role || '').toLowerCase() === 'management';
+  // Management sees the restricted credentials view only via /management/users;
+  // the Master → Users entry (/admin/users) gives them the full admin view.
+  const isManagementView = String(user?.role?.name || user?.role || '').toLowerCase() === 'management'
+    && location.pathname.startsWith('/management');
 
   const load = async () => {
     try { const res = await getUsers(); setRows(res.data?.data || []); }

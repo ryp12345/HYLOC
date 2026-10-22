@@ -14,13 +14,13 @@ router.get('/', authorize('admin', 'management'), userRoleController.getAllUserR
 router.get('/:id', authorize('admin', 'management'), userRoleController.getUserRoleById);
 
 // Create user role
-router.post('/', authorize('admin'), userRoleController.createUserRole);
+router.post('/', authorize('admin', 'management'), userRoleController.createUserRole);
 
 // Update user role
-router.put('/:id', authorize('admin'), userRoleController.updateUserRole);
+router.put('/:id', authorize('admin', 'management'), userRoleController.updateUserRole);
 
 // Delete user role
-router.delete('/:id', authorize('admin'), userRoleController.deleteUserRole);
+router.delete('/:id', authorize('admin', 'management'), userRoleController.deleteUserRole);
 
 // Get user roles by user ID
 router.get('/user/:userId', authorize('admin', 'management'), userRoleController.getUserRolesByUserId);

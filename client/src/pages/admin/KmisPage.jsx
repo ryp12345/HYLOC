@@ -20,7 +20,7 @@ function KmisPage() {
   const fromKmisState = location.state?.fromKmisState;
   const { user, loading: authLoading } = useAuth();
   const normalizedRole = (user?.role?.name || user?.role || '').toString().trim().toLowerCase();
-  const isAdmin = normalizedRole === 'admin';
+  const isAdmin = normalizedRole === 'admin' || normalizedRole === 'management';
   
   // State declarations MUST come before any conditional returns
   const [kpis, setKpis] = useState([]);

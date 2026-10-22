@@ -14,13 +14,13 @@ router.get('/', departmentController.getAllDepartments);
 // Get department by ID (accessible by any authenticated user)
 router.get('/:id', departmentController.getDepartmentById);
 
-// Create department (only admin)
-router.post('/', authorize('admin'), departmentController.createDepartment);
+// Create department (admin and management)
+router.post('/', authorize('admin', 'management'), departmentController.createDepartment);
 
-// Update department (only admin)
-router.put('/:id', authorize('admin'), departmentController.updateDepartment);
+// Update department (admin and management)
+router.put('/:id', authorize('admin', 'management'), departmentController.updateDepartment);
 
-// Delete department (only admin)
-router.delete('/:id', authorize('admin'), departmentController.deleteDepartment);
+// Delete department (admin and management)
+router.delete('/:id', authorize('admin', 'management'), departmentController.deleteDepartment);
 
 module.exports = router;
