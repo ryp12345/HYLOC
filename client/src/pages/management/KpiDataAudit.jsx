@@ -16,7 +16,7 @@ const getMonthColumns = (fy) =>
     return { key: `m_${year}_${month}`, month, year, label: `${MONTH_NAMES[month - 1]}-${String(year).slice(-2)}` };
   });
 
-// Categories are Plant/Department/Pillar/Employee KPI, KAI and KMI / Global Objectives
+//Categories are Plant/Department/Pillar/Employee KPI, KAI and KMI / Global Objectives
 const toKpiGroup = (categoryName) => {
   const name = (categoryName || '').toUpperCase();
   if (name.includes('KMI')) return 'KMI';
@@ -73,6 +73,8 @@ const toRow = (item, monthColumns) => {
     id: item.id,
     description: item.description || '',
     kpiTitle: item.kpi_title || '',
+    // Start year of the fiscal year the KPI is defined for ("2025-26" -> 2025)
+    finYearStart: Number.parseInt(String(item.fin_year || '').match(/\d{4}/)?.[0], 10),
     category: item.category_name || '',
     group: toKpiGroup(item.category_name),
     dataType: (item.kpi_type || '').toLowerCase() === 'computed' ? 'Computed' : 'Manual',
@@ -123,6 +125,8 @@ const KpiDataAudit = () => {
   const [error, setError] = useState('');
   const [filters, setFilters] = useState({});
   const [sort, setSort] = useState({ key: null, direction: 'asc' });
+  // Off by default: KPIs from earlier fiscal years can still hold data for the selected year
+  const [onlySelectedYearKpis, setOnlySelectedYearKpis] = useState(false);
 
   const monthColumns = useMemo(() => getMonthColumns(fiscalYear), [fiscalYear]);
 
@@ -179,7 +183,12 @@ const KpiDataAudit = () => {
     setSort((prev) => (prev.key?.startsWith('m_') ? { key: null, direction: 'asc' } : prev));
   }, [fiscalYear]);
 
-  const rows = useMemo(() => items.map((item) => toRow(item, monthColumns)), [items, monthColumns]);
+  const allRows = useMemo(() => items.map((item) => toRow(item, monthColumns)), [items, monthColumns]);
+
+  const rows = useMemo(
+    () => (onlySelectedYearKpis ? allRows.filter((row) => row.finYearStart === fiscalYear) : allRows),
+    [allRows, onlySelectedYearKpis, fiscalYear]
+  );
 
   // Month filters and month sorting use the target when viewing targets, otherwise the actual
   const primaryType = view === 'target' ? 'target' : 'actual';
@@ -324,6 +333,19 @@ const KpiDataAudit = () => {
             </select>
           </label>
 
+          <label
+            className="flex items-center gap-2 rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-2 text-sm text-[color:var(--text-primary)]"
+            title="Hide KPIs defined for other fiscal years (e.g. last year's copies). Their data for this year is hidden too."
+          >
+            <input
+              type="checkbox"
+              checked={onlySelectedYearKpis}
+              onChange={(e) => setOnlySelectedYearKpis(e.target.checked)}
+              className="h-4 w-4 accent-[color:var(--accent)]"
+            />
+            Only this year's KPIs
+          </label>
+
           <button
             type="button"
             onClick={() => { setFilters({}); setSort({ key: null, direction: 'asc' }); }}
@@ -355,7 +377,10 @@ const KpiDataAudit = () => {
 
       {!loading && !error && (
         <div className="mb-3 flex shrink-0 flex-wrap gap-4 text-sm text-[color:var(--text-secondary)]">
-          <span>Showing <strong className="text-[color:var(--text-primary)]">{summary.total}</strong> of {rows.length} KPIs</span>
+          <span>
+            Showing <strong className="text-[color:var(--text-primary)]">{summary.total}</strong> of {rows.length} KPIs
+            {onlySelectedYearKpis && ` (${allRows.length - rows.length} from other fiscal years hidden)`}
+          </span>
           <span>With data this year: <strong className="text-[color:var(--success)]">{summary.withData}</strong></span>
           <span>No data this year: <strong className="text-[color:var(--danger)]">{summary.withoutData}</strong></span>
           {view === 'both' && <span>Each month shows Actual above Target.</span>}
