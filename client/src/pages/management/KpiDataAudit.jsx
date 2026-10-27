@@ -128,8 +128,9 @@ const KpiDataAudit = () => {
   const [error, setError] = useState('');
   const [filters, setFilters] = useState({});
   const [sort, setSort] = useState({ key: null, direction: 'asc' });
-  // Off by default: KPIs from earlier fiscal years can still hold data for the selected year
-  const [onlySelectedYearKpis, setOnlySelectedYearKpis] = useState(false);
+  // On by default to match the employee KPI page; turn off to see KPIs from earlier fiscal years
+  // that still hold data for the selected year
+  const [onlySelectedYearKpis, setOnlySelectedYearKpis] = useState(true);
 
   const monthColumns = useMemo(() => getMonthColumns(fiscalYear), [fiscalYear]);
 
@@ -189,7 +190,10 @@ const KpiDataAudit = () => {
   const allRows = useMemo(() => items.map((item) => toRow(item, monthColumns)), [items, monthColumns]);
 
   const rows = useMemo(
-    () => (onlySelectedYearKpis ? allRows.filter((row) => row.finYearStart === fiscalYear) : allRows),
+    // KPIs without a fiscal year are kept, as on the employee KPI page
+    () => (onlySelectedYearKpis
+      ? allRows.filter((row) => Number.isNaN(row.finYearStart) || row.finYearStart === fiscalYear)
+      : allRows),
     [allRows, onlySelectedYearKpis, fiscalYear]
   );
 
