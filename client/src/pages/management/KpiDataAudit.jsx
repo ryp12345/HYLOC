@@ -21,7 +21,10 @@ const toKpiGroup = (categoryName) => {
   const name = (categoryName || '').toUpperCase();
   if (name.includes('KMI')) return 'KMI';
   if (name.includes('KAI')) return 'KAI';
-  return 'KPI';
+  if (name.includes('PLANT')) return 'KPI (Plant KPI)';
+  if (name.includes('PILLAR') || name.includes('PILLER')) return 'KPI (Pillar KPI)';
+  if (name.includes('DEPARTMENT')) return 'KPI (Department KPI)';
+  return categoryName ? `KPI (${categoryName})` : 'KPI';
 };
 
 const BLANK = '(Blank)';
