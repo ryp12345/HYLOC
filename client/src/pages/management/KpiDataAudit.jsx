@@ -128,9 +128,6 @@ const KpiDataAudit = () => {
   const [error, setError] = useState('');
   const [filters, setFilters] = useState({});
   const [sort, setSort] = useState({ key: null, direction: 'asc' });
-  // On by default to match the employee KPI page; turn off to see KPIs from earlier fiscal years
-  // that still hold data for the selected year
-  const [onlySelectedYearKpis, setOnlySelectedYearKpis] = useState(true);
 
   const monthColumns = useMemo(() => getMonthColumns(fiscalYear), [fiscalYear]);
 
@@ -190,11 +187,10 @@ const KpiDataAudit = () => {
   const allRows = useMemo(() => items.map((item) => toRow(item, monthColumns)), [items, monthColumns]);
 
   const rows = useMemo(
-    // KPIs without a fiscal year are kept, as on the employee KPI page
-    () => (onlySelectedYearKpis
-      ? allRows.filter((row) => Number.isNaN(row.finYearStart) || row.finYearStart === fiscalYear)
-      : allRows),
-    [allRows, onlySelectedYearKpis, fiscalYear]
+    // Only KPIs defined for the selected fiscal year, as on the employee KPI page
+    // (KPIs without a fiscal year are kept)
+    () => allRows.filter((row) => Number.isNaN(row.finYearStart) || row.finYearStart === fiscalYear),
+    [allRows, fiscalYear]
   );
 
   // Month filters and month sorting use the target when viewing targets, otherwise the actual
@@ -340,19 +336,6 @@ const KpiDataAudit = () => {
             </select>
           </label>
 
-          <label
-            className="flex items-center gap-2 rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-2 text-sm text-[color:var(--text-primary)]"
-            title="Hide KPIs defined for other fiscal years (e.g. last year's copies). Their data for this year is hidden too."
-          >
-            <input
-              type="checkbox"
-              checked={onlySelectedYearKpis}
-              onChange={(e) => setOnlySelectedYearKpis(e.target.checked)}
-              className="h-4 w-4 accent-[color:var(--accent)]"
-            />
-            Only this year's KPIs
-          </label>
-
           <button
             type="button"
             onClick={() => { setFilters({}); setSort({ key: null, direction: 'asc' }); }}
@@ -386,7 +369,6 @@ const KpiDataAudit = () => {
         <div className="mb-3 flex shrink-0 flex-wrap gap-4 text-sm text-[color:var(--text-secondary)]">
           <span>
             Showing <strong className="text-[color:var(--text-primary)]">{summary.total}</strong> of {rows.length} KPIs
-            {onlySelectedYearKpis && ` (${allRows.length - rows.length} from other fiscal years hidden)`}
           </span>
           <span>With data this year: <strong className="text-[color:var(--success)]">{summary.withData}</strong></span>
           <span>No data this year: <strong className="text-[color:var(--danger)]">{summary.withoutData}</strong></span>
