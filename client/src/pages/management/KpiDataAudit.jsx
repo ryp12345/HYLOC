@@ -27,6 +27,20 @@ const toKpiGroup = (categoryName) => {
   return categoryName ? `KPI (${categoryName})` : 'KPI';
 };
 
+// "KPI (Plant KPI)" -> { label: 'KPI', type: 'Plant KPI' }; the type is shown as a badge
+const splitKpiGroup = (group) => {
+  const match = group.match(/^(.*?)\s*\((.*)\)$/);
+  return match ? { label: match[1], type: match[2] } : { label: group, type: '' };
+};
+
+// A different colour per KPI type, distinct from the Computed/Manual badges
+const KPI_TYPE_BADGE = {
+  'Plant KPI': 'bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-300',
+  'Pillar KPI': 'bg-violet-100 text-violet-800 dark:bg-violet-500/20 dark:text-violet-300',
+  'Department KPI': 'bg-sky-100 text-sky-800 dark:bg-sky-500/20 dark:text-sky-300',
+};
+const OTHER_KPI_TYPE_BADGE = 'bg-slate-100 text-slate-700 dark:bg-slate-500/20 dark:text-slate-300';
+
 const BLANK = '(Blank)';
 
 const TEXT_COLUMNS = [
@@ -479,7 +493,21 @@ const KpiDataAudit = () => {
                   <td className={`${frozenDescription} z-10 border-b bg-[color:var(--surface)] px-3 py-2 font-medium`} title={row.kpiTitle !== row.description ? `KPI: ${row.kpiTitle}` : undefined}>
                     {row.description}
                   </td>
-                  <td className="border-b border-[color:var(--border)] px-3 py-2" title={row.category}>{row.group}</td>
+                  <td className="border-b border-[color:var(--border)] px-3 py-2 whitespace-nowrap" title={row.category}>
+                    {(() => {
+                      const { label, type } = splitKpiGroup(row.group);
+                      return (
+                        <>
+                          {label}
+                          {type && (
+                            <span className={`ml-2 rounded px-2 py-0.5 text-xs font-medium ${KPI_TYPE_BADGE[type] || OTHER_KPI_TYPE_BADGE}`}>
+                              {type}
+                            </span>
+                          )}
+                        </>
+                      );
+                    })()}
+                  </td>
                   <td className="border-b border-[color:var(--border)] px-3 py-2 whitespace-nowrap">
                     {row.dataType === 'Computed' ? (
                       <span
