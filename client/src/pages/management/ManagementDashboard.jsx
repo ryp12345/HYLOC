@@ -23,6 +23,8 @@ import {
   Tooltip,
   Legend,
   LabelList,
+  ReferenceLine,
+  ReferenceDot,
   Radar,
   RadarChart,
   PolarGrid,
@@ -44,15 +46,57 @@ const getFiscalMonthSequence = (fiscalYear) => {
   });
 };
 
+// Chart value display rule: an explicit 0 is shown as "0"; a missing/null value is shown as NO_DATA_TEXT.
+const NO_DATA_TEXT = 'No data available';
+const isMissingValue = (value) => value === null || value === undefined || value === '' || !Number.isFinite(Number(value));
+
+const formatChartValue = (value, suffix = '', decimals = 1) => {
+  if (isMissingValue(value)) return NO_DATA_TEXT;
+  const factor = 10 ** decimals;
+  const rounded = Math.round(Number(value) * factor) / factor;
+  return `${Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(decimals)}${suffix}`;
+};
+
+// LabelList formatter: missing points get no label on the series itself (see renderNoDataMarkers)
+const labelFormatter = (suffix = '') => (value) => (isMissingValue(value) ? '' : formatChartValue(value, suffix, 0));
+
+const maxOfValues = (values, floor) => Math.max(floor, ...(values || []).filter((v) => !isMissingValue(v)).map(Number));
+
+// Recharts skips null points entirely, so mark each missing category with a vertical "No data available" label.
+// `rows` are chart data rows; `keys` are the series that must all be missing for the marker to show.
+const renderNoDataMarkers = (rows, keys, fontSize = 10) =>
+  rows
+    .filter((row) => keys.every((key) => isMissingValue(row[key])))
+    .map((row) => (
+      <ReferenceLine
+        key={`no-data-${row.name}`}
+        x={row.name}
+        stroke="transparent"
+        label={{ value: NO_DATA_TEXT, angle: -90, position: 'insideBottom', offset: 6, fill: 'var(--text-muted)', fontSize, fontWeight: 600, textAnchor: 'start' }}
+      />
+    ));
+
+// Recharts drops zero-height bars, so their LabelList never renders. Draw the "0" label at the baseline instead,
+// so explicit zero values are visible without hovering. `style` should match the series' LabelList style.
+const renderZeroBarLabels = (rows, key, suffix = '', style = {}) =>
+  rows
+    .filter((row) => !isMissingValue(row[key]) && Number(row[key]) === 0)
+    .map((row) => (
+      <ReferenceDot
+        key={`zero-${key}-${row.name}`}
+        x={row.name}
+        y={0}
+        r={0}
+        fill="transparent"
+        stroke="none"
+        label={{ value: `0${suffix}`, position: 'top', offset: 5, ...style }}
+      />
+    ));
+
 // Shared styled tooltip for all Recharts visualizations
 const ChartTooltip = ({ active, payload, label }) => {
   if (!active || !payload || !payload.length) return null;
-  const formatTooltipValue = (value) => {
-    const numericValue = Number(value);
-    if (!Number.isFinite(numericValue)) return value;
-    const rounded = Math.round(numericValue * 10) / 10;
-    return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
-  };
+  const formatTooltipValue = (value) => formatChartValue(value);
   return (
     <div className="rounded-lg border border-[color:var(--border)] bg-[color:var(--surface-elevated)]/95 px-3 py-2 text-xs shadow-lg backdrop-blur">
       {label != null && <div className="mb-1 font-bold text-[color:var(--text-primary)]">{label}</div>}
@@ -60,7 +104,7 @@ const ChartTooltip = ({ active, payload, label }) => {
         <div key={i} className="flex items-center gap-2">
           <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: p.color || p.stroke || p.fill }}></span>
           <span className="font-semibold text-[color:var(--text-secondary)]">{p.name}:</span>
-          <span className="font-bold text-[color:var(--text-primary)]">{formatTooltipValue(p.value)}</span>
+          <span className="font-bold text-[color:var(--text-primary)]">{p.payload?.display ?? formatTooltipValue(p.value)}</span>
         </div>
       ))}
     </div>
@@ -68,6 +112,7 @@ const ChartTooltip = ({ active, payload, label }) => {
 };
 
 const formatINR = (num) => Number(num || 0).toLocaleString('en-IN');
+const formatINRValue = (num) => (isMissingValue(num) ? NO_DATA_TEXT : formatINR(num));
 
 // Industry 4.0 KPI — Recharts bar (actual)
 const Industry40LineChart = ({
@@ -79,8 +124,8 @@ const Industry40LineChart = ({
   allowDecimals = true,
   unit = '%',
 }) => {
-  const data = labels.map((label, i) => ({ name: label, Actual: actuals[i] ?? 0 }));
-  const max = Math.max(...actuals, 1);
+  const data = labels.map((label, i) => ({ name: label, Actual: isMissingValue(actuals[i]) ? null : Number(actuals[i]) }));
+  const max = maxOfValues(actuals, 1);
   const yMax = Math.ceil(max * 1.15);
   const tf = isExpanded ? 13 : 12;
   return (
@@ -98,10 +143,12 @@ const Industry40LineChart = ({
             <CartesianGrid strokeDasharray="4 4" stroke="color-mix(in srgb, var(--accent) 18%, transparent)" vertical={false} />
             <XAxis dataKey="name" tick={{ fontSize: tf, fill: 'var(--text-muted)', fontWeight: 800 }} tickLine={false} axisLine={{ stroke: 'var(--border)' }} />
             <YAxis domain={[0, yMax]} unit={unit} allowDecimals={allowDecimals} tick={{ fontSize: tf, fill: 'var(--text-muted)', fontWeight: 800 }} tickLine={false} axisLine={false} width={38} />
-            <Tooltip content={<ChartTooltip />} cursor={{ fill: 'color-mix(in srgb, var(--app-bg) 84%, transparent)' }} />
+            <Tooltip content={<ChartTooltip />} filterNull={false} cursor={{ fill: 'color-mix(in srgb, var(--app-bg) 84%, transparent)' }} />
+            {renderNoDataMarkers(data, ['Actual'], tf - 2)}
             <Bar dataKey="Actual" fill="url(#i40Bar)" radius={[6, 6, 0, 0]} maxBarSize={36} name="Actual">
-              <LabelList dataKey="Actual" position="top" formatter={(v) => unit ? `${Math.round(v)}${unit}` : Math.round(v)} style={{ fontSize: tf, fill: 'var(--accent)', fontWeight: 800 }} />
+              <LabelList dataKey="Actual" position="top" formatter={labelFormatter(unit || '')} style={{ fontSize: tf, fill: 'var(--accent)', fontWeight: 800 }} />
             </Bar>
+            {renderZeroBarLabels(data, 'Actual', unit || '', { fontSize: tf, fill: 'var(--accent)', fontWeight: 800 })}
           </ComposedChart>
         </ResponsiveContainer>
       </div>
@@ -130,7 +177,7 @@ const SpeedometerGauge = ({ efficiency, month, year }) => {
           viewBox="0 0 300 220"
           className="w-full h-auto"
           style={{ maxWidth: '100%', maxHeight: '100%' }}
-          title={`${month} ${year}: ${hasData ? `${value.toFixed(1)}%` : 'No data'}`}
+          title={`${month} ${year}: ${hasData ? formatChartValue(value, '%') : NO_DATA_TEXT}`}
         >
           <path d="M 12 180 A 138 138 0 0 1 288 180" fill="none" stroke="var(--border)" strokeWidth="24" strokeLinecap="round" />
           <path d="M 12 180 A 138 138 0 0 1 150 42" fill="none" stroke="#ef4444" strokeWidth="24" strokeLinecap="round" />
@@ -153,7 +200,7 @@ const SpeedometerGauge = ({ efficiency, month, year }) => {
         </svg>
       </div>
       <div className="mt-0.5 text-center">
-        <div className="text-base font-extrabold text-[color:var(--accent)] sm:text-lg">{hasData ? `${value.toFixed(1)}%` : 'No data'}</div>
+        <div className="text-base font-extrabold text-[color:var(--accent)] sm:text-lg">{hasData ? formatChartValue(value, '%') : NO_DATA_TEXT}</div>
       </div>
     </div>
   );
@@ -161,8 +208,8 @@ const SpeedometerGauge = ({ efficiency, month, year }) => {
 
 // Bar Chart Component for Green Factory
 const GreenFactoryBarChart = ({ title, subtitle, labels, values, showHeader = true, showAxisLabels = true, xAxisTitle = 'Month', yAxisTitle = 'Value', isExpanded = false }) => {
-  const data = labels.map((label, i) => ({ name: label, Value: values[i] ?? 0 }));
-  const max = Math.max(...values, 100);
+  const data = labels.map((label, i) => ({ name: label, Value: isMissingValue(values[i]) ? null : Number(values[i]) }));
+  const max = maxOfValues(values, 100);
   const yMax = Math.ceil(max * 1.15);
   const tf = isExpanded ? 13 : 12;
   return (
@@ -181,10 +228,12 @@ const GreenFactoryBarChart = ({ title, subtitle, labels, values, showHeader = tr
             <CartesianGrid strokeDasharray="4 4" stroke="var(--border)" vertical={false} />
             <XAxis dataKey="name" tick={{ fontSize: tf, fill: 'var(--text-muted)', fontWeight: 800 }} tickLine={false} axisLine={{ stroke: 'var(--border)' }} />
             <YAxis domain={[0, yMax]} unit="%" tick={{ fontSize: tf, fill: 'var(--text-muted)', fontWeight: 800 }} tickLine={false} axisLine={false} width={38} />
-            <Tooltip content={<ChartTooltip />} cursor={{ fill: 'color-mix(in srgb, var(--app-bg) 84%, transparent)' }} />
+            <Tooltip content={<ChartTooltip />} filterNull={false} cursor={{ fill: 'color-mix(in srgb, var(--app-bg) 84%, transparent)' }} />
+            {renderNoDataMarkers(data, ['Value'], tf - 2)}
             <Bar dataKey="Value" fill="url(#gfBar)" radius={[6, 6, 0, 0]} maxBarSize={48} name="Value">
-              <LabelList dataKey="Value" position="top" formatter={(v) => `${Math.round(v)}%`} style={{ fontSize: tf, fill: 'var(--text-primary)', fontWeight: 800 }} />
+              <LabelList dataKey="Value" position="top" formatter={labelFormatter('%')} style={{ fontSize: tf, fill: 'var(--text-primary)', fontWeight: 800 }} />
             </Bar>
+            {renderZeroBarLabels(data, 'Value', '%', { fontSize: tf, fill: 'var(--text-primary)', fontWeight: 800 })}
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -199,11 +248,11 @@ const ZeroAccidentsBarChart = ({ title, subtitle, labels, actuals, showHeader = 
       const n = Number(String(label).trim());
       return Number.isInteger(n) && n >= 1 && n <= 12 ? MONTH_LABELS[n - 1] : String(label);
     })(),
-    Actual: Number(actuals[i] ?? 0),
+    Actual: isMissingValue(actuals[i]) ? null : Number(actuals[i]),
   }));
-  const hasData = raw.some((d) => d.Actual !== 0);
-  const data = hasData ? raw.filter((d) => d.Actual !== 0) : raw;
-  const max = Math.max(...data.map((d) => d.Actual), 1);
+  // Every month is plotted: 0 accidents is a real value and must show as "0"
+  const data = raw;
+  const max = maxOfValues(data.map((d) => d.Actual), 1);
   const yMax = max <= 10 ? max + 1 : Math.ceil(max * 1.15);
   const tf = isExpanded ? 14 : 13;
   return (
@@ -216,10 +265,12 @@ const ZeroAccidentsBarChart = ({ title, subtitle, labels, actuals, showHeader = 
             <CartesianGrid strokeDasharray="4 4" stroke="color-mix(in srgb, var(--accent) 18%, transparent)" vertical={false} />
             <XAxis dataKey="name" tick={{ fontSize: tf, fill: 'var(--text-muted)', fontWeight: 700 }} tickLine={false} axisLine={{ stroke: 'var(--border)' }} interval="preserveStartEnd" />
             <YAxis domain={[0, yMax]} tick={{ fontSize: tf, fill: 'var(--text-muted)', fontWeight: 700 }} tickLine={false} axisLine={false} width={38} allowDecimals={false} />
-            <Tooltip content={<ChartTooltip />} cursor={{ fill: 'color-mix(in srgb, var(--app-bg) 84%, transparent)' }} />
+            <Tooltip content={<ChartTooltip />} filterNull={false} cursor={{ fill: 'color-mix(in srgb, var(--app-bg) 84%, transparent)' }} />
+            {renderNoDataMarkers(data, ['Actual'], tf - 3)}
             <Bar dataKey="Actual" fill="var(--accent)" radius={[4, 4, 0, 0]} maxBarSize={36} name="Actual">
-              <LabelList dataKey="Actual" position="top" formatter={(v) => Math.round(v)} style={{ fontSize: tf, fill: 'var(--accent)', fontWeight: 800 }} />
+              <LabelList dataKey="Actual" position="top" formatter={labelFormatter()} style={{ fontSize: tf, fill: 'var(--accent)', fontWeight: 800 }} />
             </Bar>
+            {renderZeroBarLabels(data, 'Actual', '', { fontSize: tf, fill: 'var(--accent)', fontWeight: 800 })}
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -229,8 +280,12 @@ const ZeroAccidentsBarChart = ({ title, subtitle, labels, actuals, showHeader = 
 
 // On Time Delivery mixed chart (Target line + Achieved bars)
 const OnTimeDeliveryBarChart = ({ title, subtitle, labels, actuals, targets, showHeader = true, isExpanded = false }) => {
-  const data = labels.map((label, i) => ({ name: label, Achieved: Number(actuals[i] ?? 0), Target: Number(targets[i] ?? 0) }));
-  const max = Math.max(...actuals, ...targets, 1);
+  const data = labels.map((label, i) => ({
+    name: label,
+    Achieved: isMissingValue(actuals[i]) ? null : Number(actuals[i]),
+    Target: isMissingValue(targets[i]) ? null : Number(targets[i]),
+  }));
+  const max = maxOfValues([...actuals, ...targets], 1);
   const yMax = Math.ceil(max * 1.15);
   const tf = isExpanded ? 14 : 13;
   return (
@@ -249,10 +304,12 @@ const OnTimeDeliveryBarChart = ({ title, subtitle, labels, actuals, targets, sho
             <CartesianGrid strokeDasharray="4 4" stroke="var(--border)" vertical={false} />
             <XAxis dataKey="name" tick={{ fontSize: tf, fill: 'var(--text-muted)', fontWeight: 700 }} tickLine={false} axisLine={{ stroke: 'var(--border)' }} interval="preserveStartEnd" />
             <YAxis domain={[0, yMax]} tick={{ fontSize: tf, fill: 'var(--text-muted)', fontWeight: 700 }} tickLine={false} axisLine={false} width={38} />
-            <Tooltip content={<ChartTooltip />} cursor={{ fill: 'color-mix(in srgb, var(--app-bg) 84%, transparent)' }} />
+            <Tooltip content={<ChartTooltip />} filterNull={false} cursor={{ fill: 'color-mix(in srgb, var(--app-bg) 84%, transparent)' }} />
+            {renderNoDataMarkers(data, ['Achieved'], tf - 3)}
             <Bar dataKey="Achieved" fill="url(#otdBar)" radius={[4, 4, 0, 0]} maxBarSize={36} name="Achieved">
-              <LabelList dataKey="Achieved" position="top" formatter={(v) => `${Math.round(v)}%`} style={{ fontSize: tf, fill: 'var(--text-primary)', fontWeight: 800 }} />
+              <LabelList dataKey="Achieved" position="top" formatter={labelFormatter('%')} style={{ fontSize: tf, fill: 'var(--text-primary)', fontWeight: 800 }} />
             </Bar>
+            {renderZeroBarLabels(data, 'Achieved', '%', { fontSize: tf, fill: 'var(--text-primary)', fontWeight: 800 })}
             <Line dataKey="Target" stroke="#f59e0b" strokeWidth={3} dot={{ r: 4, fill: '#f59e0b', strokeWidth: 0 }} activeDot={{ r: 6 }} name="Target" />
           </ComposedChart>
         </ResponsiveContainer>
@@ -266,8 +323,8 @@ const OnTimeDeliveryBarChart = ({ title, subtitle, labels, actuals, targets, sho
 // Employees left line chart
 // Employees left line chart
 const Box4EmployeesLineChart = ({ title, subtitle, labels, values, showAxisLabels = true, showPointLabels = true, xAxisTitle = 'Month', yAxisTitle = 'Count', showHeader = true, showSubtitle, isExpanded = false }) => {
-  const data = labels.map((label, i) => ({ name: label, Count: values[i] ?? 0 }));
-  const max = Math.max(...values, 1);
+  const data = labels.map((label, i) => ({ name: label, Count: isMissingValue(values[i]) ? null : Number(values[i]) }));
+  const max = maxOfValues(values, 1);
   const yMax = Math.ceil(max * 1.15);
   const tf = isExpanded ? 13 : 12;
   return (
@@ -286,9 +343,10 @@ const Box4EmployeesLineChart = ({ title, subtitle, labels, values, showAxisLabel
             <CartesianGrid strokeDasharray="4 4" stroke="var(--border)" vertical={false} />
             <XAxis dataKey="name" tick={{ fontSize: tf, fill: 'var(--text-muted)', fontWeight: 800 }} tickLine={false} axisLine={{ stroke: 'var(--border)' }} />
             <YAxis domain={[0, yMax]} allowDecimals={false} tick={{ fontSize: tf, fill: 'var(--text-muted)', fontWeight: 800 }} tickLine={false} axisLine={false} width={38} />
-            <Tooltip content={<ChartTooltip />} cursor={{ stroke: 'var(--border)', strokeDasharray: '4 4' }} />
+            <Tooltip content={<ChartTooltip />} filterNull={false} cursor={{ stroke: 'var(--border)', strokeDasharray: '4 4' }} />
+            {renderNoDataMarkers(data, ['Count'], tf - 2)}
             <Area type="monotone" dataKey="Count" stroke="#ef4444" strokeWidth={3} fill="url(#employeeArea)" dot={{ r: 3, fill: '#ef4444', strokeWidth: 0 }} activeDot={{ r: 5 }} name="Count">
-              <LabelList dataKey="Count" position="top" formatter={(v) => Math.round(v)} style={{ fontSize: tf, fill: 'var(--text-primary)', fontWeight: 800 }} />
+              <LabelList dataKey="Count" position="top" formatter={labelFormatter()} style={{ fontSize: tf, fill: 'var(--text-primary)', fontWeight: 800 }} />
             </Area>
           </AreaChart>
         </ResponsiveContainer>
@@ -465,6 +523,15 @@ const normalizeValueType = (valueType) => {
   if (normalized.includes('actual') || normalized.includes('achieved')) return 'actual';
   if (normalized.includes('target')) return 'target';
   return normalized;
+};
+// Like parseNumeric, but keeps "missing" distinct from zero: null/blank/unparseable -> null, "0" -> 0
+const parseNullableNumeric = (value) => {
+  if (value == null) return null;
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+  const cleaned = String(value).replace(/[^0-9.-]/g, '').trim();
+  if (cleaned === '' || cleaned === '-' || cleaned === '.') return null;
+  const parsed = Number(cleaned);
+  return Number.isFinite(parsed) ? parsed : null;
 };
 const parseNumeric = (value) => {
   if (value == null) return 0;
@@ -1177,12 +1244,12 @@ function ManagementDashboard() {
           if (actualRow) {
             lastAvailableIdx = idx;
           }
-          const value = actualRow ? parseNumeric(actualRow.value) : 0;
+          const value = parseNullableNumeric(actualRow?.value);
           console.log(`    ✅ Green Factory data: month=${month}, year=${year}, value=${value}`);
           valuesByMonth.push(value);
         } catch (err) {
           console.warn(`Failed to load data for month ${month}, year ${year}:`, err);
-          valuesByMonth.push(0);
+          valuesByMonth.push(null);
         }
       }
 
@@ -1232,13 +1299,13 @@ function ManagementDashboard() {
           if (actualRow) {
             lastAvailableIdx = idx;
           }
-          const actual = actualRow ? parseNumeric(actualRow.value) : 0;
-          const target = targetRow ? parseNumeric(targetRow.value) : 0;
+          const actual = parseNullableNumeric(actualRow?.value);
+          const target = parseNullableNumeric(targetRow?.value);
           console.log(`    ✅ Zero Accidents data: month=${month}, year=${year}, actual=${actual}, target=${target}`);
           byMonth.push({ actual, target });
         } catch (err) {
           console.warn(`Failed to load data for month ${month}, year ${year}:`, err);
-          byMonth.push({ actual: 0, target: 0 });
+          byMonth.push({ actual: null, target: null });
         }
       }
 
@@ -1289,13 +1356,13 @@ function ManagementDashboard() {
           if (actualRow) {
             lastAvailableIdx = idx;
           }
-          const actual = actualRow ? parseNumeric(actualRow.value) : 0;
-          const target = targetRow ? parseNumeric(targetRow.value) : 0;
+          const actual = parseNullableNumeric(actualRow?.value);
+          const target = parseNullableNumeric(targetRow?.value);
           console.log(`    ✅ On Time Delivery data: month=${month}, year=${year}, actual=${actual}, target=${target}`);
           byMonth.push({ actual, target });
         } catch (err) {
           console.warn(`Failed to load data for month ${month}, year ${year}:`, err.message);
-          byMonth.push({ actual: 0, target: 0 });
+          byMonth.push({ actual: null, target: null });
         }
       }
 
@@ -1348,12 +1415,12 @@ function ManagementDashboard() {
           if (actualRow) {
             lastAvailableIdx = idx;
           }
-          const value = actualRow ? parseNumeric(actualRow.value) : 0;
+          const value = parseNullableNumeric(actualRow?.value);
           console.log(`    ✅ Employees data: month=${month}, year=${year}, value=${value}`);
           employeesByMonth.push(value);
         } catch (err) {
           console.warn(`Failed to load data for month ${month}, year ${year}:`, err);
-          employeesByMonth.push(0);
+          employeesByMonth.push(null);
         }
       }
 
@@ -1411,8 +1478,12 @@ function ManagementDashboard() {
             efficiencyByIndex[idx] = null; // no data for this month
             continue;
           }
-          const target = targetRow ? parseNumeric(targetRow.value) : 0;
-          const actual = parseNumeric(actualRow.value);
+          const target = parseNullableNumeric(targetRow?.value);
+          const actual = parseNullableNumeric(actualRow.value);
+          if (actual === null) {
+            efficiencyByIndex[idx] = null; // blank value entered = no data
+            continue;
+          }
           // If target is missing, assume actual is already a percent value.
           const efficiency = target > 0 ? Math.min(100, (actual / target) * 100) : Math.min(100, actual);
           efficiencyByIndex[idx] = Math.round(efficiency * 10) / 10;
@@ -1632,8 +1703,8 @@ function ManagementDashboard() {
             lastAvailableIdx = idx;
           }
 
-          const actualValue = actualRow ? parseNumeric(actualRow.value) : 0;
-          const targetValue = targetRow ? parseNumeric(targetRow.value) : 0;
+          const actualValue = parseNullableNumeric(actualRow?.value);
+          const targetValue = parseNullableNumeric(targetRow?.value);
           console.log(`    ✅ Industry 4.0 data: month=${month}, year=${year}, actual=${actualValue}, target=${targetValue}`);
 
           byMonth.push({
@@ -1642,7 +1713,7 @@ function ManagementDashboard() {
           });
         } catch (err) {
           console.warn(`Failed to load data for month ${month}, year ${year}:`, err);
-          byMonth.push({ actual: 0, target: 0 });
+          byMonth.push({ actual: null, target: null });
         }
       }
 
@@ -1702,8 +1773,8 @@ function ManagementDashboard() {
             lastAvailableIdx = idx;
           }
 
-          const actualValue = actualRow ? parseNumeric(actualRow.value) : 0;
-          const targetValue = targetRow ? parseNumeric(targetRow.value) : 0;
+          const actualValue = parseNullableNumeric(actualRow?.value);
+          const targetValue = parseNullableNumeric(targetRow?.value);
           console.log(`    ✅ Zero Quality data: month=${month}, year=${year}, actual=${actualValue}, target=${targetValue}`);
 
           byMonth.push({
@@ -1712,7 +1783,7 @@ function ManagementDashboard() {
           });
         } catch (err) {
           console.warn(`Failed to load data for month ${month}, year ${year}:`, err);
-          byMonth.push({ actual: 0, target: 0 });
+          byMonth.push({ actual: null, target: null });
         }
       }
 
@@ -1781,8 +1852,8 @@ function ManagementDashboard() {
             lastAvailableIdx = idx;
           }
 
-          const actualValue = actualRow ? parseNumeric(actualRow.value) : 0;
-          const targetValue = targetRow ? parseNumeric(targetRow.value) : 0;
+          const actualValue = parseNullableNumeric(actualRow?.value);
+          const targetValue = parseNullableNumeric(targetRow?.value);
 
           console.log(`    ✅ Sales data: month=${month}, year=${year}, actual=${actualValue}, target=${targetValue}`);
 
@@ -1794,7 +1865,7 @@ function ManagementDashboard() {
           });
         } catch (err) {
           console.warn(`Failed to load data for month ${month}, year ${year}:`, err);
-          salesByMonth.push({ month, year, actual: 0, target: 0 });
+          salesByMonth.push({ month, year, actual: null, target: null });
         }
       }
 
@@ -1848,9 +1919,9 @@ function ManagementDashboard() {
             lastAvailableIdx = idx;
           }
 
-          const actualValue = actualRow ? parseNumeric(actualRow.value) : 0;
+          const actualValue = parseNullableNumeric(actualRow?.value);
           // null = no target entered for the month (do not invent one)
-          const targetValue = targetRow ? parseNumeric(targetRow.value) : null;
+          const targetValue = parseNullableNumeric(targetRow?.value);
           console.log(`    ✅ Profitability data: month=${month}, year=${year}, profit=${actualValue}, target=${targetValue}`);
 
           profitByMonth.push({
@@ -1861,7 +1932,7 @@ function ManagementDashboard() {
           });
         } catch (err) {
           console.warn(`Failed to load data for month ${month}, year ${year}:`, err);
-          profitByMonth.push({ month, year, profit: 0, target: null });
+          profitByMonth.push({ month, year, profit: null, target: null });
         }
       }
 
@@ -2038,7 +2109,7 @@ function ManagementDashboard() {
                   </button>
                 </div>
               ) : (
-                <div className="flex h-full min-h-0 flex-1 items-center justify-center text-sm font-medium text-[color:var(--text-muted)]">No data</div>
+                <div className="flex h-full min-h-0 flex-1 items-center justify-center text-sm font-medium text-[color:var(--text-muted)]">{NO_DATA_TEXT}</div>
               )}
             </div>
           </div>
@@ -2071,7 +2142,7 @@ function ManagementDashboard() {
                   />
                 </div>
               ) : (
-                <div className="flex items-center justify-center flex-1 h-full min-h-0 text-slate-400 text-sm font-medium">No data</div>
+                <div className="flex items-center justify-center flex-1 h-full min-h-0 text-slate-400 text-sm font-medium">{NO_DATA_TEXT}</div>
               )}
             </div>
           </div>
@@ -2106,7 +2177,7 @@ function ManagementDashboard() {
                   />
                 </div>
               ) : (
-                <div className="flex items-center justify-center flex-1 h-full min-h-0 text-slate-400 text-sm font-medium">No data</div>
+                <div className="flex items-center justify-center flex-1 h-full min-h-0 text-slate-400 text-sm font-medium">{NO_DATA_TEXT}</div>
               )}
             </div>
           </div>
@@ -2137,9 +2208,9 @@ function ManagementDashboard() {
                     (() => {
                       const activeIdx = Math.min(Math.max(selectedSalesIndex, 0), monthlySalesData.length - 1);
                       const salesData = monthlySalesData[activeIdx] || { actual: 0, target: 0 };
-                      const actual = Number(salesData.actual || 0);
-                      const target = Number(salesData.target || 0);
-                      const pct = target > 0 ? Math.min((actual / target) * 100, 100) : 0;
+                      const actual = isMissingValue(salesData.actual) ? null : Number(salesData.actual);
+                      const target = isMissingValue(salesData.target) ? null : Number(salesData.target);
+                      const pct = actual != null && target > 0 ? Math.min((actual / target) * 100, 100) : 0;
                       return (
                         <div className="flex flex-col items-center flex-1 min-w-0 justify-center h-full cursor-pointer"
                           role="button"
@@ -2152,16 +2223,16 @@ function ManagementDashboard() {
                           </h5>
                           <div className="flex items-center justify-center min-h-0 w-full relative" style={{ height: '100%' }}>
                             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                              <div className="px-1 text-center text-sm font-extrabold leading-tight text-[color:var(--accent)] md:text-base">{formatINR(actual)}</div>
-                              <div className="px-1 text-center text-[10px] font-semibold leading-tight text-[color:var(--text-secondary)] md:text-[11px]">of {formatINR(target)}</div>
+                              <div className="px-1 text-center text-sm font-extrabold leading-tight text-[color:var(--accent)] md:text-base">{formatINRValue(actual)}</div>
+                              <div className="px-1 text-center text-[10px] font-semibold leading-tight text-[color:var(--text-secondary)] md:text-[11px]">{target != null ? `of ${formatINR(target)}` : `Target: ${NO_DATA_TEXT}`}</div>
                             </div>
                             <ResponsiveContainer width="100%" height="100%">
                               <PieChart>
                                 <Tooltip content={<ChartTooltip />} cursor={{ fill: 'color-mix(in srgb, var(--app-bg) 84%, transparent)' }} />
                                 <Pie
                                   data={[
-                                    { name: 'Achieved', value: Math.max(pct, 0.0001) },
-                                    { name: 'Remaining', value: Math.max(100 - pct, 0.0001) },
+                                    { name: 'Actual', value: Math.max(pct, 0.0001), display: formatINRValue(actual) },
+                                    { name: 'Target', value: Math.max(100 - pct, 0.0001), display: target != null ? formatINR(target) : NO_DATA_TEXT },
                                   ]}
                                   dataKey="value"
                                   innerRadius="65%"
@@ -2181,7 +2252,7 @@ function ManagementDashboard() {
                       );
                     })()
                   ) : (
-                    <div className="flex items-center justify-center flex-1 h-full min-h-0 text-slate-400 text-xs font-medium">No data</div>
+                    <div className="flex items-center justify-center flex-1 h-full min-h-0 text-slate-400 text-xs font-medium">{NO_DATA_TEXT}</div>
                   )}
                 </div>
 
@@ -2198,7 +2269,7 @@ function ManagementDashboard() {
                   ) : monthlyProfitData && monthlyProfitData.length > 0 ? (
                     (() => {
                       const profitData = monthlyProfitData[selectedProfitIndex] || { profit: 0, target: null };
-                      const profit = profitData.profit;
+                      const profit = isMissingValue(profitData.profit) ? null : Number(profitData.profit);
                       const target = profitData.target;
                       // Without a target the ring shows the profit % itself, as before
                       const percentageAchieved = target > 0 ? Math.min((profit / target) * 100, 100) : Math.min(Math.max(profit, 0), 100);
@@ -2214,16 +2285,16 @@ function ManagementDashboard() {
                           </h5>
                           <div className="flex items-center justify-center min-h-0 w-full relative" style={{ height: '100%' }}>
                             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-10">
-                              <div className="px-1 text-center text-sm font-extrabold leading-tight text-[color:var(--success)] md:text-base">{profit.toFixed(1)}%</div>
-                              <div className="px-1 text-center text-[10px] font-semibold leading-tight text-[color:var(--text-secondary)] md:text-[11px]">{target != null ? `of ${target.toFixed(1)}%` : 'No target set'}</div>
+                              <div className="px-1 text-center text-sm font-extrabold leading-tight text-[color:var(--success)] md:text-base">{formatChartValue(profit, '%')}</div>
+                              <div className="px-1 text-center text-[10px] font-semibold leading-tight text-[color:var(--text-secondary)] md:text-[11px]">{target != null ? `of ${formatChartValue(target, '%')}` : `Target: ${NO_DATA_TEXT}`}</div>
                             </div>
                             <ResponsiveContainer width="100%" height="100%">
                               <PieChart>
                                 <Tooltip content={<ChartTooltip />} cursor={{ fill: 'color-mix(in srgb, var(--app-bg) 84%, transparent)' }} />
                                 <Pie
                                   data={[
-                                    { name: 'Achieved', value: Math.max(percentageAchieved, 0.0001) },
-                                    { name: 'Remaining', value: Math.max(100 - percentageAchieved, 0.0001) },
+                                    { name: 'Actual', value: Math.max(percentageAchieved, 0.0001), display: formatChartValue(profit, '%') },
+                                    { name: 'Target', value: Math.max(100 - percentageAchieved, 0.0001), display: formatChartValue(target, '%') },
                                   ]}
                                   dataKey="value"
                                   innerRadius="65%"
@@ -2243,7 +2314,7 @@ function ManagementDashboard() {
                       );
                     })()
                   ) : (
-                    <div className="flex items-center justify-center flex-1 h-full min-h-0 text-slate-400 text-xs font-medium">No data</div>
+                    <div className="flex items-center justify-center flex-1 h-full min-h-0 text-slate-400 text-xs font-medium">{NO_DATA_TEXT}</div>
                   )}
                 </div>
               </div>
@@ -2274,7 +2345,7 @@ function ManagementDashboard() {
                   <OnTimeDeliveryBarChart title={onTimeDeliveryChart.title} subtitle={onTimeDeliveryChart.subtitle} labels={onTimeDeliveryChart.labels} actuals={onTimeDeliveryChart.actuals} targets={onTimeDeliveryChart.targets} showHeader={false} />
                 </div>
               ) : (
-                <div className="flex items-center justify-center flex-1 h-full min-h-0 text-slate-400 text-sm font-medium">No data</div>
+                <div className="flex items-center justify-center flex-1 h-full min-h-0 text-slate-400 text-sm font-medium">{NO_DATA_TEXT}</div>
               )}
             </div>
           </div>
@@ -2303,7 +2374,7 @@ function ManagementDashboard() {
                   <ZeroAccidentsBarChart title={zeroAccidentsChart.title} subtitle={zeroAccidentsChart.subtitle} labels={zeroAccidentsChart.labels} actuals={zeroAccidentsChart.actuals} showHeader={false} />
                 </div>
               ) : (
-                <div className="flex items-center justify-center flex-1 h-full min-h-0 text-gray-500 text-sm font-medium">No data</div>
+                <div className="flex items-center justify-center flex-1 h-full min-h-0 text-gray-500 text-sm font-medium">{NO_DATA_TEXT}</div>
               )}
             </div>
           </div>
@@ -2331,7 +2402,7 @@ function ManagementDashboard() {
                   <GreenFactoryBarChart title={greenFactoryChart.title} subtitle={greenFactoryChart.subtitle} labels={greenFactoryChart.labels} values={greenFactoryChart.values} showHeader={false} />
                 </div>
               ) : (
-                <div className="flex items-center justify-center flex-1 h-full min-h-0 text-slate-400 text-sm font-medium">No data</div>
+                <div className="flex items-center justify-center flex-1 h-full min-h-0 text-slate-400 text-sm font-medium">{NO_DATA_TEXT}</div>
               )}
             </div>
           </div>
@@ -2360,7 +2431,7 @@ function ManagementDashboard() {
                     {employeesChart ? (
                       <Box4EmployeesLineChart title={employeesChart.title} subtitle={employeesChart.subtitle} labels={employeesChart.labels} values={employeesChart.values} showHeader={false} showSubtitle={true} />
                     ) : (
-                      <div className="flex items-center justify-center flex-1 h-full min-h-0 text-slate-400 text-xs font-medium">No data</div>
+                      <div className="flex items-center justify-center flex-1 h-full min-h-0 text-slate-400 text-xs font-medium">{NO_DATA_TEXT}</div>
                     )}
                   </div>
                 )}
@@ -2628,21 +2699,21 @@ function ManagementDashboard() {
                         <div className="flex items-center justify-center" style={{ width: 280, height: 280 }}>
                           {(() => {
                             const salesData = monthlySalesData[selectedSalesIndex] || { actual: 0, target: 0 };
-                            const actual = Number(salesData.actual || 0);
-                            const target = Number(salesData.target || 0);
-                            const pct = target > 0 ? Math.min((actual / target) * 100, 100) : 0;
+                            const actual = isMissingValue(salesData.actual) ? null : Number(salesData.actual);
+                            const target = isMissingValue(salesData.target) ? null : Number(salesData.target);
+                            const pct = actual != null && target > 0 ? Math.min((actual / target) * 100, 100) : 0;
                             return (
                               <div className="relative w-full h-full">
                                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-10">
-                                  <div className="px-2 text-center text-2xl font-extrabold leading-tight text-[color:var(--accent)] md:text-3xl">{formatINR(actual)}</div>
-                                  <div className="px-2 text-center text-xs font-semibold leading-tight text-[color:var(--text-secondary)] md:text-sm">of {formatINR(target)}</div>
+                                  <div className="px-2 text-center text-2xl font-extrabold leading-tight text-[color:var(--accent)] md:text-3xl">{formatINRValue(actual)}</div>
+                                  <div className="px-2 text-center text-xs font-semibold leading-tight text-[color:var(--text-secondary)] md:text-sm">{target != null ? `of ${formatINR(target)}` : `Target: ${NO_DATA_TEXT}`}</div>
                                 </div>
                                 <ResponsiveContainer width="100%" height="100%">
                                   <PieChart>
                                     <Pie
                                       data={[
-                                        { name: 'Achieved', value: Math.max(pct, 0.0001) },
-                                        { name: 'Remaining', value: Math.max(100 - pct, 0.0001) },
+                                        { name: 'Actual', value: Math.max(pct, 0.0001), display: formatINRValue(actual) },
+                                        { name: 'Target', value: Math.max(100 - pct, 0.0001), display: target != null ? formatINR(target) : NO_DATA_TEXT },
                                       ]}
                                       dataKey="value"
                                       innerRadius="68%"
@@ -2664,11 +2735,11 @@ function ManagementDashboard() {
                         <div className="flex flex-col gap-2 mt-6">
                           <div className="flex items-center gap-3 text-sm text-slate-300 font-medium">
                             <span className="h-4 w-4 rounded bg-[color:var(--accent)]"></span>
-                            <span>Actual: {formatINR(monthlySalesData[selectedSalesIndex]?.actual)}</span>
+                            <span>Actual: {formatINRValue(monthlySalesData[selectedSalesIndex]?.actual)}</span>
                           </div>
                           <div className="flex items-center gap-3 text-sm text-slate-300 font-medium">
                             <span className="h-4 w-4 rounded bg-[color:var(--accent)]"></span>
-                            <span>Target: {formatINR(monthlySalesData[selectedSalesIndex]?.target)}</span>
+                            <span>Target: {formatINRValue(monthlySalesData[selectedSalesIndex]?.target)}</span>
                           </div>
                         </div>
                       </div>
@@ -2699,21 +2770,21 @@ function ManagementDashboard() {
                         <div className="flex items-center justify-center" style={{ width: 280, height: 280 }}>
                           {(() => {
                             const profitData = monthlyProfitData[selectedProfitIndex] || { profit: 0, target: null };
-                            const profit = profitData.profit;
+                            const profit = isMissingValue(profitData.profit) ? null : Number(profitData.profit);
                             const target = profitData.target;
                             const pct = target > 0 ? Math.min((profit / target) * 100, 100) : Math.min(Math.max(profit, 0), 100);
                             return (
                               <div className="relative w-full h-full">
                                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-10">
-                                  <div className="px-2 text-center text-2xl font-extrabold leading-tight text-[color:var(--success)] md:text-3xl">{profit.toFixed(1)}%</div>
-                                  <div className="px-2 text-center text-xs font-semibold leading-tight text-[color:var(--text-secondary)] md:text-sm">{target != null ? `of ${target.toFixed(1)}%` : 'No target set'}</div>
+                                  <div className="px-2 text-center text-2xl font-extrabold leading-tight text-[color:var(--success)] md:text-3xl">{formatChartValue(profit, '%')}</div>
+                                  <div className="px-2 text-center text-xs font-semibold leading-tight text-[color:var(--text-secondary)] md:text-sm">{target != null ? `of ${formatChartValue(target, '%')}` : `Target: ${NO_DATA_TEXT}`}</div>
                                 </div>
                                 <ResponsiveContainer width="100%" height="100%">
                                   <PieChart>
                                     <Pie
                                       data={[
-                                        { name: 'Achieved', value: Math.max(pct, 0.0001) },
-                                        { name: 'Remaining', value: Math.max(100 - pct, 0.0001) },
+                                        { name: 'Actual', value: Math.max(pct, 0.0001), display: formatChartValue(profit, '%') },
+                                        { name: 'Target', value: Math.max(100 - pct, 0.0001), display: formatChartValue(target, '%') },
                                       ]}
                                       dataKey="value"
                                       innerRadius="68%"
@@ -2735,11 +2806,11 @@ function ManagementDashboard() {
                         <div className="flex flex-col gap-2 mt-6">
                           <div className="flex items-center gap-3 text-sm text-slate-300 font-medium">
                             <span className="h-4 w-4 rounded bg-[color:var(--success)]"></span>
-                            <span>Actual: {(monthlyProfitData[selectedProfitIndex]?.profit || 0).toFixed(1)}%</span>
+                            <span>Actual: {formatChartValue(monthlyProfitData[selectedProfitIndex]?.profit, '%')}</span>
                           </div>
                           <div className="flex items-center gap-3 text-sm text-slate-300 font-medium">
                             <span className="h-4 w-4 rounded bg-[color:var(--success)]"></span>
-                            <span>Target: {monthlyProfitData[selectedProfitIndex]?.target != null ? `${monthlyProfitData[selectedProfitIndex].target.toFixed(1)}%` : 'Not set'}</span>
+                            <span>Target: {formatChartValue(monthlyProfitData[selectedProfitIndex]?.target, '%')}</span>
                           </div>
                         </div>
                       </div>
