@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -340,14 +340,14 @@ const PillarRadarChart = ({ pillars, onPillarClick, compact = false }) => {
   }
 
   return (
-    <div className="border border-[color:var(--border)] bg-[color:var(--surface)] p-2 shadow-sm">
-      <div className="mb-2">
+    <div className="flex h-full min-h-0 flex-col border border-[color:var(--border)] bg-[color:var(--surface)] p-2 shadow-sm">
+      <div className="mb-2 shrink-0">
         <h3 className="text-xl font-bold text-[color:var(--text-primary)]">Explore Pillars</h3>
         <p className="text-sm text-[color:var(--text-muted)]">Radar view of pillar KPIs for the selected financial year</p>
       </div>
-      <div className="flex flex-col items-start gap-6 lg:flex-row lg:items-center">
-        <div className="h-[360px] w-full lg:w-[420px]">{chart}</div>
-        <div className="flex-1 w-full">
+      <div className="flex min-h-0 flex-1 flex-col items-stretch gap-6 overflow-y-auto lg:flex-row lg:items-center lg:overflow-hidden">
+        <div className="h-[300px] w-full shrink-0 lg:h-full lg:max-h-[640px] lg:w-[45%] lg:shrink">{chart}</div>
+        <div className="w-full flex-1 lg:max-h-full lg:overflow-y-auto">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {data.map((d) => (
               <button
@@ -405,8 +405,8 @@ const DepartmentPerformanceRadarChart = ({ departments, onDepartmentClick }) => 
   }
 
   return (
-    <div className="border border-[color:var(--border)] bg-[color:var(--surface)] p-2 shadow-sm">
-      <div className="h-[460px] w-full">
+    <div className="flex h-full min-h-0 flex-col border border-[color:var(--border)] bg-[color:var(--surface)] p-2 shadow-sm">
+      <div className="min-h-[260px] w-full flex-1">
         <ResponsiveContainer width="100%" height="100%">
           <RadarChart data={data} outerRadius="72%">
             <PolarGrid stroke="var(--border)" />
@@ -420,6 +420,14 @@ const DepartmentPerformanceRadarChart = ({ departments, onDepartmentClick }) => 
     </div>
   );
 };
+
+// Full-page snap sections, in scroll order
+const SNAP_SECTIONS = [
+  { id: 'kmi', label: 'KMI / Global Objectives' },
+  { id: 'departments', label: 'Department KPI Dashboard' },
+  { id: 'staff', label: 'Staff Performance' },
+  { id: 'pillars', label: 'Pillars' },
+];
 
 // Helper function to get current fiscal year (April to March)
 const getCurrentFiscalYear = () => {
@@ -468,6 +476,52 @@ const parseNumeric = (value) => {
 
 function ManagementDashboard() {
   const { user } = useAuth();
+
+  // The dashboard is its own scroll-snap container, sized to the viewport space below the app header,
+  // so each section panel is exactly one screen tall.
+  const snapContainerRef = useRef(null);
+  const sectionRefs = useRef({});
+  const [snapHeight, setSnapHeight] = useState(null);
+  const [activeSection, setActiveSection] = useState(SNAP_SECTIONS[0].id);
+
+  useLayoutEffect(() => {
+    const updateSnapHeight = () => {
+      const container = snapContainerRef.current;
+      if (!container) return;
+      const top = container.getBoundingClientRect().top + window.scrollY;
+      const parentPaddingBottom = parseFloat(getComputedStyle(container.parentElement).paddingBottom) || 0;
+      setSnapHeight(Math.max(320, window.innerHeight - top - parentPaddingBottom));
+    };
+    updateSnapHeight();
+    // Header logos can load after first paint and shift the container down
+    const frame = requestAnimationFrame(updateSnapHeight);
+    window.addEventListener('resize', updateSnapHeight);
+    window.addEventListener('load', updateSnapHeight);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener('resize', updateSnapHeight);
+      window.removeEventListener('load', updateSnapHeight);
+    };
+  }, []);
+
+  useEffect(() => {
+    const container = snapContainerRef.current;
+    if (!container) return undefined;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) setActiveSection(entry.target.dataset.section);
+        });
+      },
+      { root: container, threshold: 0.6 }
+    );
+    Object.values(sectionRefs.current).forEach((el) => el && observer.observe(el));
+    return () => observer.disconnect();
+  }, []);
+
+  const scrollToSection = (id) => {
+    sectionRefs.current[id]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
   const [kpiStats, setKpiStats] = useState({
     total: 0
   });
@@ -628,11 +682,11 @@ function ManagementDashboard() {
     };
 
     const Column = ({ title, color, items }) => (
-      <div className="flex flex-col gap-2">
-        <div className={`border border-b-0 px-3 py-2 text-center text-sm font-extrabold ${color}`}>
+      <div className="flex min-h-0 flex-col gap-2">
+        <div className={`shrink-0 border border-b-0 px-3 py-2 text-center text-sm font-extrabold ${color}`}>
           {title} ({items.length})
         </div>
-        <div className="flex-1 space-y-2 overflow-y-auto border-t-0 border-[color:var(--border)] bg-[color:var(--surface)]/60 p-2" style={{ maxHeight: '600px' }}>
+        <div className="max-h-[420px] min-h-0 flex-1 space-y-2 overflow-y-auto border-t-0 border-[color:var(--border)] bg-[color:var(--surface)]/60 p-2 md:max-h-none">
           {items.length === 0 ? (
             <div className="py-4 text-center text-xs text-[color:var(--text-muted)]">No staff</div>
           ) : (
@@ -643,7 +697,7 @@ function ManagementDashboard() {
     );
 
     return (
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 md:h-full md:grid-cols-3">
         <Column title="BEST" color="bg-[color:var(--success-soft)] text-[color:var(--success)] border-[color:var(--success)]/30" items={best} />
         <Column title="MEDIUM" color="bg-[color:var(--accent-soft)] text-[color:var(--accent)] border-[color:var(--accent)]/30" items={medium} />
         <Column title="LOW" color="bg-[color:var(--danger-soft)] text-[color:var(--danger)] border-[color:var(--danger)]/30" items={low} />
@@ -1824,10 +1878,43 @@ function ManagementDashboard() {
   };
 
   return (
-    <div className="dashboard-dark-bg space-y-2 p-0.5 transition-colors duration-300 sm:p-1">
+    <div
+      ref={snapContainerRef}
+      className="dashboard-dark-bg relative snap-y snap-mandatory overflow-y-auto overscroll-contain scroll-smooth transition-colors duration-300"
+      style={{ height: snapHeight ? `${snapHeight}px` : 'calc(100vh - 5rem)', minHeight: 0 }}
+    >
+
+      {/* Section navigation dots */}
+      <nav className="pointer-events-none sticky top-0 z-40 float-right h-0 w-0" aria-label="Dashboard sections">
+        <div
+          className="pointer-events-auto absolute right-2 flex flex-col gap-2.5"
+          style={{ top: snapHeight ? `${snapHeight / 2}px` : '50vh', transform: 'translateY(-50%)' }}
+        >
+          {SNAP_SECTIONS.map((section) => (
+            <button
+              key={section.id}
+              type="button"
+              onClick={() => scrollToSection(section.id)}
+              title={section.label}
+              aria-label={`Go to ${section.label}`}
+              aria-current={activeSection === section.id ? 'true' : undefined}
+              className={`block rounded-full border border-[color:var(--accent)] transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[color:var(--focus-ring)] ${
+                activeSection === section.id ? 'h-5 w-2.5 bg-[color:var(--accent)]' : 'h-2.5 w-2.5 bg-[color:var(--surface)]/70 hover:bg-[color:var(--accent-soft)]'
+              }`}
+            />
+          ))}
+        </div>
+      </nav>
+
+      {/* KMI / Global Objectives Section */}
+      <section
+        ref={(el) => { sectionRefs.current.kmi = el; }}
+        data-section="kmi"
+        className="flex h-full snap-start snap-always flex-col gap-1 overflow-hidden p-0.5 sm:p-1"
+      >
 
       {/* Header */}
-      <div className="dashboard-panel-header px-4 py-1.5 sm:px-5 sm:py-2">
+      <div className="dashboard-panel-header shrink-0 px-4 py-1.5 sm:px-5 sm:py-2">
         <div className="relative flex flex-col gap-1.5 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <h1 className="text-base font-extrabold tracking-tight text-white sm:text-lg">KMI / Global Objectives</h1>
@@ -1880,9 +1967,9 @@ function ManagementDashboard() {
       </div>
 
       {/* Performance Dashboard Section */}
-      <div className="mt-0">
+      <div className="min-h-0 flex-1 overflow-y-auto lg:overflow-hidden">
         {/* <h2 className="text-2xl text-center justify-center font-bold text-gray-800 mb-6">📊 Performance Dashboard</h2> */}
-        <div className="grid grid-cols-1 gap-0 md:grid-cols-2 lg:grid-cols-12 lg:grid-rows-3 lg:gap-0 lg:h-[calc(100vh-90px)] overflow-hidden">
+        <div className="grid grid-cols-1 gap-0 md:grid-cols-2 lg:grid-cols-12 lg:grid-rows-3 lg:gap-0 lg:h-full overflow-hidden">
           {/* Plant Efficiency Speedometer */}
           <div className="w-full h-full min-h-0 lg:col-span-4 lg:row-span-1">
             <div className="dashboard-card flex h-full min-h-0 flex-col">
@@ -2283,13 +2370,19 @@ function ManagementDashboard() {
         </div>
       </div>
       {/* Performance Dashboard Section End */}
+      </section>
 
-      <div className="mt-6">
-        <div className="dashboard-panel-header px-4 py-3">
+      {/* Department KPI Dashboard Section */}
+      <section
+        ref={(el) => { sectionRefs.current.departments = el; }}
+        data-section="departments"
+        className="flex h-full snap-start snap-always flex-col gap-1 overflow-hidden p-0.5 sm:p-1"
+      >
+        <div className="dashboard-panel-header shrink-0 px-4 py-3">
           <h2 className="relative text-lg font-extrabold tracking-tight text-white sm:text-xl">Department KPI Dashboard</h2>
           <p className="relative text-xs text-white/80">Number of KPIs mapped to each department this fiscal year</p>
         </div>
-        <div className="mt-1">
+        <div className="min-h-0 flex-1">
           <DepartmentPerformanceRadarChart
             departments={departmentPerformanceForChart}
             onDepartmentClick={(department) => {
@@ -2299,24 +2392,32 @@ function ManagementDashboard() {
             }}
           />
         </div>
-      </div>
+      </section>
 
       {/* Staff Performance Section */}
-      <div className="mt-6">
-        <div className="dashboard-panel-header px-4 py-3">
+      <section
+        ref={(el) => { sectionRefs.current.staff = el; }}
+        data-section="staff"
+        className="flex h-full snap-start snap-always flex-col gap-1 overflow-hidden p-0.5 sm:p-1"
+      >
+        <div className="dashboard-panel-header shrink-0 px-4 py-3">
           <h2 className="relative text-lg font-extrabold tracking-tight text-white sm:text-xl">Staff Performance</h2>
         </div>
-        <div className="mt-1">
+        <div className="min-h-0 flex-1 overflow-y-auto md:overflow-hidden">
           <StaffPerformanceList staffList={staffList} loading={staffPerformanceLoading} />
         </div>
-      </div>
+      </section>
 
       {/* Pillars Section */}
-      <div className="mt-8">
-        <div className="dashboard-panel-header px-4 py-3">
+      <section
+        ref={(el) => { sectionRefs.current.pillars = el; }}
+        data-section="pillars"
+        className="flex h-full snap-start snap-always flex-col gap-1 overflow-hidden p-0.5 sm:p-1"
+      >
+        <div className="dashboard-panel-header shrink-0 px-4 py-3">
           <h2 className="relative text-lg font-extrabold tracking-tight text-white sm:text-xl">Pillars</h2>
         </div>
-        <div className="mt-1">
+        <div className="min-h-0 flex-1">
           <PillarRadarChart
             pillars={[...pillerStats.pillers].sort((a, b) => (a.piller_name || '').localeCompare(b.piller_name || ''))}
             onPillarClick={(pillar) => {
@@ -2326,7 +2427,7 @@ function ManagementDashboard() {
             }}
           />
         </div>
-      </div>
+      </section>
       {/* Pillars Section End*/}
 
 
