@@ -62,6 +62,7 @@ const Sidebar = () => {
     { name: 'Reset Credentials', path: '/management/users', icon: '👥' },
     // { name: 'KMI', path: '/management/mgtkmi', icon: '📚' },
     // { name: 'Pillar', path: '/management/mgtpiller', icon: '🏛️' },
+    
     { name: 'Calendar', path: '/management/leaves', icon: '📅' },
     {
       name: 'Leave Dashboard',
