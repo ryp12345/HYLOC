@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   ResponsiveContainer,
   LineChart,
@@ -14,8 +14,13 @@ import {
   ComposedChart,
   BarChart,
   Bar,
+  LabelList,
 } from 'recharts';
 import api from '../../api/axios';
+import { NO_DATA_TEXT, isMissingValue, formatChartValue, maxOfValues, renderNoDataMarkers, renderZeroBarLabels, ChartTooltip } from '../../utils/chartValues';
+
+// Charts per one-screen section (2 x 2 grid)
+const CHARTS_PER_SECTION = 4;
 
 const FISCAL_MONTH_SEQUENCE = [
   { month: 4, label: 'Apr' },
@@ -208,11 +213,76 @@ const SpeedometerGauge = ({ value, showLabel = false, showValue = true, isExpand
       </svg>
       {showValue && (
         <div className="mt-0.5 text-center">
-          <div className="text-base font-extrabold text-[color:var(--text-primary)] sm:text-lg">{efficiency.toFixed(1)}%</div>
+          <div className="text-base font-extrabold text-[color:var(--text-primary)] sm:text-lg">{formatChartValue(efficiency, '%')}</div>
           {showLabel && <div className="mt-1 text-sm text-[color:var(--text-secondary)]">Overall Equipment Efficiency</div>}
         </div>
       )}
     </div>
+  );
+};
+
+/* ══════════════ TREND CHARTS (labels follow the ManagementDashboard rules) ══════════════ */
+
+const ACTUAL_COLOR = '#2563eb';
+const TARGET_COLOR = '#10b981';
+
+// Value label on bars / points: 1 decimal; missing points get no label (they get a "No data available" marker)
+const valueLabel = (value) => (isMissingValue(value) ? '' : formatChartValue(value));
+
+const renderTrendChart = (chartType, data) => {
+  const tick = { fontSize: 10, fill: 'var(--text-muted)', fontWeight: 700 };
+  const labelStyle = (fill) => ({ fontSize: 10, fill, fontWeight: 800 });
+  // Room on top for the legend and the value labels above the tallest bar
+  const margin = { top: 22, right: 12, left: -8, bottom: 0 };
+  const yMax = Math.ceil(maxOfValues(data.flatMap((row) => [row.actual, row.target]), 1) * 1.18);
+
+  const common = [
+    <CartesianGrid key="grid" strokeDasharray="4 4" stroke="var(--border)" vertical={false} />,
+    // interval={0}: show every month label instead of letting Recharts skip some
+    <XAxis key="x" dataKey="label" interval={0} tick={tick} axisLine={{ stroke: 'var(--border)' }} tickLine={false} />,
+    <YAxis key="y" domain={[0, yMax]} tick={tick} axisLine={false} tickLine={false} width={44} />,
+    <Tooltip key="tip" content={<ChartTooltip />} filterNull={false} cursor={{ fill: 'color-mix(in srgb, var(--app-bg) 84%, transparent)' }} />,
+    <Legend key="legend" verticalAlign="top" align="right" iconType="circle" height={18} wrapperStyle={{ color: 'var(--text-secondary)', fontWeight: 700, fontSize: 11, top: 0 }} />,
+    ...renderNoDataMarkers(data, ['actual', 'target'], 9, 'label'),
+  ];
+
+  if (chartType === 'BAR_LINE') {
+    return (
+      <ComposedChart data={data} margin={margin}>
+        {common}
+        <Bar dataKey="actual" name="Actual" fill={ACTUAL_COLOR} radius={[4, 4, 0, 0]} maxBarSize={40}>
+          <LabelList dataKey="actual" position="top" formatter={valueLabel} style={labelStyle('var(--text-primary)')} />
+        </Bar>
+        {renderZeroBarLabels(data, 'actual', '', labelStyle('var(--text-primary)'), 'label')}
+        <Line type="monotone" dataKey="target" name="Target" stroke={TARGET_COLOR} strokeWidth={2} dot={{ r: 3, fill: TARGET_COLOR, strokeWidth: 0 }} activeDot={{ r: 5 }} />
+      </ComposedChart>
+    );
+  }
+
+  if (chartType === 'BAR') {
+    return (
+      <BarChart data={data} margin={margin}>
+        {common}
+        <Bar dataKey="actual" name="Actual" fill={ACTUAL_COLOR} radius={[4, 4, 0, 0]} maxBarSize={40}>
+          <LabelList dataKey="actual" position="top" formatter={valueLabel} style={labelStyle(ACTUAL_COLOR)} />
+        </Bar>
+        <Bar dataKey="target" name="Target" fill={TARGET_COLOR} radius={[4, 4, 0, 0]} maxBarSize={40}>
+          <LabelList dataKey="target" position="top" formatter={valueLabel} style={labelStyle(TARGET_COLOR)} />
+        </Bar>
+        {renderZeroBarLabels(data, 'actual', '', labelStyle(ACTUAL_COLOR), 'label')}
+      </BarChart>
+    );
+  }
+
+  // LINE (default)
+  return (
+    <LineChart data={data} margin={margin}>
+      {common}
+      <Line type="monotone" dataKey="actual" name="Actual" stroke={ACTUAL_COLOR} strokeWidth={2} dot={{ r: 3, fill: ACTUAL_COLOR, strokeWidth: 0 }} activeDot={{ r: 5 }}>
+        <LabelList dataKey="actual" position="top" offset={8} formatter={valueLabel} style={labelStyle(ACTUAL_COLOR)} />
+      </Line>
+      <Line type="monotone" dataKey="target" name="Target" stroke={TARGET_COLOR} strokeWidth={2} strokeDasharray="6 4" dot={{ r: 2.5, fill: TARGET_COLOR, strokeWidth: 0 }} activeDot={{ r: 5 }} />
+    </LineChart>
   );
 };
 
@@ -567,78 +637,136 @@ const PlantEfficiency = () => {
     return () => controller.abort();
   }, [filteredKpis, selectedFiscalYear]);
 
+  /* ──── One-screen chart sections (same approach as ManagementDashboard) ──── */
+  const pageRef = useRef(null);
+  const sectionsRef = useRef(null);
+  const sectionRefs = useRef([]);
+  const [pageHeight, setPageHeight] = useState(null);
+  const [activeSection, setActiveSection] = useState(0);
+
+  const chartSections = useMemo(() => {
+    const sections = [];
+    for (let i = 0; i < kpisWithData.length; i += CHARTS_PER_SECTION) {
+      sections.push(kpisWithData.slice(i, i + CHARTS_PER_SECTION));
+    }
+    return sections;
+  }, [kpisWithData]);
+
+  // Size the page to the viewport space below the app header so each section is exactly one screen
+  useLayoutEffect(() => {
+    const updatePageHeight = () => {
+      const container = pageRef.current;
+      if (!container) return;
+      const top = container.getBoundingClientRect().top + window.scrollY;
+      const parentPaddingBottom = parseFloat(getComputedStyle(container.parentElement).paddingBottom) || 0;
+      setPageHeight(Math.max(480, window.innerHeight - top - parentPaddingBottom));
+    };
+    updatePageHeight();
+    // Header logos can load after first paint and shift the container down
+    const frame = requestAnimationFrame(updatePageHeight);
+    window.addEventListener('resize', updatePageHeight);
+    window.addEventListener('load', updatePageHeight);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener('resize', updatePageHeight);
+      window.removeEventListener('load', updatePageHeight);
+    };
+  }, []);
+
+  // Track which section is on screen (drives the nav dots and page counter)
+  useEffect(() => {
+    const container = sectionsRef.current;
+    if (!container) return undefined;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) setActiveSection(Number(entry.target.dataset.section));
+        });
+      },
+      { root: container, threshold: 0.6 }
+    );
+    sectionRefs.current.slice(0, chartSections.length).forEach((el) => el && observer.observe(el));
+    return () => observer.disconnect();
+  }, [chartSections.length, loading]);
+
+  // A new search, sort or fiscal year starts again from the first section
+  useEffect(() => {
+    sectionsRef.current?.scrollTo({ top: 0 });
+    setActiveSection(0);
+  }, [searchText, sortMode, selectedFiscalYear]);
+
+  const scrollToSection = (index) => {
+    sectionRefs.current[index]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
   const renderKpiChartCard = (kpi, index) => {
     const chart = kpiChartData[kpi.id];
     const hasData = chart?.data?.some((row) => row.actual != null || row.target != null);
     const isFirst = index === 0;
-    const isLast = index === orderedKpis.length - 1;
+    const isLast = index === kpisWithData.length - 1;
     const chartType = getChartType(kpi.title);
 
     return (
-      <div key={kpi.id} className="border border-[color:var(--border)] bg-[color:var(--surface)] shadow-sm">
-        <div className="border-b border-[color:var(--border)] bg-[color:var(--surface-hover)] px-5 py-4">
-          <div className="relative flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div className="flex-1 flex flex-col items-center text-center sm:justify-center">
-              <h3 className="w-full max-w-md text-center text-lg font-semibold text-[color:var(--text-primary)]">
-                {kpi.title || 'Untitled KPI'}
-              </h3>
-              {/* <p className="mt-2 text-sm text-gray-500">{kpi?.category_name || kpi?.category || 'Uncategorized'}</p> */}
+      // Fixed height on phones; on md+ the card fills its quarter of the one-screen section
+      <div key={kpi.id} className="flex h-[300px] min-h-0 flex-col overflow-hidden rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] shadow-sm md:h-full">
+        <div className="relative shrink-0 border-b border-[color:var(--border)] bg-[color:var(--surface-hover)] px-3 py-1.5">
+          <h3 className="truncate px-14 text-center text-sm font-bold text-[color:var(--text-primary)]" title={kpi.title || 'Untitled KPI'}>
+            {kpi.title || 'Untitled KPI'}
+          </h3>
+          {sortMode === 'manual' && (
+            <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1">
+              <button
+                type="button"
+                onClick={() => moveKpiOrder(kpi.id, -1)}
+                disabled={isFirst}
+                title="Move up"
+                className="rounded border border-[color:var(--border)] bg-[color:var(--surface)] px-1.5 py-0.5 text-[11px] font-medium leading-none text-[color:var(--text-secondary)] hover:bg-[color:var(--surface-hover)] disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                ↑
+              </button>
+              <button
+                type="button"
+                onClick={() => moveKpiOrder(kpi.id, 1)}
+                disabled={isLast}
+                title="Move down"
+                className="rounded border border-[color:var(--border)] bg-[color:var(--surface)] px-1.5 py-0.5 text-[11px] font-medium leading-none text-[color:var(--text-secondary)] hover:bg-[color:var(--surface-hover)] disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                ↓
+              </button>
             </div>
-            <div className="flex flex-col items-start gap-2 sm:items-end sm:ml-auto">
-              {/* <div className="text-sm text-gray-500">{kpi?.fin_year ? formatFiscalYear(kpi.fin_year) : 'No fiscal year'}</div> */}
-              {sortMode === 'manual' && (
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => moveKpiOrder(kpi.id, -1)}
-                    disabled={isFirst}
-                    className="rounded-md border border-[color:var(--border)] bg-[color:var(--surface)] px-2 py-1 text-xs font-medium text-[color:var(--text-secondary)] hover:bg-[color:var(--surface-hover)] disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    ↑
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => moveKpiOrder(kpi.id, 1)}
-                    disabled={isLast}
-                    className="rounded-md border border-[color:var(--border)] bg-[color:var(--surface)] px-2 py-1 text-xs font-medium text-[color:var(--text-secondary)] hover:bg-[color:var(--surface-hover)] disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    ↓
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
+          )}
         </div>
-        <div className="px-5 py-5">
+        <div className="min-h-0 flex-1 px-3 py-2">
           {chartLoading ? (
-            <div className="flex h-64 items-center justify-center text-sm text-[color:var(--text-secondary)]">Loading chart…</div>
+            <div className="flex h-full items-center justify-center text-sm text-[color:var(--text-secondary)]">Loading chart…</div>
           ) : !hasData ? (
-            <div className="flex h-64 items-center justify-center text-sm text-[color:var(--text-secondary)]">No monthly data available for this KPI.</div>
+            <div className="flex h-full items-center justify-center text-sm text-[color:var(--text-secondary)]">No monthly data available for this KPI.</div>
           ) : chartType === 'SPEEDOMETER' ? (
-            <div className="h-64 flex flex-col justify-between">
+            <div className="flex h-full flex-col">
               {(() => {
                 const rows = chart.data || [];
                 const latestRow = [...rows].reverse().find((r) => r.actual != null || r.target != null) || null;
                 const currentLabel = selectedMonthLabel || latestRow?.label || 'N/A';
                 const selectedRow = rows.find((r) => r.label === selectedMonthLabel) || latestRow;
-                const val = Number(selectedRow?.actual ?? selectedRow?.target ?? 0);
-                const badgeClass = val <= 50 ? 'bg-red-100 text-red-700' : val <= 75 ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700';
+                // Achieved value only; a month without an actual shows "No data available", never the target
+                const hasActual = !isMissingValue(selectedRow?.actual);
+                const val = hasActual ? Number(selectedRow.actual) : 0;
 
                 return (
                   <>
-                    <div className="mt-2 text-center text-sm text-[color:var(--text-secondary)]">{currentLabel}</div>
+                    <div className="shrink-0 text-center text-xs font-semibold text-[color:var(--text-secondary)]">{currentLabel}</div>
 
-                    <div className="relative flex items-center justify-center flex-1 min-h-[150px]">
+                    <div className="relative flex min-h-[120px] flex-1 items-center justify-center md:min-h-0">
                       <button
                         type="button"
                         onClick={() => goToMonth(-1)}
                         disabled={!hasPrevMonth}
-                        className={`absolute left-0 -ml-4 flex h-9 w-9 items-center justify-center rounded-full border border-[color:var(--border)] bg-[color:var(--surface)] text-lg text-[color:var(--text-secondary)] shadow-sm transition ${!hasPrevMonth ? 'cursor-not-allowed opacity-40' : 'hover:bg-[color:var(--surface-hover)]'}`}
+                        className={`absolute left-0 z-20 flex h-8 w-8 items-center justify-center rounded-full border border-[color:var(--border)] bg-[color:var(--surface)] text-lg text-[color:var(--text-secondary)] shadow-sm transition ${!hasPrevMonth ? 'cursor-not-allowed opacity-40' : 'hover:bg-[color:var(--surface-hover)]'}`}
                       >
                         ‹
                       </button>
 
-                      <div className="w-full h-40 flex items-center justify-center overflow-hidden rounded-xl bg-transparent">
+                      <div className="flex h-full w-full items-center justify-center overflow-hidden px-9">
                         <SpeedometerGauge value={val} showLabel={false} showValue={false} />
                       </div>
 
@@ -646,46 +774,43 @@ const PlantEfficiency = () => {
                         type="button"
                         onClick={() => goToMonth(1)}
                         disabled={!hasNextMonth}
-                        className={`absolute right-0 -mr-4 flex h-9 w-9 items-center justify-center rounded-full border border-[color:var(--border)] bg-[color:var(--surface)] text-lg text-[color:var(--text-secondary)] shadow-sm transition ${!hasNextMonth ? 'cursor-not-allowed opacity-40' : 'hover:bg-[color:var(--surface-hover)]'}`}
+                        className={`absolute right-0 z-20 flex h-8 w-8 items-center justify-center rounded-full border border-[color:var(--border)] bg-[color:var(--surface)] text-lg text-[color:var(--text-secondary)] shadow-sm transition ${!hasNextMonth ? 'cursor-not-allowed opacity-40' : 'hover:bg-[color:var(--surface-hover)]'}`}
                       >
                         ›
                       </button>
                     </div>
 
-                    <div className="text-center mt-3">
-                      <div className="text-3xl font-extrabold text-[color:var(--text-primary)]">{val.toFixed(1)}%</div>
+                    <div className="shrink-0 text-center">
+                      {hasActual ? (
+                        <div className="text-2xl font-extrabold text-[color:var(--text-primary)]">{formatChartValue(val, '%')}</div>
+                      ) : (
+                        <div className="text-sm font-bold text-[color:var(--text-muted)]">{NO_DATA_TEXT}</div>
+                      )}
                     </div>
                   </>
                 );
               })()}
             </div>
-          ) : chartType === 'BAR_LINE' ? (
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={chart.data} margin={{ top: 16, right: 16, left: 0, bottom: 4 }}>
-                  <XAxis dataKey="label" tick={{ fontSize: 12, fill: 'var(--text-muted)', fontWeight: 700 }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 12, fill: 'var(--text-muted)', fontWeight: 700 }} axisLine={false} tickLine={false} />
-                  <Tooltip formatter={(value) => (value == null ? '-' : value.toString())} contentStyle={{ background: 'var(--surface-elevated)', border: '1px solid var(--border)', borderRadius: '0.75rem', color: 'var(--text-primary)' }} labelStyle={{ color: 'var(--text-primary)', fontWeight: 700 }} itemStyle={{ color: 'var(--text-secondary)' }} />
-                  <Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{ color: 'var(--text-secondary)', fontWeight: 700 }} />
-                  <Bar dataKey="actual" name="Actual" fill="#2563eb" radius={[4, 4, 0, 0]} maxBarSize={40} />
-                  <Line type="monotone" dataKey="target" name="Target" stroke="#10b981" strokeWidth={2} dot={false} />
-                </ComposedChart>
-              </ResponsiveContainer>
-            </div>
           ) : chartType === 'PIE_CURRENT' ? (
-            <div className="h-64 flex flex-col items-center justify-center relative">
+            <div className="relative flex h-full flex-col items-center justify-center">
               {(() => {
                 const rows = chart.data || [];
                 const latestRow = [...rows].reverse().find((r) => r.actual != null || r.target != null) || null;
                 const selectedRow = rows.find((r) => r.label === selectedMonthLabel) || latestRow;
-                const actual = Number(selectedRow?.actual ?? 0);
-                const target = Number(selectedRow?.target ?? 100);
+                const hasActual = !isMissingValue(selectedRow?.actual);
+                const hasTarget = !isMissingValue(selectedRow?.target);
+                const actual = hasActual ? Number(selectedRow.actual) : 0;
+                const target = hasTarget ? Number(selectedRow.target) : 100;
                 const label = selectedRow?.label || 'N/A';
+                const remaining = Math.max(0, target - actual);
 
-                const pieData = [
-                  { name: 'Actual', value: actual, color: '#2563eb' },
-                  { name: 'Target/Remaining', value: Math.max(0, target - actual), color: 'var(--border)' },
-                ];
+                // No actual -> an empty ring, so the chart area is still visible
+                const pieData = hasActual
+                  ? [
+                      { name: 'Actual', value: actual, color: ACTUAL_COLOR, display: formatChartValue(actual) },
+                      { name: 'Target/Remaining', value: remaining, color: 'var(--border)', display: hasTarget ? formatChartValue(remaining) : NO_DATA_TEXT },
+                    ]
+                  : [{ name: 'Target/Remaining', value: 100, color: 'var(--border)', display: NO_DATA_TEXT }];
 
                 return (
                   <>
@@ -705,41 +830,28 @@ const PlantEfficiency = () => {
                             <Cell key={`cell-${idx}`} fill={entry.color} />
                           ))}
                         </Pie>
-                        <Tooltip contentStyle={{ background: 'var(--surface-elevated)', border: '1px solid var(--border)', borderRadius: '0.75rem', color: 'var(--text-primary)' }} labelStyle={{ color: 'var(--text-primary)', fontWeight: 700 }} itemStyle={{ color: 'var(--text-secondary)' }} />
-                        <Legend verticalAlign="bottom" height={36} wrapperStyle={{ color: 'var(--text-secondary)', fontWeight: 700 }} />
+                        <Tooltip content={<ChartTooltip />} />
+                        <Legend verticalAlign="bottom" height={24} wrapperStyle={{ color: 'var(--text-secondary)', fontWeight: 700, fontSize: 11 }} />
                       </PieChart>
                     </ResponsiveContainer>
                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none pb-8">
-                      <span className="text-xl font-bold text-[color:var(--text-primary)]">{actual}</span>
+                      {hasActual ? (
+                        <span className="text-center text-xl font-bold text-[color:var(--text-primary)]">
+                          {formatChartValue(actual)}
+                          {hasTarget && <span className="block text-[11px] font-semibold text-[color:var(--text-muted)]">Target {formatChartValue(target)}</span>}
+                        </span>
+                      ) : (
+                        <span className="text-xs font-bold text-[color:var(--text-muted)]">{NO_DATA_TEXT}</span>
+                      )}
                     </div>
                   </>
                 );
               })()}
             </div>
-          ) : chartType === 'BAR' ? (
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chart.data} margin={{ top: 16, right: 16, left: 0, bottom: 4 }}>
-                  <XAxis dataKey="label" tick={{ fontSize: 12, fill: 'var(--text-muted)', fontWeight: 700 }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 12, fill: 'var(--text-muted)', fontWeight: 700 }} axisLine={false} tickLine={false} />
-                  <Tooltip formatter={(value) => (value == null ? '-' : value.toString())} contentStyle={{ background: 'var(--surface-elevated)', border: '1px solid var(--border)', borderRadius: '0.75rem', color: 'var(--text-primary)' }} labelStyle={{ color: 'var(--text-primary)', fontWeight: 700 }} itemStyle={{ color: 'var(--text-secondary)' }} />
-                  <Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{ color: 'var(--text-secondary)', fontWeight: 700 }} />
-                  <Bar dataKey="actual" name="Actual" fill="#2563eb" radius={[4, 4, 0, 0]} maxBarSize={40} />
-                  <Bar dataKey="target" name="Target" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={40} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
           ) : (
-            <div className="h-64">
+            <div className="h-full">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chart.data} margin={{ top: 16, right: 16, left: 0, bottom: 4 }}>
-                  <XAxis dataKey="label" tick={{ fontSize: 12, fill: 'var(--text-muted)', fontWeight: 700 }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 12, fill: 'var(--text-muted)', fontWeight: 700 }} axisLine={false} tickLine={false} />
-                  <Tooltip formatter={(value) => (value == null ? '-' : value.toString())} contentStyle={{ background: 'var(--surface-elevated)', border: '1px solid var(--border)', borderRadius: '0.75rem', color: 'var(--text-primary)' }} labelStyle={{ color: 'var(--text-primary)', fontWeight: 700 }} itemStyle={{ color: 'var(--text-secondary)' }} />
-                  <Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{ color: 'var(--text-secondary)', fontWeight: 700 }} />
-                  <Line type="monotone" dataKey="actual" name="Actual" stroke="#2563eb" strokeWidth={2} dot={false} />
-                  <Line type="monotone" dataKey="target" name="Target" stroke="#10b981" strokeWidth={2} dot={false} />
-                </LineChart>
+                {renderTrendChart(chartType, chart.data)}
               </ResponsiveContainer>
             </div>
           )}
@@ -795,73 +907,49 @@ const PlantEfficiency = () => {
     </div>
   );
 
+  const toolbarButtonClass = (active) =>
+    `rounded-md border px-2.5 py-1 text-xs font-semibold transition ${active ? 'border-[color:var(--accent)] bg-[color:var(--accent-soft)] text-[color:var(--accent)]' : 'border-[color:var(--border)] bg-[color:var(--surface)] text-[color:var(--text-secondary)] hover:border-[color:var(--accent)] hover:bg-[color:var(--surface-hover)] hover:text-[color:var(--accent)]'}`;
+
+  const renderMessage = (content, tone = 'default') => (
+    <div
+      className={`flex flex-1 items-center justify-center rounded-lg border p-6 text-center text-sm shadow-sm ${
+        tone === 'error'
+          ? 'border-[color:var(--danger-soft)] bg-[color:var(--danger-soft)] text-[color:var(--danger)]'
+          : 'border-[color:var(--border)] bg-[color:var(--surface)] text-[color:var(--text-secondary)]'
+      }`}
+    >
+      {content}
+    </div>
+  );
+
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center justify-between w-full">
-        <div className="relative w-full sm:w-72">
+    <div
+      ref={pageRef}
+      className="flex flex-col gap-2"
+      style={{ height: pageHeight ? `${pageHeight}px` : 'calc(100vh - 5rem)', minHeight: 0 }}
+    >
+      {/* ── Toolbar (one compact row) ── */}
+      <div className="flex shrink-0 flex-wrap items-center gap-2">
+        <div className="relative w-full sm:w-64">
           <input
             type="text"
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
             placeholder="Search graphs by title, category, or year..."
-            className="w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] py-2 pl-10 pr-4 text-sm text-[color:var(--text-primary)] outline-none transition focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--focus-ring)] shadow-sm"
+            className="w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] py-1.5 pl-9 pr-3 text-sm text-[color:var(--text-primary)] shadow-sm outline-none transition focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--focus-ring)]"
           />
-          <svg xmlns="http://www.w3.org/2000/svg" className="absolute left-3 top-2.5 h-5 w-5 text-[color:var(--text-muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg xmlns="http://www.w3.org/2000/svg" className="absolute left-2.5 top-2 h-4 w-4 text-[color:var(--text-muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
         </div>
 
-        <div className="flex h-9 min-h-0 items-center gap-1 self-start rounded border border-[color:var(--border)] bg-[color:var(--surface)] px-2 py-1 shadow sm:self-auto">
-          <button
-            type="button"
-            onClick={() => {
-              const currentIndex = availableFiscalYears.indexOf(selectedFiscalYear);
-              if (currentIndex > 0) {
-                setSelectedFiscalYear(availableFiscalYears[currentIndex - 1]);
-              }
-            }}
-            disabled={availableFiscalYears.length === 0 || availableFiscalYears.indexOf(selectedFiscalYear) <= 0}
-            className="rounded bg-[color:var(--accent-soft)] px-2 py-0.5 text-xs font-semibold text-[color:var(--accent)] transition-colors hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-[color:var(--focus-ring)] disabled:cursor-not-allowed disabled:opacity-40"
-            title="Previous Fiscal Year"
-            style={{ lineHeight: '1' }}
-          >
-            ‹
-          </button>
-          <span className="mr-1 text-xs font-semibold uppercase tracking-wide text-[color:var(--text-muted)]">FY</span>
-          <span className="mr-1 text-sm font-bold text-[color:var(--text-primary)]">
-            {selectedFiscalYear}-{(selectedFiscalYear + 1).toString().slice(-2)}
-          </span>
-          <span className="mr-1 hidden text-xs font-semibold uppercase tracking-wide text-[color:var(--text-muted)] sm:inline">Apr {selectedFiscalYear} - Mar {selectedFiscalYear + 1}</span>
-          {availableFiscalYears.length > 0 && (
-            <span className="mr-1 text-xs font-semibold uppercase tracking-wide text-[color:var(--text-muted)]">
-              ({availableFiscalYears.indexOf(selectedFiscalYear) + 1} / {availableFiscalYears.length})
-            </span>
-          )}
-          <button
-            type="button"
-            onClick={() => {
-              const currentIndex = availableFiscalYears.indexOf(selectedFiscalYear);
-              if (currentIndex >= 0 && currentIndex < availableFiscalYears.length - 1) {
-                setSelectedFiscalYear(availableFiscalYears[currentIndex + 1]);
-              }
-            }}
-            disabled={availableFiscalYears.length === 0 || availableFiscalYears.indexOf(selectedFiscalYear) >= availableFiscalYears.length - 1}
-            className="rounded bg-[color:var(--accent-soft)] px-2 py-0.5 text-xs font-semibold text-[color:var(--accent)] transition hover:bg-[color:var(--accent)] hover:text-white focus:outline-none focus:ring-2 focus:ring-[color:var(--focus-ring)] disabled:cursor-not-allowed disabled:opacity-40"
-            title="Next Fiscal Year"
-            style={{ lineHeight: '1' }}
-          >
-            ›
-          </button>
-        </div>
-      </div>
-
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <label className="text-xs font-semibold uppercase tracking-wide text-[color:var(--text-muted)]">Graph order</label>
+        <div className="flex items-center gap-1.5">
+          <label htmlFor="plant-graph-order" className="text-[11px] font-semibold uppercase tracking-wide text-[color:var(--text-muted)]">Graph order</label>
           <select
+            id="plant-graph-order"
             value={sortMode}
             onChange={(e) => setSortMode(e.target.value)}
-            className="rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-2 text-sm text-[color:var(--text-primary)] transition hover:border-[color:var(--accent)] hover:bg-[color:var(--surface-hover)] focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--focus-ring)]"
+            className="rounded-md border border-[color:var(--border)] bg-[color:var(--surface)] px-2 py-1 text-xs text-[color:var(--text-primary)] transition hover:border-[color:var(--accent)] focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--focus-ring)]"
           >
             <option value="manual">Manual order</option>
             <option value="titleAsc">Title A → Z</option>
@@ -869,63 +957,125 @@ const PlantEfficiency = () => {
             <option value="category">Category</option>
           </select>
           {sortMode === 'manual' && (
-            <button
-              type="button"
-              onClick={resetChartOrder}
-              className="rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-2 text-sm font-medium text-[color:var(--text-secondary)] transition hover:border-[color:var(--accent)] hover:bg-[color:var(--surface-hover)] hover:text-[color:var(--accent)]"
-            >
+            <button type="button" onClick={resetChartOrder} className={toolbarButtonClass(false)}>
               Reset order
             </button>
           )}
         </div>
-        <div className="text-sm font-semibold text-[color:var(--text-secondary)]">
-          {orderedKpis.length === 0
-            ? 'No graphs match your search.'
-            : `${kpisWithData.length} graphs shown`}
-        </div>
-      </div>
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
-        {/* <div className="text-sm font-medium text-gray-700">View mode</div> */}
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => setViewMode('latest')}
-            className={`rounded-lg border px-3 py-2 text-sm font-medium transition ${viewMode === 'latest' ? 'border-[color:var(--accent)] bg-[color:var(--accent-soft)] text-[color:var(--accent)]' : 'border-[color:var(--border)] bg-[color:var(--surface)] text-[color:var(--text-secondary)] hover:border-[color:var(--accent)] hover:bg-[color:var(--surface-hover)] hover:text-[color:var(--accent)]'}`}
-          >
+        <div className="flex items-center gap-1.5">
+          <button type="button" onClick={() => setViewMode('latest')} className={toolbarButtonClass(viewMode === 'latest')}>
             Latest month
           </button>
-          <button
-            type="button"
-            onClick={() => setViewMode('monthly')}
-            className={`rounded-lg border px-3 py-2 text-sm font-medium transition ${viewMode === 'monthly' ? 'border-[color:var(--accent)] bg-[color:var(--accent-soft)] text-[color:var(--accent)]' : 'border-[color:var(--border)] bg-[color:var(--surface)] text-[color:var(--text-secondary)] hover:border-[color:var(--accent)] hover:bg-[color:var(--surface-hover)] hover:text-[color:var(--accent)]'}`}
-          >
+          <button type="button" onClick={() => setViewMode('monthly')} className={toolbarButtonClass(viewMode === 'monthly')}>
             Monthly trend
           </button>
+        </div>
+
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          <span className="text-xs font-semibold text-[color:var(--text-secondary)]">
+            {orderedKpis.length === 0
+              ? 'No graphs match your search.'
+              : `${kpisWithData.length} graphs${chartSections.length > 1 ? ` · Page ${activeSection + 1} / ${chartSections.length}` : ''}`}
+          </span>
+
+          <div className="flex h-8 items-center gap-1 rounded border border-[color:var(--border)] bg-[color:var(--surface)] px-2 py-1 shadow">
+            <button
+              type="button"
+              onClick={() => {
+                const currentIndex = availableFiscalYears.indexOf(selectedFiscalYear);
+                if (currentIndex > 0) {
+                  setSelectedFiscalYear(availableFiscalYears[currentIndex - 1]);
+                }
+              }}
+              disabled={availableFiscalYears.length === 0 || availableFiscalYears.indexOf(selectedFiscalYear) <= 0}
+              className="rounded bg-[color:var(--accent-soft)] px-2 py-0.5 text-xs font-semibold text-[color:var(--accent)] transition-colors hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-[color:var(--focus-ring)] disabled:cursor-not-allowed disabled:opacity-40"
+              title="Previous Fiscal Year"
+              style={{ lineHeight: '1' }}
+            >
+              ‹
+            </button>
+            <span className="mr-1 text-xs font-semibold uppercase tracking-wide text-[color:var(--text-muted)]">FY</span>
+            <span className="mr-1 text-sm font-bold text-[color:var(--text-primary)]">
+              {selectedFiscalYear}-{(selectedFiscalYear + 1).toString().slice(-2)}
+            </span>
+            <span className="mr-1 hidden text-xs font-semibold uppercase tracking-wide text-[color:var(--text-muted)] lg:inline">Apr {selectedFiscalYear} - Mar {selectedFiscalYear + 1}</span>
+            {availableFiscalYears.length > 0 && (
+              <span className="mr-1 text-xs font-semibold uppercase tracking-wide text-[color:var(--text-muted)]">
+                ({availableFiscalYears.indexOf(selectedFiscalYear) + 1} / {availableFiscalYears.length})
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                const currentIndex = availableFiscalYears.indexOf(selectedFiscalYear);
+                if (currentIndex >= 0 && currentIndex < availableFiscalYears.length - 1) {
+                  setSelectedFiscalYear(availableFiscalYears[currentIndex + 1]);
+                }
+              }}
+              disabled={availableFiscalYears.length === 0 || availableFiscalYears.indexOf(selectedFiscalYear) >= availableFiscalYears.length - 1}
+              className="rounded bg-[color:var(--accent-soft)] px-2 py-0.5 text-xs font-semibold text-[color:var(--accent)] transition hover:bg-[color:var(--accent)] hover:text-white focus:outline-none focus:ring-2 focus:ring-[color:var(--focus-ring)] disabled:cursor-not-allowed disabled:opacity-40"
+              title="Next Fiscal Year"
+              style={{ lineHeight: '1' }}
+            >
+              ›
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Overall Equipment Efficiency graph removed per request */}
 
       {loading ? (
-        <div className="border border-[color:var(--border)] bg-[color:var(--surface)] p-6 text-center shadow-sm">
-          <p className="text-sm text-[color:var(--text-secondary)]">Loading plant KPI list...</p>
-        </div>
+        renderMessage('Loading plant KPI list...')
       ) : error ? (
-        <div className="border border-[color:var(--danger-soft)] bg-[color:var(--danger-soft)] p-4 text-sm text-[color:var(--danger)]">
-          {error}
-        </div>
+        renderMessage(error, 'error')
       ) : orderedKpis.length === 0 ? (
-        <div className="border border-[color:var(--border)] bg-[color:var(--surface)] p-6 text-center shadow-sm">
-          <p className="text-sm text-[color:var(--text-secondary)]">No plant KPI graphs match your search or selected fiscal year.</p>
-        </div>
+        renderMessage('No plant KPI graphs match your search or selected fiscal year.')
       ) : kpisWithData.length === 0 ? (
-        <div className="border border-[color:var(--border)] bg-[color:var(--surface)] p-6 text-center shadow-sm">
-          <p className="text-sm text-[color:var(--text-secondary)]">No monthly data available for the selected KPIs.</p>
-        </div>
+        renderMessage('No monthly data available for the selected KPIs.')
       ) : (
-        <div className="grid gap-6 xl:grid-cols-2">
-          {kpisWithData.map((kpi, index) => renderKpiChartCard(kpi, index))}
+        <div className="relative min-h-0 flex-1">
+          {/* One section = one screen with 4 charts (2 x 2); scrolling snaps to the next section */}
+          <div
+            ref={sectionsRef}
+            className="h-full snap-y snap-mandatory overflow-y-auto overscroll-contain scroll-smooth"
+          >
+            {chartSections.map((sectionKpis, sectionIndex) => (
+              <section
+                key={sectionIndex}
+                ref={(el) => { sectionRefs.current[sectionIndex] = el; }}
+                data-section={sectionIndex}
+                className="grid grid-cols-1 gap-2 pb-2 md:h-full md:snap-start md:snap-always md:grid-cols-2 md:grid-rows-2 md:pb-0.5 md:pr-6"
+              >
+                {sectionKpis.map((kpi, i) => renderKpiChartCard(kpi, sectionIndex * CHARTS_PER_SECTION + i))}
+              </section>
+            ))}
+          </div>
+
+          {/* Section navigation dots */}
+          {chartSections.length > 1 && (
+            <nav className="absolute right-1 top-1/2 z-30 hidden -translate-y-1/2 flex-col gap-2.5 md:flex" aria-label="Chart sections">
+              {chartSections.map((sectionKpis, sectionIndex) => {
+                const from = sectionIndex * CHARTS_PER_SECTION + 1;
+                const to = from + sectionKpis.length - 1;
+                const label = `Charts ${from}–${to} of ${kpisWithData.length}`;
+                return (
+                  <button
+                    key={sectionIndex}
+                    type="button"
+                    onClick={() => scrollToSection(sectionIndex)}
+                    title={label}
+                    aria-label={`Go to ${label}`}
+                    aria-current={activeSection === sectionIndex ? 'true' : undefined}
+                    className={`block rounded-full border border-[color:var(--accent)] transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[color:var(--focus-ring)] ${
+                      activeSection === sectionIndex ? 'h-5 w-2.5 bg-[color:var(--accent)]' : 'h-2.5 w-2.5 bg-[color:var(--surface)] hover:bg-[color:var(--accent-soft)]'
+                    }`}
+                  />
+                );
+              })}
+            </nav>
+          )}
         </div>
       )}
     </div>
