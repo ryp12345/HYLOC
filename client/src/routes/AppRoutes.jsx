@@ -19,6 +19,8 @@ import PillarDetailPage from '../pages/management/PillarDetailPage';
 import MgtKmiPage from '../pages/management/MgtKmiPage';
 import MgtKmiDetail from '../pages/management/MgtKmiDetail';
 import DepartmentDetailPage from '../pages/management/DepartmentDetailPage';
+// Lazy: keeps the map libraries and geometry out of the main bundle
+const IndiaOverview = React.lazy(() => import('../pages/management/IndiaOverview'));
 import ManagementMyLeavePage from '../pages/management/leaves/MyLeavePage';
 import HODMyLeavePage from '../pages/hod/leaves/MyLeavePage';
 import ManagementLeavesPage from '../pages/management/leaves/LeavesPage';
@@ -452,6 +454,24 @@ const AppRoutes = () => {
                 <DashboardLayout>
                   <PlantEfficiency />
                 </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* India Overview (world → India → region map) */}
+          <Route
+            path="/management/india-overview"
+            element={
+              <ProtectedRoute>
+                <RoleRoute allowedRoles={['management']}>
+                  <DashboardLayout>
+                    <React.Suspense
+                      fallback={<div className="flex h-64 items-center justify-center text-sm text-[color:var(--text-muted)]">Loading map…</div>}
+                    >
+                      <IndiaOverview />
+                    </React.Suspense>
+                  </DashboardLayout>
+                </RoleRoute>
               </ProtectedRoute>
             }
           />

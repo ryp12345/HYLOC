@@ -54,6 +54,15 @@ body {
   --warning: #f59e0b;
   --warning-soft: rgba(245, 158, 11, 0.12);
   --focus-ring: #60a5fa;
+  /* India Overview map (Okabe-Ito based, colour-blind safe) */
+  --region-north: #0072b2;
+  --region-central: #e69f00;
+  --region-east: #009e73;
+  --region-west: #cc79a7;
+  --region-south: #d55e00;
+  --map-land: #e2e8f0;
+  --map-land-stroke: #ffffff;
+  --map-ocean: #f8fafc;
 }
 
 .dark {
@@ -83,6 +92,14 @@ body {
   --warning: #fbbf24;
   --warning-soft: rgba(251, 191, 36, 0.16);
   --focus-ring: #67e8f9;
+  --region-north: #56b4e9;
+  --region-central: #f0c04a;
+  --region-east: #34d39e;
+  --region-west: #e8a0cc;
+  --region-south: #ff8f4d;
+  --map-land: #1e293b;
+  --map-land-stroke: #0f172a;
+  --map-ocean: #0b1222;
 }
 
 .dark .bg-white { background-color: var(--surface); }
@@ -290,4 +307,20 @@ code {
 .dashboard-panel-header > * {
   position: relative;
   z-index: 1;
+}
+
+/* India Overview: pulsing marker on India in world view */
+.india-map-pulse {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: india-map-pulse 1.8s ease-out infinite;
+}
+
+@keyframes india-map-pulse {
+  0% { transform: scale(0.4); opacity: 0.55; }
+  100% { transform: scale(1.7); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .india-map-pulse { animation: none; opacity: 0.2; }
 }

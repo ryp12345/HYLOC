@@ -54,6 +54,7 @@ const Sidebar = () => {
 
   const managementLinks = [
     { name: 'KMI/Global Objectives', path: getDashboardPath(), icon: '📊' },
+    { name: 'India Overview', path: '/management/india-overview', icon: '🗺️' },
     masterMenu,
     { name: 'PLANT KPI', path: '/management/plant-efficiency', icon: '🏭' },
     { name: 'My KPIs/KAIs', path: getKpiKaiPath(), icon: '📈' },

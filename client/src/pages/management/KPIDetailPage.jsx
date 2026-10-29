@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect, useCallback } from 'react';
+import React, { useMemo, useState, useEffect, useCallback, useLayoutEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   ResponsiveContainer,
@@ -14,11 +14,13 @@ import {
   Legend,
   ComposedChart,
   Bar,
+  LabelList,
 } from 'recharts';
 import { getKPIById, getChildKPIs, getKPIValuesByKPI, getMonthlyDataByKPIValue } from '../../api/kpiApi';
 import { getUserById } from '../../api/userApi';
 import { useAuth } from '../../context/AuthContext';
 import { calculateAchievement } from '../../utils/kpiAchievement';
+import { NO_DATA_TEXT, isMissingValue, formatChartValue, renderNoDataMarkers, ChartTooltip } from '../../utils/chartValues';
 
 const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const FISCAL_MONTHS = [4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2, 3];
@@ -225,6 +227,52 @@ const CHART_COLORS = {
   pe: '#f59e0b',
   qe: '#16a34a',
   target: '#fb923c',
+};
+
+/* ══════════════ MANAGEMENT LOSS CHART ══════════════ */
+
+/**
+ * Stacked management-loss bars + target line, used by the dashboard card and the expanded modal.
+ * A hidden "Total" line puts the month total on top of each stack (so an explicit 0 shows as "0"),
+ * and months where no series has data get a "No data available" marker.
+ */
+const ManagementLossChart = ({ rows, series, expanded = false }) => {
+  const tf = expanded ? 12 : 9;
+  return (
+    <ResponsiveContainer width="100%" height="100%">
+      <ComposedChart
+        data={rows}
+        margin={expanded ? { top: 24, right: 30, left: 20, bottom: 50 } : { top: 14, right: 5, left: -10, bottom: 25 }}
+      >
+        <CartesianGrid strokeDasharray="4 4" stroke="var(--border)" vertical={false} />
+        <XAxis dataKey="month" tick={{ fontSize: tf, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
+        <YAxis tick={{ fontSize: tf, fill: 'var(--text-muted)' }} width={expanded ? 44 : 30} axisLine={false} tickLine={false} />
+        <Tooltip content={<ChartTooltip />} filterNull={false} cursor={{ fill: 'color-mix(in srgb, var(--app-bg) 84%, transparent)' }} />
+        <Legend wrapperStyle={{ fontSize: expanded ? '11px' : '8px', color: 'var(--text-secondary)' }} />
+        {renderNoDataMarkers(rows, ['total'], expanded ? 11 : 8, 'month')}
+        {series.map((s) => (
+          <Bar key={s.key} dataKey={s.key} stackId="management-loss" name={s.title} fill={s.color} maxBarSize={expanded ? 56 : 28} />
+        ))}
+        <Line
+          type="monotone"
+          dataKey="target"
+          name="MANAGEMENT LOSS TIME - TARGET"
+          stroke="var(--text-muted)"
+          strokeWidth={expanded ? 2.5 : 1.5}
+          dot={{ r: expanded ? 4 : 2, fill: 'var(--text-muted)', strokeWidth: 0 }}
+          activeDot={{ r: expanded ? 6 : 4 }}
+        />
+        <Line dataKey="total" name="Total" stroke="transparent" dot={false} activeDot={false} legendType="none" isAnimationActive={false}>
+          <LabelList
+            dataKey="total"
+            position="top"
+            formatter={(v) => (isMissingValue(v) ? '' : formatChartValue(v))}
+            style={{ fontSize: expanded ? 12 : 8, fill: 'var(--text-primary)', fontWeight: 700 }}
+          />
+        </Line>
+      </ComposedChart>
+    </ResponsiveContainer>
+  );
 };
 
 /* ══════════════ YEAR UTILITIES ══════════════ */
@@ -473,6 +521,9 @@ const KPIDetailPage = () => {
         row[seriesItem.key] = seriesItem.metric?.actualValues?.[idx] ?? null;
       });
       row.target = managementLossSeries[0]?.metric?.targetValues?.[idx] ?? null;
+      // Stack total: null when no series has a value that month, so it shows as "No data available" (0 stays 0)
+      const present = managementLossSeries.map((s) => row[s.key]).filter((v) => !isMissingValue(v));
+      row.total = present.length ? present.reduce((sum, v) => sum + Number(v), 0) : null;
       return row;
     });
 
@@ -591,6 +642,30 @@ const KPIDetailPage = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [expandedChart, navigateChart, closeExpandedChart]);
 
+  /* ──── Fit the dashboard into one screen (same approach as ManagementDashboard) ──── */
+  const pageRef = useRef(null);
+  const [pageHeight, setPageHeight] = useState(null);
+
+  useLayoutEffect(() => {
+    const updatePageHeight = () => {
+      const container = pageRef.current;
+      if (!container) return;
+      const top = container.getBoundingClientRect().top + window.scrollY;
+      const parentPaddingBottom = parseFloat(getComputedStyle(container.parentElement).paddingBottom) || 0;
+      setPageHeight(Math.max(480, window.innerHeight - top - parentPaddingBottom));
+    };
+    updatePageHeight();
+    // Header logos can load after first paint and shift the container down
+    const frame = requestAnimationFrame(updatePageHeight);
+    window.addEventListener('resize', updatePageHeight);
+    window.addEventListener('load', updatePageHeight);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener('resize', updatePageHeight);
+      window.removeEventListener('load', updatePageHeight);
+    };
+  }, [loading]);
+
   /* ──── Sync selected month to latest data ──── */
 
   useEffect(() => {
@@ -617,11 +692,11 @@ const KPIDetailPage = () => {
           tabIndex={0}
           onKeyDown={(e) => { if (e.key === 'Enter') onExpand?.(); }}
         >
-          <div className="bg-[color:var(--surface-hover)] py-2 text-center text-base font-bold tracking-wide text-[color:var(--text-primary)]">{title}</div>
-          <div className="border-b border-[color:var(--border)] px-3 py-1.5 text-center text-xs font-semibold text-[color:var(--text-secondary)]">
+          <div className="bg-[color:var(--surface-hover)] py-1.5 text-center text-base font-bold tracking-wide text-[color:var(--text-primary)]">{title}</div>
+          <div className="border-b border-[color:var(--border)] px-3 py-1 text-center text-xs font-semibold text-[color:var(--text-secondary)]">
             {selectedMonthLabel}
           </div>
-          <div className="flex flex-1 items-center justify-center p-4 text-center text-sm text-[color:var(--text-secondary)]">No data available</div>
+          <div className="flex flex-1 items-center justify-center p-4 text-center text-sm text-[color:var(--text-secondary)]">{NO_DATA_TEXT}</div>
         </div>
       );
     }
@@ -651,17 +726,17 @@ const KPIDetailPage = () => {
         tabIndex={0}
         onKeyDown={(e) => { if (e.key === 'Enter' && !e.target.closest('button')) onExpand?.(); }}
       >
-        <div className="bg-[color:var(--surface-hover)] py-2 text-center text-base font-bold tracking-wide text-[color:var(--text-primary)]">{title}</div>
-        <div className="border-b border-[color:var(--border)] px-3 py-1.5 text-center text-xs font-semibold text-[color:var(--text-secondary)]">
+        <div className="bg-[color:var(--surface-hover)] py-1.5 text-center text-base font-bold tracking-wide text-[color:var(--text-primary)]">{title}</div>
+        <div className="border-b border-[color:var(--border)] px-3 py-1 text-center text-xs font-semibold text-[color:var(--text-secondary)]">
           {selectedMonthLabel}
         </div>
         {/* Increased chart heights for better readability as months increase */}
-        <div className="p-3 grid grid-cols-1 xl:grid-cols-2 gap-2 items-center flex-1 min-h-0">
+        <div className="p-2 grid grid-cols-1 xl:grid-cols-2 gap-2 items-center xl:items-stretch flex-1 min-h-0">
           {/* Donut */}
-          <div className="h-[200px] relative">
+          <div className="h-[200px] xl:h-full xl:min-h-0 relative">
             <ResponsiveContainer width="100%" height="100%">
               <RePieChart>
-                <Pie data={donutData} innerRadius={50} outerRadius={78} dataKey="value" stroke="none" startAngle={90} endAngle={-270}>
+                <Pie data={donutData} innerRadius="58%" outerRadius="88%" dataKey="value" stroke="none" startAngle={90} endAngle={-270}>
                   {donutData.map((entry) => (
                     <Cell key={entry.name} fill={entry.fill} />
                   ))}
@@ -669,23 +744,22 @@ const KPIDetailPage = () => {
               </RePieChart>
             </ResponsiveContainer>
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <span className="text-2xl font-bold text-[color:var(--text-primary)]">{clampedPct.toFixed(1)}%</span>
+              <span className="text-2xl font-bold text-[color:var(--text-primary)]">{formatChartValue(clampedPct, '%')}</span>
             </div>
           </div>
 
           {/* Trend line */}
-          <div className="h-[200px]">
+          <div className="h-[200px] xl:h-full xl:min-h-0">
             <ResponsiveContainer width="100%" height="100%">
               <ReLineChart data={trendData} margin={{ top: 8, right: 8, left: 0, bottom: 8 }}>
+                <CartesianGrid strokeDasharray="4 4" stroke="var(--border)" vertical={false} />
                 <XAxis dataKey="month" tick={{ fontSize: 10, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fontSize: 10, fill: 'var(--text-muted)' }} width={32} axisLine={false} tickLine={false} />
-                <Tooltip
-                  contentStyle={{ fontSize: '11px', padding: '6px' }}
-                  formatter={(val) => val != null ? val.toFixed(1) : '-'}
-                />
-                <Legend wrapperStyle={{ fontSize: '10px' }} />
-                <Line type="monotone" dataKey="actual" name="Actual" stroke={accentColor} strokeWidth={2.5} dot={false} connectNulls />
-                <Line type="monotone" dataKey="target" name="Target" stroke={targetColor} strokeWidth={2} strokeDasharray="6 4" dot={false} connectNulls />
+                <Tooltip content={<ChartTooltip />} filterNull={false} cursor={{ stroke: 'var(--border)', strokeDasharray: '4 4' }} />
+                <Legend wrapperStyle={{ fontSize: '10px', color: 'var(--text-secondary)' }} />
+                {renderNoDataMarkers(trendData, ['actual', 'target'], 9, 'month')}
+                <Line type="monotone" dataKey="actual" name="Actual" stroke={accentColor} strokeWidth={2.5} dot={{ r: 2.5, fill: accentColor, strokeWidth: 0 }} activeDot={{ r: 4 }} />
+                <Line type="monotone" dataKey="target" name="Target" stroke={targetColor} strokeWidth={2} strokeDasharray="6 4" dot={{ r: 2, fill: targetColor, strokeWidth: 0 }} activeDot={{ r: 4 }} />
               </ReLineChart>
             </ResponsiveContainer>
           </div>
@@ -695,16 +769,18 @@ const KPIDetailPage = () => {
         <div className="grid grid-cols-3 gap-2 border-t border-[color:var(--border)] px-3 pb-2 pt-1 text-center text-[10px]">
           <div>
             <span className="block text-[color:var(--text-muted)]">Actual</span>
-            <span className="font-bold" style={{ color: accentColor }}>{rawActual.toFixed(1)}</span>
+            <span className="font-bold" style={{ color: accentColor }}>{formatChartValue(rawActual)}</span>
           </div>
           <div>
             <span className="block text-[color:var(--text-muted)]">Target</span>
-            <span className="font-bold" style={{ color: targetColor }}>{rawTarget.toFixed(1)}</span>
+            <span className="font-bold" style={hasMonthTarget ? { color: targetColor } : undefined}>
+              {hasMonthTarget ? formatChartValue(rawTarget) : <span className="text-[color:var(--text-muted)]">{NO_DATA_TEXT}</span>}
+            </span>
           </div>
           <div>
             <span className="block text-[color:var(--text-muted)]">Achievement</span>
             <span className={`font-bold ${clampedPct >= 100 ? 'text-[color:var(--success)]' : clampedPct >= 90 ? 'text-[color:var(--warning)]' : 'text-[color:var(--danger)]'}`}>
-              {clampedPct.toFixed(1)}%
+              {formatChartValue(clampedPct, '%')}
             </span>
           </div>
         </div>
@@ -728,7 +804,7 @@ const KPIDetailPage = () => {
           onKeyDown={(e) => { if (e.key === 'Enter') onExpand?.(); }}
         >
           <div className="mb-0.5 text-center text-xs font-bold uppercase text-[color:var(--text-secondary)]">{title}</div>
-          <div className="text-xs text-[color:var(--text-muted)]">No data</div>
+          <div className="text-center text-xs text-[color:var(--text-muted)]">{NO_DATA_TEXT}</div>
         </div>
       );
     }
@@ -750,10 +826,10 @@ const KPIDetailPage = () => {
         onKeyDown={(e) => { if (e.key === 'Enter') onExpand?.(); }}
       >
         <div className="mb-0.5 text-center text-xs font-bold uppercase text-[color:var(--text-secondary)]">{title}</div>
-        <div className="flex-1 w-full relative min-h-0">
+        <div className="flex-1 w-full relative min-h-[90px] xl:min-h-0">
           <ResponsiveContainer width="100%" height="100%">
             <RePieChart>
-              <Pie data={donutData} innerRadius={30} outerRadius={48} dataKey="value" stroke="none" startAngle={90} endAngle={-270}>
+              <Pie data={donutData} innerRadius="62%" outerRadius="92%" dataKey="value" stroke="none" startAngle={90} endAngle={-270}>
                 {donutData.map((entry) => (
                   <Cell key={entry.name} fill={entry.fill} />
                 ))}
@@ -761,12 +837,13 @@ const KPIDetailPage = () => {
             </RePieChart>
           </ResponsiveContainer>
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <span className="text-lg font-bold text-[color:var(--text-primary)]">{clampedPct.toFixed(1)}%</span>
+            <span className="text-lg font-bold text-[color:var(--text-primary)]">{formatChartValue(clampedPct, '%')}</span>
           </div>
         </div>
         <div className="mt-0.5 text-center text-[9px] text-[color:var(--text-muted)]">
-          <span style={{ color }}>A: {rawActual.toFixed(1)}</span>
-          {rawTarget > 0 && <span className="ml-1 text-orange-500">T: {rawTarget.toFixed(1)}</span>}
+          <span style={{ color }}>A: {formatChartValue(rawActual)}</span>
+          {/* explicit 0 target is shown as "T: 0"; a missing target is not shown */}
+          {hasMonthTarget && <span className="ml-1 text-orange-500">T: {formatChartValue(rawTarget)}</span>}
         </div>
       </div>
     );
@@ -776,11 +853,15 @@ const KPIDetailPage = () => {
   const MetricCard = ({ metric, onExpand }) => {
     const rawActual = metric.latestActual;
     const rawTarget = metric.latestTarget;
-    const hasTarget = rawTarget != null && rawTarget > 0;
+    const hasActual = !isMissingValue(rawActual);
+    const hasTarget = metric.targetValues.some((v) => !isMissingValue(v));
     const pct = getMetricPercent(rawActual, rawTarget);
     const clampedPct = Math.min(Math.max(pct, 0), 100);
+    // No actual value → show "No data available" instead of a misleading 0% achievement
+    const pctText = hasActual ? formatChartValue(clampedPct, '%') : NO_DATA_TEXT;
+    const pctClass = !hasActual ? 'text-[color:var(--text-muted)]' : clampedPct >= 100 ? 'text-[color:var(--success)]' : clampedPct >= 90 ? 'text-[color:var(--warning)]' : 'text-[color:var(--danger)]';
 
-    const cardColor = clampedPct >= 100 ? '#16a34a' : clampedPct >= 90 ? '#f59e0b' : clampedPct >= 80 ? '#f97316' : '#ef4444';
+    const cardColor = !hasActual ? 'var(--text-muted)' : clampedPct >= 100 ? '#16a34a' : clampedPct >= 90 ? '#f59e0b' : clampedPct >= 80 ? '#f97316' : '#ef4444';
 
     const donutData = [
       { name: 'Achieved', value: clampedPct, fill: cardColor },
@@ -818,7 +899,7 @@ const KPIDetailPage = () => {
                 </RePieChart>
               </ResponsiveContainer>
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <span className="text-base font-bold text-[color:var(--text-primary)]">{clampedPct.toFixed(1)}%</span>
+                <span className={`px-1 text-center font-bold ${hasActual ? 'text-base text-[color:var(--text-primary)]' : 'text-[9px] text-[color:var(--text-muted)]'}`}>{pctText}</span>
               </div>
             </div>
 
@@ -828,17 +909,18 @@ const KPIDetailPage = () => {
                 <ReLineChart data={trendData} margin={{ top: 4, right: 4, left: -10, bottom: 4 }}>
                   <XAxis dataKey="month" tick={{ fontSize: 7, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fontSize: 7, fill: 'var(--text-muted)' }} width={24} axisLine={false} tickLine={false} />
-                  <Line type="monotone" dataKey="actual" stroke={cardColor} strokeWidth={2} dot={false} connectNulls />
-                  {hasTarget && <Line type="monotone" dataKey="target" stroke="#fb923c" strokeWidth={1.5} strokeDasharray="4 3" dot={false} connectNulls />}
+                  <Tooltip content={<ChartTooltip />} filterNull={false} cursor={{ stroke: 'var(--border)', strokeDasharray: '4 4' }} />
+                  <Line type="monotone" dataKey="actual" name="Actual" stroke={cardColor} strokeWidth={2} dot={{ r: 1.5, fill: cardColor, strokeWidth: 0 }} />
+                  {hasTarget && <Line type="monotone" dataKey="target" name="Target" stroke="#fb923c" strokeWidth={1.5} strokeDasharray="4 3" dot={{ r: 1.5, fill: '#fb923c', strokeWidth: 0 }} />}
                 </ReLineChart>
               </ResponsiveContainer>
             </div>
           </div>
 
           <div className="mt-1.5 grid grid-cols-3 gap-1 border-t border-[color:var(--border)] pt-1.5 text-center text-[9px]">
-            <div><span className="block text-[color:var(--text-muted)]">Actual</span><span className="font-bold text-[color:var(--text-secondary)]">{rawActual != null ? rawActual.toFixed(1) : '-'}</span></div>
-            <div><span className="block text-[color:var(--text-muted)]">Target</span><span className="font-bold text-[color:var(--accent)]">{rawTarget != null ? rawTarget.toFixed(1) : '-'}</span></div>
-            <div><span className="block text-[color:var(--text-muted)]">Achv</span><span className={`font-bold ${clampedPct >= 100 ? 'text-[color:var(--success)]' : clampedPct >= 90 ? 'text-[color:var(--warning)]' : 'text-[color:var(--danger)]'}`}>{clampedPct.toFixed(1)}%</span></div>
+            <div><span className="block text-[color:var(--text-muted)]">Actual</span><span className={`font-bold ${hasActual ? 'text-[color:var(--text-secondary)]' : 'text-[color:var(--text-muted)]'}`}>{formatChartValue(rawActual)}</span></div>
+            <div><span className="block text-[color:var(--text-muted)]">Target</span><span className={`font-bold ${isMissingValue(rawTarget) ? 'text-[color:var(--text-muted)]' : 'text-[color:var(--accent)]'}`}>{formatChartValue(rawTarget)}</span></div>
+            <div><span className="block text-[color:var(--text-muted)]">Achv</span><span className={`font-bold ${pctClass}`}>{pctText}</span></div>
           </div>
         </div>
       </div>
@@ -848,7 +930,7 @@ const KPIDetailPage = () => {
   /* ══════════════ EXPANDED MODAL CHART RENDERERS ══════════════ */
 
   const renderExpandedMetricChart = (chartKey, metric) => {
-    if (!metric) return <div className="py-8 text-center text-[color:var(--text-secondary)]">No data available</div>;
+    if (!metric) return <div className="py-8 text-center text-[color:var(--text-secondary)]">{NO_DATA_TEXT}</div>;
 
     const rawActual = Number.isFinite(metric.actualValues?.[selectedMonthIdx]) ? metric.actualValues[selectedMonthIdx] : null;
     const hasMonthTarget = Number.isFinite(metric.targetValues?.[selectedMonthIdx]);
@@ -869,10 +951,12 @@ const KPIDetailPage = () => {
     const pct = getMetricPercent(rawActual, hasMonthTarget ? rawTarget : null);
     const clampedPct = rawActual != null ? Math.min(Math.max(pct, 0), 100) : 0;
 
+    // With no actual value, draw an empty ring so the chart area is still visible
     const donutData = rawActual != null ? [
       { name: 'Achieved', value: clampedPct, fill: accentColor },
       { name: 'Remaining', value: Math.max(100 - clampedPct, 0), fill: REMAINING_FILL },
-    ] : [];
+    ] : [{ name: 'Remaining', value: 100, fill: REMAINING_FILL }];
+    const navButtonClass = 'cursor-pointer rounded-lg border border-[color:var(--border)] bg-[color:var(--surface-hover)] px-4 py-2 text-lg font-bold text-[color:var(--text-secondary)] shadow transition-all hover:bg-[color:var(--surface-elevated)] hover:text-[color:var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-40';
 
     const trendData = (metric.labels || []).map((label, idx) => ({
       month: label,
@@ -886,7 +970,7 @@ const KPIDetailPage = () => {
         <div className="flex items-center justify-center gap-4 mb-4">
           <button
             type="button"
-            className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-lg text-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow"
+            className={navButtonClass}
             onClick={(e) => {
               e.stopPropagation();
               const total = metric.labels?.length || 12;
@@ -897,12 +981,12 @@ const KPIDetailPage = () => {
           >
             ‹
           </button>
-          <span className="text-lg font-bold text-gray-800 min-w-[80px] text-center">
+          <span className="min-w-[80px] text-center text-lg font-bold text-[color:var(--text-primary)]">
             {selectedMonthLabel} {fiscalYear}
           </span>
           <button
             type="button"
-            className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-lg text-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow"
+            className={navButtonClass}
             onClick={(e) => {
               e.stopPropagation();
               const total = metric.labels?.length || 12;
@@ -928,11 +1012,15 @@ const KPIDetailPage = () => {
               </RePieChart>
             </ResponsiveContainer>
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-              <span className="text-4xl font-extrabold text-gray-800">{rawActual != null ? clampedPct.toFixed(1) : '-'}%</span>
-              {rawActual != null && (
-                <span className="text-sm text-gray-500 mt-1">
-                  {rawActual.toFixed(1)} / {rawTarget.toFixed(1)}
-                </span>
+              {rawActual != null ? (
+                <>
+                  <span className="text-4xl font-extrabold text-[color:var(--text-primary)]">{formatChartValue(clampedPct, '%')}</span>
+                  <span className="mt-1 text-sm text-[color:var(--text-muted)]">
+                    {formatChartValue(rawActual)} / {hasMonthTarget ? formatChartValue(rawTarget) : NO_DATA_TEXT}
+                  </span>
+                </>
+              ) : (
+                <span className="text-lg font-bold text-[color:var(--text-muted)]">{NO_DATA_TEXT}</span>
               )}
             </div>
           </div>
@@ -941,78 +1029,46 @@ const KPIDetailPage = () => {
           <div className="h-[320px]">
             <ResponsiveContainer width="100%" height="100%">
               <ReLineChart data={trendData} margin={{ top: 20, right: 20, left: 10, bottom: 20 }}>
+                <CartesianGrid strokeDasharray="4 4" stroke="var(--border)" vertical={false} />
                 <XAxis dataKey="month" tick={{ fontSize: 12, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fontSize: 12, fill: 'var(--text-muted)' }} width={40} axisLine={false} tickLine={false} />
-                <Tooltip
-                  contentStyle={{ fontSize: '12px', padding: '8px' }}
-                  formatter={(val) => val != null ? val.toFixed(1) : '-'}
-                />
-                <Legend wrapperStyle={{ fontSize: '12px' }} />
-                <Line type="monotone" dataKey="actual" name="Actual" stroke={accentColor} strokeWidth={3} dot={{ r: 4, fill: accentColor }} activeDot={{ r: 6 }} connectNulls />
-                <Line type="monotone" dataKey="target" name="Target" stroke={CHART_COLORS.target} strokeWidth={2.5} strokeDasharray="6 4" dot={{ r: 3, fill: CHART_COLORS.target }} connectNulls />
+                <Tooltip content={<ChartTooltip />} filterNull={false} cursor={{ stroke: 'var(--border)', strokeDasharray: '4 4' }} />
+                <Legend wrapperStyle={{ fontSize: '12px', color: 'var(--text-secondary)' }} />
+                {renderNoDataMarkers(trendData, ['actual', 'target'], 11, 'month')}
+                <Line type="monotone" dataKey="actual" name="Actual" stroke={accentColor} strokeWidth={3} dot={{ r: 4, fill: accentColor }} activeDot={{ r: 6 }} />
+                <Line type="monotone" dataKey="target" name="Target" stroke={CHART_COLORS.target} strokeWidth={2.5} strokeDasharray="6 4" dot={{ r: 3, fill: CHART_COLORS.target }} />
               </ReLineChart>
             </ResponsiveContainer>
           </div>
         </div>
 
         {/* Data Summary */}
-        {rawActual != null && (
-          <div className="mt-6 grid grid-cols-3 gap-6 text-center border-t border-gray-200 pt-6">
-            <div>
-              <span className="text-gray-500 block text-sm mb-1">Actual</span>
-              <span className="font-bold text-2xl" style={{ color: accentColor }}>{rawActual.toFixed(1)}</span>
-            </div>
-            <div>
-              <span className="text-gray-500 block text-sm mb-1">Target</span>
-              <span className="font-bold text-2xl" style={{ color: CHART_COLORS.target }}>{rawTarget.toFixed(1)}</span>
-            </div>
-            <div>
-              <span className="text-gray-500 block text-sm mb-1">Achievement</span>
-              <span className={`font-bold text-2xl ${clampedPct >= 100 ? 'text-green-600' : clampedPct >= 90 ? 'text-yellow-600' : 'text-red-600'}`}>
-                {clampedPct.toFixed(1)}%
-              </span>
-            </div>
+        <div className="mt-6 grid grid-cols-3 gap-6 border-t border-[color:var(--border)] pt-6 text-center">
+          <div>
+            <span className="mb-1 block text-sm text-[color:var(--text-muted)]">Actual</span>
+            <span className="text-2xl font-bold" style={rawActual != null ? { color: accentColor } : { color: 'var(--text-muted)' }}>{formatChartValue(rawActual)}</span>
           </div>
-        )}
+          <div>
+            <span className="mb-1 block text-sm text-[color:var(--text-muted)]">Target</span>
+            <span className="text-2xl font-bold" style={hasMonthTarget ? { color: CHART_COLORS.target } : { color: 'var(--text-muted)' }}>{hasMonthTarget ? formatChartValue(rawTarget) : NO_DATA_TEXT}</span>
+          </div>
+          <div>
+            <span className="mb-1 block text-sm text-[color:var(--text-muted)]">Achievement</span>
+            <span className={`text-2xl font-bold ${rawActual == null ? 'text-[color:var(--text-muted)]' : clampedPct >= 100 ? 'text-[color:var(--success)]' : clampedPct >= 90 ? 'text-[color:var(--warning)]' : 'text-[color:var(--danger)]'}`}>
+              {rawActual != null ? formatChartValue(clampedPct, '%') : NO_DATA_TEXT}
+            </span>
+          </div>
+        </div>
       </div>
     );
   };
 
   const renderExpandedManagementLoss = (data) => {
-    if (!data) return <div className="text-center text-gray-500 py-8">No data available</div>;
+    if (!data) return <div className="py-8 text-center text-[color:var(--text-muted)]">{NO_DATA_TEXT}</div>;
     return (
       <div className="w-full">
         <div className="h-[500px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={data.stackedRows} margin={{ top: 20, right: 30, left: 20, bottom: 50 }}>
-              <XAxis dataKey="month" tick={{ fontSize: 12, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 12, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
-              <Tooltip
-                contentStyle={{ fontSize: '12px', padding: '10px' }}
-                formatter={(val, name) => val != null ? [val.toFixed(2), name] : ['-', name]}
-              />
-              <Legend wrapperStyle={{ fontSize: '11px' }} />
-              {data.managementLossSeries.map((series) => (
-                <Bar
-                  key={series.key}
-                  dataKey={series.key}
-                  stackId="management-loss"
-                  name={series.title}
-                  fill={series.color}
-                />
-              ))}
-              <Line
-                type="monotone"
-                dataKey="target"
-                name="MANAGEMENT LOSS TIME - TARGET"
-                stroke="var(--text-muted)"
-                strokeWidth={2.5}
-                dot={{ r: 4 }}
-                activeDot={{ r: 6 }}
-                connectNulls
-              />
-            </ComposedChart>
-          </ResponsiveContainer>
+          <ManagementLossChart rows={data.stackedRows} series={data.managementLossSeries} expanded />
         </div>
       </div>
     );
@@ -1036,10 +1092,14 @@ const KPIDetailPage = () => {
 
   /* ══════════════ MAIN RENDER ══════════════ */
   return (
-    <div className="min-h-screen bg-[color:var(--app-bg)] p-4 sm:p-6">
-      <div className="max-w-[1800px] mx-auto">
+    <div
+      ref={pageRef}
+      className="overflow-y-auto bg-[color:var(--app-bg)] p-2 sm:p-3 xl:overflow-hidden"
+      style={{ height: pageHeight ? `${pageHeight}px` : 'calc(100vh - 5rem)', minHeight: 0 }}
+    >
+      <div className="mx-auto flex max-w-[1800px] flex-col xl:h-full">
         {/* ── Header ── */}
-        <div className="mb-3 flex items-center justify-between flex-wrap gap-2">
+        <div className="mb-2 flex shrink-0 items-center justify-between flex-wrap gap-2">
           <button onClick={() => navigate(-1)} className="flex items-center gap-1.5 text-sm font-semibold text-[color:var(--accent)] transition hover:text-[color:var(--accent-hover)]">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
             Back
@@ -1092,18 +1152,18 @@ const KPIDetailPage = () => {
         </div>
 
         {/* ── KPI Title Banner ── */}
-        <div className="rounded-xl border border-[color:var(--border)] bg-[color:var(--surface)] p-3 shadow-sm">
-          <div className="mb-3 rounded-md bg-[color:var(--accent)] py-2.5 text-center text-lg font-bold tracking-wide text-white">
+        <div className="flex flex-col rounded-xl border border-[color:var(--border)] bg-[color:var(--surface)] p-2 shadow-sm xl:min-h-0 xl:flex-1 xl:overflow-y-auto">
+          <div className="mb-2 shrink-0 rounded-md bg-[color:var(--accent)] py-2 text-center text-lg font-bold tracking-wide text-white">
             {parentKPI?.title || 'KPI DASHBOARD'}
           </div>
           {hasLayout ? (
             <>
               {/* ════════ 3-COLUMN DASHBOARD LAYOUT ════════ */}
               {hasSpecificLayout && (
-                <div className="grid grid-cols-1 xl:grid-cols-[2fr_0.45fr_1.2fr] gap-3 items-stretch">
+                <div className="grid grid-cols-1 xl:grid-cols-[2fr_0.45fr_1.2fr] gap-2 items-stretch xl:min-h-0 xl:flex-1">
 
                   {/* ── LEFT COLUMN: OPE + OEE stacked vertically ── */}
-                  <div className="flex flex-col gap-3">
+                  <div className="flex flex-col gap-2 xl:min-h-0">
                     <div className="flex-1 min-h-0">
                       <EfficiencyDonutCard
                         metric={layout.ope}
@@ -1127,7 +1187,7 @@ const KPIDetailPage = () => {
                   </div>
 
                   {/* ── MIDDLE COLUMN: MONTH + AE / PE / QE ── */}
-                  <div className="flex flex-col overflow-hidden rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)]">
+                  <div className="flex flex-col overflow-hidden rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] xl:min-h-0">
                     {/* MONTH Header */}
                     <div className="bg-[color:var(--surface-hover)] py-2 text-center text-base font-bold tracking-wide text-[color:var(--text-primary)]">
                       MONTH
@@ -1184,7 +1244,7 @@ const KPIDetailPage = () => {
 
                   {/* ── RIGHT COLUMN: Management Loss stacked bar ── */}
                   <div
-                    className="flex cursor-pointer flex-col overflow-hidden rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] transition-shadow hover:shadow-md"
+                    className="flex cursor-pointer flex-col overflow-hidden rounded-lg border xl:min-h-0 border-[color:var(--border)] bg-[color:var(--surface)] transition-shadow hover:shadow-md"
                     onClick={(e) => {
                       if (e.target.closest('button')) return;
                       openExpandedChart('managementLoss');
@@ -1196,36 +1256,8 @@ const KPIDetailPage = () => {
                     <div className="bg-[color:var(--surface-hover)] py-2 text-center text-sm font-bold tracking-wide text-[color:var(--text-primary)]">
                       MANAGEMENT LOSS (HRS.)
                     </div>
-                    <div className="flex-1 p-2 min-h-0">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <ComposedChart data={layout.stackedRows} margin={{ top: 8, right: 5, left: -10, bottom: 25 }}>
-                          <XAxis dataKey="month" tick={{ fontSize: 9, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
-                          <YAxis tick={{ fontSize: 9, fill: 'var(--text-muted)' }} width={30} axisLine={false} tickLine={false} />
-                          <Tooltip
-                            contentStyle={{ fontSize: '10px', padding: '6px', background: 'var(--surface-elevated)', border: '1px solid var(--border)', borderRadius: '0.75rem', color: 'var(--text-primary)' }}
-                            formatter={(val, name) => val != null ? [val.toFixed(2), name] : ['-', name]}
-                          />
-                          <Legend wrapperStyle={{ fontSize: '8px', color: 'var(--text-secondary)' }} />
-                          {layout.managementLossSeries.map((series) => (
-                            <Bar
-                              key={series.key}
-                              dataKey={series.key}
-                              stackId="management-loss"
-                              name={series.title}
-                              fill={series.color}
-                            />
-                          ))}
-                          <Line
-                            type="monotone"
-                            dataKey="target"
-                            name="MANAGEMENT LOSS TIME - TARGET"
-                            stroke="var(--text-muted)"
-                            strokeWidth={1.5}
-                            dot={false}
-                            connectNulls
-                          />
-                        </ComposedChart>
-                      </ResponsiveContainer>
+                    <div className="flex-1 p-2 min-h-[320px] xl:min-h-0">
+                      <ManagementLossChart rows={layout.stackedRows} series={layout.managementLossSeries} />
                     </div>
                   </div>
                 </div>
