@@ -21,7 +21,7 @@ jobs:
 
             if [ "${{ github.ref_name }}" = "main" ]; then
               APP_DIR="/var/www/hyloc"
-              PM2_NAME="hyloc-backend"
+              PM2_NAME="hyloc-server"
               echo "🚀 Deploying to PRODUCTION"
             else
               APP_DIR="/var/www/hyloc-staging"
@@ -34,11 +34,11 @@ jobs:
             echo "📥 Pulling latest code"
             git pull origin ${{ github.ref_name }}
 
-            echo "📦 Installing backend dependencies"
-            cd backend
+            echo "📦 Installing server dependencies"
+            cd server
             npm install
 
-            echo "🔄 Restarting backend"
+            echo "🔄 Restarting server"
             pm2 reload $PM2_NAME || pm2 start server.js --name $PM2_NAME
 
             echo "🏗 Building frontend"
