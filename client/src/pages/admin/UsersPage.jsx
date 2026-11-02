@@ -6,6 +6,7 @@ import { getDepartments } from '../../api/departmentApi';
 import { getDesignations } from '../../api/designationApi';
 import { API_URL } from '../../api/axios';
 import { useAuth } from '../../context/AuthContext';
+import AuthenticatedImage from '../../components/common/AuthenticatedImage';
 
 // Resolve a stored upload path (e.g. /api/uploads/users/EMP001.jpg) to an absolute URL
 const getPhotoUrl = (path) => {
@@ -568,7 +569,7 @@ export default function UsersPage() {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-[color:var(--text-secondary)]">{u.empid || '--N/A--'}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-center">
                         {u.staff_photo ? (
-                           <img src={getPhotoUrl(u.staff_photo)} alt="Staff" className="h-12 w-12 rounded-full border border-[color:var(--border)] object-cover" />
+                           <AuthenticatedImage src={getPhotoUrl(u.staff_photo)} alt="Staff" className="h-12 w-12 rounded-full border border-[color:var(--border)] object-cover" />
                         ) : (
                           <span className="text-sm text-[color:var(--text-muted)]">--</span>
                         )}
@@ -727,7 +728,7 @@ export default function UsersPage() {
                       <div>
                         <label className="mb-2 block text-sm font-medium text-[color:var(--text-secondary)]">Staff Photo</label>
                         {photoPreview && (
-                          <img src={photoPreview} alt="Staff preview" className="mb-2 h-20 w-20 rounded-full border border-[color:var(--border)] object-cover" />
+                          <AuthenticatedImage src={photoPreview} alt="Staff preview" className="mb-2 h-20 w-20 rounded-full border border-[color:var(--border)] object-cover" />
                         )}
                         <input
                           type="file"
@@ -745,7 +746,7 @@ export default function UsersPage() {
                           <div>
                             <label className="mb-2 block text-sm font-medium text-[color:var(--text-secondary)]">Password<span className='text-red-500'>*</span></label>
                             <div className="relative">
-                              <input type={showPassword ? 'text' : 'password'} value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} className="block w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-4 py-3 text-[color:var(--text-primary)] focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--focus-ring)]" placeholder="••••••••" />
+                              <input type={showPassword ? 'text' : 'password'} minLength={8} value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} className="block w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-4 py-3 text-[color:var(--text-primary)] focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--focus-ring)]" placeholder="••••••••" />
                               <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-3 text-[color:var(--text-muted)] hover:text-[color:var(--text-primary)]">
                                 {showPassword ? (
                                   <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-4.803m5.596-3.856a3.375 3.375 0 11-4.753 4.753m4.753-4.753L9.172 9.172M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>

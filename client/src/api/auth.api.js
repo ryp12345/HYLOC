@@ -1,9 +1,6 @@
 import axiosInstance from './axios';
 
 export const authAPI = {
-  register: (email, password, firstName, lastName) =>
-    axiosInstance.post('/auth/register', { email, password, firstName, lastName }),
-
   login: (empid, password) =>
     axiosInstance.post('/auth/login', { empid, password }),
 

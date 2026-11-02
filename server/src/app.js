@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
 const config = require('./config');
 const authRoutes = require('./routes/auth.routes');
 const userRoutes = require('./routes/user.routes');
@@ -19,35 +20,46 @@ const categoryRoutes = require('./routes/category.routes');
 const leaveRoutes = require('./routes/leave.routes');
 const unitMasterRoutes = require('./routes/unitMaster.routes');
 const leaveEntitlementRoutes = require('./routes/leaveEntitlement.routes');
-const devTicketsRoutes = require('./routes/devTickets.routes');
 const ticketRoutes = require('./routes/ticket.routes');
 const { errorHandler, notFoundHandler } = require('./middlewares/error.middleware');
 const notificationRoutes = require('./routes/notification.routes');
+const { authenticate } = require('./middlewares/auth.middleware');
 
 const app = express();
+app.set('trust proxy', 'loopback');
 const fs = require('fs');
 
 // Middlewares
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      imgSrc: ["'self'", 'data:', 'blob:']
+    }
+  },
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+  hsts: config.nodeEnv === 'production' ? undefined : false
+}));
 app.use(cors(config.cors));
 
 const path = require('path');
 // Serve uploaded files
 const uploadsPath = path.join(__dirname, '../public/uploads');
-app.use('/uploads', express.static(uploadsPath));
-app.use('/api/uploads', express.static(uploadsPath));
-
 const userUploadsPath = path.join(uploadsPath, 'users');
+const inlinePhotoExtensions = new Set(['.gif', '.jpeg', '.jpg', '.png', '.webp']);
+
 const userPhotoExtensions = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
 
 const findUserPhotoFile = (requestedName) => {
   if (!requestedName) return '';
 
-  const normalizedName = String(requestedName).replace(/^\/+/, '');
+  const normalizedName = path.basename(String(requestedName).replace(/\\/g, '/'));
   const directFilePath = path.join(userUploadsPath, normalizedName);
+  const uploadsRoot = path.resolve(userUploadsPath) + path.sep;
 
-  if (fs.existsSync(directFilePath) && fs.statSync(directFilePath).isFile()) {
+  if (path.resolve(directFilePath).startsWith(uploadsRoot) &&
+      fs.existsSync(directFilePath) && fs.statSync(directFilePath).isFile()) {
     return directFilePath;
   }
 
@@ -68,17 +80,19 @@ const findUserPhotoFile = (requestedName) => {
 
   for (const candidateName of candidateNames) {
     const candidatePath = path.join(userUploadsPath, candidateName);
-    if (fs.existsSync(candidatePath) && fs.statSync(candidatePath).isFile()) {
+    if (path.resolve(candidatePath).startsWith(uploadsRoot) &&
+        fs.existsSync(candidatePath) && fs.statSync(candidatePath).isFile()) {
       return candidatePath;
     }
   }
 
   if (fs.existsSync(userUploadsPath)) {
-    const lowerTarget = normalizedName.toLowerCase();
+    const lowerTarget = path.basename(normalizedName).toLowerCase();
     const matchedFile = fs.readdirSync(userUploadsPath).find((entry) => entry.toLowerCase() === lowerTarget);
     if (matchedFile) {
       const matchedPath = path.join(userUploadsPath, matchedFile);
-      if (fs.existsSync(matchedPath) && fs.statSync(matchedPath).isFile()) {
+      if (path.resolve(matchedPath).startsWith(uploadsRoot) &&
+          fs.existsSync(matchedPath) && fs.statSync(matchedPath).isFile()) {
         return matchedPath;
       }
     }
@@ -87,14 +101,19 @@ const findUserPhotoFile = (requestedName) => {
   return '';
 };
 
-app.get('/api/uploads/users/:fileName', (req, res, next) => {
+app.get('/api/uploads/users/:fileName', authenticate, (req, res, next) => {
   const requestedName = String(req.params.fileName || '').trim();
-  if (!requestedName) {
-    return next();
+  const fileName = path.basename(requestedName.replace(/\\/g, '/'));
+  if (!requestedName || requestedName !== fileName) {
+    return res.status(400).end();
   }
 
-  const matchedPath = findUserPhotoFile(requestedName);
-  if (matchedPath) {
+  const matchedPath = findUserPhotoFile(fileName);
+  if (matchedPath && path.resolve(matchedPath).startsWith(path.resolve(userUploadsPath) + path.sep)) {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    if (!inlinePhotoExtensions.has(path.extname(matchedPath).toLowerCase())) {
+      res.setHeader('Content-Disposition', 'attachment');
+    }
     return res.sendFile(matchedPath);
   }
 
@@ -125,7 +144,6 @@ app.use('/api/kpi-employees', kpiEmployeeRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/leaves', leaveRoutes);
 app.use('/api/unit-master', unitMasterRoutes);
-app.use('/api/dev-tickets', devTicketsRoutes);
 app.use('/api/tickets', ticketRoutes);
 app.use('/api/notifications', notificationRoutes);
 

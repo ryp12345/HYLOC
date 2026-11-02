@@ -2,34 +2,26 @@ const UserModel = require('../models/user.model');
 const { comparePassword } = require('../utils/hash');
 const { generateAccessToken, generateRefreshToken } = require('../utils/jwt');
 const db = require('../config/db');
+const loginAttemptModel = require('../models/loginAttempt.model');
 
-exports.register = async (email, password, firstName, lastName) => {
-  // Check if user already exists
-  const existingUser = await UserModel.findUserByEmail(email);
-  if (existingUser) {
-    throw new Error('User already exists with this email');
+// Thrown when an account is locked after too many failed logins.
+class AccountLockedError extends Error {
+  constructor(retryAfterSeconds) {
+    super('Account temporarily locked');
+    this.code = 'ACCOUNT_LOCKED';
+    this.retryAfterSeconds = retryAfterSeconds;
   }
+}
+exports.AccountLockedError = AccountLockedError;
 
-  // Create user
-  const user = await UserModel.createUser(email, password, firstName, lastName, 'employee');
-  
-  // Generate tokens (set default role if not present)
-  const userRole = user.role || 'employee';
-  const accessToken = generateAccessToken(user.id, user.email, userRole);
-  const refreshToken = generateRefreshToken(user.id);
-
-  return {
-    user: {
-      id: user.id,
-      email: user.email,
-      firstName: user.firstname,
-      lastName: user.lastname,
-      role: userRole
-    },
-    accessToken,
-    refreshToken
-  };
-};
+// Thrown when the correct password is given for a deactivated account.
+class AccountInactiveError extends Error {
+  constructor() {
+    super('Account inactive');
+    this.code = 'ACCOUNT_INACTIVE';
+  }
+}
+exports.AccountInactiveError = AccountInactiveError;
 
 exports.login = async (empid, password) => {
   // Find user by empid
@@ -38,11 +30,30 @@ exports.login = async (empid, password) => {
     throw new Error('Invalid employee ID or password');
   }
 
+  // Only say the account is inactive once the password is proven correct,
+  // so guessing IDs does not reveal which accounts exist or are deactivated.
+  if (String(user.status || '').toLowerCase() !== 'active') {
+    if (await comparePassword(password, user.password)) {
+      throw new AccountInactiveError();
+    }
+    throw new Error('Invalid employee ID or password');
+  }
+
+  const lockSecondsRemaining = await loginAttemptModel.getLockSecondsRemaining(user.id);
+  if (lockSecondsRemaining > 0) {
+    throw new AccountLockedError(lockSecondsRemaining);
+  }
+
   // Compare passwords
   const isPasswordValid = await comparePassword(password, user.password);
   if (!isPasswordValid) {
+    const lockedForSeconds = await loginAttemptModel.recordFailure(user.id);
+    if (lockedForSeconds > 0) {
+      throw new AccountLockedError(lockedForSeconds);
+    }
     throw new Error('Invalid employee ID or password');
   }
+  await loginAttemptModel.clear(user.id);
 
   // Get user's primary role from user_roles table
   const roleQuery = `
@@ -60,8 +71,9 @@ exports.login = async (empid, password) => {
 
   //console.log('Login successful for user:', user.empid, 'Role:', userRole);
 
-  const accessToken = generateAccessToken(user.id, user.email, userRole);
-  const refreshToken = generateRefreshToken(user.id);
+  const tokenVersion = Number(user.token_version) || 0;
+  const accessToken = generateAccessToken(user.id, user.email, userRole, tokenVersion);
+  const refreshToken = generateRefreshToken(user.id, tokenVersion);
 
   return {
     user: {
@@ -118,7 +130,7 @@ exports.switchRole = async (userId, role) => {
   }
 
   const user = await UserModel.findUserById(userId);
-  const accessToken = generateAccessToken(userId, user?.email, matched);
+  const accessToken = generateAccessToken(userId, user?.email, matched, Number(user?.token_version) || 0);
   return { accessToken, role: matched };
 };
 
@@ -131,13 +143,17 @@ exports.refreshAccessToken = async (refreshToken, selectedRole) => {
   }
 
   const user = await UserModel.findUserById(decoded.userId);
-  if (!user) {
+  if (
+    !user ||
+    String(user.status || '').toLowerCase() !== 'active' ||
+    (Number(decoded.tokenVersion) || 0) !== (Number(user.token_version) || 0)
+  ) {
     throw new Error('User not found');
   }
 
   const userRole = await resolveTokenRole(user.id, selectedRole);
 
-  const accessToken = generateAccessToken(user.id, user.email, userRole);
+  const accessToken = generateAccessToken(user.id, user.email, userRole, Number(user.token_version) || 0);
   return { accessToken };
 };
 

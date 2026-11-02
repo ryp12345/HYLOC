@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { deleteTicket } from '../../api/ticketApi';
-import { API_URL } from '../../api/axios';
+import { deleteTicket, getTicketAttachment } from '../../api/ticketApi';
 import Notification from '../../components/common/Notification';
 import { getAllTickets, updateTicket, createTicket, getTicketPriorities, getTicketStatuses } from '../../api/ticketApi';
 import { getUsers, getAssignableUsers } from '../../api/userApi';
@@ -259,26 +258,21 @@ export default function TicketsPage() {
     }
   };
 
-  const getAttachmentHref = (attachmentPath) => {
-    if (!attachmentPath) return '';
-    if (/^https?:\/\//i.test(attachmentPath)) return attachmentPath;
-    if (!attachmentPath.startsWith('/')) return attachmentPath;
-
+  const openTicketAttachment = async (ticketId) => {
+    const newWindow = window.open('', '_blank');
     try {
-      const appOrigin = API_URL.startsWith('http') ? new URL(API_URL).origin : window.location.origin;
-      const apiBase = API_URL.startsWith('http') ? API_URL : `${window.location.origin}${API_URL}`;
-
-      if (attachmentPath.startsWith('/uploads/')) {
-        return `${apiBase}${attachmentPath}`;
+      const response = await getTicketAttachment(ticketId);
+      const objectUrl = URL.createObjectURL(response.data);
+      if (newWindow) {
+        newWindow.location = objectUrl;
+      } else {
+        window.location.assign(objectUrl);
       }
-
-      if (attachmentPath.startsWith('/api/')) {
-        return `${appOrigin}${attachmentPath}`;
-      }
-
-      return `${appOrigin}${attachmentPath}`;
-    } catch {
-      return attachmentPath;
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
+    } catch (error) {
+      newWindow?.close();
+      console.error('Failed to retrieve ticket attachment:', error);
+      setNotification({ show: true, message: 'Unable to open attachment', type: 'error' });
     }
   };
 
@@ -724,10 +718,9 @@ export default function TicketsPage() {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-[color:var(--text-secondary)]">{renderPriorityChip(row.priority)}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-center text-sm">
                         {row.attachment ? (
-                          <a
-                            href={getAttachmentHref(row.attachment)}
-                            target="_blank"
-                            rel="noreferrer"
+                          <button
+                            type="button"
+                            onClick={() => openTicketAttachment(row.id)}
                             className="inline-flex items-center justify-center p-2 text-[color:var(--accent)] hover:opacity-80"
                             title="View Attachment"
                             aria-label="View Attachment"
@@ -736,7 +729,7 @@ export default function TicketsPage() {
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                             </svg>
-                          </a>
+                          </button>
                         ) : (
                           <span className="text-[color:var(--text-muted)]">--NA--</span>
                         )}
@@ -1036,14 +1029,13 @@ export default function TicketsPage() {
                                 value={getDisplayAttachmentPath(form.attachment)}
                                 className="block w-full px-3 py-2 text-sm  border border-[color:var(--border)] rounded-lg bg-[color:var(--surface-hover)] text-[color:var(--text-primary)]"
                               />
-                              <a
-                                href={getAttachmentHref(form.attachment)}
-                                target="_blank"
-                                rel="noreferrer"
+                              <button
+                                type="button"
+                                onClick={() => openTicketAttachment(editingId)}
                                 className="text-[color:var(--accent)] hover:opacity-80 whitespace-nowrap"
                               >
                                 Open
-                              </a>
+                              </button>
                             </div>
                             <div className="text-xs text-[color:var(--text-muted)] mt-1">If you do not choose a new file, this attachment will be kept on update.</div>
                           </div>

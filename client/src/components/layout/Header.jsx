@@ -10,6 +10,7 @@ import { getNotificationLines, getNotificationTypeLabel } from '../../utils/noti
 import axios from '../../api/axios';
 import { API_URL } from '../../api/axios';
 import { useTheme } from '../../context/ThemeContext';
+import AuthenticatedImage from '../common/AuthenticatedImage';
 
 const getPhotoUrl = (path) => {
   if (!path) return '';
@@ -288,7 +289,7 @@ const Navbar = () => {
                   >
                     <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-[color:var(--surface-hover)] text-sm font-semibold text-[color:var(--text-secondary)]">
                       {profilePhoto ? (
-                        <img
+                        <AuthenticatedImage
                           src={profilePhoto}
                           alt="Profile"
                           className="h-full w-full object-cover"

@@ -1,17 +1,17 @@
 const jwt = require('jsonwebtoken');
 const config = require('../config');
 
-exports.generateAccessToken = (userId, email, role) => {
+exports.generateAccessToken = (userId, email, role, tokenVersion = 0) => {
   return jwt.sign(
-    { userId, email, role },
+    { userId, email, role, tokenVersion },
     config.jwt.secret,
     { expiresIn: config.jwt.expiresIn }
   );
 };
 
-exports.generateRefreshToken = (userId) => {
+exports.generateRefreshToken = (userId, tokenVersion = 0) => {
   return jwt.sign(
-    { userId },
+    { userId, tokenVersion },
     config.jwt.refreshSecret,
     { expiresIn: config.jwt.refreshExpiresIn }
   );

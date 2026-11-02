@@ -17,7 +17,8 @@ exports.getAllKPIDepartments = async (req, res) => {
     const mappings = await kpiDepartmentModel.getAllKPIDepartments();
     res.status(200).json({ success: true, message: 'KPI-Department mappings retrieved successfully', data: mappings });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Failed to retrieve KPI-Department mappings', error: error.message });
+    console.error('Controller operation failed:', error);
+    res.status(500).json({ success: false, message: 'Failed to retrieve KPI-Department mappings', error: 'Internal server error' });
   }
 };
 
@@ -29,7 +30,8 @@ exports.getKPIDepartmentsByKPI = async (req, res) => {
     const mappings = await kpiDepartmentModel.getKPIDepartmentsByKPI(kpiId);
     res.status(200).json({ success: true, message: 'KPI-Department mappings retrieved successfully', data: mappings });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Failed to retrieve KPI-Department mappings', error: error.message });
+    console.error('Controller operation failed:', error);
+    res.status(500).json({ success: false, message: 'Failed to retrieve KPI-Department mappings', error: 'Internal server error' });
   }
 };
 
@@ -41,7 +43,8 @@ exports.getKPIDepartmentsByDepartment = async (req, res) => {
     const mappings = await kpiDepartmentModel.getKPIDepartmentsByDepartment(departmentId);
     res.status(200).json({ success: true, message: 'KPI-Department mappings retrieved successfully', data: mappings });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Failed to retrieve KPI-Department mappings', error: error.message });
+    console.error('Controller operation failed:', error);
+    res.status(500).json({ success: false, message: 'Failed to retrieve KPI-Department mappings', error: 'Internal server error' });
   }
 };
 
@@ -65,7 +68,8 @@ exports.createKPIDepartment = async (req, res) => {
     const mapping = await kpiDepartmentModel.createKPIDepartment(kpiId, departmentId);
     res.status(201).json({ success: true, message: 'KPI-Department mapping created successfully', data: mapping });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Failed to create KPI-Department mapping', error: error.message });
+    console.error('Controller operation failed:', error);
+    res.status(500).json({ success: false, message: 'Failed to create KPI-Department mapping', error: 'Internal server error' });
   }
 };
 
@@ -79,7 +83,8 @@ exports.deleteKPIDepartment = async (req, res) => {
 
     res.status(200).json({ success: true, message: 'Mapping deleted successfully' });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Failed to delete mapping', error: error.message });
+    console.error('Controller operation failed:', error);
+    res.status(500).json({ success: false, message: 'Failed to delete mapping', error: 'Internal server error' });
   }
 };
 
@@ -91,7 +96,8 @@ exports.deleteKPIDepartmentsByKPI = async (req, res) => {
     const deletedCount = await kpiDepartmentModel.deleteKPIDepartmentsByKPI(kpiId);
     res.status(200).json({ success: true, message: `${deletedCount} mapping(s) deleted successfully` });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Failed to delete mappings', error: error.message });
+    console.error('Controller operation failed:', error);
+    res.status(500).json({ success: false, message: 'Failed to delete mappings', error: 'Internal server error' });
   }
 };
 

@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const kpiDepartmentController = require('../controllers/kpi-department.controller');
 const { authenticate } = require('../middlewares/auth.middleware');
+const { authorize } = require('../middlewares/role.middleware');
+const canManageKpis = authorize('admin', 'super admin', 'management');
 
 // Apply authentication middleware to all routes
 router.use(authenticate);
@@ -16,12 +18,12 @@ router.get('/kpi/:kpiId', kpiDepartmentController.getKPIDepartmentsByKPI);
 router.get('/department/:departmentId', kpiDepartmentController.getKPIDepartmentsByDepartment);
 
 // Create KPI-Department mapping
-router.post('/', kpiDepartmentController.createKPIDepartment);
+router.post('/', canManageKpis, kpiDepartmentController.createKPIDepartment);
 
 // Delete KPI-Department mapping by ID
-router.delete('/:id', kpiDepartmentController.deleteKPIDepartment);
+router.delete('/:id', canManageKpis, kpiDepartmentController.deleteKPIDepartment);
 
 // Delete all KPI-Department mappings by KPI ID
-router.delete('/kpi/:kpiId', kpiDepartmentController.deleteKPIDepartmentsByKPI);
+router.delete('/kpi/:kpiId', canManageKpis, kpiDepartmentController.deleteKPIDepartmentsByKPI);
 
 module.exports = router;

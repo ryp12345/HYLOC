@@ -1,30 +1,20 @@
 const authService = require('../services/auth.service');
-const { validateLogin, validateRegister } = require('../validations/auth.validation');
+const { validateLogin } = require('../validations/auth.validation');
 const { sendSuccess, sendError } = require('../utils/response');
-const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 const bcrypt = require('bcryptjs');
 const UserModel = require('../models/user.model');
+const passwordResetModel = require('../models/passwordReset.model');
+const loginAttemptModel = require('../models/loginAttempt.model');
 const config = require('../config');
 
-exports.register = async (req, res) => {
-  try {
-    const { email, password, firstName, lastName } = req.body;
-
-    // Validate input
-    const validation = validateRegister(email, password, firstName, lastName);
-    if (!validation.isValid) {
-      return sendError(res, 'Validation error', 400, validation.errors);
-    }
-
-    // Register user
-    const result = await authService.register(email, password, firstName, lastName);
-    
-    return sendSuccess(res, result, 'User registered successfully', 201);
-  } catch (error) {
-    console.error('Register error:', error.message);
-    return sendError(res, error.message || 'Registration failed', 400);
-  }
+const verifyResetOtp = async (userId, otp) => {
+  const request = await passwordResetModel.findActiveRequest(userId);
+  if (!request) return null;
+  if (await bcrypt.compare(String(otp), request.otp_hash)) return request;
+  await passwordResetModel.recordFailedAttempt(request.id);
+  return null;
 };
 
 exports.login = async (req, res) => {
@@ -42,8 +32,27 @@ exports.login = async (req, res) => {
     
     return sendSuccess(res, result, 'Login successful', 200);
   } catch (error) {
-    console.error('Login error:', error.message);
-    return sendError(res, error.message || 'Login failed', 401);
+    if (error.code === 'ACCOUNT_LOCKED') {
+      const minutes = Math.max(1, Math.ceil(error.retryAfterSeconds / 60));
+      res.set('Retry-After', String(error.retryAfterSeconds));
+      return sendError(
+        res,
+        `Your account has been temporarily locked due to multiple unsuccessful login attempts. ` +
+        `Please try again in ${minutes} minute${minutes === 1 ? '' : 's'}, or use "Forgot Password" to reset your password.`,
+        423,
+        { code: 'ACCOUNT_LOCKED', retryAfterSeconds: error.retryAfterSeconds }
+      );
+    }
+    if (error.code === 'ACCOUNT_INACTIVE') {
+      return sendError(
+        res,
+        'Your account is currently inactive. Please contact your HR department or system administrator to have it reactivated.',
+        403,
+        { code: 'ACCOUNT_INACTIVE' }
+      );
+    }
+    console.error('Login error:', error);
+    return sendError(res, 'Invalid employee ID or password', 401);
   }
 };
 
@@ -59,8 +68,8 @@ exports.refreshToken = async (req, res) => {
     
     return sendSuccess(res, result, 'Token refreshed successfully', 200);
   } catch (error) {
-    console.error('Refresh token error:', error.message);
-    return sendError(res, error.message || 'Token refresh failed', 401);
+    console.error('Refresh token error:', error);
+    return sendError(res, 'Invalid or expired refresh token', 401);
   }
 };
 
@@ -69,11 +78,11 @@ exports.getProfile = async (req, res) => {
     const userId = req.user.userId;
     const user = await authService.getUserById(userId);
     
-    // Determine role based on empid or email
-    let userRole = 'employee';
-    if (user.empid === 10000 || user.email === 'admin@hyloc.co.in') {
-      userRole = 'admin';
-    }
+    const activeRoles = await authService.getActiveRoles(userId);
+    const selectedRole = activeRoles.find(
+      (role) => String(role).toLowerCase() === String(req.user.role || '').toLowerCase()
+    );
+    const userRole = selectedRole || activeRoles[0] || req.user.role || 'Employee';
     
     return sendSuccess(res, {
       id: user.id,
@@ -83,8 +92,8 @@ exports.getProfile = async (req, res) => {
       role: userRole
     }, 'Profile retrieved successfully', 200);
   } catch (error) {
-    console.error('Get profile error:', error.message);
-    return sendError(res, error.message || 'Failed to get profile', 400);
+    console.error('Get profile error:', error);
+    return sendError(res, 'Failed to retrieve profile', 500);
   }
 };
 
@@ -100,8 +109,11 @@ exports.switchRole = async (req, res) => {
     const result = await authService.switchRole(userId, role);
     return sendSuccess(res, result, 'Role switched successfully', 200);
   } catch (error) {
-    console.error('Switch role error:', error.message);
-    return sendError(res, error.message || 'Failed to switch role', 400);
+    console.error('Switch role error:', error);
+    if (error.message === 'You do not have access to this role') {
+      return sendError(res, error.message, 403);
+    }
+    return sendError(res, 'Failed to switch role', 500);
   }
 };
 
@@ -113,15 +125,18 @@ exports.changePassword = async (req, res) => {
     if (!currentPassword || !newPassword) {
       return sendError(res, 'Both current and new passwords are required', 400);
     }
-    if (newPassword.length < 6) {
-      return sendError(res, 'New password must be at least 6 characters', 400);
+    if (newPassword.length < 8) {
+      return sendError(res, 'New password must be at least 8 characters', 400);
     }
 
     await authService.changePassword(userId, currentPassword, newPassword);
     return sendSuccess(res, null, 'Password changed successfully', 200);
   } catch (error) {
-    console.error('Change password error:', error.message);
-    return sendError(res, error.message || 'Failed to change password', 400);
+    console.error('Change password error:', error);
+    if (error.message === 'Current password is incorrect') {
+      return sendError(res, error.message, 400);
+    }
+    return sendError(res, 'Failed to change password', 500);
   }
 };
 
@@ -134,14 +149,9 @@ exports.requestPasswordReset = async (req, res) => {
     const user = await UserModel.findUserByEmail(email);
     if (!user) return sendSuccess(res, {}, 'OTP sent to your email for password reset.', 200);
 
-    // Generate 6-digit OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    // Create JWT reset token (expires in 5 min)
-    const resetToken = jwt.sign(
-      { email, otp },
-      config.jwt.secret + user.password,
-      { expiresIn: '5m' }
-    );
+    const otp = crypto.randomInt(100000, 1000000).toString();
+    const otpHash = await bcrypt.hash(otp, 10);
+    await passwordResetModel.createRequest(user.id, otpHash);
 
     // Send OTP via email (use server config if available)
     const smtp = config.smtp || {
@@ -192,14 +202,10 @@ exports.requestPasswordReset = async (req, res) => {
       await transporter.sendMail(mailOptions);
     } catch (mailErr) {
       console.error('Error sending OTP email:', mailErr);
-      // Continue and return generic success to the client (prevent enumeration)
-      const data = process.env.NODE_ENV === 'development' ? { resetToken, otp } : {};
-      return sendSuccess(res, data, 'OTP sent to your email for password reset.', 200);
+      return sendSuccess(res, {}, 'OTP sent to your email for password reset.', 200);
     }
 
-    // In dev, return OTP/resetToken for testing. In production return no token to avoid leaking it to clients.
-    const data = process.env.NODE_ENV === 'development' ? { resetToken, otp } : {};
-    return sendSuccess(res, data, 'OTP sent to your email for password reset.', 200);
+    return sendSuccess(res, {}, 'OTP sent to your email for password reset.', 200);
   } catch (error) {
     console.error('Request password reset error:', error);
     // Always return success to prevent email enumeration
@@ -210,24 +216,15 @@ exports.requestPasswordReset = async (req, res) => {
 // Step 2: Verify OTP
 exports.verifyOTP = async (req, res) => {
   try {
-    const { email, otp, resetToken } = req.body;
-    if (!email || !otp || !resetToken) {
-      console.warn('verifyOTP: missing fields', { email, otpPresent: !!otp, resetTokenPresent: !!resetToken });
-      return sendError(res, 'Invalid request', 400);
-    }
+    const { email, otp } = req.body;
+    if (!email || !/^\d{6}$/.test(String(otp || ''))) return sendError(res, 'Invalid OTP or expired', 400);
     const user = await UserModel.findUserByEmail(email);
     if (!user) return sendError(res, 'Invalid OTP or expired', 400);
-    let payload;
-    try {
-      payload = jwt.verify(resetToken, config.jwt.secret + user.password);
-    } catch (err) {
-      console.error('verifyOTP: jwt.verify failed', { err: err.message, resetTokenSnippet: resetToken?.slice(0,20), userId: user.id });
-      return sendError(res, 'Invalid OTP or expired', 400);
-    }
-    if (payload.otp !== otp) return sendError(res, 'Invalid OTP or expired', 400);
+    const request = await verifyResetOtp(user.id, otp);
+    if (!request) return sendError(res, 'Invalid OTP or expired', 400);
     return sendSuccess(res, {}, 'OTP verified', 200);
   } catch (error) {
-    console.error('verifyOTP: unexpected error', error);
+    console.error('OTP verification error:', error);
     return sendError(res, 'Invalid OTP or expired', 400);
   }
 };
@@ -235,26 +232,24 @@ exports.verifyOTP = async (req, res) => {
 // Step 3: Reset Password
 exports.resetPassword = async (req, res) => {
   try {
-    const { email, otp, newPassword, resetToken } = req.body;
-    if (!email || !otp || !newPassword || !resetToken) return sendError(res, 'Invalid request', 400);
-    if (newPassword.length < 6) return sendError(res, 'Password must be at least 6 characters', 400);
+    const { email, otp, newPassword } = req.body;
+    if (!email || !/^\d{6}$/.test(String(otp || '')) || !newPassword) {
+      return sendError(res, 'Invalid OTP or expired', 400);
+    }
+    if (newPassword.length < 8) return sendError(res, 'Password must be at least 8 characters', 400);
     const user = await UserModel.findUserByEmail(email);
     if (!user) return sendError(res, 'Invalid OTP or expired', 400);
-    let payload;
-    try {
-      payload = jwt.verify(resetToken, config.jwt.secret + user.password);
-    } catch (err) {
-        console.error('resetPassword: jwt.verify failed', { err: err.message, resetTokenSnippet: resetToken?.slice(0,20), userId: user.id });
-        return sendError(res, 'Invalid OTP or expired', 400);
+    const request = await verifyResetOtp(user.id, otp);
+    if (!request) return sendError(res, 'Invalid OTP or expired', 400);
+    if (!(await passwordResetModel.consumeRequest(request.id))) {
+      return sendError(res, 'Invalid OTP or expired', 400);
     }
-    if (payload.otp !== otp) return sendError(res, 'Invalid OTP or expired', 400);
-    // Update through the shared model so password hashing happens once in one place
     await UserModel.updateUser(user.id, { password: newPassword });
+    // The user proved they own the account, so lift any login lock
+    await loginAttemptModel.clear(user.id);
     return sendSuccess(res, {}, 'Password reset successful', 200);
   } catch (error) {
+    console.error('Password reset error:', error);
     return sendError(res, 'Invalid OTP or expired', 400);
   }
 };
-
-
-

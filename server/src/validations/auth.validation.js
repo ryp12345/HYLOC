@@ -1,5 +1,5 @@
 const validatePassword = (password) => {
-  return password && password.length >= 6;
+  return password && password.length >= 8;
 };
 
 exports.validateLogin = (empid, password) => {
@@ -31,7 +31,7 @@ exports.validateRegister = (email, password, firstName, lastName) => {
   if (!password) {
     errors.password = 'Password is required';
   } else if (!validatePassword(password)) {
-    errors.password = 'Password must be at least 6 characters';
+    errors.password = 'Password must be at least 8 characters';
   }
 
   if (!firstName || firstName.trim() === '') {

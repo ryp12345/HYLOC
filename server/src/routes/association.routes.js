@@ -14,13 +14,13 @@ router.get('/', authorize('admin', 'management'), associationController.getAllAs
 // Get association by ID (accessible by admin and management)
 router.get('/:id', authorize('admin', 'management'), associationController.getAssociationById);
 
-// Create association (only admin)
-router.post('/', authorize('admin'), associationController.createAssociation);
+// Create association (admin and management)
+router.post('/', authorize('admin', 'management'), associationController.createAssociation);
 
 // Update association (only admin)
-router.put('/:id', authorize('admin'), associationController.updateAssociation);
+router.put('/:id', authorize('admin', 'management'), associationController.updateAssociation);
 
 // Delete association (only admin)
-router.delete('/:id', authorize('admin'), associationController.deleteAssociation);
+router.delete('/:id', authorize('admin', 'management'), associationController.deleteAssociation);
 
 module.exports = router;

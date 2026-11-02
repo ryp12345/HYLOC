@@ -1,10 +1,10 @@
 const { sendError } = require('../utils/response');
 
 exports.errorHandler = (err, req, res, next) => {
-  console.error('Error:', err.message);
+  console.error('Unhandled request error:', err);
 
   const statusCode = err.statusCode || 500;
-  const message = err.message || 'Internal server error';
+  const message = statusCode >= 500 ? 'Internal server error' : 'Request failed';
 
   return sendError(res, message, statusCode);
 };

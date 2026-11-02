@@ -9,10 +9,11 @@ exports.getAllCategories = async (req, res) => {
       data: categories
     });
   } catch (error) {
+    console.error('Controller operation failed:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to retrieve categories',
-      error: error.message
+      error: 'Internal server error'
     });
   }
 };
@@ -35,10 +36,11 @@ exports.getCategoryById = async (req, res) => {
       data: category
     });
   } catch (error) {
+    console.error('Controller operation failed:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to retrieve category',
-      error: error.message
+      error: 'Internal server error'
     });
   }
 };

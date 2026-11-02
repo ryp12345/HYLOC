@@ -8,6 +8,7 @@ import { getUsers } from '../../api/userApi';
 import { getDepartments } from '../../api/departmentApi';
 import api, { API_URL } from '../../api/axios';
 import { calculateAchievement } from '../../utils/kpiAchievement';
+import AuthenticatedImage from '../../components/common/AuthenticatedImage';
 import { NO_DATA_TEXT, isMissingValue, formatChartValue, labelFormatter, maxOfValues, renderNoDataMarkers, renderZeroBarLabels, ChartTooltip } from '../../utils/chartValues';
 import {
   ResponsiveContainer,
@@ -662,7 +663,7 @@ function ManagementDashboard() {
         <div className="flex items-center gap-3 rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] p-3 shadow-sm transition-shadow hover:shadow-md">
           <div className="flex-shrink-0">
             {photoUrl ? (
-              <img src={photoUrl} alt={staff.name} className="h-12 w-12 rounded-full border-2 border-[color:var(--surface)] object-cover shadow-sm" />
+              <AuthenticatedImage src={photoUrl} alt={staff.name} className="h-12 w-12 rounded-full border-2 border-[color:var(--surface)] object-cover shadow-sm" />
             ) : (
               <div className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-[color:var(--surface)] bg-[color:var(--surface-hover)] text-xs font-bold text-[color:var(--text-secondary)] shadow-sm">
                 {staff.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}

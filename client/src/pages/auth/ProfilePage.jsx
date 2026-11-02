@@ -7,6 +7,7 @@ import { getDesignations } from '../../api/designationApi';
 import { getUserById } from '../../api/userApi';
 import { API_URL } from '../../api/axios';
 import Notification from '../../components/common/Notification';
+import AuthenticatedImage from '../../components/common/AuthenticatedImage';
 
 // Resolve a stored upload path (e.g. /api/uploads/users/EMP001.jpg) to an absolute URL
 const getPhotoUrl = (path) => {
@@ -170,8 +171,6 @@ export default function ProfilePage() {
         phone: form.phone,
         address: form.address,
         bloodGroup: form.bloodGroup,
-        departmentId: form.departmentId || null,
-        designationId: form.designationId || null,
       };
 
       // Use multipart/form-data when a new photo file is selected
@@ -248,7 +247,7 @@ export default function ProfilePage() {
           <div className="flex items-center space-x-4">
             <div className="h-20 w-20 rounded-full bg-[color:var(--surface)] text-[color:var(--accent)] flex items-center justify-center text-3xl font-bold shadow-sm overflow-hidden">
               {photoPreview ? (
-                <img
+                <AuthenticatedImage
                   src={photoPreview}
                   alt="Profile"
                   className="h-full w-full object-cover"
@@ -397,7 +396,7 @@ export default function ProfilePage() {
                   Profile Photo
                 </label>
                 {photoPreview && (
-                  <img src={photoPreview} alt="Profile preview" className="object-cover w-16 h-16 mb-2 rounded-full border border-[color:var(--border)]" />
+                  <AuthenticatedImage src={photoPreview} alt="Profile preview" className="object-cover w-16 h-16 mb-2 rounded-full border border-[color:var(--border)]" />
                 )}
                  <input
                    type="file"

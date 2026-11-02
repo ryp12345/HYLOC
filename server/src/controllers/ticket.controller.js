@@ -13,7 +13,7 @@ exports.getMyTickets = async (req, res) => {
     res.status(200).json({ success: true, data: enriched });
   } catch (error) {
     console.error('Get my tickets error:', error);
-    res.status(500).json({ success: false, message: 'Failed to fetch user tickets', error: error.message });
+    res.status(500).json({ success: false, message: 'Failed to fetch user tickets' });
   }
 };
 const ticketModel = require('../models/ticket.model');
@@ -21,6 +21,7 @@ const notificationModel = require('../models/notification.model');
 const fs = require('fs');
 const path = require('path');
 const pool = require('../config/db');
+const ticketUploadsDir = path.resolve(__dirname, '../../public/uploads/tickets');
 
 const normalizeIdList = (values) => {
   const list = Array.isArray(values)
@@ -57,6 +58,7 @@ const extractAssigneeIds = (...sources) => {
             continue;
           }
         } catch (error) {
+          console.error('Controller operation failed:', error);
           // Fall back to comma-separated parsing below.
         }
       }
@@ -132,7 +134,8 @@ exports.getTicketPriorities = async (req, res) => {
     const priorities = await ticketModel.getTicketPriorities();
     res.status(200).json({ success: true, data: priorities });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Failed to fetch priorities', error: error.message });
+    console.error('Get ticket priorities error:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch priorities' });
   }
 };
 
@@ -141,7 +144,8 @@ exports.getTicketStatuses = async (req, res) => {
     const statuses = await ticketModel.getTicketStatuses();
     res.status(200).json({ success: true, data: statuses });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Failed to fetch statuses', error: error.message });
+    console.error('Get ticket statuses error:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch statuses' });
   }
 };
 
@@ -232,6 +236,7 @@ exports.createTicket = async (req, res) => {
 
       return res.status(201).json({ success: true, data: enrichedCreated });
     } catch (error) {
+      console.error('Controller operation failed:', error);
       await client.query('ROLLBACK');
       throw error;
     } finally {
@@ -239,7 +244,8 @@ exports.createTicket = async (req, res) => {
     }
   } catch (error) {
     console.error('Create ticket error:', error);
-    return res.status(500).json({ success: false, message: 'Failed to create ticket', error: error.message });
+    console.error('Create ticket error:', error);
+    return res.status(500).json({ success: false, message: 'Failed to create ticket' });
   }
 };
 
@@ -252,7 +258,8 @@ exports.getAllTickets = async (req, res) => {
     res.status(200).json({ success: true, data: enriched });
   } catch (error) {
     console.error('Get all tickets error:', error);
-    res.status(500).json({ success: false, message: 'Failed to fetch tickets', error: error.message });
+    console.error('Get all tickets error:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch tickets' });
   }
 };
 
@@ -268,7 +275,8 @@ exports.getTicketReports = async (req, res) => {
     res.status(200).json(report);
   } catch (error) {
     console.error('Get ticket reports error:', error);
-    res.status(500).json({ success: false, message: 'Failed to generate ticket reports', error: error.message });
+    console.error('Get ticket reports error:', error);
+    res.status(500).json({ success: false, message: 'Failed to generate ticket reports' });
   }
 };
 
@@ -311,7 +319,7 @@ exports.getTicketById = async (req, res) => {
     res.status(200).json({ success: true, data: enriched });
   } catch (error) {
     console.error('Get ticket by id error:', error);
-    res.status(500).json({ success: false, message: 'Failed to fetch ticket', error: error.message });
+    res.status(500).json({ success: false, message: 'Failed to fetch ticket' });
   }
 };
 
@@ -325,6 +333,7 @@ exports.updateTicket = async (req, res) => {
     } else if (payload.attachment === '') {
       payload.attachment = null;
     }
+    delete payload.user_id;
 
     // fetch existing ticket to enforce rules
     const existing = await ticketModel.getTicketById(id);
@@ -335,10 +344,27 @@ exports.updateTicket = async (req, res) => {
     const managementUser = isManagementRole(requesterRole);
 
     const existingAssigneeIds = getTicketAssigneeIds(existing);
+    const isCreator = String(existing.user_id) === String(requesterId);
+    const isAssignee = ticketHasAssignee(existing, requesterId);
+    if (!managementUser && !isCreator && !isAssignee) {
+      if (req.file?.filename) {
+        await removeLocalAttachmentIfExists(`${ticketUploadsBasePath}/${req.file.filename}`);
+      }
+      return res.status(403).json({ success: false, message: 'You are not authorized to update this ticket' });
+    }
+
+    const hasAssigneeUpdate = payload.assigned_to_ids !== undefined || payload.assigned_to !== undefined;
     const requestedAssigneeIds = extractAssigneeIds(payload.assigned_to_ids, payload.assigned_to);
-    const assigneeIds = managementUser
-      ? requestedAssigneeIds
-      : (requestedAssigneeIds.length ? requestedAssigneeIds.slice(0, 1) : existingAssigneeIds);
+    const sameAssigneeIds = requestedAssigneeIds.length === existingAssigneeIds.length &&
+      requestedAssigneeIds.every((assigneeId) => existingAssigneeIds.includes(assigneeId));
+    const assigneesChanged = hasAssigneeUpdate && !sameAssigneeIds;
+    if (assigneesChanged && !managementUser && !isCreator) {
+      if (req.file?.filename) {
+        await removeLocalAttachmentIfExists(`${ticketUploadsBasePath}/${req.file.filename}`);
+      }
+      return res.status(403).json({ success: false, message: 'Only Management or the ticket creator can change assignees' });
+    }
+    const assigneeIds = assigneesChanged ? requestedAssigneeIds : existingAssigneeIds;
 
     if (!assigneeIds.length) {
       return res.status(400).json({ success: false, message: 'Assignee is required' });
@@ -369,8 +395,6 @@ exports.updateTicket = async (req, res) => {
     // Only Management or creator can edit due_date
     // (HOD role is NOT allowed unless also creator)
     const isManagement = managementUser;
-    const isCreator = String(existing.user_id) === String(requesterId);
-    const isHod = requesterRole && requesterRole.toLowerCase() === 'hod';
 
     // Normalize date-only strings for robust comparison (DB may include time)
     const formatDateOnly = (val) => {
@@ -380,6 +404,7 @@ exports.updateTicket = async (req, res) => {
         const d = new Date(val);
         if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
       } catch (e) {
+        console.error('Controller operation failed:', e);
         // fallthrough
       }
       return String(val).slice(0, 10);
@@ -398,20 +423,6 @@ exports.updateTicket = async (req, res) => {
     }
 
     // Other users can only edit title and description
-    const isAssignee = ticketHasAssignee(existing, requesterId);
-    if (!isManagement && !isCreator && !isAssignee) {
-      // Remove any fields except title/description
-      Object.keys(payload).forEach((key) => {
-        if (!['title', 'description'].includes(key)) {
-          delete payload[key];
-        }
-      });
-      // If nothing left to update, reject
-      if (Object.keys(payload).length === 0) {
-        return res.status(400).json({ success: false, message: 'You can only edit title or description' });
-      }
-    }
-
     // Rejection is handled below and is restricted to Management users.
 
     // If trying to set status to Closed, only allow the creator
@@ -422,27 +433,25 @@ exports.updateTicket = async (req, res) => {
     }
 
     // New rule: if requester is Employee or HOD, they cannot set assigned_to to a Management user
-    try {
-      const reqRoleNorm = requesterRole ? String(requesterRole).toLowerCase() : '';
-      if (assigneeIds.length && (reqRoleNorm === 'employee' || reqRoleNorm === 'hod')) {
-        const tgtRes = await pool.query(
-          `
-            SELECT DISTINCT LOWER(r.role_name) AS role_name
-            FROM users u
-            JOIN user_roles ur ON ur.user_id = u.id
-            JOIN roles r ON ur.role_id = r.id
-            WHERE u.id = ANY($1::int[]) AND ur.status = 'active'
-          `,
-          [assigneeIds]
-        );
-        const hasManagementAssignee = (tgtRes.rows || []).some((row) => row.role_name === 'management');
-        if (hasManagementAssignee) {
-          return res.status(403).json({ success: false, message: 'You are not allowed to assign tickets to Management users' });
+    const reqRoleNorm = requesterRole ? String(requesterRole).toLowerCase() : '';
+    if (assigneesChanged && assigneeIds.length && (reqRoleNorm === 'employee' || reqRoleNorm === 'hod')) {
+      const tgtRes = await pool.query(
+        `
+          SELECT DISTINCT LOWER(r.role_name) AS role_name
+          FROM users u
+          JOIN user_roles ur ON ur.user_id = u.id
+          JOIN roles r ON ur.role_id = r.id
+          WHERE u.id = ANY($1::int[]) AND ur.status = 'active'
+        `,
+        [assigneeIds]
+      );
+      const hasManagementAssignee = (tgtRes.rows || []).some((row) => row.role_name === 'management');
+      if (hasManagementAssignee) {
+        if (req.file?.filename) {
+          await removeLocalAttachmentIfExists(`${ticketUploadsBasePath}/${req.file.filename}`);
         }
+        return res.status(403).json({ success: false, message: 'You are not allowed to assign tickets to Management users' });
       }
-    } catch (e) {
-      console.error('Role-check error on updateTicket:', e);
-      // don't block on DB error
     }
 
     // Status-change notifications are sent after the update commits (see below)
@@ -479,10 +488,13 @@ exports.updateTicket = async (req, res) => {
     try {
       await client.query('BEGIN');
       updated = await ticketModel.updateTicket(id, payload, client);
-      await syncTicketAssignees(client, id, assigneeIds, requesterId);
+      if (assigneesChanged) {
+        await syncTicketAssignees(client, id, assigneeIds, requesterId);
+      }
       updated = await ticketModel.getTicketById(id, client);
       await client.query('COMMIT');
     } catch (error) {
+      console.error('Controller operation failed:', error);
       await client.query('ROLLBACK');
       throw error;
     } finally {
@@ -542,7 +554,7 @@ exports.updateTicket = async (req, res) => {
     res.status(200).json({ success: true, data: updated });
   } catch (error) {
     console.error('Update ticket error:', error);
-    res.status(500).json({ success: false, message: 'Failed to update ticket', error: error.message });
+    res.status(500).json({ success: false, message: 'Failed to update ticket' });
   }
 };
 
@@ -554,6 +566,10 @@ exports.deleteTicket = async (req, res) => {
     if (!ticket) {
       return res.status(404).json({ success: false, message: 'Ticket not found' });
     }
+    const isCreator = String(ticket.user_id) === String(req.user?.userId);
+    if (!isCreator && !isManagementRole(req.user?.role)) {
+      return res.status(403).json({ success: false, message: 'Only the ticket creator or Management can delete this ticket' });
+    }
     if (ticket.status !== 'Closed') {
       return res.status(403).json({ success: false, message: 'Only tickets with status "Closed" can be deleted' });
     }
@@ -561,6 +577,63 @@ exports.deleteTicket = async (req, res) => {
     res.status(200).json({ success: true, data: deleted });
   } catch (error) {
     console.error('Delete ticket error:', error);
-    res.status(500).json({ success: false, message: 'Failed to delete ticket', error: error.message });
+    res.status(500).json({ success: false, message: 'Failed to delete ticket' });
+  }
+};
+
+exports.getTicketAttachment = async (req, res) => {
+  try {
+    const ticket = await ticketModel.getTicketById(req.params.id);
+    if (!ticket) {
+      return res.status(404).json({ success: false, message: 'Ticket not found' });
+    }
+
+    const requesterId = req.user?.userId;
+    const requesterRole = req.user?.role;
+    const isManagement = isManagementRole(requesterRole);
+    const isCreator = String(ticket.user_id) === String(requesterId);
+    const isAssignee = ticketHasAssignee(ticket, requesterId);
+
+    if (!isManagement && !isCreator && !isAssignee) {
+      const requesterRoleName = String(requesterRole || '').toLowerCase();
+      if (requesterRoleName !== 'hod') {
+        return res.status(403).json({ success: false, message: 'You are not authorized to view this attachment' });
+      }
+
+      const departmentResult = await pool.query(
+        'SELECT id, department_id FROM users WHERE id = ANY($1)',
+        [[requesterId, ticket.user_id]]
+      );
+      const departmentByUser = new Map(
+        (departmentResult.rows || []).map((row) => [String(row.id), row.department_id])
+      );
+      const requesterDepartment = departmentByUser.get(String(requesterId));
+      const creatorDepartment = departmentByUser.get(String(ticket.user_id));
+      if (
+        requesterDepartment === null ||
+        requesterDepartment === undefined ||
+        creatorDepartment === null ||
+        creatorDepartment === undefined ||
+        String(requesterDepartment) !== String(creatorDepartment)
+      ) {
+        return res.status(403).json({ success: false, message: 'You are not authorized to view this attachment' });
+      }
+    }
+
+    if (!ticket.attachment) {
+      return res.status(404).json({ success: false, message: 'Attachment not found' });
+    }
+
+    const fileName = path.basename(String(ticket.attachment).replace(/\\/g, '/'));
+    const filePath = path.resolve(ticketUploadsDir, fileName);
+    if (!filePath.startsWith(`${ticketUploadsDir}${path.sep}`) || !fs.existsSync(filePath)) {
+      return res.status(404).json({ success: false, message: 'Attachment not found' });
+    }
+
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    return res.download(filePath);
+  } catch (error) {
+    console.error('Get ticket attachment error:', error);
+    return res.status(500).json({ success: false, message: 'Failed to retrieve attachment' });
   }
 };

@@ -10,7 +10,7 @@ exports.createUser = async (userData) => {
     const userQuery = `
       INSERT INTO users (email, password, firstname, middlename, lastname, empid, phone, address, bloodgroup, department_id, designation_id, staff_photo, status, created_at)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW())
-      RETURNING id, email, firstname, middlename, lastname, empid, phone, address, bloodgroup, department_id, designation_id, staff_photo, status, created_at
+      RETURNING id, email, firstname, middlename, lastname, empid, phone, address, bloodgroup, department_id, designation_id, staff_photo, status, token_version, created_at
     `;
     const userResult = await client.query(userQuery, [
       userData.email, 
@@ -96,7 +96,7 @@ exports.findUserById = async (id) => {
     const query = `
       SELECT u.id, u.email, u.firstname, u.middlename, u.lastname, u.empid, 
              u.phone, u.address, u.bloodgroup, u.department_id, u.designation_id, 
-             u.staff_photo, u.status, u.created_at
+             u.staff_photo, u.status, u.token_version, u.created_at
       FROM users u 
       WHERE u.id = $1
     `;
@@ -137,6 +137,9 @@ exports.updateUser = async (id, updates) => {
         paramCount++;
       }
     });
+    if (normalizedUpdates.password !== undefined || normalizedUpdates.status !== undefined) {
+      userFields.push('token_version = token_version + 1');
+    }
 
     let user = null;
     if (userFields.length > 0) {
@@ -145,13 +148,13 @@ exports.updateUser = async (id, updates) => {
         UPDATE users
         SET ${userFields.join(', ')}, updated_at = NOW()
         WHERE id = $${paramCount}
-        RETURNING id, email, firstname, middlename, lastname, status, created_at, updated_at
+        RETURNING id, email, firstname, middlename, lastname, status, token_version, created_at, updated_at
       `;
       const userResult = await client.query(userQuery, userValues);
       user = userResult.rows[0];
     } else {
       // Get existing user data
-      const getUserQuery = 'SELECT id, email, firstname, middlename, lastname, status, created_at, updated_at FROM users WHERE id = $1';
+      const getUserQuery = 'SELECT id, email, firstname, middlename, lastname, status, token_version, created_at, updated_at FROM users WHERE id = $1';
       const userResult = await client.query(getUserQuery, [id]);
       user = userResult.rows[0];
     }

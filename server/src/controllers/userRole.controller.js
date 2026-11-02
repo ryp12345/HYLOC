@@ -9,10 +9,11 @@ exports.getAllUserRoles = async (req, res) => {
       data: userRoles
     });
   } catch (error) {
+    console.error('Controller operation failed:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to retrieve user roles',
-      error: error.message
+      error: 'Internal server error'
     });
   }
 };
@@ -33,10 +34,11 @@ exports.getUserRoleById = async (req, res) => {
       data: userRole
     });
   } catch (error) {
+    console.error('Controller operation failed:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to retrieve user role',
-      error: error.message
+      error: 'Internal server error'
     });
   }
 };
@@ -82,10 +84,11 @@ exports.createUserRole = async (req, res) => {
       data: userRole
     });
   } catch (error) {
+    console.error('Controller operation failed:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to create user role',
-      error: error.message
+      error: 'Internal server error'
     });
   }
 };
@@ -116,10 +119,11 @@ exports.updateUserRole = async (req, res) => {
       data: userRole
     });
   } catch (error) {
+    console.error('Controller operation failed:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to update user role',
-      error: error.message
+      error: 'Internal server error'
     });
   }
 };
@@ -141,10 +145,11 @@ exports.deleteUserRole = async (req, res) => {
       data: userRole
     });
   } catch (error) {
+    console.error('Controller operation failed:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to delete user role',
-      error: error.message
+      error: 'Internal server error'
     });
   }
 };
@@ -159,10 +164,11 @@ exports.getUserRolesByUserId = async (req, res) => {
       data: userRoles
     });
   } catch (error) {
+    console.error('Controller operation failed:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to retrieve user roles',
-      error: error.message
+      error: 'Internal server error'
     });
   }
 };

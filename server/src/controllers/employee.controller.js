@@ -43,8 +43,9 @@ exports.getEmployeeKPIValues = async (req, res) => {
 
     res.json({ success: true, data: valuesResult.rows });
   } catch (error) {
+    console.error('Controller operation failed:', error);
     await logError(error, 'employee.controller.getEmployeeKPIValues', req.user?.id);
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ success: false, error: 'Internal server error' });
   }
 };
 
@@ -86,8 +87,9 @@ exports.getEmployeeKPIs = async (req, res) => {
 
     res.json({ success: true, data: kpisResult.rows });
   } catch (error) {
+    console.error('Controller operation failed:', error);
     await logError(error, 'employee.controller.getEmployeeKPIs', req.user?.id);
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ success: false, error: 'Internal server error' });
   }
 };
 
@@ -132,8 +134,9 @@ exports.getKPIValueForEmployee = async (req, res) => {
 
     res.json({ success: true, data: valuesResult.rows });
   } catch (error) {
+    console.error('Controller operation failed:', error);
     await logError(error, 'employee.controller.getKPIValueForEmployee', req.user?.id);
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ success: false, error: 'Internal server error' });
   }
 };
 
@@ -142,19 +145,94 @@ exports.submitKPIData = async (req, res) => {
   try {
     const { kpiId, empId, month, year, targetValue, actualValue, kpiValueId } = req.body;
 
-    if (!kpiId || !empId || !month || !year || !kpiValueId) {
+    if (!kpiId || !month || !year || !kpiValueId) {
       return res.status(400).json({ 
         success: false, 
-        error: 'kpiId, empId, month, year, and kpiValueId are required' 
+        error: 'kpiId, month, year, and kpiValueId are required' 
       });
+    }
+
+    const userId = req.user?.userId;
+    const requesterResult = await pool.query(
+      'SELECT id, empid, department_id FROM users WHERE id = $1',
+      [userId]
+    );
+    const requester = requesterResult.rows[0];
+    if (!requester) {
+      return res.status(401).json({ success: false, error: 'Authenticated user not found' });
+    }
+
+    const role = String(req.user?.role || '').toLowerCase();
+    const elevatedRoles = ['admin', 'super admin', 'management'];
+    const isElevated = elevatedRoles.includes(role);
+    let targetEmpId;
+
+    if (role === 'employee') {
+      targetEmpId = String(requester.empid);
+    } else {
+      if (!/^\d+$/.test(String(empId || ''))) {
+        return res.status(400).json({ success: false, error: 'A valid employee ID is required' });
+      }
+
+      const targetResult = await pool.query(
+        'SELECT id, empid, department_id FROM users WHERE empid = $1',
+        [String(empId)]
+      );
+      const target = targetResult.rows[0];
+      if (!target) {
+        return res.status(404).json({ success: false, error: 'Employee not found' });
+      }
+
+      if (role === 'hod' && (
+        requester.department_id === null ||
+        String(requester.department_id) !== String(target.department_id)
+      )) {
+        return res.status(403).json({ success: false, error: 'You can only submit KPI data for your department' });
+      }
+      if (!isElevated && role !== 'hod') {
+        return res.status(403).json({ success: false, error: 'You are not authorized to submit KPI data' });
+      }
+      targetEmpId = String(target.empid);
+    }
+
+    const monthNumber = Number(month);
+    const yearNumber = Number(year);
+    if (!Number.isInteger(monthNumber) || monthNumber < 1 || monthNumber > 12 ||
+        !Number.isInteger(yearNumber) || yearNumber < 2000 || yearNumber > 9999) {
+      return res.status(400).json({ success: false, error: 'A valid month and year are required' });
+    }
+
+    for (const value of [targetValue, actualValue]) {
+      if (value !== null && value !== undefined && value !== '' &&
+          (typeof value !== 'number' && typeof value !== 'string' || !Number.isFinite(Number(value)))) {
+        return res.status(400).json({ success: false, error: 'KPI values must be numeric' });
+      }
     }
 
     // Fetch kpi_value metadata to decide computed behavior
     const kpiValueResult = await pool.query(
-      `SELECT kpi_type, default_target_value, target_formula, target_source_kpi_value_ids, formula FROM kpi_values WHERE id = $1`,
-      [kpiValueId]
+      `SELECT kpi_type, default_target_value, target_formula, target_source_kpi_value_ids,
+              formula, kpi_id, "data operator" AS data_operator
+       FROM kpi_values WHERE id = $1 AND kpi_id = $2`,
+      [kpiValueId, kpiId]
     );
     const kpiValueData = kpiValueResult.rows[0];
+    if (!kpiValueData) {
+      return res.status(404).json({ success: false, error: 'KPI value not found' });
+    }
+
+    if (!isElevated) {
+      const assignmentResult = await pool.query(
+        'SELECT 1 FROM kpi_emp WHERE kpi_id = $1 AND emp_id = $2 LIMIT 1',
+        [kpiId, targetEmpId]
+      );
+      if (!assignmentResult.rows.length ||
+          (kpiValueData.data_operator !== null &&
+            String(kpiValueData.data_operator) !== targetEmpId)) {
+        return res.status(403).json({ success: false, error: 'This KPI is not assigned to the employee' });
+      }
+    }
+
     const isComputed = kpiValueData && (kpiValueData.kpi_type || '').toLowerCase() === 'computed';
     const defaultTargetValue = kpiValueData?.default_target_value;
     const targetFormula = kpiValueData?.target_formula;
@@ -188,7 +266,7 @@ exports.submitKPIData = async (req, res) => {
       const existingTarget = await pool.query(
         `SELECT id FROM kpi_data_value 
          WHERE kpi_value_id = $1 AND month = $2 AND year = $3 AND value_type = $4`,
-        [kpiValueId, month, year, 'target']
+        [kpiValueId, monthNumber, yearNumber, 'target']
       );
 
       if (existingTarget.rows.length > 0) {
@@ -197,7 +275,7 @@ exports.submitKPIData = async (req, res) => {
            SET value = $1, updated_at = CURRENT_TIMESTAMP
            WHERE id = $2
            RETURNING *`,
-          [parseFloat(resolvedTargetValue), existingTarget.rows[0].id]
+          [Number(resolvedTargetValue), existingTarget.rows[0].id]
         );
         results.push(targetResult.rows[0]);
         shouldRecalculate = true;
@@ -206,7 +284,7 @@ exports.submitKPIData = async (req, res) => {
           `INSERT INTO kpi_data_value (kpi_value_id, value, value_type, month, year)
            VALUES ($1, $2, $3, $4, $5)
            RETURNING *`,
-          [kpiValueId, parseFloat(resolvedTargetValue), 'target', month, year]
+          [kpiValueId, Number(resolvedTargetValue), 'target', monthNumber, yearNumber]
         );
         results.push(targetResult.rows[0]);
         shouldRecalculate = true;
@@ -218,7 +296,7 @@ exports.submitKPIData = async (req, res) => {
       const existingActual = await pool.query(
         `SELECT id FROM kpi_data_value 
          WHERE kpi_value_id = $1 AND month = $2 AND year = $3 AND value_type = $4`,
-        [kpiValueId, month, year, 'actual']
+        [kpiValueId, monthNumber, yearNumber, 'actual']
       );
 
       if (existingActual.rows.length > 0) {
@@ -227,7 +305,7 @@ exports.submitKPIData = async (req, res) => {
            SET value = $1, updated_at = CURRENT_TIMESTAMP
            WHERE id = $2
            RETURNING *`,
-          [parseFloat(actualValue), existingActual.rows[0].id]
+          [Number(actualValue), existingActual.rows[0].id]
         );
         results.push(actualResult.rows[0]);
         shouldRecalculate = true;
@@ -236,7 +314,7 @@ exports.submitKPIData = async (req, res) => {
           `INSERT INTO kpi_data_value (kpi_value_id, value, value_type, month, year)
            VALUES ($1, $2, $3, $4, $5)
            RETURNING *`,
-          [kpiValueId, parseFloat(actualValue), 'actual', month, year]
+          [kpiValueId, Number(actualValue), 'actual', monthNumber, yearNumber]
         );
         results.push(actualResult.rows[0]);
         shouldRecalculate = true;
@@ -247,13 +325,13 @@ exports.submitKPIData = async (req, res) => {
     // Missing source data or a division by zero means "no value yet", not an error.
     const computeAndStore = async (valueType) => {
       try {
-        const computed = await KPICalculationService.calculateKPIValue(kpiValueId, month, year, empId, valueType);
+        const computed = await KPICalculationService.calculateKPIValue(kpiValueId, monthNumber, yearNumber, targetEmpId, valueType);
         if (typeof computed !== 'number' || !Number.isFinite(computed)) return;
 
         const existing = await pool.query(
           `SELECT id FROM kpi_data_value
            WHERE kpi_value_id = $1 AND month = $2 AND year = $3 AND value_type = $4`,
-          [kpiValueId, month, year, valueType]
+          [kpiValueId, monthNumber, yearNumber, valueType]
         );
 
         const saved = existing.rows.length > 0
@@ -268,7 +346,7 @@ exports.submitKPIData = async (req, res) => {
             `INSERT INTO kpi_data_value (kpi_value_id, value, value_type, month, year)
              VALUES ($1, $2, $3, $4, $5)
              RETURNING *`,
-            [kpiValueId, computed, valueType, month, year]
+            [kpiValueId, computed, valueType, monthNumber, yearNumber]
           );
         results.push(saved.rows[0]);
         shouldRecalculate = true;
@@ -297,19 +375,21 @@ exports.submitKPIData = async (req, res) => {
       try {
         await KPICalculationService.recalculateDependentKPIs(
           parseInt(kpiValueId),
-          parseInt(month),
-          parseInt(year),
-          parseInt(empId)
+          monthNumber,
+          yearNumber,
+          Number(targetEmpId)
         );
       } catch (calcErr) {
+        console.error('Controller operation failed:', calcErr);
         await logError(calcErr, 'employee.controller.recalculateDependentKPIs', req.user?.id);
       }
     }
 
     res.json({ success: true, message: 'KPI data submitted successfully', data: results });
   } catch (error) {
+    console.error('Controller operation failed:', error);
     await logError(error, 'employee.controller.submitKPIData', req.user?.id);
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ success: false, error: 'Internal server error' });
   }
 };
 
@@ -335,7 +415,8 @@ exports.getKPIAssignees = async (req, res) => {
 
     res.json({ success: true, data: result.rows });
   } catch (error) {
+    console.error('Controller operation failed:', error);
     await logError(error, 'employee.controller.getKPIAssignees', req.user?.id);
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ success: false, error: 'Internal server error' });
   }
 };

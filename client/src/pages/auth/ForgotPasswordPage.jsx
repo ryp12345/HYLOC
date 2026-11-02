@@ -7,7 +7,6 @@ const ForgotPasswordPage = () => {
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState('');
   const otpInputsRef = useRef([]);
-  const [resetToken, setResetToken] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showNewPassword, setShowNewPassword] = useState(false);
@@ -24,11 +23,11 @@ const ForgotPasswordPage = () => {
     setError('');
     try {
       const res = await axios.post('/auth/request-password-reset', { email });
-      setResetToken(res.data?.data?.resetToken || '');
+      setOtp('');
       setStep(2);
       setSuccess(
         res.data?.message ||
-        `We've sent a password reset email to ${email}. It contains a 6-digit verification code (OTP) and a secure reset link. The code is valid for 15 minutes. If you don't see the email, check your spam/junk folder or contact support at support@hyloc.com.`
+        `We've sent a password reset email to ${email}. It contains a 6-digit verification code (OTP). The code is valid for 5 minutes. If you don't see the email, check your spam/junk folder or contact support at support@hyloc.com.`
       );
     } catch (err) {
       const msg = err?.response?.data?.message || err.message || 'Failed to send OTP.';
@@ -44,7 +43,7 @@ const ForgotPasswordPage = () => {
     setLoading(true);
     setError('');
     try {
-      const res = await axios.post('/auth/verify-otp', { email, otp, resetToken });
+      const res = await axios.post('/auth/verify-otp', { email, otp });
       setStep(3);
       setSuccess(res.data?.message || 'OTP verified. Please enter a new password below to complete the reset.');
     } catch (err) {
@@ -107,13 +106,13 @@ const ForgotPasswordPage = () => {
       setLoading(false);
       return;
     }
-    if (newPassword.length < 6) {
-      setError('Password must be at least 6 characters.');
+    if (newPassword.length < 8) {
+      setError('Password must be at least 8 characters.');
       setLoading(false);
       return;
     }
     try {
-      const res = await axios.post('/auth/reset-password', { email, otp, newPassword, resetToken });
+      const res = await axios.post('/auth/reset-password', { email, otp, newPassword });
       setSuccess(
         res.data?.message ||
         'Your password has been reset successfully. You will be redirected to the login page shortly. If you did not perform this request, please contact support immediately.'
@@ -208,6 +207,7 @@ const ForgotPasswordPage = () => {
               <div className="relative">
                 <input
                   type={showNewPassword ? 'text' : 'password'}
+                  minLength={8}
                   className="w-full px-4 py-3 pr-12 border-2 border-gray-200 rounded-lg bg-gray-50 focus:outline-none focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--accent-soft)]"
                   value={newPassword}
                   onChange={e => setNewPassword(e.target.value)}
@@ -239,6 +239,7 @@ const ForgotPasswordPage = () => {
               <div className="relative">
                 <input
                   type={showConfirmPassword ? 'text' : 'password'}
+                  minLength={8}
                   className="w-full px-4 py-3 pr-12 border-2 border-gray-200 rounded-lg bg-gray-50 focus:outline-none focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--accent-soft)]"
                   value={confirmPassword}
                   onChange={e => setConfirmPassword(e.target.value)}

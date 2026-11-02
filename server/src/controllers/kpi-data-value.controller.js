@@ -32,10 +32,11 @@ exports.getAllKPIDataValues = async (req, res) => {
       data: dataValues
     });
   } catch (error) {
+    console.error('Controller operation failed:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to retrieve KPI data values',
-      error: error.message
+      error: 'Internal server error'
     });
   }
 };
@@ -58,10 +59,11 @@ exports.getKPIDataValueById = async (req, res) => {
       data: dataValue
     });
   } catch (error) {
+    console.error('Controller operation failed:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to retrieve KPI data value',
-      error: error.message
+      error: 'Internal server error'
     });
   }
 };
@@ -110,10 +112,11 @@ exports.getMonthlyDataByKPIValue = async (req, res) => {
       data: transformedData
     });
   } catch (error) {
+    console.error('Controller operation failed:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to retrieve monthly data',
-      error: error.message
+      error: 'Internal server error'
     });
   }
 };
@@ -140,10 +143,11 @@ exports.getMultipleKPIValuesData = async (req, res) => {
       data: data
     });
   } catch (error) {
+    console.error('Controller operation failed:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to retrieve data for multiple KPI values',
-      error: error.message
+      error: 'Internal server error'
     });
   }
 };
@@ -173,10 +177,11 @@ exports.createKPIDataValue = async (req, res) => {
       data: dataValue
     });
   } catch (error) {
+    console.error('Controller operation failed:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to create KPI data value',
-      error: error.message
+      error: 'Internal server error'
     });
   }
 };
@@ -205,10 +210,11 @@ exports.updateKPIDataValue = async (req, res) => {
       data: dataValue
     });
   } catch (error) {
+    console.error('Controller operation failed:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to update KPI data value',
-      error: error.message
+      error: 'Internal server error'
     });
   }
 };
@@ -231,10 +237,11 @@ exports.deleteKPIDataValue = async (req, res) => {
       message: 'KPI data value deleted successfully'
     });
   } catch (error) {
+    console.error('Controller operation failed:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to delete KPI data value',
-      error: error.message
+      error: 'Internal server error'
     });
   }
 };

@@ -4,7 +4,6 @@ import { AuthProvider } from '../context/AuthContext';
 
 // Pages
 import Login from '../pages/auth/Login';
-import Register from '../pages/auth/Register';
 import AdminDashboard from '../pages/admin/Dashboard';
 import HRDashboard from '../pages/HR/Dashboard';
 import HRLeavesPage from '../pages/HR/leaves/LeavesPage';
@@ -47,7 +46,6 @@ import HODLeaveApprovalPage from '../pages/hod/leaves/LeaveApprovalPage';
 import ManagementLeaveApprovalPage from '../pages/management/leaves/LeaveApprovalPage';
 import ForgotPasswordPage from '../pages/auth/ForgotPasswordPage';
 import ProfilePage from '../pages/auth/ProfilePage';
-import RaiseTicket from '../pages/dev-tickets/RaiseTicket';
 import TicketsPage from '../pages/tickets/TicketsPage';
 import TicketsAnalysisReport from '../pages/tickets/TicketsAnalysisReport';
 
@@ -199,14 +197,6 @@ const AppRoutes = () => {
             element={
               <AuthRoute>
                 <Login />
-              </AuthRoute>
-            }
-          />
-          <Route
-            path="/register"
-            element={
-              <AuthRoute>
-                <Register />
               </AuthRoute>
             }
           />
@@ -679,18 +669,6 @@ const AppRoutes = () => {
             }
           />
 
-          {/* Raise Ticket Page */}
-          <Route
-            path="/raise-ticket"
-            element={
-              <ProtectedRoute>
-                <DashboardLayout>
-                  <RaiseTicket />
-                </DashboardLayout>
-              </ProtectedRoute>
-            }
-          />
-
           {/* Tickets Page */}
           <Route
             path="/tickets"
@@ -715,7 +693,6 @@ const AppRoutes = () => {
             }
           />
 
-          {/* Removed /tickets route as TicketList is merged into RaiseTicket.jsx */}
 
           {/* Default dashboard redirect */}
           <Route

@@ -9,10 +9,11 @@ exports.getAllPillers = async (req, res) => {
       data: pillers
     });
   } catch (error) {
+    console.error('Controller operation failed:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to retrieve pillers',
-      error: error.message
+      error: 'Internal server error'
     });
   }
 };
@@ -33,10 +34,11 @@ exports.getPillerById = async (req, res) => {
       data: piller
     });
   } catch (error) {
+    console.error('Controller operation failed:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to retrieve pillar',
-      error: error.message
+      error: 'Internal server error'
     });
   }
 };
@@ -67,10 +69,11 @@ exports.createPiller = async (req, res) => {
       data: piller
     });
   } catch (error) {
+    console.error('Controller operation failed:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to create pillar',
-      error: error.message
+      error: 'Internal server error'
     });
   }
 };
@@ -101,10 +104,11 @@ exports.updatePiller = async (req, res) => {
       data: piller
     });
   } catch (error) {
+    console.error('Controller operation failed:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to update pillar',
-      error: error.message
+      error: 'Internal server error'
     });
   }
 };
@@ -126,10 +130,11 @@ exports.deletePiller = async (req, res) => {
       data: piller
     });
   } catch (error) {
+    console.error('Controller operation failed:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to delete piller',
-      error: error.message
+      error: 'Internal server error'
     });
   }
 };

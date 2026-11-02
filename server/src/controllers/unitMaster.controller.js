@@ -5,7 +5,8 @@ exports.getAllUnits = async (req, res) => {
     const units = await UnitMaster.findAll();
     res.status(200).json({ success: true, data: units });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    console.error('Controller operation failed:', error);
+    res.status(500).json({ success: false, error: 'Internal server error' });
   }
 };
 
@@ -15,7 +16,8 @@ exports.getUnitById = async (req, res) => {
     if (!unit) return res.status(404).json({ success: false, error: 'Unit not found' });
     res.status(200).json({ success: true, data: unit });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    console.error('Controller operation failed:', error);
+    res.status(500).json({ success: false, error: 'Internal server error' });
   }
 };
 
@@ -24,7 +26,8 @@ exports.createUnit = async (req, res) => {
     const unit = await UnitMaster.create(req.body);
     res.status(201).json({ success: true, data: unit });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    console.error('Controller operation failed:', error);
+    res.status(500).json({ success: false, error: 'Internal server error' });
   }
 };
 
@@ -34,7 +37,8 @@ exports.updateUnit = async (req, res) => {
     if (!unit) return res.status(404).json({ success: false, error: 'Unit not found' });
     res.status(200).json({ success: true, data: unit });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    console.error('Controller operation failed:', error);
+    res.status(500).json({ success: false, error: 'Internal server error' });
   }
 };
 
@@ -44,6 +48,7 @@ exports.deleteUnit = async (req, res) => {
     if (!unit) return res.status(404).json({ success: false, error: 'Unit not found' });
     res.status(200).json({ success: true, data: unit });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    console.error('Controller operation failed:', error);
+    res.status(500).json({ success: false, error: 'Internal server error' });
   }
 };

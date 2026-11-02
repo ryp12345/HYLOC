@@ -476,7 +476,6 @@ exports.updateTicket = async (id, data, db = pool) => {
   if (data.title !== undefined) { fields.push(`title = $${idx++}`); values.push(data.title); }
   if (data.description !== undefined) { fields.push(`description = $${idx++}`); values.push(data.description); }
   if (data.priority !== undefined) { fields.push(`priority = $${idx++}`); values.push(data.priority); }
-  if (data.user_id !== undefined) { fields.push(`user_id = $${idx++}`); values.push(data.user_id); }
   if (data.due_date !== undefined) { fields.push(`due_date = $${idx++}`); values.push(data.due_date); }
   if (data.attachment !== undefined) { fields.push(`attachment = $${idx++}`); values.push(data.attachment); }
   if (data.status !== undefined) {

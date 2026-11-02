@@ -1,5 +1,6 @@
-const app = require('./app');
 const config = require('./config');
+config.validateEnvironment();
+const app = require('./app');
 const os = require('os');
 const { startAnnualLeaveScheduler } = require('./schedulers/leaveEntitlement.scheduler');
 const { startOverdueScheduler } = require('./schedulers/overdueTickets.scheduler');

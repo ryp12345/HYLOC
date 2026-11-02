@@ -29,6 +29,10 @@ export const getTicketById = async (id) => {
   return await axios.get(`/tickets/${id}`);
 };
 
+export const getTicketAttachment = async (id) => {
+  return await axios.get(`/tickets/${id}/attachment`, { responseType: 'blob' });
+};
+
 export const updateTicket = async (id, data) => {
   if (data instanceof FormData) {
     return await axios.put(`/tickets/${id}`, data, { headers: { 'Content-Type': 'multipart/form-data' } });

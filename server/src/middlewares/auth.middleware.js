@@ -1,7 +1,8 @@
 const { verifyAccessToken } = require('../utils/jwt');
 const { sendError } = require('../utils/response');
+const userModel = require('../models/user.model');
 
-exports.authenticate = (req, res, next) => {
+exports.authenticate = async (req, res, next) => {
   try {
     const token = req.headers.authorization?.split(' ')[1];
 
@@ -15,7 +16,15 @@ exports.authenticate = (req, res, next) => {
       return sendError(res, 'Invalid or expired token', 401);
     }
 
-    //console.log('✅ AUTH: Decoded token:', { userId: decoded.userId, email: decoded.email, role: decoded.role });
+    const user = await userModel.findUserById(decoded.userId);
+    if (
+      !user ||
+      String(user.status || '').toLowerCase() !== 'active' ||
+      (Number(decoded.tokenVersion) || 0) !== (Number(user.token_version) || 0)
+    ) {
+      return sendError(res, 'Invalid or expired token', 401);
+    }
+
     req.user = decoded;
     next();
   } catch (error) {

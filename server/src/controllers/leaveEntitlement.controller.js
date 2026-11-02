@@ -51,7 +51,7 @@ exports.listEntitlements = async (req, res) => {
     res.json(entitlements);
   } catch (err) {
     console.error('Error in listEntitlements:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Internal server error' });
   }
 };
 
@@ -70,7 +70,7 @@ exports.listStaffWithStatus = async (req, res) => {
     res.json(staff);
   } catch (err) {
     console.error('Error in listStaffWithStatus:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Internal server error' });
   }
 };
 
@@ -94,7 +94,7 @@ exports.listStaffWithMonthlyWorkingDaysStatus = async (req, res) => {
     res.json({ year, month, staff });
   } catch (err) {
     console.error('Error in listStaffWithMonthlyWorkingDaysStatus:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Internal server error' });
   }
 };
 
@@ -157,7 +157,7 @@ exports.importMonthlyWorkingDays = async (req, res) => {
     res.json({ success: true, year, month, updated: records.length, records });
   } catch (err) {
     console.error('Error in importMonthlyWorkingDays:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Internal server error' });
   }
 };
 
@@ -224,7 +224,8 @@ exports.importEntitlements = async (req, res) => {
 
     res.json({ success: true, updated: results.length, records: results });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('Controller operation failed:', err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 };
 
@@ -244,7 +245,8 @@ exports.updateEntitlement = async (req, res) => {
     });
     res.json(updated);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('Controller operation failed:', err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 };
 
@@ -259,7 +261,8 @@ exports.deleteEntitlement = async (req, res) => {
     const deleted = await leaveEntitlementModel.deleteEntitlement(entitlement.user_id, entitlement.year);
     res.json({ success: deleted });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('Controller operation failed:', err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 };
 

@@ -12,6 +12,35 @@ const formatDate = (d) => {
   return dt.toDateString();
 };
 
+const getLeaveApprovalContext = async (applicantId, approverId) => {
+  const result = await db.query(
+    `SELECT COALESCE(applicant_role.role_name, 'Employee') AS applicant_role,
+            applicant.department_id AS applicant_department_id,
+            approver.department_id AS approver_department_id
+     FROM users applicant
+     LEFT JOIN users approver ON approver.id = $2
+     LEFT JOIN LATERAL (
+       SELECT r.role_name
+       FROM user_roles ur
+       JOIN roles r ON ur.role_id = r.id
+       WHERE ur.user_id = applicant.id
+       ORDER BY ur.id ASC
+       LIMIT 1
+     ) applicant_role ON TRUE
+     WHERE applicant.id = $1`,
+    [applicantId, approverId]
+  );
+  return result.rows[0];
+};
+
+const hasMatchingDepartment = (approvalContext) => (
+  approvalContext.applicant_department_id !== null &&
+  approvalContext.applicant_department_id !== undefined &&
+  approvalContext.approver_department_id !== null &&
+  approvalContext.approver_department_id !== undefined &&
+  String(approvalContext.applicant_department_id) === String(approvalContext.approver_department_id)
+);
+
 /**
  * Check eligibility to apply for leave
  * GET /api/leaves/eligibility
@@ -28,6 +57,7 @@ exports.checkEligibility = async (req, res, next) => {
       data: eligibility
     });
   } catch (error) {
+    console.error('Controller operation failed:', error);
     next(error);
   }
 };
@@ -213,10 +243,11 @@ exports.applyLeave = async (req, res, next) => {
       data: leaveRecord
     });
   } catch (error) {
+    console.error('Apply leave error:', error);
     if (error.message.includes('eligible') || error.message.includes('role')) {
       return res.status(403).json({
         success: false,
-        message: error.message,
+        message: 'You are not eligible to apply for leave',
         canApply: false
       });
     }
@@ -224,14 +255,14 @@ exports.applyLeave = async (req, res, next) => {
     if (error.message.includes('date') || error.message.includes('format')) {
       return res.status(400).json({
         success: false,
-        message: error.message
+        message: 'Invalid leave dates'
       });
     }
     
     if (error.message.includes('leave balance')) {
       return res.status(400).json({
         success: false,
-        message: error.message
+        message: 'Insufficient leave balance'
       });
     }
     
@@ -266,6 +297,7 @@ exports.getMyLeaves = async (req, res, next) => {
       data: leaves
     });
   } catch (error) {
+    console.error('Controller operation failed:', error);
     next(error);
   }
 };
@@ -302,6 +334,7 @@ exports.getLeaveById = async (req, res, next) => {
       data: leave
     });
   } catch (error) {
+    console.error('Controller operation failed:', error);
     next(error);
   }
 };
@@ -384,6 +417,7 @@ exports.updateLeave = async (req, res, next) => {
       data: updatedLeave
     });
   } catch (error) {
+    console.error('Update leave error:', error);
     if (error.message === 'Leave not found') {
       return res.status(404).json({
         success: false,
@@ -394,21 +428,21 @@ exports.updateLeave = async (req, res, next) => {
     if (error.message.includes('Forbidden')) {
       return res.status(403).json({
         success: false,
-        message: error.message
+        message: 'You are not authorized to update this leave'
       });
     }
     
     if (error.message.includes('pending')) {
       return res.status(400).json({
         success: false,
-        message: error.message
+        message: 'Leave cannot be updated in its current status'
       });
     }
     
     if (error.message.includes('date')) {
       return res.status(400).json({
         success: false,
-        message: error.message
+        message: 'Invalid leave dates'
       });
     }
     
@@ -506,6 +540,7 @@ exports.requestLeaveChange = async (req, res, next) => {
       message: 'Leave request change success'
     });
   } catch (error) {
+    console.error('Controller operation failed:', error);
     next(error);
   }
 };
@@ -527,6 +562,7 @@ exports.cancelLeave = async (req, res, next) => {
       ...result
     });
   } catch (error) {
+    console.error('Cancel leave error:', error);
     if (error.message === 'Leave not found') {
       return res.status(404).json({
         success: false,
@@ -537,14 +573,14 @@ exports.cancelLeave = async (req, res, next) => {
     if (error.message.includes('Forbidden')) {
       return res.status(403).json({
         success: false,
-        message: error.message
+        message: 'You are not authorized to cancel this leave'
       });
     }
     
     if (error.message.includes('pending') || error.message.includes('consumed')) {
       return res.status(400).json({
         success: false,
-        message: error.message
+        message: 'Leave cannot be cancelled in its current status'
       });
     }
     
@@ -568,6 +604,7 @@ exports.getMyBalance = async (req, res, next) => {
       data: balance
     });
   } catch (error) {
+    console.error('Controller operation failed:', error);
     next(error);
   }
 };
@@ -631,6 +668,7 @@ exports.getLeaveHistory = async (req, res, next) => {
       data: leaves
     });
   } catch (error) {
+    console.error('Controller operation failed:', error);
     next(error);
   }
 };
@@ -671,6 +709,7 @@ exports.getPendingLeaves = async (req, res, next) => {
       data: leaves
     });
   } catch (error) {
+    console.error('Controller operation failed:', error);
     next(error);
   }
 };
@@ -711,6 +750,7 @@ exports.getAllLeaves = async (req, res, next) => {
       data: leaves
     });
   } catch (error) {
+    console.error('Controller operation failed:', error);
     next(error);
   }
 };
@@ -758,22 +798,11 @@ exports.approveLeave = async (req, res, next) => {
       });
     }
 
-    // Get leave applicant's role (must match the role used when listing leaves:
-    // first role by id, defaulting to 'Employee' when no user_roles row exists).
-    const roleQuery = `
-      SELECT COALESCE(
-        (
-          SELECT r.role_name
-          FROM user_roles ur
-          JOIN roles r ON ur.role_id = r.id
-          WHERE ur.user_id = $1
-          ORDER BY ur.id ASC
-          LIMIT 1
-        ), 'Employee'
-      ) as role_name
-    `;
-    const roleResult = await db.query(roleQuery, [leave.user_id]);
-    const applicantRole = roleResult.rows[0]?.role_name;
+    const approvalContext = await getLeaveApprovalContext(leave.user_id, approverId);
+    if (!approvalContext) {
+      return res.status(404).json({ success: false, message: 'Leave applicant not found' });
+    }
+    const applicantRole = approvalContext.applicant_role;
     
     // Management can approve any leave (HOD or Employee)
     if (userRole === 'MANAGEMENT') {
@@ -784,6 +813,12 @@ exports.approveLeave = async (req, res, next) => {
         return res.status(403).json({
           success: false,
           message: 'HOD can only approve leaves of Employees.'
+        });
+      }
+      if (!hasMatchingDepartment(approvalContext)) {
+        return res.status(403).json({
+          success: false,
+          message: 'HOD can only approve leaves of Employees in their department.'
         });
       }
       // proceed
@@ -817,6 +852,7 @@ exports.approveLeave = async (req, res, next) => {
       data: approvedLeave
     });
   } catch (error) {
+    console.error('Controller operation failed:', error);
     next(error);
   }
 };
@@ -864,21 +900,11 @@ exports.rejectLeave = async (req, res, next) => {
       });
     }
 
-    // Get leave applicant's role (consistent with listing: first role by id, default Employee)
-    const roleQuery = `
-      SELECT COALESCE(
-        (
-          SELECT r.role_name
-          FROM user_roles ur
-          JOIN roles r ON ur.role_id = r.id
-          WHERE ur.user_id = $1
-          ORDER BY ur.id ASC
-          LIMIT 1
-        ), 'Employee'
-      ) as role_name
-    `;
-    const roleResult = await db.query(roleQuery, [leave.user_id]);
-    const applicantRole = roleResult.rows[0]?.role_name;
+    const approvalContext = await getLeaveApprovalContext(leave.user_id, rejectorId);
+    if (!approvalContext) {
+      return res.status(404).json({ success: false, message: 'Leave applicant not found' });
+    }
+    const applicantRole = approvalContext.applicant_role;
     
     // Management can reject any leave (HOD or Employee)
     if (userRole === 'MANAGEMENT') {
@@ -889,6 +915,12 @@ exports.rejectLeave = async (req, res, next) => {
         return res.status(403).json({
           success: false,
           message: 'HOD can only reject leaves of Employees.'
+        });
+      }
+      if (!hasMatchingDepartment(approvalContext)) {
+        return res.status(403).json({
+          success: false,
+          message: 'HOD can only reject leaves of Employees in their department.'
         });
       }
       // proceed
@@ -930,6 +962,7 @@ exports.rejectLeave = async (req, res, next) => {
       data: rejectedLeave
     });
   } catch (error) {
+    console.error('Controller operation failed:', error);
     next(error);
   }
 };
@@ -990,7 +1023,7 @@ exports.getDepartmentLeaves = async (req, res, next) => {
       message: 'Department leaves fetched successfully'
     });
   } catch (error) {
+    console.error('Controller operation failed:', error);
     next(error);
   }
 };
-

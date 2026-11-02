@@ -27,7 +27,8 @@ exports.getAllKPIEmployees = async (req, res) => {
     const mappings = await KPIEmployee.findAll();
     res.status(200).json({ success: true, message: 'KPI-Employee mappings retrieved successfully', data: mappings });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Failed to retrieve KPI-Employee mappings', error: error.message });
+    console.error('Controller operation failed:', error);
+    res.status(500).json({ success: false, message: 'Failed to retrieve KPI-Employee mappings', error: 'Internal server error' });
   }
 };
 
@@ -39,7 +40,8 @@ exports.getKPIEmployeesByKPI = async (req, res) => {
     const mappings = await KPIEmployee.findByKPI(kpiId);
     res.status(200).json({ success: true, message: 'KPI-Employee mappings retrieved successfully', data: mappings });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Failed to retrieve KPI-Employee mappings', error: error.message });
+    console.error('Controller operation failed:', error);
+    res.status(500).json({ success: false, message: 'Failed to retrieve KPI-Employee mappings', error: 'Internal server error' });
   }
 };
 
@@ -51,7 +53,8 @@ exports.getKPIEmployeesByEmployee = async (req, res) => {
     const mappings = await KPIEmployee.findByEmployee(empId);
     res.status(200).json({ success: true, message: 'KPI-Employee mappings retrieved successfully', data: mappings });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Failed to retrieve KPI-Employee mappings', error: error.message });
+    console.error('Controller operation failed:', error);
+    res.status(500).json({ success: false, message: 'Failed to retrieve KPI-Employee mappings', error: 'Internal server error' });
   }
 };
 
@@ -75,7 +78,8 @@ exports.createKPIEmployee = async (req, res) => {
     const mapping = await KPIEmployee.create(kpiId, empId);
     res.status(201).json({ success: true, message: 'KPI-Employee mapping created successfully', data: mapping });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Failed to create KPI-Employee mapping', error: error.message });
+    console.error('Controller operation failed:', error);
+    res.status(500).json({ success: false, message: 'Failed to create KPI-Employee mapping', error: 'Internal server error' });
   }
 };
 
@@ -89,7 +93,8 @@ exports.deleteKPIEmployee = async (req, res) => {
 
     res.status(200).json({ success: true, message: 'Mapping deleted successfully' });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Failed to delete mapping', error: error.message });
+    console.error('Controller operation failed:', error);
+    res.status(500).json({ success: false, message: 'Failed to delete mapping', error: 'Internal server error' });
   }
 };
 
@@ -101,6 +106,7 @@ exports.deleteKPIEmployeesByKPI = async (req, res) => {
     const deletedMappings = await KPIEmployee.deleteByKPI(kpiId);
     res.status(200).json({ success: true, message: `${deletedMappings.length} mapping(s) deleted successfully` });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Failed to delete mappings', error: error.message });
+    console.error('Controller operation failed:', error);
+    res.status(500).json({ success: false, message: 'Failed to delete mappings', error: 'Internal server error' });
   }
 };

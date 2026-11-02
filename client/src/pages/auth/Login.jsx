@@ -1,22 +1,17 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
 function Login() {
   const navigate = useNavigate();
-  const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  // error: { title, message, tone } where tone is 'error' (red) or 'warning' (amber)
+  const [error, setError] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const { login, register, error: authError } = useAuth();
+  const { login } = useAuth();
   const [formData, setFormData] = useState({
     empid: '',
-    password: '',
-    firstName: '',
-    lastName: '',
-    email: '',
-    confirmPassword: ''
+    password: ''
   });
 
   const handleChange = (e) => {
@@ -36,90 +31,96 @@ function Login() {
 
   // Clear error state
   const clearError = () => {
-    setError('');
+    setError(null);
     if (errorTimeoutRef.current) {
       clearTimeout(errorTimeoutRef.current);
       errorTimeoutRef.current = null;
     }
   };
 
-  // Show error with persistent display
+  // Show a validation error with persistent display
   const showError = (message) => {
-    setError(message);
+    setError({ title: 'Login Failed', message, tone: 'error' });
   };
 
-  // Mirror auth context errors into local UI state
-  useEffect(() => {
-    if (authError) {
-      setError(authError);
+  // Turn a failed login response into a heading and message for the user
+  const describeLoginError = (err) => {
+    const status = err?.response?.status;
+    const serverMessage = err?.response?.data?.message;
+
+    if (!err?.response) {
+      return {
+        title: 'Unable to Connect',
+        message: 'We could not reach the server. Please check your internet connection and try again. If the problem continues, contact IT support.',
+        tone: 'error'
+      };
     }
-  }, [authError]);
+    if (status === 423) {
+      return {
+        title: 'Account Temporarily Locked',
+        message: serverMessage || 'Your account has been temporarily locked due to multiple unsuccessful login attempts. Please try again later, or use "Forgot Password" to reset your password.',
+        tone: 'warning'
+      };
+    }
+    if (status === 403 && err?.response?.data?.errors?.code === 'ACCOUNT_INACTIVE') {
+      return {
+        title: 'Account Inactive',
+        message: serverMessage || 'Your account is currently inactive. Please contact your HR department or system administrator to have it reactivated.',
+        tone: 'warning'
+      };
+    }
+    if (status === 429) {
+      return {
+        title: 'Too Many Attempts',
+        message: serverMessage || 'Too many login attempts in a short period. Please wait 1 minute and try again.',
+        tone: 'warning'
+      };
+    }
+    if (status === 401) {
+      return {
+        title: 'Login Failed',
+        message: 'The Employee ID or password you entered is incorrect. Please check and try again.',
+        tone: 'error'
+      };
+    }
+    if (status >= 500) {
+      return {
+        title: 'Something Went Wrong',
+        message: 'The server could not complete your request. Please try again in a few minutes.',
+        tone: 'error'
+      };
+    }
+    return {
+      title: 'Login Failed',
+      message: serverMessage || 'We could not sign you in. Please try again.',
+      tone: 'error'
+    };
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     // Don't clear error here - let the user see it until they start typing
 
     try {
-      if (isLogin) {
-        // Scenario 1: Check if fields are empty
-        if (!formData.empid || !formData.password) {
-          showError('Employee ID and password are required');
-          return;
-        }
+      if (!formData.empid || !formData.password) {
+        showError('Employee ID and password are required');
+        return;
+      }
 
-        // Scenario 2: Validate Employee ID format (should be numeric/integer)
-        const empidRegex = /^\d+$/;
-        if (!empidRegex.test(formData.empid.trim())) {
-          showError('Employee ID must be a valid number with no special characters');
-          return;
-        }
-
-        // Scenario 3: Validate password length
-        if (formData.password.length < 1) {
-          showError('Password cannot be empty');
-          return;
-        }
-      } else {
-        // Register validation
-        if (!formData.email || !formData.firstName || !formData.lastName || !formData.password || !formData.confirmPassword) {
-          showError('All fields are required');
-          return;
-        }
-        if (formData.password !== formData.confirmPassword) {
-          showError('Passwords do not match');
-          return;
-        }
-        if (formData.password.length < 6) {
-          showError('Password must be at least 6 characters');
-          return;
-        }
+      const empidRegex = /^\d+$/;
+      if (!empidRegex.test(formData.empid.trim())) {
+        showError('Employee ID must be a valid number with no special characters');
+        return;
       }
 
       setLoading(true);
 
       try {
-        if (isLogin) {
-          await login(formData.empid, formData.password);
-        } else {
-          await register(formData.email, formData.password, formData.firstName, formData.lastName);
-        }
+        await login(formData.empid, formData.password);
         setLoading(false);
         navigate('/dashboard');
       } catch (err) {
-        // Backend validation error or authentication failure
-        let errorMessage = 'Invalid credentials or connection error';
-
-        // Try to extract the actual error message from backend response
-        if (err?.response?.data?.message) {
-          errorMessage = err.response.data.message;
-        } else if (err?.response?.status === 401) {
-          errorMessage = 'Invalid Employee ID or Password';
-        } else if (err?.message) {
-          errorMessage = err.message;
-        }
-
-        // DIRECTLY set error state here without using showError function
-        setError(errorMessage);
+        setError(describeLoginError(err));
         setLoading(false);
       }
     } catch (err) {
@@ -145,24 +146,35 @@ function Login() {
           </div>
         </div>
 
-        {/* <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">
-          {isLogin ? 'Login' : 'Register'}
-        </h2> */}
-
         {error && (
-          <div className="mb-6 p-4 bg-red-50 border-2 border-red-500 rounded-lg shadow-lg transition-all duration-300">
+          <div
+            role="alert"
+            className={`mb-6 p-4 border-2 rounded-lg shadow-lg transition-all duration-300 ${
+              error.tone === 'warning' ? 'bg-amber-50 border-amber-500' : 'bg-red-50 border-red-500'
+            }`}
+          >
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-start gap-3 flex-1">
-                <span className="text-3xl flex-shrink-0 mt-1">⚠️</span>
+                <span className="text-3xl flex-shrink-0 mt-1" aria-hidden="true">
+                  {error.tone === 'warning' ? '🔒' : '⚠️'}
+                </span>
                 <div className="flex-1 pt-1">
-                  <p className="text-red-900 font-bold text-base">Login Failed</p>
-                  <p className="text-red-800 text-sm mt-2 leading-relaxed">{error}</p>
+                  <p className={`font-bold text-base ${error.tone === 'warning' ? 'text-amber-900' : 'text-red-900'}`}>
+                    {error.title}
+                  </p>
+                  <p className={`text-sm mt-2 leading-relaxed ${error.tone === 'warning' ? 'text-amber-800' : 'text-red-800'}`}>
+                    {error.message}
+                  </p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={clearError}
-                className="ml-2 text-red-600 hover:text-red-900 hover:bg-red-100 transition-colors flex-shrink-0 text-xl p-1 rounded-md"
+                className={`ml-2 transition-colors flex-shrink-0 text-xl p-1 rounded-md ${
+                  error.tone === 'warning'
+                    ? 'text-amber-600 hover:text-amber-900 hover:bg-amber-100'
+                    : 'text-red-600 hover:text-red-900 hover:bg-red-100'
+                }`}
                 title="Dismiss"
                 aria-label="Dismiss error"
               >
@@ -188,25 +200,6 @@ function Login() {
               className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--accent-soft)] transition duration-200 bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
             />
           </div>
-
-          {!isLogin && (
-            <>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Email
-                </label>
-                <input
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  placeholder="Enter your email"
-                  disabled={loading}
-                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--accent-soft)] transition duration-200 bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                />
-              </div>
-            </>
-          )}
 
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -243,86 +236,24 @@ function Login() {
             </div>
           </div>
 
-          {!isLogin && (
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Confirm Password
-              </label>
-              <div className="relative">
-                <input
-                  type={showConfirmPassword ? 'text' : 'password'}
-                  name="confirmPassword"
-                  value={formData.confirmPassword}
-                  onChange={handleChange}
-                  placeholder="Confirm your password"
-                  disabled={loading}
-                  className="w-full px-4 py-3 pr-12 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--accent-soft)] transition duration-200 bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                />
-                <button
-                  type="button"
-                  onClick={() => !loading && setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-4 top-3 cursor-pointer hover:opacity-70 transition disabled:cursor-not-allowed p-1"
-                  disabled={loading}
-                >
-                  {showConfirmPassword ? (
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
-                    </svg>
-                  ) : (
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                    </svg>
-                  )}
-                </button>
-              </div>
-            </div>
-          )}
-
           <button
             type="submit"
             disabled={loading}
             className="w-full mt-6 bg-gradient-to-r hover:to-blue-800 text-white font-bold py-3 rounded-lg transition duration-200 transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed bg-[color:var(--accent)]"
           >
-            {loading ? 'Loading...' : (isLogin ? 'Login' : 'Register')}
+            {loading ? 'Loading...' : 'Login'}
           </button>
 
-          {isLogin && (
-            <div className="mt-3 text-center">
-              <button
-                type="button"
-                onClick={() => navigate('/forgot-password')}
-                className="text-sm text-blue-600 hover:underline"
-              >
-                Forgot password?
-              </button>
-            </div>
-          )}
-        </form>
-
-        {/* <div className="mt-6 pt-6 border-t border-gray-200 text-center">
-          <p className="text-gray-600 text-sm">
-            {isLogin ? "Don't have an account? " : 'Already have an account? '}
+          <div className="mt-3 text-center">
             <button
               type="button"
-              onClick={() => {
-                setIsLogin(!isLogin);
-                setFormData({
-                  email: '',
-                  password: '',
-                  firstName: '',
-                  lastName: '',
-                  confirmPassword: ''
-                });
-                setError('');
-              }}
-              disabled={loading}
-              className="text-purple-600 font-semibold hover:text-purple-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              onClick={() => navigate('/forgot-password')}
+              className="text-sm text-blue-600 hover:underline"
             >
-              {isLogin ? 'Register' : 'Login'}
+              Forgot password?
             </button>
-          </p>
-        </div> */}
+          </div>
+        </form>
 
       </div>
     </div>

@@ -48,7 +48,6 @@ axiosInstance.interceptors.response.use(
     const url = originalRequest?.url || '';
     const authEndpoints = [
       '/auth/login',
-      '/auth/register',
       '/auth/refresh-token',
       '/auth/request-password-reset',
       '/auth/verify-otp',

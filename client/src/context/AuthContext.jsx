@@ -150,34 +150,11 @@ export const AuthProvider = ({ children }) => {
     };
   }, []);
 
-  const register = async (email, password, firstName, lastName) => {
-    try {
-      setLoading(true);
-      setError(null);
-      const response = await authAPI.register(email, password, firstName, lastName);
-      const { user, accessToken, refreshToken } = response.data.data;
-
-      localStorage.setItem('accessToken', accessToken);
-      localStorage.setItem('refreshToken', refreshToken);
-      localStorage.setItem('user', JSON.stringify(user));
-      localStorage.setItem('selectedRole', user.role || '');
-
-      scheduleTokenRefresh(accessToken);
-
-      setUser(user);
-      return response.data;
-    } catch (err) {
-      const errorMessage = err.response?.data?.message || 'Registration failed';
-      setError(errorMessage);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // Does not touch `loading`: that flag is only for restoring the session on
+  // app start. Setting it here makes AuthRoute swap the Login page for a
+  // spinner, which unmounts it and loses the error message and typed Employee ID.
   const login = async (empid, password) => {
     try {
-      setLoading(true);
       setError(null);
       const response = await authAPI.login(empid, password);
       const { user, accessToken, refreshToken } = response.data.data;
@@ -195,8 +172,6 @@ export const AuthProvider = ({ children }) => {
       const errorMessage = err.response?.data?.message || 'Login failed';
       setError(errorMessage);
       throw err;
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -243,7 +218,6 @@ export const AuthProvider = ({ children }) => {
     loading,
     error,
     login,
-    register,
     logout,
     switchRole,
     refreshAccessToken,

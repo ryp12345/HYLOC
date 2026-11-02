@@ -1,5 +1,5 @@
 const userModel = require('../models/user.model');
-const { hashPassword } = require('../utils/hash');
+const loginAttemptModel = require('../models/loginAttempt.model');
 const { sendSuccess, sendError } = require('../utils/response');
 const fs = require('fs');
 const path = require('path');
@@ -17,17 +17,18 @@ const deletePhotoVariants = (photoPath) => {
       ? normalized.replace('/uploads/users/', '')
       : normalized.replace(/^\/+/, '');
 
-  const baseName = path.parse(relative).name || relative;
-  const extension = path.parse(relative).ext;
+  const safeName = path.basename(relative.replace(/\\/g, '/'));
+  const baseName = path.parse(safeName).name || safeName;
+  const extension = path.parse(safeName).ext;
 
   const candidates = new Set();
-  if (relative) candidates.add(relative);
+  if (safeName) candidates.add(safeName);
   if (baseName && extension) candidates.add(`${baseName}${extension}`);
   STAFF_PHOTO_EXTENSIONS.forEach((ext) => candidates.add(`${baseName}.${ext}`));
 
   candidates.forEach((candidate) => {
-    const filePath = path.join(UPLOADS_USERS_DIR, candidate);
-    if (fs.existsSync(filePath)) {
+    const filePath = path.resolve(UPLOADS_USERS_DIR, candidate);
+    if (filePath.startsWith(path.resolve(UPLOADS_USERS_DIR) + path.sep) && fs.existsSync(filePath)) {
       try {
         fs.unlinkSync(filePath);
       } catch (error) {
@@ -121,6 +122,12 @@ exports.getAllUsers = async (req, res) => {
 exports.getUsersByDepartment = async (req, res) => {
   try {
     const { id } = req.params;
+    if (String(req.user?.role || '').toLowerCase() === 'hod') {
+      const requester = await userModel.findUserById(req.user.userId);
+      if (!requester?.department_id || String(requester.department_id) !== String(id)) {
+        return sendError(res, 'You are not authorized to view this department', 403);
+      }
+    }
     const users = await userModel.getUsersByDepartment(id);
     return sendSuccess(res, users, 'Department users retrieved successfully');
   } catch (error) {
@@ -138,8 +145,33 @@ exports.getUserById = async (req, res) => {
     if (!user) {
       return sendError(res, 'User not found', 404);
     }
-    
-    return sendSuccess(res, attachStaffPhotoUrl(user), 'User retrieved successfully');
+
+    const requesterId = req.user?.userId;
+    const role = String(req.user?.role || '').toLowerCase();
+    let canViewPersonalDetails = String(requesterId) === String(user.id) ||
+      ['admin', 'super admin', 'management', 'hr'].includes(role);
+
+    if (!canViewPersonalDetails && role === 'hod') {
+      const requester = await userModel.findUserById(requesterId);
+      canViewPersonalDetails = Boolean(
+        requester?.department_id &&
+        user.department_id &&
+        String(requester.department_id) === String(user.department_id)
+      );
+    }
+
+    const profile = canViewPersonalDetails
+      ? user
+      : {
+        id: user.id,
+        firstname: user.firstname,
+        middlename: user.middlename,
+        lastname: user.lastname,
+        department_id: user.department_id,
+        staff_photo: user.staff_photo
+      };
+
+    return sendSuccess(res, attachStaffPhotoUrl(profile), 'User retrieved successfully');
   } catch (error) {
     console.error('Get user by ID error:', error);
     return sendError(res, 'Failed to retrieve user', 500);
@@ -152,11 +184,14 @@ exports.createUser = async (req, res) => {
     const { email, password, firstName, middleName, lastName, empid, phone, address, bloodGroup, departmentId, designationId, role = 'employee', status = 'active' } = req.body;
 
     // Build staff photo URL from uploaded file if present
-    const staffPhoto = req.file ? `/api/uploads/users/${req.file.filename}` : (req.body.staffPhoto || null);
+    const staffPhoto = req.file ? `/api/uploads/users/${req.file.filename}` : null;
 
     // Validate required fields
     if (!email || !password || !firstName || !lastName) {
       return sendError(res, 'Email, password, first name, and last name are required', 400);
+    }
+    if (password.length < 8) {
+      return sendError(res, 'Password must be at least 8 characters', 400);
     }
 
     // Check if user already exists
@@ -238,8 +273,8 @@ exports.updateUser = async (req, res) => {
     if (req.body.designationId !== undefined) updates.designation_id = req.body.designationId;
     if (req.file) {
       updates.staff_photo = `/api/uploads/users/${req.file.filename}`;
-    } else if (req.body.staffPhoto !== undefined) {
-      updates.staff_photo = req.body.staffPhoto;
+    } else if (req.body.staffPhoto === null) {
+      updates.staff_photo = null;
     }
     if (req.body.email !== undefined) {
       // Check if email is already taken by another user
@@ -254,7 +289,10 @@ exports.updateUser = async (req, res) => {
     
     // Hash password if provided
     if (req.body.password) {
-      updates.password = await hashPassword(req.body.password);
+      if (req.body.password.length < 8) {
+        return sendError(res, 'Password must be at least 8 characters', 400);
+      }
+      updates.password = req.body.password;
     }
 
     if (Object.keys(updates).length === 0) {
@@ -263,7 +301,7 @@ exports.updateUser = async (req, res) => {
 
     const updatedUser = await userModel.updateUser(id, updates);
 
-    if (req.file && existingUser?.staff_photo && existingUser.staff_photo !== updates.staff_photo) {
+    if (updates.staff_photo !== undefined && existingUser?.staff_photo && existingUser.staff_photo !== updates.staff_photo) {
       deletePhotoVariants(existingUser.staff_photo);
     }
     
@@ -283,6 +321,9 @@ exports.resetUserPassword = async (req, res) => {
     if (!password) {
       return sendError(res, 'Password is required', 400);
     }
+    if (password.length < 8) {
+      return sendError(res, 'Password must be at least 8 characters', 400);
+    }
 
     const existingUser = await userModel.findUserById(id);
     if (!existingUser) {
@@ -292,6 +333,8 @@ exports.resetUserPassword = async (req, res) => {
     const updatedUser = await userModel.updateUser(id, {
       password,
     });
+    // A new password from an admin also lifts any login lock on the account
+    await loginAttemptModel.clear(id);
 
     return sendSuccess(res, updatedUser, 'Password reset successfully');
   } catch (error) {
@@ -346,7 +389,7 @@ exports.getMyProfile = async (req, res) => {
 exports.updateMyProfile = async (req, res) => {
   try {
     const userId = req.user.userId;
-    const { firstName, middleName, lastName, email, phone, address, bloodGroup, departmentId, designationId } = req.body;
+    const { firstName, middleName, lastName, email, phone, address, bloodGroup } = req.body;
     const existingUser = await userModel.findUserById(userId);
 
     if (!existingUser) {
@@ -374,21 +417,19 @@ exports.updateMyProfile = async (req, res) => {
       email,
       phone: phone || null,
       address: address || null,
-      bloodgroup: bloodGroup || null,
-      department_id: departmentId || null,
-      designation_id: designationId || null
+      bloodgroup: bloodGroup || null
     };
 
     // Store uploaded staff photo if provided
     if (req.file) {
       updateData.staff_photo = `/api/uploads/users/${req.file.filename}`;
-    } else if (req.body.staffPhoto !== undefined) {
-      updateData.staff_photo = req.body.staffPhoto;
+    } else if (req.body.staffPhoto === null) {
+      updateData.staff_photo = null;
     }
 
     const updatedUser = await userModel.updateUser(userId, updateData);
 
-    if (req.file && existingUser?.staff_photo && existingUser.staff_photo !== updateData.staff_photo) {
+    if (updateData.staff_photo !== undefined && existingUser?.staff_photo && existingUser.staff_photo !== updateData.staff_photo) {
       deletePhotoVariants(existingUser.staff_photo);
     }
     
@@ -409,6 +450,3 @@ exports.getAssignableUsers = async (req, res) => {
     return sendError(res, 'Failed to retrieve assignable users', 500);
   }
 };
-
-
-

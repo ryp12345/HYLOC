@@ -9,10 +9,11 @@ exports.getAllKPIs = async (req, res) => {
       data: kpis
     });
   } catch (error) {
+    console.error('Controller operation failed:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to retrieve KPIs',
-      error: error.message
+      error: 'Internal server error'
     });
   }
 };
@@ -35,10 +36,11 @@ exports.getKPIById = async (req, res) => {
       data: kpi
     });
   } catch (error) {
+    console.error('Controller operation failed:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to retrieve KPI',
-      error: error.message
+      error: 'Internal server error'
     });
   }
 };
@@ -54,10 +56,11 @@ exports.getKPIsByCategory = async (req, res) => {
       data: kpis
     });
   } catch (error) {
+    console.error('Controller operation failed:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to retrieve KPIs',
-      error: error.message
+      error: 'Internal server error'
     });
   }
 };
@@ -73,10 +76,11 @@ exports.getKPIsByFinYear = async (req, res) => {
       data: kpis
     });
   } catch (error) {
+    console.error('Controller operation failed:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to retrieve KPIs',
-      error: error.message
+      error: 'Internal server error'
     });
   }
 };
@@ -105,10 +109,11 @@ exports.createKPI = async (req, res) => {
       data: kpi
     });
   } catch (error) {
+    console.error('Controller operation failed:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to create KPI',
-      error: error.message
+      error: 'Internal server error'
     });
   }
 };
@@ -139,10 +144,11 @@ exports.updateKPI = async (req, res) => {
       data: kpi
     });
   } catch (error) {
+    console.error('Controller operation failed:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to update KPI',
-      error: error.message
+      error: 'Internal server error'
     });
   }
 };
@@ -174,10 +180,11 @@ exports.deleteKPI = async (req, res) => {
       message: 'KPI deleted successfully'
     });
   } catch (error) {
+    console.error('Controller operation failed:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to delete KPI',
-      error: error.message
+      error: 'Internal server error'
     });
   }
 };
@@ -193,10 +200,11 @@ exports.getChildKPIs = async (req, res) => {
       data: childKpis
     });
   } catch (error) {
+    console.error('Controller operation failed:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to retrieve child KPIs',
-      error: error.message
+      error: 'Internal server error'
     });
   }
 };

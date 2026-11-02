@@ -7,7 +7,8 @@ exports.getMyNotifications = async (req, res) => {
     const notifications = await notificationModel.getNotificationsForUser(userId);
     res.status(200).json(notifications);
   } catch (error) {
-    res.status(400).json({ error: error.message });
+    console.error('Controller operation failed:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 };
 
@@ -19,7 +20,8 @@ exports.getNotificationById = async (req, res) => {
     if (!notification) return res.status(404).json({ error: 'Notification not found' });
     res.status(200).json(notification);
   } catch (error) {
-    res.status(400).json({ error: error.message });
+    console.error('Controller operation failed:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 };
 
@@ -31,7 +33,8 @@ exports.updateNotification = async (req, res) => {
     if (!notification) return res.status(404).json({ error: 'Notification not found' });
     res.status(200).json(notification);
   } catch (error) {
-    res.status(400).json({ error: error.message });
+    console.error('Controller operation failed:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 };
 
@@ -43,6 +46,7 @@ exports.deleteNotification = async (req, res) => {
     if (!deleted) return res.status(404).json({ error: 'Notification not found' });
     res.status(204).send();
   } catch (error) {
-    res.status(400).json({ error: error.message });
+    console.error('Controller operation failed:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 };
