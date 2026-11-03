@@ -9,6 +9,60 @@ const HALF_DAY_DURATIONS = new Set(['Morning Half', 'Afternoon Half']);
 // Only these statuses hold days against the Earned Leave balance
 const BALANCE_HOLDING_STATUSES = new Set(['Pending', 'Approved']);
 
+// Leave fields a person may change through PUT /api/leaves/:id.
+// status is handled separately; credited_days, approved_by and rejection_reason are server-set.
+const EDITABLE_LEAVE_FIELDS = [
+  'from_date', 'to_date', 'leave_duration', 'leave_type', 'leave_reason',
+  'alternate_person', 'additional_alternate', 'available_on_phone'
+];
+const DECISION_STATUSES = new Set(['Pending', 'Approved', 'Rejected']);
+
+const httpError = (statusCode, message) => Object.assign(new Error(message), { statusCode });
+
+/**
+ * Throw unless this approver may set this leave to newStatus. Mirrors the rules of
+ * the approve/reject endpoints: no self-decisions, only HOD/Management, and an HOD
+ * only for Employees of their own department.
+ */
+const assertCanDecideLeave = async (executor, leave, approverId, approverRole, newStatus) => {
+  if (!DECISION_STATUSES.has(newStatus)) {
+    throw httpError(400, 'Invalid leave status');
+  }
+  if (Number(leave.user_id) === Number(approverId)) {
+    throw new Error('Forbidden: You cannot change the status of your own leave');
+  }
+  if (approverRole !== 'hod' && approverRole !== 'management') {
+    throw new Error('Forbidden: Only HOD and Management can change leave status');
+  }
+  if (approverRole === 'hod') {
+    const result = await executor.query(
+      `SELECT COALESCE(applicant_role.role_name, 'Employee') AS applicant_role,
+              applicant.department_id AS applicant_department_id,
+              approver.department_id AS approver_department_id
+       FROM users applicant
+       LEFT JOIN users approver ON approver.id = $2
+       LEFT JOIN LATERAL (
+         SELECT r.role_name
+         FROM user_roles ur
+         JOIN roles r ON ur.role_id = r.id
+         WHERE ur.user_id = applicant.id
+         ORDER BY ur.id ASC
+         LIMIT 1
+       ) applicant_role ON TRUE
+       WHERE applicant.id = $1`,
+      [leave.user_id, approverId]
+    );
+    const context = result.rows[0];
+    const sameDepartment = context &&
+      context.applicant_department_id !== null &&
+      context.approver_department_id !== null &&
+      String(context.applicant_department_id) === String(context.approver_department_id);
+    if (!context || String(context.applicant_role).toLowerCase() !== 'employee' || !sameDepartment) {
+      throw new Error('Forbidden: HOD can only decide leaves of Employees in their department');
+    }
+  }
+};
+
 const isEarnedLeaveType = (leaveType) => {
   const normalized = String(leaveType || '').trim().toLowerCase();
   return EARNED_LEAVE_TYPES.has(normalized);
@@ -424,22 +478,56 @@ exports.updatePendingLeave = async (leaveId, userId, updateData, userRole) => {
         // HOD can only update Employee leaves
         const applicantRole = (existingLeave.user_role || '').toLowerCase();
         if (applicantRole !== 'employee') {
-          throw new Error('HOD can only update leaves of Employees.');
+          throw new Error('Forbidden: HOD can only update leaves of Employees.');
         }
       }
     }
 
-    const updatedFields = { ...updateData };
+    // 3. Only copy fields a person may edit. credited_days, approved_by and
+    // rejection_reason are always set by the server, never taken from the request.
+    const updatedFields = {};
+    for (const field of EDITABLE_LEAVE_FIELDS) {
+      if (updateData[field] !== undefined) updatedFields[field] = updateData[field];
+    }
+    const hasDetailChanges = Object.keys(updatedFields).length > 0;
 
-    // 3. Recalculate credited days when dates or duration change
-    const datesChanged = Boolean(updateData.from_date || updateData.to_date || updateData.leave_duration);
-    const newFromDate = toDateOnly(updateData.from_date || existingLeave.from_date);
+    const requestedStatus = updateData.status === undefined || updateData.status === null
+      ? ''
+      : String(updateData.status).trim();
+    const statusChanging = requestedStatus !== '' && requestedStatus !== existingLeave.status;
+
+    if (statusChanging) {
+      // Status changes are approval decisions: same rules as POST /:id/approve and /:id/reject
+      await assertCanDecideLeave(client, existingLeave, userId, normalizedRole, requestedStatus);
+      if (hasDetailChanges) {
+        throw httpError(400, 'Change the leave status separately from its details');
+      }
+      updatedFields.status = requestedStatus;
+      if (requestedStatus === 'Approved' || requestedStatus === 'Rejected') {
+        updatedFields.approved_by = userId;
+      }
+    } else if (hasDetailChanges && existingLeave.status !== 'Pending') {
+      // Approved or rejected leaves must go through "request change" first
+      throw new Error('Only pending leaves can be edited');
+    }
+    if (!statusChanging && !hasDetailChanges) {
+      // Nothing to change (e.g. Save clicked with the same status): keep the old no-op behaviour
+      await client.query('ROLLBACK');
+      return existingLeave;
+    }
+
+    // Snapshot of the requested values, before server-computed fields are added
+    const details = { ...updatedFields };
+
+    // 4. Recalculate credited days when dates or duration change
+    const datesChanged = Boolean(details.from_date || details.to_date || details.leave_duration);
+    const newFromDate = toDateOnly(details.from_date || existingLeave.from_date);
     let newToDate = toDateOnly(existingLeave.to_date);
     let newCreditedDays = existingLeave.credited_days;
-    const newDuration = updateData.leave_duration || existingLeave.leave_duration;
+    const newDuration = details.leave_duration || existingLeave.leave_duration;
 
     if (datesChanged) {
-      const dateValidation = exports.validateLeaveDates(newFromDate, updateData.to_date || existingLeave.to_date);
+      const dateValidation = exports.validateLeaveDates(newFromDate, details.to_date || existingLeave.to_date);
       if (!dateValidation.valid) {
         throw new Error(dateValidation.error);
       }
@@ -450,28 +538,28 @@ exports.updatePendingLeave = async (leaveId, userId, updateData, userRole) => {
       );
       newCreditedDays = creditedDays;
       newToDate = normalizedToDate;
-      if (updateData.from_date) updatedFields.from_date = newFromDate;
+      if (details.from_date) updatedFields.from_date = newFromDate;
       updatedFields.to_date = normalizedToDate;
       updatedFields.credited_days = creditedDays;
     }
 
     const newLeaveState = {
-      leave_type: updateData.leave_type || existingLeave.leave_type,
-      status: updateData.status || existingLeave.status,
+      leave_type: details.leave_type || existingLeave.leave_type,
+      status: updatedFields.status || existingLeave.status,
       credited_days: newCreditedDays,
       from_date: newFromDate
     };
 
-    // 4. The updated leave must not overlap another active leave
+    // 5. The updated leave must not overlap another active leave
     if (BALANCE_HOLDING_STATUSES.has(newLeaveState.status)
       && (datesChanged || !BALANCE_HOLDING_STATUSES.has(existingLeave.status))) {
       await assertNoOverlap(client, existingLeave.user_id, newFromDate, newToDate, newDuration, existingLeave.id);
     }
 
-    // 5. Update leave record
+    // 6. Update leave record
     const updatedLeave = await leaveModel.updateLeave(leaveId, updatedFields, client);
 
-    // 6. Keep the owner's Earned Leave balance in step with days, type, year and status
+    // 7. Keep the owner's Earned Leave balance in step with days, type, year and status
     await rebalanceEarnedLeave(client, existingLeave.user_id, existingLeave, newLeaveState);
 
     await client.query('COMMIT');

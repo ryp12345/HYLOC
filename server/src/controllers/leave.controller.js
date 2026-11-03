@@ -418,6 +418,12 @@ exports.updateLeave = async (req, res, next) => {
     });
   } catch (error) {
     console.error('Update leave error:', error);
+    if (error.statusCode === 400) {
+      return res.status(400).json({
+        success: false,
+        message: error.message
+      });
+    }
     if (error.message === 'Leave not found') {
       return res.status(404).json({
         success: false,
