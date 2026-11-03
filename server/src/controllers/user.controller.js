@@ -2,6 +2,7 @@ const userModel = require('../models/user.model');
 const loginAttemptModel = require('../models/loginAttempt.model');
 const { sendSuccess, sendError } = require('../utils/response');
 const { comparePassword } = require('../utils/hash');
+const { getPasswordError } = require('../utils/passwordPolicy');
 const fs = require('fs');
 const path = require('path');
 
@@ -191,8 +192,9 @@ exports.createUser = async (req, res) => {
     if (!email || !password || !firstName || !lastName) {
       return sendError(res, 'Email, password, first name, and last name are required', 400);
     }
-    if (password.length < 8) {
-      return sendError(res, 'Password must be at least 8 characters', 400);
+    const passwordError = getPasswordError(password);
+    if (passwordError) {
+      return sendError(res, passwordError, 400);
     }
 
     // Check if user already exists
@@ -290,8 +292,9 @@ exports.updateUser = async (req, res) => {
     
     // Hash password if provided
     if (req.body.password) {
-      if (req.body.password.length < 8) {
-        return sendError(res, 'Password must be at least 8 characters', 400);
+      const passwordError = getPasswordError(req.body.password);
+      if (passwordError) {
+        return sendError(res, passwordError, 400);
       }
       updates.password = req.body.password;
     }
@@ -322,8 +325,9 @@ exports.resetUserPassword = async (req, res) => {
     if (!password) {
       return sendError(res, 'Password is required', 400);
     }
-    if (password.length < 8) {
-      return sendError(res, 'Password must be at least 8 characters', 400);
+    const passwordError = getPasswordError(password);
+    if (passwordError) {
+      return sendError(res, passwordError, 400);
     }
 
     const existingUser = await userModel.findUserById(id);

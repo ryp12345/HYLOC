@@ -381,8 +381,6 @@ exports.updateTicket = async (req, res) => {
       const from = String(existing.status || '').trim();
       const to = String(payload.status || '').trim();
       const allowed = (allowedTransitions[from] || []).map(s => String(s).trim());
-      // Temporary debug log for status transitions
-      console.debug('Status transition attempt:', { ticketId: id, requesterId, from, to, allowed });
       if (!allowed.includes(to)) {
         return res.status(400).json({ success: false, message: `Invalid status transition: ${from} → ${to}` });
       }
@@ -481,7 +479,6 @@ exports.updateTicket = async (req, res) => {
       } */
     }
 
-    console.log('DEBUG: Updating ticket', { id, payload });
     const client = await pool.connect();
     let updated;
     try {
@@ -500,7 +497,6 @@ exports.updateTicket = async (req, res) => {
       client.release();
     }
 
-    console.log('DEBUG: Updated ticket result', updated);
     if (!updated) return res.status(404).json({ success: false, message: 'Ticket not found' });
 
     const newlyAssignedUserIds = assigneeIds.filter((userId) => !existingAssigneeIds.includes(userId));

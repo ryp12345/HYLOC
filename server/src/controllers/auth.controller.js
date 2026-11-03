@@ -8,6 +8,7 @@ const UserModel = require('../models/user.model');
 const passwordResetModel = require('../models/passwordReset.model');
 const loginAttemptModel = require('../models/loginAttempt.model');
 const config = require('../config');
+const { getPasswordError } = require('../utils/passwordPolicy');
 
 const verifyResetOtp = async (userId, otp) => {
   const request = await passwordResetModel.findActiveRequest(userId);
@@ -125,8 +126,9 @@ exports.changePassword = async (req, res) => {
     if (!currentPassword || !newPassword) {
       return sendError(res, 'Both current and new passwords are required', 400);
     }
-    if (newPassword.length < 8) {
-      return sendError(res, 'New password must be at least 8 characters', 400);
+    const passwordError = getPasswordError(newPassword);
+    if (passwordError) {
+      return sendError(res, passwordError, 400);
     }
 
     await authService.changePassword(userId, currentPassword, newPassword);
@@ -236,7 +238,8 @@ exports.resetPassword = async (req, res) => {
     if (!email || !/^\d{6}$/.test(String(otp || '')) || !newPassword) {
       return sendError(res, 'Invalid OTP or expired', 400);
     }
-    if (newPassword.length < 8) return sendError(res, 'Password must be at least 8 characters', 400);
+    const passwordError = getPasswordError(newPassword);
+    if (passwordError) return sendError(res, passwordError, 400);
     const user = await UserModel.findUserByEmail(email);
     if (!user) return sendError(res, 'Invalid OTP or expired', 400);
     const request = await verifyResetOtp(user.id, otp);
