@@ -60,7 +60,7 @@ exports.login = async (empid, password) => {
     SELECT r.role_name
     FROM user_roles ur
     JOIN roles r ON ur.role_id = r.id
-    WHERE ur.user_id = $1
+    WHERE ur.user_id = $1 AND ur.status = 'active'
     ORDER BY ur.id ASC
     LIMIT 1
   `;
@@ -108,7 +108,7 @@ const resolveTokenRole = async (userId, selectedRole) => {
     SELECT r.role_name
     FROM user_roles ur
     JOIN roles r ON ur.role_id = r.id
-    WHERE ur.user_id = $1
+    WHERE ur.user_id = $1 AND ur.status = 'active'
     ORDER BY ur.id ASC
     LIMIT 1
   `;

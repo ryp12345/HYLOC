@@ -35,31 +35,38 @@ const assertCanDecideLeave = async (executor, leave, approverId, approverRole, n
     throw new Error('Forbidden: Only HOD and Management can change leave status');
   }
   if (approverRole === 'hod') {
-    const result = await executor.query(
-      `SELECT COALESCE(applicant_role.role_name, 'Employee') AS applicant_role,
-              applicant.department_id AS applicant_department_id,
-              approver.department_id AS approver_department_id
-       FROM users applicant
-       LEFT JOIN users approver ON approver.id = $2
-       LEFT JOIN LATERAL (
-         SELECT r.role_name
-         FROM user_roles ur
-         JOIN roles r ON ur.role_id = r.id
-         WHERE ur.user_id = applicant.id
-         ORDER BY ur.id ASC
-         LIMIT 1
-       ) applicant_role ON TRUE
-       WHERE applicant.id = $1`,
-      [leave.user_id, approverId]
-    );
-    const context = result.rows[0];
-    const sameDepartment = context &&
-      context.applicant_department_id !== null &&
-      context.approver_department_id !== null &&
-      String(context.applicant_department_id) === String(context.approver_department_id);
-    if (!context || String(context.applicant_role).toLowerCase() !== 'employee' || !sameDepartment) {
-      throw new Error('Forbidden: HOD can only decide leaves of Employees in their department');
-    }
+    await assertHodOwnsEmployeeLeave(executor, leave, approverId);
+  }
+};
+
+/**
+ * Throw unless the leave belongs to an Employee in this HOD's department.
+ */
+const assertHodOwnsEmployeeLeave = async (executor, leave, approverId) => {
+  const result = await executor.query(
+    `SELECT COALESCE(applicant_role.role_name, 'Employee') AS applicant_role,
+            applicant.department_id AS applicant_department_id,
+            approver.department_id AS approver_department_id
+     FROM users applicant
+     LEFT JOIN users approver ON approver.id = $2
+     LEFT JOIN LATERAL (
+       SELECT r.role_name
+       FROM user_roles ur
+       JOIN roles r ON ur.role_id = r.id
+       WHERE ur.user_id = applicant.id
+       ORDER BY ur.id ASC
+       LIMIT 1
+     ) applicant_role ON TRUE
+     WHERE applicant.id = $1`,
+    [leave.user_id, approverId]
+  );
+  const context = result.rows[0];
+  const sameDepartment = context &&
+    context.applicant_department_id !== null &&
+    context.approver_department_id !== null &&
+    String(context.applicant_department_id) === String(context.approver_department_id);
+  if (!context || String(context.applicant_role).toLowerCase() !== 'employee' || !sameDepartment) {
+    throw new Error('Forbidden: HOD can only act on leaves of Employees in their department');
   }
 };
 
@@ -475,11 +482,8 @@ exports.updatePendingLeave = async (leaveId, userId, updateData, userRole) => {
         throw new Error('Forbidden: You can only update your own leaves');
       }
       if (normalizedRole === 'hod') {
-        // HOD can only update Employee leaves
-        const applicantRole = (existingLeave.user_role || '').toLowerCase();
-        if (applicantRole !== 'employee') {
-          throw new Error('Forbidden: HOD can only update leaves of Employees.');
-        }
+        // Same rule as approve/reject/cancel: an HOD acts only on Employees of their own department
+        await assertHodOwnsEmployeeLeave(client, existingLeave, userId);
       }
     }
 
@@ -626,12 +630,25 @@ exports.cancelLeave = async (leaveId, userId, userRole) => {
       throw new Error('Leave not found');
     }
 
-    // 2. Check ownership
+    // 2. Check who may cancel it
     const normalizedRole = (userRole || '').trim().toLowerCase();
-    const canManageAnyLeave = ['hr', 'hod', 'management'].includes(normalizedRole);
+    const isOwner = Number(existingLeave.user_id) === Number(userId);
+    // HR and Management may cancel any leave in any status (their screens allow it)
+    const canCancelAnyLeave = ['hr', 'management'].includes(normalizedRole);
 
-    if (existingLeave.user_id !== userId && !canManageAnyLeave) {
-      throw new Error('Forbidden: You can only cancel your own leaves');
+    if (!canCancelAnyLeave) {
+      if (!isOwner) {
+        if (normalizedRole !== 'hod') {
+          throw new Error('Forbidden: You can only cancel your own leaves');
+        }
+        // Same rule as approve/reject: an HOD acts only on Employees of their own department
+        await assertHodOwnsEmployeeLeave(client, existingLeave, userId);
+      }
+      // Approved or rejected leave must go through "request change" first,
+      // otherwise taken leave could be erased and its days refunded
+      if (existingLeave.status !== 'Pending') {
+        throw new Error('Only pending leaves can be cancelled');
+      }
     }
 
     // The leave's owner, which is not necessarily the person cancelling it

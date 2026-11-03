@@ -1,6 +1,7 @@
 jest.mock('../models/user.model', () => ({
   findUserByEmpid: jest.fn(),
-  findUserById: jest.fn()
+  findUserById: jest.fn(),
+  getActiveRoles: jest.fn()
 }));
 jest.mock('../models/loginAttempt.model', () => ({
   getLockSecondsRemaining: jest.fn(),
@@ -17,6 +18,7 @@ jest.mock('../utils/jwt', () => ({
 }));
 jest.mock('../config/db', () => ({ query: jest.fn() }));
 
+const db = require('../config/db');
 const UserModel = require('../models/user.model');
 const loginAttemptModel = require('../models/loginAttempt.model');
 const { comparePassword } = require('../utils/hash');
@@ -108,5 +110,60 @@ describe('login lockout', () => {
 
     await expect(authService.refreshAccessToken('refresh-token')).rejects.toThrow('User not found');
     expect(jwt.generateAccessToken).not.toHaveBeenCalled();
+  });
+});
+
+describe('token role ignores deactivated roles', () => {
+  // User 5's oldest role (Admin) was set to Inactive; Employee is still active.
+  const userRoleRows = [
+    { id: 1, role_name: 'Admin', status: 'inactive' },
+    { id: 2, role_name: 'Employee', status: 'active' }
+  ];
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    // Answer the role query like the database would, honouring a status filter if present
+    db.query.mockImplementation(async (sql) => {
+      const onlyActive = /ur\.status\s*=\s*'active'/.test(sql);
+      const rows = userRoleRows
+        .filter((row) => !onlyActive || row.status === 'active')
+        .sort((a, b) => a.id - b.id)
+        .slice(0, 1)
+        .map(({ role_name }) => ({ role_name }));
+      return { rows };
+    });
+  });
+
+  test('login does not issue an inactive role', async () => {
+    UserModel.findUserByEmpid.mockResolvedValue({ id: 5, email: 'x@y.z', password: 'stored-hash', status: 'active', token_version: 0 });
+    loginAttemptModel.getLockSecondsRemaining.mockResolvedValue(0);
+    comparePassword.mockResolvedValue(true);
+
+    const result = await authService.login('500', 'correct');
+
+    expect(result.user.role).toBe('Employee');
+    expect(jwt.generateAccessToken).toHaveBeenCalledWith(5, 'x@y.z', 'Employee', 0);
+  });
+
+  test('refresh does not fall back to an inactive role', async () => {
+    jwt.verifyRefreshToken.mockReturnValue({ userId: 5, tokenVersion: 0 });
+    UserModel.findUserById.mockResolvedValue({ id: 5, email: 'x@y.z', status: 'active', token_version: 0 });
+    UserModel.getActiveRoles.mockResolvedValue(['Employee']);
+
+    await authService.refreshAccessToken('refresh-token', 'Admin');
+
+    expect(jwt.generateAccessToken).toHaveBeenCalledWith(5, 'x@y.z', 'Employee', 0);
+  });
+
+  test('login gives Employee when the user has no active role left', async () => {
+    userRoleRows[1].status = 'inactive';
+    UserModel.findUserByEmpid.mockResolvedValue({ id: 5, email: 'x@y.z', password: 'stored-hash', status: 'active', token_version: 0 });
+    loginAttemptModel.getLockSecondsRemaining.mockResolvedValue(0);
+    comparePassword.mockResolvedValue(true);
+
+    const result = await authService.login('500', 'correct');
+    userRoleRows[1].status = 'active';
+
+    expect(result.user.role).toBe('Employee');
   });
 });
