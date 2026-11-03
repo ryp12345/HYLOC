@@ -15,9 +15,9 @@ The serious problems are in **secrets management** and **business-logic authoriz
 | # | Severity | Finding | Status |
 |---|---|---|---|
 <!-- | C1 | **CRITICAL** | JWT signing secrets in `.env` are the placeholder strings committed in git history, so anyone with repo access can forge an admin/management token | **Fixed** (code + local); prod rotation pending | -->
-| H1 | **HIGH** | Any employee can approve their own leave (and change credited days) via `PUT /api/leaves/:id` | Confirmed |
+<!-- | H1 | **HIGH** | Any employee can approve their own leave (and change credited days) via `PUT /api/leaves/:id` | Confirmed | -->
 
-| M1 | MEDIUM | Any user can delete arbitrary files under `server/public/uploads` (e.g. other staff photos) via the ticket `attachment` field | Confirmed |
+| M1 | MEDIUM | Any user can delete arbitrary files under `server/public/uploads` (e.g. other staff photos) via the ticket `attachment` field | **Fixed** |
 | M2 | MEDIUM | HODs can view, edit and delete leaves outside their own department | Confirmed |
 | M3 | MEDIUM | Logout does not end the session; 7-day refresh tokens cannot be revoked | Confirmed |
 
@@ -106,7 +106,7 @@ The serious problems are in **secrets management** and **business-logic authoriz
 | Attack scenario | Any logged-in user creates a ticket and repeats the two requests for each target filename. Staff photos are named after employee IDs (e.g. `70001.JPG`) and ticket attachments are visible to their participants, so targets are easy to find. Everyone's photos or attachments can be deleted. |
 | Impact | Loss of uploaded files (availability and integrity). Traversal outside `server/public` is blocked, so code and config files are safe. |
 | Recommended fix | Never accept `attachment` from the request body. Set it only from `req.file.filename`, and use an explicit `removeAttachment: true` flag for clearing. Store only the bare filename. On delete, resolve against `uploads/tickets` only and require `path.sep` after the base directory. Also remove the attachment file when a ticket is deleted. |
-| Status | **Confirmed** |
+| Status | **Fixed (2026-11-03).** `controllers/ticket.controller.js`: create sets `attachment` only from a real upload (`req.file`); update accepts a new upload, or `''`/`null` to clear, and ignores any other value from the client. `toLocalUploadPath` now uses only the file name and resolves it inside `uploads/tickets` (with a `path.sep` boundary check), so stored values can never reach `uploads/users` or use `../`. Deleting a ticket now also removes its attachment file. No frontend change needed. Tests: 7 new cases in `controllers/ticket.controller.test.js`. PoC re-run: nothing deleted. **Follow-up:** check for values planted before the fix: `SELECT id, attachment FROM tickets WHERE attachment IS NOT NULL AND attachment NOT LIKE '/api/uploads/tickets/%';` |
 
 ---
 

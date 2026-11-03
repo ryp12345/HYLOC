@@ -100,20 +100,17 @@ const syncTicketAssignees = async (db, ticketId, assigneeIds, assignedBy) => {
 
 const isManagementRole = (role) => String(role || '').toLowerCase() === 'management';
 
-const publicRoot = path.resolve(__dirname, '../../public');
 const ticketUploadsBasePath = '/api/uploads/tickets';
 
+// Map a stored attachment value to a file inside uploads/tickets only.
+// Only the file name is used, so a value can never point at another folder
+// (e.g. staff photos in uploads/users).
 const toLocalUploadPath = (attachmentPath) => {
   if (!attachmentPath || typeof attachmentPath !== 'string') return null;
-  let normalized = attachmentPath.replace(/\\/g, '/');
-  if (normalized.startsWith('/api/uploads/')) {
-    normalized = normalized.replace(/^\/api\/uploads\//, '/uploads/');
-  }
-  if (!normalized.startsWith('/uploads/')) return null;
-
-  const relativePath = normalized.replace(/^\/+/, '');
-  const absolutePath = path.resolve(publicRoot, relativePath);
-  if (!absolutePath.startsWith(publicRoot)) return null;
+  const fileName = path.basename(attachmentPath.replace(/\\/g, '/'));
+  if (!fileName || fileName === '.' || fileName === '..') return null;
+  const absolutePath = path.resolve(ticketUploadsDir, fileName);
+  if (!absolutePath.startsWith(ticketUploadsDir + path.sep)) return null;
   return absolutePath;
 };
 
@@ -187,14 +184,12 @@ exports.createTicket = async (req, res) => {
       }
     }
 
-    // If a file was uploaded, build a URL path for it
+    // The attachment path is only ever taken from a real upload, never from a
+    // string in the request body (that allowed pointing tickets at other files).
     let attachmentUrl = null;
     if (req.file && req.file.filename) {
       // Serve from /api/uploads/tickets/<filename>
       attachmentUrl = `${ticketUploadsBasePath}/${req.file.filename}`;
-    } else if (req.body.attachment) {
-      // fallback when client posted a string
-      attachmentUrl = req.body.attachment;
     }
 
     const ticketData = {
@@ -328,10 +323,14 @@ exports.updateTicket = async (req, res) => {
     const id = req.params.id;
     const payload = { ...req.body };
 
+    // Attachment: a new upload replaces it, an empty value clears it, and any other
+    // value from the client (e.g. the existing path sent back unchanged) is ignored.
     if (req.file && req.file.filename) {
       payload.attachment = `${ticketUploadsBasePath}/${req.file.filename}`;
-    } else if (payload.attachment === '') {
+    } else if (payload.attachment === '' || payload.attachment === null) {
       payload.attachment = null;
+    } else {
+      delete payload.attachment;
     }
     delete payload.user_id;
 
@@ -574,6 +573,8 @@ exports.deleteTicket = async (req, res) => {
       return res.status(403).json({ success: false, message: 'Only tickets with status "Closed" can be deleted' });
     }
     const deleted = await ticketModel.deleteTicket(id);
+    // Don't leave the attachment behind on disk once its ticket is gone
+    await removeLocalAttachmentIfExists(ticket.attachment);
     res.status(200).json({ success: true, data: deleted });
   } catch (error) {
     console.error('Delete ticket error:', error);
