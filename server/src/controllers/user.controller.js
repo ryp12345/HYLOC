@@ -1,6 +1,7 @@
 const userModel = require('../models/user.model');
 const loginAttemptModel = require('../models/loginAttempt.model');
 const { sendSuccess, sendError } = require('../utils/response');
+const { comparePassword } = require('../utils/hash');
 const fs = require('fs');
 const path = require('path');
 
@@ -406,6 +407,30 @@ exports.updateMyProfile = async (req, res) => {
       const existingUser = await userModel.findUserByEmail(email);
       if (existingUser && existingUser.id !== userId) {
         return sendError(res, 'Email already exists', 400);
+      }
+    }
+
+    // Password reset codes go to this email, so changing it needs the current
+    // password. Otherwise a briefly stolen session could take over the account.
+    const emailChanged = String(email).trim().toLowerCase() !==
+      String(existingUser.email || '').trim().toLowerCase();
+    if (emailChanged) {
+      const { currentPassword } = req.body;
+      const userWithPassword = currentPassword
+        ? await userModel.findUserWithPasswordById(userId)
+        : null;
+      const passwordOk = Boolean(
+        userWithPassword && await comparePassword(String(currentPassword), userWithPassword.password)
+      );
+      if (!passwordOk) {
+        if (req.file?.path) {
+          fs.unlink(req.file.path, () => {}); // don't keep the photo from a rejected request
+        }
+        return sendError(
+          res,
+          currentPassword ? 'Current password is incorrect' : 'Enter your current password to change your email',
+          400
+        );
       }
     }
 

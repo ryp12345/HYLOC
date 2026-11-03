@@ -61,6 +61,8 @@ export default function ProfilePage() {
   const [photoFile, setPhotoFile] = useState(null);
   const [photoPreview, setPhotoPreview] = useState('');
   const [photoCandidates, setPhotoCandidates] = useState([]);
+  // Required by the server only when the email is being changed
+  const [currentPassword, setCurrentPassword] = useState('');
 
   const [form, setForm] = useState({
     firstName: '',
@@ -150,6 +152,9 @@ export default function ProfilePage() {
     }
   };
 
+  const emailChanged = Boolean(userData) &&
+    String(form.email || '').trim().toLowerCase() !== String(userData.email || '').trim().toLowerCase();
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -172,6 +177,9 @@ export default function ProfilePage() {
         address: form.address,
         bloodGroup: form.bloodGroup,
       };
+      if (emailChanged) {
+        updateData.currentPassword = currentPassword;
+      }
 
       // Use multipart/form-data when a new photo file is selected
       let requestData = updateData;
@@ -204,6 +212,7 @@ export default function ProfilePage() {
         message: 'Profile updated successfully!',
         type: 'success'
       });
+      setCurrentPassword('');
       // Keep the form in edit mode after save so Save/Cancel remain visible
       loadProfile();
     } catch (error) {
@@ -331,6 +340,24 @@ export default function ProfilePage() {
                      className="w-full bg-[color:var(--surface)] px-3 py-2 border border-[color:var(--border)] rounded-lg focus:ring-2 focus:ring-[color:var(--ring)] focus:border-[color:var(--ring)] text-[color:var(--text-primary)]"
                      required
                    />
+                   {emailChanged && (
+                     <div className="mt-3">
+                       <label className="block text-sm font-medium text-[color:var(--text-primary)] mb-2">
+                         Current password <span className="text-[color:var(--danger)]">*</span>
+                       </label>
+                       <input
+                         type="password"
+                         autoComplete="current-password"
+                         value={currentPassword}
+                         onChange={(e) => setCurrentPassword(e.target.value)}
+                         className="w-full bg-[color:var(--surface)] px-3 py-2 border border-[color:var(--border)] rounded-lg focus:ring-2 focus:ring-[color:var(--ring)] focus:border-[color:var(--ring)] text-[color:var(--text-primary)]"
+                         required
+                       />
+                       <p className="mt-1 text-xs text-[color:var(--text-muted)]">
+                         Required to change your email, because password reset codes are sent there.
+                       </p>
+                     </div>
+                   )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-[color:var(--text-primary)] mb-2">

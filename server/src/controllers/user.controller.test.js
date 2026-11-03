@@ -4,10 +4,12 @@ jest.mock('../models/user.model', () => ({
   findUserByEmpid: jest.fn(),
   getUsersByDepartment: jest.fn(),
   createUser: jest.fn(),
-  updateUser: jest.fn()
+  updateUser: jest.fn(),
+  findUserWithPasswordById: jest.fn()
 }));
 jest.mock('../utils/hash', () => ({
-  hashPassword: jest.fn()
+  hashPassword: jest.fn(),
+  comparePassword: jest.fn()
 }));
 jest.mock('../models/notification.model', () => ({
   createNotification: jest.fn().mockResolvedValue({})
@@ -149,6 +151,63 @@ describe('updateMyProfile organization fields', () => {
     }));
     expect(userModel.updateUser.mock.calls[0][1]).not.toHaveProperty('department_id');
     expect(userModel.updateUser.mock.calls[0][1]).not.toHaveProperty('designation_id');
+  });
+});
+
+// Security regression tests for audit finding M4: changing your own email
+// (where password reset codes are sent) needs the current password.
+describe('updateMyProfile email change requires the current password', () => {
+  const { comparePassword } = require('../utils/hash');
+
+  const submit = async (body) => {
+    const response = createResponse();
+    await controller.updateMyProfile({
+      user: { userId: 1 },
+      body: { firstName: 'Taylor', lastName: 'User', ...body }
+    }, response);
+    return response;
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    userModel.findUserById.mockResolvedValue({ id: 1, email: 'person@example.com', staff_photo: null });
+    userModel.findUserByEmail.mockResolvedValue(null);
+    userModel.findUserWithPasswordById.mockResolvedValue({ id: 1, password: 'stored-hash' });
+    userModel.updateUser.mockResolvedValue({ id: 1 });
+  });
+
+  test('rejects an email change without the current password', async () => {
+    const response = await submit({ email: 'attacker@example.com' });
+
+    expect(response.statusCode).toBe(400);
+    expect(userModel.updateUser).not.toHaveBeenCalled();
+  });
+
+  test('rejects an email change with a wrong password', async () => {
+    comparePassword.mockResolvedValue(false);
+
+    const response = await submit({ email: 'attacker@example.com', currentPassword: 'guess' });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.body.message).toBe('Current password is incorrect');
+    expect(userModel.updateUser).not.toHaveBeenCalled();
+  });
+
+  test('allows an email change with the correct password', async () => {
+    comparePassword.mockResolvedValue(true);
+
+    const response = await submit({ email: 'new@example.com', currentPassword: 'right' });
+
+    expect(response.statusCode).toBe(200);
+    expect(comparePassword).toHaveBeenCalledWith('right', 'stored-hash');
+    expect(userModel.updateUser.mock.calls[0][1].email).toBe('new@example.com');
+  });
+
+  test('other profile changes still need no password', async () => {
+    const response = await submit({ email: 'person@example.com', phone: '12345' });
+
+    expect(response.statusCode).toBe(200);
+    expect(comparePassword).not.toHaveBeenCalled();
   });
 });
 

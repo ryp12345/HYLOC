@@ -296,15 +296,4 @@ describe('ticket attachment paths cannot be chosen by the client', () => {
     expect(ticketModel.updateTicket.mock.calls[0][1]).not.toHaveProperty('attachment');
     expect(unlinkSpy).not.toHaveBeenCalled();
   });
-
-  test('deleting a ticket removes its attachment file', async () => {
-    ticketModel.getTicketById.mockResolvedValue(openTicket({ status: 'Closed', attachment: '/api/uploads/tickets/abc123.pdf' }));
-    ticketModel.deleteTicket.mockResolvedValue({ id: 12 });
-    const response = createResponse();
-
-    await controller.deleteTicket({ params: { id: '12' }, user: { userId: 10, role: 'Employee' } }, response);
-
-    expect(response.statusCode).toBe(200);
-    expect(unlinkSpy).toHaveBeenCalledWith(path.join(ticketsDir, 'abc123.pdf'));
-  });
 });

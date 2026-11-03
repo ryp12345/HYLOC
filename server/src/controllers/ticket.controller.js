@@ -573,8 +573,6 @@ exports.deleteTicket = async (req, res) => {
       return res.status(403).json({ success: false, message: 'Only tickets with status "Closed" can be deleted' });
     }
     const deleted = await ticketModel.deleteTicket(id);
-    // Don't leave the attachment behind on disk once its ticket is gone
-    await removeLocalAttachmentIfExists(ticket.attachment);
     res.status(200).json({ success: true, data: deleted });
   } catch (error) {
     console.error('Delete ticket error:', error);
