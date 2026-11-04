@@ -222,13 +222,20 @@ exports.submitKPIData = async (req, res) => {
     }
 
     if (!isElevated) {
-      const assignmentResult = await pool.query(
-        'SELECT 1 FROM kpi_emp WHERE kpi_id = $1 AND emp_id = $2 LIMIT 1',
-        [kpiId, targetEmpId]
-      );
-      if (!assignmentResult.rows.length ||
-          (kpiValueData.data_operator !== null &&
-            String(kpiValueData.data_operator) !== targetEmpId)) {
+      // Same rule as the employee's KPI list: the employee must be this KPI value's data operator.
+      // A KPI value with no data operator falls back to the kpi_emp assignment.
+      const dataOperator = kpiValueData.data_operator === null || kpiValueData.data_operator === undefined
+        ? ''
+        : String(kpiValueData.data_operator).trim();
+      let isAssigned = dataOperator !== '' && dataOperator === targetEmpId.trim();
+      if (!isAssigned && dataOperator === '') {
+        const assignmentResult = await pool.query(
+          'SELECT 1 FROM kpi_emp WHERE kpi_id = $1 AND emp_id = $2 LIMIT 1',
+          [kpiId, targetEmpId]
+        );
+        isAssigned = assignmentResult.rows.length > 0;
+      }
+      if (!isAssigned) {
         return res.status(403).json({ success: false, error: 'This KPI is not assigned to the employee' });
       }
     }

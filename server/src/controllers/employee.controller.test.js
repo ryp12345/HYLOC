@@ -29,19 +29,53 @@ describe('submitKPIData authorization', () => {
     jest.clearAllMocks();
   });
 
-  test('uses the logged-in employee ID and rejects an unassigned KPI', async () => {
+  const kpiValueRow = (dataOperator) => ({
+    rows: [{
+      kpi_type: 'manual',
+      kpi_id: 7,
+      data_operator: dataOperator,
+      default_target_value: null,
+      target_formula: null,
+      formula: null
+    }]
+  });
+  const writesData = () => pool.query.mock.calls.some(([query]) => /INSERT INTO kpi_data_value|UPDATE kpi_data_value/i.test(query));
+
+  test('lets an employee save data for a KPI value they are the data operator of', async () => {
+    pool.query.mockResolvedValue({ rows: [] });
     pool.query
       .mockResolvedValueOnce({ rows: [{ id: 1, empid: 101, department_id: 4 }] })
-      .mockResolvedValueOnce({
-        rows: [{
-          kpi_type: 'manual',
-          kpi_id: 7,
-          data_operator: 101,
-          default_target_value: null,
-          target_formula: null,
-          formula: null
-        }]
-      })
+      .mockResolvedValueOnce(kpiValueRow(101));
+    const response = createResponse();
+
+    await controller.submitKPIData({
+      user: { userId: 1, role: 'Employee' },
+      body: { empId: 202, kpiId: 7, kpiValueId: 9, month: 4, year: 2026, actualValue: 5 }
+    }, response);
+
+    expect(response.statusCode).not.toBe(403);
+    expect(writesData()).toBe(true);
+  });
+
+  test('uses the logged-in employee ID and rejects a KPI value owned by someone else', async () => {
+    pool.query
+      .mockResolvedValueOnce({ rows: [{ id: 1, empid: 101, department_id: 4 }] })
+      .mockResolvedValueOnce(kpiValueRow(202));
+    const response = createResponse();
+
+    await controller.submitKPIData({
+      user: { userId: 1, role: 'Employee' },
+      body: { empId: 202, kpiId: 7, kpiValueId: 9, month: 4, year: 2026, actualValue: 5 }
+    }, response);
+
+    expect(response.statusCode).toBe(403);
+    expect(writesData()).toBe(false);
+  });
+
+  test('rejects a KPI value with no data operator when the employee is not assigned to the KPI', async () => {
+    pool.query
+      .mockResolvedValueOnce({ rows: [{ id: 1, empid: 101, department_id: 4 }] })
+      .mockResolvedValueOnce(kpiValueRow(null))
       .mockResolvedValueOnce({ rows: [] });
     const response = createResponse();
 
@@ -52,7 +86,7 @@ describe('submitKPIData authorization', () => {
 
     expect(response.statusCode).toBe(403);
     expect(pool.query.mock.calls[2][1]).toEqual([7, '101']);
-    expect(pool.query.mock.calls.some(([query]) => /INSERT INTO kpi_data_value|UPDATE kpi_data_value/i.test(query))).toBe(false);
+    expect(writesData()).toBe(false);
   });
 
   test('prevents an HOD from submitting for another department', async () => {

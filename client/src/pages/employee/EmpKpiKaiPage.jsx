@@ -356,7 +356,7 @@ function EmpKpiKaiPage() {
       setAssignedKPIValues(kpiValues);
 
       if (kpiValues.length === 0) {
-        showNotification('No KPIs have been assigned to you yet. Please contact your administrator.', 'error');
+        // Not an error: the page shows a "no KPIs assigned" panel instead
         setLoading(false);
         return;
       }
@@ -1165,10 +1165,18 @@ function EmpKpiKaiPage() {
             </div>
           ) : visibleKPIsForYear.length === 0 ? (
             <div className="rounded-xl border-2 border-dashed border-[color:var(--border)] bg-[color:var(--surface)] p-12 text-center">
-              <div className="text-5xl mb-4">📭</div>
-              <h3 className="mb-2 text-xl font-semibold text-[color:var(--text-primary)]">No KPIs Found</h3>
-              <p className="text-[color:var(--text-secondary)]">No KPIs/KAIs assigned to you for FY {getSelectedFinancialYear()}.</p>
-              <p className="mt-2 text-sm text-[color:var(--text-secondary)]">Please contact your administrator to assign KPIs.</p>
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[color:var(--accent-soft)] text-[color:var(--accent)]">
+                <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                </svg>
+              </div>
+              <h3 className="mb-2 text-xl font-semibold text-[color:var(--text-primary)]">No KPIs assigned yet</h3>
+              <p className="text-[color:var(--text-secondary)]">
+                {assignedKPIValues.length === 0
+                  ? 'You don’t have any KPIs or KAIs assigned to you at the moment.'
+                  : `You don’t have any KPIs or KAIs assigned for FY ${getSelectedFinancialYear()}.`}
+              </p>
+              <p className="mt-2 text-sm text-[color:var(--text-secondary)]">Once your administrator assigns them, they will appear here.</p>
             </div>
           ) : (
             <div className="space-y-3">
