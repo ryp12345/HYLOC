@@ -97,7 +97,7 @@ export function TableFilterRow({ table, cellClassName = 'px-2 py-2' }) {
 }
 
 /** Quick search, filter toggle, clear button and row count, placed above a table. */
-export function TableToolbar({ table, searchable = true, placeholder = 'Search this table...', className = '' }) {
+export function TableToolbar({ table, searchable = true, placeholder = 'Search this table...', filterLabel = 'Filters', className = '' }) {
   const sortCol = table.getColumn(table.sort.key);
   const dirLabel = (() => {
     if (!sortCol) return '';
@@ -138,7 +138,7 @@ export function TableToolbar({ table, searchable = true, placeholder = 'Search t
         <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h18l-7 8v6l-4 2v-8L3 4z" />
         </svg>
-        Filters
+        {filterLabel}
         {filterCount > 0 && (
           <span className="rounded-full bg-[color:var(--accent)] px-1.5 text-[10px] font-semibold text-white">{filterCount}</span>
         )}

@@ -204,6 +204,12 @@ export default function TicketsAnalysisReport() {
     }));
   }, [report]);
 
+  // Sorting (A–Z by default) and column filters for the two detail tables.
+  // These hooks must stay above the loading/error early returns below.
+  const assigneeTable = useTableControls(assigneeBreakdownData, ASSIGNEE_COLUMNS);
+  const overdueRows = useMemo(() => report?.overdue_table || [], [report]);
+  const overdueTable = useTableControls(overdueRows, OVERDUE_COLUMNS);
+
   const hasData = report && report.summary && report.summary.total_tickets > 0;
   const { summary } = report || {};
   const overdueCount = summary?.overdue_tickets || 0;
@@ -403,12 +409,6 @@ export default function TicketsAnalysisReport() {
       </div>
     );
   }
-
-
-  // Sorting (A–Z by default) and column filters for the two detail tables
-  const assigneeTable = useTableControls(assigneeBreakdownData, ASSIGNEE_COLUMNS);
-  const overdueRows = useMemo(() => report?.overdue_table || [], [report]);
-  const overdueTable = useTableControls(overdueRows, OVERDUE_COLUMNS);
 
   return (
     <div className="w-full max-w-none bg-[color:var(--app-bg)] px-0 sm:px-1 lg:px-2">

@@ -689,7 +689,7 @@ export default function TicketsPage() {
 
 
 
-        <TableToolbar table={table} searchable={false} />
+        <TableToolbar table={table} searchable={false} filterLabel="Column filters" />
         <div className="mb-10 overflow-hidden rounded-xl border border-[color:var(--border)] bg-[color:var(--surface)] shadow-xl">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-[color:var(--border)]">
