@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { authAPI } from '../../api/auth.api';
+import { useAuth } from '../../context/AuthContext';
 
 const ChangePasswordModal = ({ isOpen, onClose }) => {
+  const { completePasswordChange } = useAuth();
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -74,7 +76,9 @@ const ChangePasswordModal = ({ isOpen, onClose }) => {
 
     try {
       setLoading(true);
-      await authAPI.changePassword(currentPassword, newPassword);
+      const response = await authAPI.changePassword(currentPassword, newPassword, confirmPassword);
+      // The change ends all earlier sessions; switch to the new one the server returned
+      completePasswordChange(response.data.data);
       setSuccess('Password changed successfully');
       setTimeout(() => handleClose(), 1200);
     } catch (err) {

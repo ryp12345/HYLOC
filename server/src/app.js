@@ -24,6 +24,7 @@ const ticketRoutes = require('./routes/ticket.routes');
 const { errorHandler, notFoundHandler } = require('./middlewares/error.middleware');
 const notificationRoutes = require('./routes/notification.routes');
 const { authenticate } = require('./middlewares/auth.middleware');
+const { setUntrustedFileHeaders } = require('./utils/uploadValidation');
 
 const app = express();
 app.set('trust proxy', 'loopback');
@@ -110,7 +111,7 @@ app.get('/api/uploads/users/:fileName', authenticate, (req, res, next) => {
 
   const matchedPath = findUserPhotoFile(fileName);
   if (matchedPath && path.resolve(matchedPath).startsWith(path.resolve(userUploadsPath) + path.sep)) {
-    res.setHeader('X-Content-Type-Options', 'nosniff');
+    setUntrustedFileHeaders(res);
     if (!inlinePhotoExtensions.has(path.extname(matchedPath).toLowerCase())) {
       res.setHeader('Content-Disposition', 'attachment');
     }

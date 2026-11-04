@@ -5,6 +5,7 @@ import Notification from '../../components/common/Notification';
 import { getAllTickets, updateTicket, createTicket, getTicketPriorities, getTicketStatuses } from '../../api/ticketApi';
 import { getUsers, getAssignableUsers } from '../../api/userApi';
 import { useAuth } from '../../context/AuthContext';
+import { useTableControls, SortableHeader, TableFilterRow, TableToolbar } from '../../components/common/table';
 
 const initialForm = {
   title: '',
@@ -39,8 +40,8 @@ export default function TicketsPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [overdueOnly, setOverdueOnly] = useState(false);
   const [panelOpen, setPanelOpen] = useState(false);
-  const [sortBy, setSortBy] = useState('created_at');
-  const [sortDir, setSortDir] = useState('desc');
+  const [sortBy, setSortBy] = useState(''); // '' = default order (Title A–Z)
+  const [sortDir, setSortDir] = useState('asc');
   const [assigneeDropdownOpen, setAssigneeDropdownOpen] = useState(false);
   const assigneeDropdownRef = useRef(null);
   const location = useLocation();
@@ -56,8 +57,8 @@ export default function TicketsPage() {
     const q = params.get('q') || '';
     const o = params.get('overdue') === '1';
     const f = params.get('filter') || 'all';
-    const sb = params.get('sortBy') || 'created_at';
-    const sd = params.get('sortDir') || 'desc';
+    const sb = params.get('sortBy') || '';
+    const sd = params.get('sortDir') || 'asc';
     setAssigneeFilter(a);
     setPriorityFilter(p);
     setStatusFilter(s);
@@ -78,7 +79,7 @@ export default function TicketsPage() {
     if (overdueOnly) params.set('overdue', '1'); else params.delete('overdue');
     if (filter) params.set('filter', filter); else params.delete('filter');
     if (sortBy) params.set('sortBy', sortBy); else params.delete('sortBy');
-    if (sortDir) params.set('sortDir', sortDir); else params.delete('sortDir');
+    if (sortBy && sortDir) params.set('sortDir', sortDir); else params.delete('sortDir');
     const newSearch = params.toString();
     if (newSearch !== location.search.replace(/^[?]/, '')) {
       const path = params.toString() ? `${location.pathname}?${params.toString()}` : location.pathname;
@@ -467,7 +468,7 @@ export default function TicketsPage() {
     return <span className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded ${cls}`}>{p}</span>;
   };
 
-  const filtered = useMemo(() => {
+  const searched = useMemo(() => {
     const q = search.toLowerCase();
     const today = new Date(); today.setHours(0, 0, 0, 0);
 
@@ -510,30 +511,31 @@ export default function TicketsPage() {
       return true;
     });
 
-    // local sorting
-    result.sort((a, b) => {
-      const get = (obj, key) => {
-        const val = obj?.[key];
-        if (!val) return '';
-        if (key.includes('date') || key.includes('created') || key.includes('due')) return new Date(val).getTime();
-        return String(val).toLowerCase();
-      };
-      const va = get(a, sortBy);
-      const vb = get(b, sortBy);
-      if (va < vb) return sortDir === 'asc' ? -1 : 1;
-      if (va > vb) return sortDir === 'asc' ? 1 : -1;
-      return 0;
-    });
-
     return result;
-  }, [rows, search, filter, user, assigneeFilter, priorityFilter, statusFilter, overdueOnly, sortBy, sortDir]);
+  }, [rows, search, filter, user, assigneeFilter, priorityFilter, statusFilter, overdueOnly]);
+
+  // Sorting (Title A–Z by default, kept in the URL) and column filters
+  const ticketColumns = [
+    { key: 'sno', label: 'S.NO', sortable: false, filter: false },
+    { key: 'title', label: 'Title' },
+    { key: 'status', label: 'Status', filter: 'select' },
+    { key: 'priority', label: 'Priority', filter: 'select' },
+    { key: 'attachment', label: 'Attachment', filter: 'select', accessor: (r) => (r.attachment ? 'Yes' : 'No') },
+    { key: 'closed_date', label: 'Closed Date', type: 'date', accessor: (r) => (String(r.status || '').toLowerCase() === 'closed' ? r.updated_at : null) },
+    { key: 'actions', label: 'Actions', sortable: false, filter: false },
+  ];
+  const table = useTableControls(searched, ticketColumns, {
+    sort: sortBy ? { key: sortBy, dir: sortDir } : null,
+    onSortChange: (next) => { setSortBy(next?.key || ''); setSortDir(next?.dir || 'asc'); },
+  });
+  const filtered = table.rows;
 
   const paginated = useMemo(() => {
     const start = (page - 1) * PAGE_SIZE;
     return filtered.slice(start, start + PAGE_SIZE);
   }, [filtered, page]);
 
-  useEffect(() => { setPage(1); }, [search, rows, filter]);
+  useEffect(() => { setPage(1); }, [search, rows, filter, table.signature]);
 
   const displayedStatuses = useMemo(() => {
     const list = Array.isArray(statuses) ? [...statuses] : [];
@@ -686,19 +688,21 @@ export default function TicketsPage() {
 
 
 
+        <TableToolbar table={table} searchable={false} />
         <div className="mb-10 overflow-hidden rounded-xl border border-[color:var(--border)] bg-[color:var(--surface)] shadow-xl">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-[color:var(--border)]">
               <thead className="bg-[color:var(--accent)]">
                 <tr>
-                  <th onClick={() => { setSortBy('id'); setSortDir(sortBy === 'id' ? (sortDir === 'asc' ? 'desc' : 'asc') : 'desc'); }} className="cursor-pointer px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white">S.NO {sortBy === 'id' ? (sortDir === 'asc' ? '▲' : '▼') : ''}</th>
-                  <th onClick={() => { setSortBy('title'); setSortDir(sortBy === 'title' ? (sortDir === 'asc' ? 'desc' : 'asc') : 'asc'); }} className="cursor-pointer px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white">Title {sortBy === 'title' ? (sortDir === 'asc' ? '▲' : '▼') : ''}</th>
-                  <th onClick={() => { setSortBy('status'); setSortDir(sortBy === 'status' ? (sortDir === 'asc' ? 'desc' : 'asc') : 'asc'); }} className="cursor-pointer px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white">Status {sortBy === 'status' ? (sortDir === 'asc' ? '▲' : '▼') : ''}</th>
-                  <th onClick={() => { setSortBy('priority'); setSortDir(sortBy === 'priority' ? (sortDir === 'asc' ? 'desc' : 'asc') : 'asc'); }} className="cursor-pointer px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white">Priority {sortBy === 'priority' ? (sortDir === 'asc' ? '▲' : '▼') : ''}</th>
-                  <th className="px-6 py-4 text-center text-xs font-medium uppercase tracking-wider text-white">Attachment</th>
-                  <th className="px-6 py-4 text-center text-xs font-medium uppercase tracking-wider text-white">Closed Date</th>
+                  <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white">S.NO</th>
+                  <SortableHeader table={table} column="title" className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white" />
+                  <SortableHeader table={table} column="status" className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white" />
+                  <SortableHeader table={table} column="priority" className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white" />
+                  <SortableHeader table={table} column="attachment" className="px-6 py-4 text-center text-xs font-medium uppercase tracking-wider text-white" />
+                  <SortableHeader table={table} column="closed_date" className="px-6 py-4 text-center text-xs font-medium uppercase tracking-wider text-white" />
                   <th className="px-6 py-4 text-center text-xs font-medium uppercase tracking-wider text-white">Actions</th>
                 </tr>
+                <TableFilterRow table={table} />
               </thead>
               <tbody className="divide-y divide-[color:var(--border)] bg-[color:var(--surface)]">
                 {filtered.length === 0 ? (

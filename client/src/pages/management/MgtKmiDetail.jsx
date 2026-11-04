@@ -3,6 +3,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, Cart
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import axios from '../../api/axios';
 import { calculateAchievement } from '../../utils/kpiAchievement';
+import { useTableControls, SortableHeader, TableFilterRow, TableToolbar } from '../../components/common/table';
 
 // Calendar order: index + 1 = month number
 const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -376,6 +377,26 @@ export default function MgtKmiDetail() {
     return '✗ Below Target';
   };
 
+  // Sorting (Data A–Z by default) and column filters for the KPI values table
+  const performanceScore = (value) => {
+    const data = monthlyData[value.id];
+    if (!data) return null;
+    const ins = calculateInsights(data, value.target_required);
+    if (!ins) return null;
+    if (!value.target_required) return ins.monthsWithActual > 0 ? ins.totalActual : null;
+    return ins.monthsWithData > 0 ? ins.overallAchievement : null;
+  };
+  const kpiValueColumns = [
+    { key: 'kpi_type', label: 'Type', filter: 'select', accessor: (v) => v.kpi_type || 'manual' },
+    { key: 'data', label: 'Data' },
+    { key: 'operator', label: 'Data Operator', filter: 'select', accessor: (v) => getOperatorDisplay(v) },
+    { key: 'uom', label: 'Unit of Measurement', filter: 'select', accessor: (v) => getUnitName(v.uom) },
+    { key: 'piller', label: 'Piller', filter: 'select', accessor: (v) => getPillerName(v.piller_id) },
+    { key: 'target_required', label: 'Target Required', filter: 'select', accessor: (v) => (v.target_required ? 'Yes' : 'No') },
+    { key: 'performance', label: 'Performance', type: 'number', accessor: performanceScore },
+  ];
+  const kpiValuesTable = useTableControls(kpiValues, kpiValueColumns, { defaultSort: { key: 'data' } });
+
   if (loading) {
     return (
       <div className="w-full max-w-7xl mx-auto p-6">
@@ -467,21 +488,26 @@ export default function MgtKmiDetail() {
           <div className="text-center py-10 text-gray-500 text-base">No KPI values found.</div>
         ) : (
           <div className="bg-white rounded-lg shadow overflow-hidden">
+            <TableToolbar table={kpiValuesTable} placeholder="Search KPI values..." className="px-3" />
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
-                    <th className="px-2 py-2 text-left font-semibold text-gray-700 uppercase tracking-wider">Type</th>
-                    <th className="px-2 py-2 text-left font-semibold text-gray-700 uppercase tracking-wider">Data</th>
-                    <th className="px-2 py-2 text-left font-semibold text-gray-700 uppercase tracking-wider">Data Operator</th>
-                    <th className="px-2 py-2 text-left font-semibold text-gray-700 uppercase tracking-wider">Unit of Measurement</th>
-                    <th className="px-2 py-2 text-left font-semibold text-gray-700 uppercase tracking-wider">Piller</th>
-                    <th className="px-2 py-2 text-center font-semibold text-gray-700 uppercase tracking-wider">Target Required</th>
-                    <th className="px-2 py-2 text-center font-semibold text-gray-700 uppercase tracking-wider">Performance</th>
+                    <SortableHeader table={kpiValuesTable} column="kpi_type" className="px-2 py-2 text-left font-semibold text-gray-700 uppercase tracking-wider" />
+                    <SortableHeader table={kpiValuesTable} column="data" className="px-2 py-2 text-left font-semibold text-gray-700 uppercase tracking-wider" />
+                    <SortableHeader table={kpiValuesTable} column="operator" className="px-2 py-2 text-left font-semibold text-gray-700 uppercase tracking-wider" />
+                    <SortableHeader table={kpiValuesTable} column="uom" className="px-2 py-2 text-left font-semibold text-gray-700 uppercase tracking-wider" />
+                    <SortableHeader table={kpiValuesTable} column="piller" className="px-2 py-2 text-left font-semibold text-gray-700 uppercase tracking-wider" />
+                    <SortableHeader table={kpiValuesTable} column="target_required" className="px-2 py-2 text-center font-semibold text-gray-700 uppercase tracking-wider" />
+                    <SortableHeader table={kpiValuesTable} column="performance" className="px-2 py-2 text-center font-semibold text-gray-700 uppercase tracking-wider" />
                   </tr>
+                  <TableFilterRow table={kpiValuesTable} cellClassName="px-1 py-1" />
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {kpiValues.map((value) => {
+                  {kpiValuesTable.rows.length === 0 && (
+                    <tr><td colSpan="7" className="px-4 py-8 text-center text-sm text-gray-500">No KPI values match the current filters</td></tr>
+                  )}
+                  {kpiValuesTable.rows.map((value) => {
                     const valueInsights = monthlyData[value.id] ? calculateInsights(monthlyData[value.id], value.target_required) : null;
                     return (
                     <React.Fragment key={value.id}>

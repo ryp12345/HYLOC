@@ -83,7 +83,10 @@ exports.login = async (empid, password) => {
       lastName: user.lastname,
       empid: user.empid,
       departmentId: user.department_id,
-      role: userRole
+      role: userRole,
+      // true → the app must send the user to the Change Password screen;
+      // the server blocks every other API until the password is changed
+      mustChangePassword: user.must_change_password === true
     },
     accessToken,
     refreshToken
@@ -165,7 +168,7 @@ exports.getUserById = async (userId) => {
   return user;
 };
 
-exports.changePassword = async (userId, currentPassword, newPassword) => {
+exports.changePassword = async (userId, currentPassword, newPassword, currentRole) => {
   // Need access to user's hashed password
   const user = await UserModel.findUserWithPasswordById(userId);
   if (!user) {
@@ -177,6 +180,24 @@ exports.changePassword = async (userId, currentPassword, newPassword) => {
     throw new Error('Current password is incorrect');
   }
 
-  await UserModel.updateUser(userId, { password: newPassword });
-  return true;
+  // Covers re-using the temporary password: it is the current password
+  if (await comparePassword(newPassword, user.password)) {
+    throw new Error('New password must be different from the current password');
+  }
+
+  // Changing the password bumps token_version, which ends every other session.
+  // Clearing must_change_password lifts the forced-change restriction.
+  const updated = await UserModel.updateUser(userId, {
+    password: newPassword,
+    must_change_password: false
+  });
+
+  // Fresh session for the person who just changed it, keeping their current role if still active
+  const tokenVersion = Number(updated?.token_version) || 0;
+  const role = await resolveTokenRole(userId, currentRole);
+  return {
+    accessToken: generateAccessToken(userId, user.email, role, tokenVersion),
+    refreshToken: generateRefreshToken(userId, tokenVersion),
+    role
+  };
 };

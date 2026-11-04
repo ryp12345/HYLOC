@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import api from '../../api/axios';
+import { useTableControls, SortableHeader, TableFilterRow, TableToolbar } from '../../components/common/table';
 
 const parseFiscalYear = (value) => {
   if (value == null) return null;
@@ -18,6 +19,17 @@ const getCurrentFiscalYear = () => {
   const year = now.getFullYear();
   return month < 3 ? year - 1 : year;
 };
+
+const KPI_COLUMNS = [
+  { key: 'title', label: 'KPI Title' },
+  { key: 'fin_year', label: 'Fiscal Year', filter: 'select' },
+];
+
+const EMPLOYEE_KPI_COLUMNS = [
+  { key: 'name', label: 'Data Operator' },
+  { key: 'kpiTitle', label: 'KPI Title' },
+  { key: 'financialYear', label: 'Fiscal Year', filter: 'select' },
+];
 
 function DepartmentDetailPage() {
   const { departmentId } = useParams();
@@ -194,8 +206,12 @@ function DepartmentDetailPage() {
         }
       });
     });
-    return rows.sort((a, b) => a.name.localeCompare(b.name));
+    return rows;
   }, [employees, employeeKpiMappings, selectedFiscalYear]);
+
+  // Sorting (A–Z by default) and column filters
+  const kpiTable = useTableControls(filteredKpis, KPI_COLUMNS);
+  const employeeKpiTable = useTableControls(employeeKpiRows, EMPLOYEE_KPI_COLUMNS);
 
   return (
     <div className="space-y-6">
@@ -310,15 +326,17 @@ function DepartmentDetailPage() {
                 <div className="p-6 text-[color:var(--text-secondary)]">No KPIs are linked to this department.</div>
               ) : (
                 <div className="overflow-x-auto">
+                  <TableToolbar table={kpiTable} className="px-4" />
                   <table className="min-w-full text-sm">
                     <thead className="bg-[color:var(--accent)]">
                       <tr>
-                        <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-white">KPI Title</th>
-                        <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-white">Fiscal Year</th>
+                        <SortableHeader table={kpiTable} column="title" className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-white" />
+                        <SortableHeader table={kpiTable} column="fin_year" className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-white" />
                       </tr>
+                      <TableFilterRow table={kpiTable} />
                     </thead>
                     <tbody>
-                      {filteredKpis.map((kpi) => (
+                      {kpiTable.rows.map((kpi) => (
                         <tr key={kpi.id} className="border-t">
                           <td className="px-4 py-2 text-[color:var(--text-primary)]">{kpi.title || '-'}</td>
                           <td className="px-4 py-2 text-[color:var(--text-secondary)]">{kpi.fin_year || '-'}</td>
@@ -336,16 +354,18 @@ function DepartmentDetailPage() {
                   <div className="p-6 text-[color:var(--text-secondary)]">No employee KPIs found for this department.</div>
                 ) : (
                   <div className="overflow-x-auto">
+                    <TableToolbar table={employeeKpiTable} className="px-4" />
                     <table className="min-w-full text-sm">
                       <thead className="bg-[color:var(--accent)]">
                         <tr>
-                          <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-white">Data Operator</th>
-                          <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-white">KPI Title</th>
-                          <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-white">Fiscal Year</th>
+                          <SortableHeader table={employeeKpiTable} column="name" className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-white" />
+                          <SortableHeader table={employeeKpiTable} column="kpiTitle" className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-white" />
+                          <SortableHeader table={employeeKpiTable} column="financialYear" className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-white" />
                         </tr>
+                        <TableFilterRow table={employeeKpiTable} />
                       </thead>
                       <tbody>
-                        {employeeKpiRows.map((row) => (
+                        {employeeKpiTable.rows.map((row) => (
                           <tr key={`${row.empId}-${row.kpiId}`} className="border-t">
                             <td className="px-4 py-2 text-[color:var(--text-primary)]">{row.name}</td>
                             <td className="px-4 py-2 text-[color:var(--text-primary)]">{row.kpiTitle}</td>

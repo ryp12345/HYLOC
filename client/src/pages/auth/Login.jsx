@@ -116,9 +116,10 @@ function Login() {
       setLoading(true);
 
       try {
-        await login(formData.empid, formData.password);
+        const result = await login(formData.empid, formData.password);
         setLoading(false);
-        navigate('/dashboard');
+        // A temporary password must be replaced before anything else
+        navigate(result?.data?.user?.mustChangePassword ? '/change-password' : '/dashboard');
       } catch (err) {
         setError(describeLoginError(err));
         setLoading(false);

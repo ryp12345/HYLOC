@@ -34,8 +34,9 @@ export const updateUser = async (id, data) => {
   return await axios.put(`/users/${id}`, data);
 };
 
-export const resetUserPassword = async (id, password) => {
-  return await axios.patch(`/users/${id}/reset-password`, { password });
+// The server generates the temporary password and returns it once (data.temporaryPassword)
+export const resetUserPassword = async (id) => {
+  return await axios.patch(`/users/${id}/reset-password`);
 };
 
 export const deleteUser = async (id) => {

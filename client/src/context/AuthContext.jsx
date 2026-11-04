@@ -207,6 +207,20 @@ export const AuthProvider = ({ children }) => {
     setError(null);
   };
 
+  // After a successful password change: keep the fresh session the server returned
+  // (the change ends every earlier session) and lift the forced-change state.
+  const completePasswordChange = ({ accessToken, refreshToken, role }) => {
+    localStorage.setItem('accessToken', accessToken);
+    localStorage.setItem('refreshToken', refreshToken);
+    const storedRole = localStorage.getItem('selectedRole');
+    if (!storedRole && role) localStorage.setItem('selectedRole', role);
+    scheduleTokenRefresh(accessToken);
+    const currentUser = user || JSON.parse(localStorage.getItem('user') || 'null') || {};
+    const newUser = { ...currentUser, mustChangePassword: false };
+    setUser(newUser);
+    localStorage.setItem('user', JSON.stringify(newUser));
+  };
+
   const updateUserContext = (updatedUser) => {
     const newUser = { ...user, ...updatedUser };
     setUser(newUser);
@@ -222,7 +236,9 @@ export const AuthProvider = ({ children }) => {
     switchRole,
     refreshAccessToken,
     updateUserContext,
-    isAuthenticated: !!user
+    completePasswordChange,
+    isAuthenticated: !!user,
+    mustChangePassword: Boolean(user?.mustChangePassword)
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { getAllLeaves, approveLeave, rejectLeave, updateLeave } from '../../../api/leaveApi';
 import Notification from '../../../components/common/Notification';
+import { useTableControls, SortableHeader, TableFilterRow, TableToolbar } from '../../../components/common/table';
 
 const LeaveApprovalPage = () => {
   const [leaves, setLeaves] = useState([]);
@@ -163,7 +164,7 @@ const LeaveApprovalPage = () => {
     }
   };
 
-  const filteredLeaves = useMemo(() => {
+  const searchedLeaves = useMemo(() => {
     let result = leaves.filter(leave => leave.status === activeTab);
     
     // Apply filters only if showFilteredTable is true
@@ -234,6 +235,19 @@ const LeaveApprovalPage = () => {
       return 0;
     }
   };
+
+  // Sorting (Name A–Z by default) and column filters
+  const leaveColumns = [
+    { key: 'sno', label: 'S.No', sortable: false, filter: false },
+    { key: 'name', label: 'Name', accessor: (l) => l.user_name || l.employee_name || l.name || [l.firstname, l.lastname].filter(Boolean).join(' ') },
+    { key: 'from_date', label: 'Date Range', type: 'date', rangeEnd: 'to_date' },
+    { key: 'days', label: 'No. of Days', type: 'number', accessor: computeDays },
+    { key: 'details', label: 'Details', sortable: false, filter: false },
+    { key: 'status', label: 'Status', filter: 'select' },
+    { key: 'actions', label: 'Actions', sortable: false, filter: false },
+  ];
+  const table = useTableControls(searchedLeaves, leaveColumns);
+  const filteredLeaves = table.rows;
 
   return (
     <div className="min-h-screen bg-[color:var(--app-bg)] p-6">
@@ -363,19 +377,21 @@ const LeaveApprovalPage = () => {
           </div>
         )}
         {/* ...existing code... */}
+        <TableToolbar table={table} />
         <div className="mb-10 overflow-hidden rounded-xl border border-[color:var(--border)] bg-[color:var(--surface)] shadow-xl">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-[color:var(--border)]">
               <thead className="bg-[color:var(--accent)]">
                 <tr>
                   <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white rounded-tl-xl">S.No</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white">Name</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white">Date Range</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white">No. of Days</th>
+                  <SortableHeader table={table} column="name" className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white" />
+                  <SortableHeader table={table} column="from_date" className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white" />
+                  <SortableHeader table={table} column="days" className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white" />
                   <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white">Details</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white">Status</th>
+                  <SortableHeader table={table} column="status" className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white" />
                   <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white rounded-tr-xl">Actions</th>
                 </tr>
+                <TableFilterRow table={table} />
               </thead>
               <tbody className="divide-y divide-[color:var(--border)] bg-[color:var(--surface)]">
                 {loading ? (

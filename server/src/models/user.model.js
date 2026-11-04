@@ -1,15 +1,30 @@
 const db = require('../config/db');
 const { hashPassword } = require('../utils/hash');
+const { columnExists, optionalColumn } = require('../utils/schema');
+
+// must_change_password comes from migration 024. Reads treat a missing column as
+// "no change required"; setting the flag to true without the column is refused,
+// so a temporary password is never issued without the forced change.
+const MUST_CHANGE_COLUMN = 'must_change_password';
+const mustChangeColumnAvailable = async (value) => {
+  if (await columnExists('users', MUST_CHANGE_COLUMN)) return true;
+  if (value) {
+    throw new Error('Database migration 024_add_user_must_change_password.sql has not been applied');
+  }
+  return false;
+};
 
 exports.createUser = async (userData) => {
   const client = await db.connect();
   try {
     await client.query('BEGIN');
-    
+
+    const mustChange = Boolean(userData.mustChangePassword);
+    const withMustChange = await mustChangeColumnAvailable(mustChange);
     const hashedPassword = await hashPassword(userData.password);
     const userQuery = `
-      INSERT INTO users (email, password, firstname, middlename, lastname, empid, phone, address, bloodgroup, department_id, designation_id, staff_photo, status, created_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW())
+      INSERT INTO users (email, password, firstname, middlename, lastname, empid, phone, address, bloodgroup, department_id, designation_id, staff_photo, status${withMustChange ? ', must_change_password' : ''}, created_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13${withMustChange ? ', $14' : ''}, NOW())
       RETURNING id, email, firstname, middlename, lastname, empid, phone, address, bloodgroup, department_id, designation_id, staff_photo, status, token_version, created_at
     `;
     const userResult = await client.query(userQuery, [
@@ -25,7 +40,8 @@ exports.createUser = async (userData) => {
       userData.departmentId || null,
       userData.designationId || null,
       userData.staffPhoto || null,
-      userData.status || 'active'
+      userData.status || 'active',
+      ...(withMustChange ? [mustChange] : [])
     ]);
     const user = userResult.rows[0];
     
@@ -96,7 +112,8 @@ exports.findUserById = async (id) => {
     const query = `
       SELECT u.id, u.email, u.firstname, u.middlename, u.lastname, u.empid, 
              u.phone, u.address, u.bloodgroup, u.department_id, u.designation_id, 
-             u.staff_photo, u.status, u.token_version, u.created_at
+             u.staff_photo, u.status, u.token_version, u.created_at,
+             COALESCE(${optionalColumn('u', MUST_CHANGE_COLUMN, 'boolean')}, false) AS must_change_password
       FROM users u 
       WHERE u.id = $1
     `;
@@ -130,6 +147,12 @@ exports.updateUser = async (id, updates) => {
 
     // Handle user table updates
     const userTableFields = ['firstname', 'lastname', 'email', 'password', 'status', 'empid', 'phone', 'address', 'bloodgroup', 'department_id', 'designation_id', 'staff_photo', 'middlename'];
+    if (normalizedUpdates[MUST_CHANGE_COLUMN] !== undefined) {
+      normalizedUpdates[MUST_CHANGE_COLUMN] = Boolean(normalizedUpdates[MUST_CHANGE_COLUMN]);
+      if (await mustChangeColumnAvailable(normalizedUpdates[MUST_CHANGE_COLUMN])) {
+        userTableFields.push(MUST_CHANGE_COLUMN);
+      }
+    }
     Object.keys(normalizedUpdates).forEach((key) => {
       if (normalizedUpdates[key] !== undefined && userTableFields.includes(key)) {
         userFields.push(`${key} = $${paramCount}`);

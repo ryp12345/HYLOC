@@ -3,6 +3,8 @@ const loginAttemptModel = require('../models/loginAttempt.model');
 const { sendSuccess, sendError } = require('../utils/response');
 const { comparePassword } = require('../utils/hash');
 const { getPasswordError } = require('../utils/passwordPolicy');
+const { generateTemporaryPassword } = require('../utils/tempPassword');
+const { getPersonFieldsError } = require('../utils/inputValidation');
 const fs = require('fs');
 const path = require('path');
 
@@ -183,18 +185,20 @@ exports.getUserById = async (req, res) => {
 // Create new user
 exports.createUser = async (req, res) => {
   try {
-    const { email, password, firstName, middleName, lastName, empid, phone, address, bloodGroup, departmentId, designationId, role = 'employee', status = 'active' } = req.body;
+    // Any password in the request is ignored: new accounts always get a generated
+    // temporary password that must be changed at first login.
+    const { email, firstName, middleName, lastName, empid, phone, address, bloodGroup, departmentId, designationId, role = 'employee', status = 'active' } = req.body;
 
     // Build staff photo URL from uploaded file if present
     const staffPhoto = req.file ? `/api/uploads/users/${req.file.filename}` : null;
 
     // Validate required fields
-    if (!email || !password || !firstName || !lastName) {
-      return sendError(res, 'Email, password, first name, and last name are required', 400);
+    if (!email || !firstName || !lastName) {
+      return sendError(res, 'Email, first name, and last name are required', 400);
     }
-    const passwordError = getPasswordError(password);
-    if (passwordError) {
-      return sendError(res, passwordError, 400);
+    const fieldError = getPersonFieldsError({ firstName, middleName, lastName, email });
+    if (fieldError) {
+      return sendError(res, fieldError, 400);
     }
 
     // Check if user already exists
@@ -211,10 +215,12 @@ exports.createUser = async (req, res) => {
       }
     }
 
-    // Create user
+    // Create user. Only the bcrypt hash is stored; the plain value is returned once below.
+    const temporaryPassword = generateTemporaryPassword();
     const newUser = await userModel.createUser({ 
       email, 
-      password, 
+      password: temporaryPassword,
+      mustChangePassword: true,
       firstName, 
       middleName,
       lastName, 
@@ -245,7 +251,9 @@ exports.createUser = async (req, res) => {
     }
     ////////////////Notification Code to send greeting for new user///////////////////////
     
-    return sendSuccess(res, newUser, 'User created successfully', 201);
+    // Shown once to the admin; never logged or stored in plain text
+    res.set('Cache-Control', 'no-store');
+    return sendSuccess(res, { ...newUser, temporaryPassword }, 'User created successfully', 201);
   } catch (error) {
     console.error('Create user error:', error);
     return sendError(res, 'Failed to create user', 500);
@@ -262,6 +270,11 @@ exports.updateUser = async (req, res) => {
     const existingUser = await userModel.findUserById(id);
     if (!existingUser) {
       return sendError(res, 'User not found', 404);
+    }
+
+    const fieldError = getPersonFieldsError(req.body);
+    if (fieldError) {
+      return sendError(res, fieldError, 400);
     }
 
     // Map camelCase to snake_case for database
@@ -297,6 +310,8 @@ exports.updateUser = async (req, res) => {
         return sendError(res, passwordError, 400);
       }
       updates.password = req.body.password;
+      // The admin knows this password, so the user must replace it at next login
+      updates.must_change_password = true;
     }
 
     if (Object.keys(updates).length === 0) {
@@ -320,28 +335,26 @@ exports.updateUser = async (req, res) => {
 exports.resetUserPassword = async (req, res) => {
   try {
     const { id } = req.params;
-    const { password } = req.body;
-
-    if (!password) {
-      return sendError(res, 'Password is required', 400);
-    }
-    const passwordError = getPasswordError(password);
-    if (passwordError) {
-      return sendError(res, passwordError, 400);
-    }
 
     const existingUser = await userModel.findUserById(id);
     if (!existingUser) {
       return sendError(res, 'User not found', 404);
     }
 
+    // A unique generated password (any password in the request is ignored).
+    // updateUser stores only its bcrypt hash and bumps token_version, which
+    // signs the user out of every existing session.
+    const temporaryPassword = generateTemporaryPassword();
     const updatedUser = await userModel.updateUser(id, {
-      password,
+      password: temporaryPassword,
+      must_change_password: true
     });
     // A new password from an admin also lifts any login lock on the account
     await loginAttemptModel.clear(id);
 
-    return sendSuccess(res, updatedUser, 'Password reset successfully');
+    // Shown once to the admin; never logged or stored in plain text
+    res.set('Cache-Control', 'no-store');
+    return sendSuccess(res, { ...updatedUser, temporaryPassword }, 'Password reset successfully');
   } catch (error) {
     console.error('Reset user password error:', error);
     return sendError(res, 'Failed to reset password', 500);
@@ -404,6 +417,10 @@ exports.updateMyProfile = async (req, res) => {
     // Validate required fields
     if (!firstName || !lastName || !email) {
       return sendError(res, 'First name, last name, and email are required', 400);
+    }
+    const fieldError = getPersonFieldsError({ firstName, middleName, lastName, email });
+    if (fieldError) {
+      return sendError(res, fieldError, 400);
     }
 
     // Check if email is being changed and if it's already taken by another user

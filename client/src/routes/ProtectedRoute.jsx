@@ -3,7 +3,7 @@ import { Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 const ProtectedRoute = ({ children }) => {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, loading, mustChangePassword } = useAuth();
 
   if (loading) {
     return (
@@ -18,6 +18,11 @@ const ProtectedRoute = ({ children }) => {
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
+  }
+
+  // A temporary password must be changed before any page can be used
+  if (mustChangePassword) {
+    return <Navigate to="/change-password" replace />;
   }
 
   return children;

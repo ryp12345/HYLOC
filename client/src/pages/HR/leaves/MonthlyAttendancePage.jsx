@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { getMonthlyWorkingDaysStaff, importMonthlyWorkingDays } from '../../../api/leaveEntitlementApi';
+import { useTableControls, SortableHeader, TableFilterRow, TableToolbar } from '../../../components/common/table';
 
 const MONTH_NAMES = [
   'January','February','March','April','May','June','July','August','September','October','November','December'
@@ -144,19 +145,26 @@ const MonthlyAttendancePage = ({ token: propToken }) => {
     return staff.empid ? `ID:${staff.empid}` : '';
   };
 
-  const filtered = useMemo(() => {
+  const searched = useMemo(() => {
     const q = search.toLowerCase();
     const filteredData = monthlyStaff.filter(s => {
       const name = getDisplayName(s).toLowerCase();
       const emp = (s.empid || '').toString().toLowerCase();
       return name.includes(q) || emp.includes(q) || (s.user_name || '').toLowerCase().includes(q);
     });
-    return filteredData.sort((a, b) => {
-      const nameA = getDisplayName(a);
-      const nameB = getDisplayName(b);
-      return nameA.localeCompare(nameB, undefined, { sensitivity: 'base' });
-    });
+    return filteredData;
   }, [monthlyStaff, search]);
+
+  // Sorting (Name A–Z by default) and column filters
+  const columns = useMemo(() => [
+    { key: 'sno', label: 'S.No', sortable: false, filter: false },
+    { key: 'name', label: 'Name', accessor: getDisplayName },
+    { key: 'empid', label: 'Emp ID' },
+    { key: 'days', label: 'No. of Days', type: 'number', accessor: (s) => s.monthly_working_days?.no_of_days },
+  ], []);
+  const table = useTableControls(searched, columns);
+  const filtered = table.rows;
+  useEffect(() => { setPage(1); }, [table.signature]);
 
   const paginated = useMemo(() => {
     const start = (page - 1) * PAGE_SIZE;
@@ -200,16 +208,18 @@ const MonthlyAttendancePage = ({ token: propToken }) => {
         {uploadSummary && (<div className="mb-6 rounded-lg border border-[color:var(--accent-soft)] bg-[color:var(--accent-soft)] p-4 text-sm text-[color:var(--accent)]"><div className="font-semibold mb-1">Upload Summary ({uploadSummary.fileName})</div><div>Total rows processed: {uploadSummary.totalDataRows}</div><div>Users updated for {MONTH_NAMES[month - 1]} {currentYear}: {uploadSummary.updatedUsers}</div><div>Skipped blank rows: {uploadSummary.skippedRows}</div><div>Invalid rows: {uploadSummary.invalidRows.length > 0 ? uploadSummary.invalidRows.join(', ') : 'None'}</div><div>Unmatched Employee IDs: {uploadSummary.unmatchedEmployeeIds.length > 0 ? uploadSummary.unmatchedEmployeeIds.join(', ') : 'None'}</div></div>)}
         {error && <div className="text-[color:var(--danger)] mt-2">{error}</div>}
 
+        <TableToolbar table={table} searchable={false} />
         <div className="mb-10 overflow-hidden bg-[color:var(--surface)] shadow-sm rounded-xl border border-[color:var(--border)]">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-[color:var(--border)]">
               <thead className="bg-[color:var(--accent)]">
                 <tr>
                   <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">S.No</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">Name</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">Emp ID</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">No. of Days</th>
+                  <SortableHeader table={table} column="name" className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider" />
+                  <SortableHeader table={table} column="empid" className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider" />
+                  <SortableHeader table={table} column="days" className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider" />
                 </tr>
+                <TableFilterRow table={table} />
               </thead>
               <tbody className="bg-[color:var(--surface)] divide-y divide-[color:var(--border)]">
                 {filtered.length === 0 ? (

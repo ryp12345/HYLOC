@@ -14,6 +14,7 @@ export const authAPI = {
     axiosInstance.get('/auth/profile')
   ,
 
-  changePassword: (currentPassword, newPassword) =>
-    axiosInstance.post('/auth/change-password', { currentPassword, newPassword })
+  // Returns a fresh session ({ accessToken, refreshToken, role }): the change ends all earlier sessions
+  changePassword: (currentPassword, newPassword, confirmPassword) =>
+    axiosInstance.post('/auth/change-password', { currentPassword, newPassword, confirmPassword })
 };

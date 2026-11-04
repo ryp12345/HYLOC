@@ -1,17 +1,19 @@
 import { useEffect, useMemo, useState } from 'react';
 import Notification from '../../components/common/Notification';
 import { getPillers, createPiller, updatePiller, deletePiller } from '../../api/pillerApi';
+import { useTableControls, SortableHeader, TableFilterRow, TableToolbar } from '../../components/common/table';
 
 const initialForm = { 
   pillerName: '', 
   shortName: '' 
 };
 
-const PILLER_DISPLAY_ORDER = ['jh', 'kk', 'pm', 'qm', 'otpm', 'et', 'she', 'em', '5s'];
-const PILLER_DISPLAY_ORDER_MAP = PILLER_DISPLAY_ORDER.reduce((acc, key, idx) => {
-  acc[key] = idx;
-  return acc;
-}, {});
+const COLUMNS = [
+  { key: 'sno', label: 'S.NO', sortable: false, filter: false },
+  { key: 'piller_name', label: 'Piller Name' },
+  { key: 'short_name', label: 'Short Name' },
+  { key: 'actions', label: 'Actions', sortable: false, filter: false },
+];
 
 export default function PillersPage() {
   const [rows, setRows] = useState([]);
@@ -127,38 +129,25 @@ export default function PillersPage() {
     showNotification('Pillers exported successfully!', 'success');
   };
 
-  const filtered = useMemo(() => {
-    const sorted = [...rows].sort((a, b) => {
-      const aShort = (a.short_name || '').toLowerCase().trim();
-      const bShort = (b.short_name || '').toLowerCase().trim();
-      const aRank = PILLER_DISPLAY_ORDER_MAP[aShort];
-      const bRank = PILLER_DISPLAY_ORDER_MAP[bShort];
-      const aHasRank = aRank !== undefined;
-      const bHasRank = bRank !== undefined;
-
-      if (aHasRank && bHasRank) return aRank - bRank;
-      if (aHasRank) return -1;
-      if (bHasRank) return 1;
-
-      const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
-      const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
-      if (bTime !== aTime) return bTime - aTime;
-      return (b.id || 0) - (a.id || 0);
-    });
-    if (!search) return sorted;
+  const searched = useMemo(() => {
+    if (!search) return rows;
     const q = search.toLowerCase();
-    return sorted.filter(r => (
+    return rows.filter(r => (
       (r.piller_name?.toLowerCase() || '').includes(q) ||
       (r.short_name?.toLowerCase() || '').includes(q)
     ));
   }, [rows, search]);
+
+  // Sorting (A–Z by default) and column filters
+  const table = useTableControls(searched, COLUMNS);
+  const filtered = table.rows;
 
   const paginated = useMemo(() => {
     const start = (page - 1) * PAGE_SIZE;
     return filtered.slice(start, start + PAGE_SIZE);
   }, [filtered, page]);
 
-  useEffect(() => { setPage(1); }, [search, rows]);
+  useEffect(() => { setPage(1); }, [search, rows, table.signature]);
 
   return (
     <div className="min-h-screen bg-[color:var(--app-bg)] px-4 py-12 text-[color:var(--text-primary)] transition-colors duration-300 sm:px-6 lg:px-8">
@@ -186,16 +175,18 @@ export default function PillersPage() {
           </div>
         </div>
 
+        <TableToolbar table={table} searchable={false} />
         <div className="mb-10 overflow-hidden rounded-xl border border-[color:var(--border)] bg-[color:var(--surface)] shadow-xl">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-[color:var(--border)]">
               <thead className="bg-[color:var(--accent)]">
                 <tr>
                   <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white">S.NO</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white">Piller Name</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white">Short Name</th>
+                  <SortableHeader table={table} column="piller_name" className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white" />
+                  <SortableHeader table={table} column="short_name" className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white" />
                   <th className="px-6 py-4 text-center text-xs font-medium uppercase tracking-wider text-white">Actions</th>
                 </tr>
+                <TableFilterRow table={table} />
               </thead>
               <tbody className="divide-y divide-[color:var(--border)] bg-[color:var(--surface)]">
                 {filtered.length === 0 ? (

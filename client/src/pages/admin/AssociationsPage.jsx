@@ -1,11 +1,19 @@
 import { useEffect, useMemo, useState } from 'react';
 import Notification from '../../components/common/Notification';
 import { getAssociations, createAssociation, updateAssociation, deleteAssociation } from '../../api/associationApi';
+import { useTableControls, SortableHeader, TableFilterRow, TableToolbar } from '../../components/common/table';
 
 const initialForm = { 
   associationName: '', 
   status: 'active' 
 };
+
+const COLUMNS = [
+  { key: 'sno', label: 'S.NO', sortable: false, filter: false },
+  { key: 'association_name', label: 'Association Name' },
+  { key: 'status', label: 'Status', filter: 'select' },
+  { key: 'actions', label: 'Actions', sortable: false, filter: false },
+];
 
 export default function AssociationsPage() {
   const [rows, setRows] = useState([]);
@@ -131,29 +139,24 @@ export default function AssociationsPage() {
   // Pagination state
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 10;
-
-  // Filtered, sorted, and paginated data
-  const filtered = useMemo(() => {
-    // Sort latest first by createdAt or id desc
-    const sorted = [...rows].sort((a, b) => {
-      const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
-      const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
-      if (bTime !== aTime) return bTime - aTime;
-      return (b.id || 0) - (a.id || 0);
-    });
+  const searched = useMemo(() => {
     const q = search.toLowerCase();
-    return sorted.filter(r => (
+    return rows.filter(r => (
       r.association_name?.toLowerCase().includes(q) ||
       r.status?.toLowerCase().includes(q)
     ));
   }, [rows, search]);
+
+  // Sorting (A–Z by default) and column filters
+  const table = useTableControls(searched, COLUMNS);
+  const filtered = table.rows;
 
   const paginated = useMemo(() => {
     const start = (page - 1) * PAGE_SIZE;
     return filtered.slice(start, start + PAGE_SIZE);
   }, [filtered, page]);
 
-  useEffect(() => { setPage(1); }, [search, rows]);
+  useEffect(() => { setPage(1); }, [search, rows, table.signature]);
 
   return (
     <div className="min-h-screen px-4 py-12 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-[color:var(--app-bg)] dark:to-[color:var(--surface)] sm:px-6 lg:px-8">
@@ -181,16 +184,18 @@ export default function AssociationsPage() {
           </div>
         </div>
 
+        <TableToolbar table={table} searchable={false} />
         <div className="mb-10 overflow-hidden bg-white shadow-xl rounded-xl">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-blue-600">
                 <tr>
                   <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">S.NO</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">Association Name</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">Status</th>
+                  <SortableHeader table={table} column="association_name" className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider" />
+                  <SortableHeader table={table} column="status" className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider" />
                   <th className="px-6 py-4 text-center text-xs font-medium text-white uppercase tracking-wider">Actions</th>
                 </tr>
+                <TableFilterRow table={table} />
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {filtered.length === 0 ? (

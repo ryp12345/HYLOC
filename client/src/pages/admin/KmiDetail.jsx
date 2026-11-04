@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import axios from '../../api/axios';
 import Notification from '../../components/common/Notification';
+import { useTableControls, SortableHeader, TableFilterRow, TableToolbar } from '../../components/common/table';
 
 function KmiDetail() {
   const { id } = useParams();
@@ -316,6 +317,27 @@ function KmiDetail() {
     });
   }, [allKpiValues, allKpis, kmi.fin_year]);
 
+  // Sorting (A–Z by default) and column filters for the KPI values table
+  const kpiValueColumns = React.useMemo(() => [
+    { key: 'kpi_type', label: 'Type', filter: 'select', accessor: (v) => v.kpi_type || 'manual' },
+    { key: 'data', label: 'Data' },
+    { key: 'operator', label: 'Data Operator', filter: 'select', accessor: (v) => getOperatorName(v.data_operator ?? v['data operator']) },
+    { key: 'uom', label: 'Unit of Measurement', filter: 'select', accessor: (v) => getUnitName(v.uom) },
+    { key: 'piller', label: 'Piller', filter: 'select', accessor: (v) => getPillerName(v.piller_id) },
+    { key: 'target_required', label: 'Target Required', filter: 'select', accessor: (v) => (v.target_required ? 'Yes' : 'No') },
+    { key: 'actions', label: 'Actions', sortable: false, filter: false },
+  ], [users, units, pillers]);
+  const kpiValuesTable = useTableControls(kpiValues, kpiValueColumns, { defaultSort: { key: 'data' } });
+
+  // Formula reference list (inside the add/edit form)
+  const refColumns = React.useMemo(() => [
+    { key: 'ref', label: 'Use in Formula', accessor: (kv) => `v${kv.id}` },
+    { key: 'data', label: 'KPI Value Name' },
+    { key: 'kpi_type', label: 'Type', filter: 'select', accessor: (kv) => kv.kpi_type || 'manual' },
+  ], []);
+  const refRows = React.useMemo(() => kpiValues.filter((kv) => kv.id !== editingValue?.id), [kpiValues, editingValue]);
+  const refTable = useTableControls(refRows, refColumns, { defaultSort: { key: 'data' } });
+
   // Replace placeholders v1/v2/... with actual v<ID> selections
   const resolveFormulaWithSelections = (formula) => {
     let resolved = formula || '';
@@ -588,22 +610,28 @@ function KmiDetail() {
         {kpiValues.length === 0 ? (
           <div className="py-10 text-center text-base text-[color:var(--text-secondary)]">No KPI values found. Add your first value!</div>
         ) : (
+          <>
+          <TableToolbar table={kpiValuesTable} placeholder="Search KPI values..." />
           <div className="overflow-hidden rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] shadow">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="border-b border-[color:var(--border)] bg-[color:var(--surface-hover)]">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-[color:var(--text-secondary)]">Type</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-[color:var(--text-secondary)]">Data</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-[color:var(--text-secondary)]">Data Operator</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-[color:var(--text-secondary)]">Unit of Measurement</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-[color:var(--text-secondary)]">Piller</th>
-                    <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-[color:var(--text-secondary)]">Target Required</th>
+                    <SortableHeader table={kpiValuesTable} column="kpi_type" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-[color:var(--text-secondary)]" />
+                    <SortableHeader table={kpiValuesTable} column="data" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-[color:var(--text-secondary)]" />
+                    <SortableHeader table={kpiValuesTable} column="operator" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-[color:var(--text-secondary)]" />
+                    <SortableHeader table={kpiValuesTable} column="uom" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-[color:var(--text-secondary)]" />
+                    <SortableHeader table={kpiValuesTable} column="piller" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-[color:var(--text-secondary)]" />
+                    <SortableHeader table={kpiValuesTable} column="target_required" className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-[color:var(--text-secondary)]" />
                     <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-[color:var(--text-secondary)]">Actions</th>
                   </tr>
+                  <TableFilterRow table={kpiValuesTable} />
                 </thead>
                 <tbody className="divide-y divide-[color:var(--border)]">
-                  {kpiValues.map((value) => (
+                  {kpiValuesTable.rows.length === 0 && (
+                    <tr><td colSpan="7" className="px-4 py-8 text-center text-sm text-[color:var(--text-muted)]">No KPI values match the current filters</td></tr>
+                  )}
+                  {kpiValuesTable.rows.map((value) => (
                     <tr key={value.id} className="transition-colors hover:bg-[color:var(--surface-hover)]">
                       <td className="px-4 py-3 text-sm text-[color:var(--text-secondary)]">
                         <span className="inline-block rounded bg-[color:var(--accent-soft)] px-2 py-1 text-xs font-medium text-[color:var(--accent)]">
@@ -649,6 +677,7 @@ function KmiDetail() {
               </table>
             </div>
           </div>
+          </>
         )}
       </div>
       {showModal && (
@@ -716,18 +745,19 @@ function KmiDetail() {
                 <>
                   <div className="mb-5 rounded-md border border-[color:var(--border)] bg-[color:var(--surface)] p-4">
                     <h4 className="mb-2 text-sm font-semibold text-[color:var(--text-secondary)]">📋 Available KPI Values (for formula reference)</h4>
+                    <TableToolbar table={refTable} placeholder="Search values..." />
                     <div className="overflow-x-auto max-h-48 overflow-y-auto">
                       <table className="w-full text-xs">
                         <thead className="sticky top-0 bg-[color:var(--surface-hover)]">
                           <tr>
-                            <th className="px-2 py-1 text-left text-[color:var(--text-secondary)]">Use in Formula</th>
-                            <th className="px-2 py-1 text-left text-[color:var(--text-secondary)]">KPI Value Name</th>
-                            <th className="px-2 py-1 text-left text-[color:var(--text-secondary)]">Type</th>
+                            <SortableHeader table={refTable} column="ref" className="px-2 py-1 text-left text-[color:var(--text-secondary)]" />
+                            <SortableHeader table={refTable} column="data" className="px-2 py-1 text-left text-[color:var(--text-secondary)]" />
+                            <SortableHeader table={refTable} column="kpi_type" className="px-2 py-1 text-left text-[color:var(--text-secondary)]" />
                           </tr>
+                          <TableFilterRow table={refTable} cellClassName="px-1 py-1" />
                         </thead>
                         <tbody>
-                          {kpiValues
-                            .filter(kv => kv.id !== editingValue?.id)
+                          {refTable.rows
                             .map((kv) => (
                               <tr key={kv.id} className="border-b border-[color:var(--border)]">
                                 <td className="px-2 py-1">

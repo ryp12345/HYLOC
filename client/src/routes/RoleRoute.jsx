@@ -20,6 +20,10 @@ const RoleRoute = ({ children, allowedRoles }) => {
     return <Navigate to="/login" replace />;
   }
 
+  if (user.mustChangePassword) {
+    return <Navigate to="/change-password" replace />;
+  }
+
   // Same normalisation as the Sidebar: role may be a string or { name }, in any case
   const userRole = (user.role?.name || user.role || '').toString().toLowerCase();
   if (!allowedRoles.map((role) => role.toLowerCase()).includes(userRole)) {

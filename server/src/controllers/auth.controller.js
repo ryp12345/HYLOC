@@ -9,6 +9,7 @@ const passwordResetModel = require('../models/passwordReset.model');
 const loginAttemptModel = require('../models/loginAttempt.model');
 const config = require('../config');
 const { getPasswordError } = require('../utils/passwordPolicy');
+const { escapeHtml } = require('../utils/escapeHtml');
 
 const verifyResetOtp = async (userId, otp) => {
   const request = await passwordResetModel.findActiveRequest(userId);
@@ -90,7 +91,8 @@ exports.getProfile = async (req, res) => {
       email: user.email,
       firstName: user.firstname,
       lastName: user.lastname,
-      role: userRole
+      role: userRole,
+      mustChangePassword: user.must_change_password === true
     }, 'Profile retrieved successfully', 200);
   } catch (error) {
     console.error('Get profile error:', error);
@@ -121,21 +123,29 @@ exports.switchRole = async (req, res) => {
 exports.changePassword = async (req, res) => {
   try {
     const userId = req.user.userId;
-    const { currentPassword, newPassword } = req.body;
+    const { currentPassword, newPassword, confirmPassword } = req.body;
 
-    if (!currentPassword || !newPassword) {
-      return sendError(res, 'Both current and new passwords are required', 400);
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      return sendError(res, 'Current password, new password and confirmation are required', 400);
+    }
+    if (newPassword !== confirmPassword) {
+      return sendError(res, 'New password and confirmation do not match', 400);
     }
     const passwordError = getPasswordError(newPassword);
     if (passwordError) {
       return sendError(res, passwordError, 400);
     }
 
-    await authService.changePassword(userId, currentPassword, newPassword);
-    return sendSuccess(res, null, 'Password changed successfully', 200);
+    // Returns a fresh session: the change ends all earlier sessions, including this one
+    const session = await authService.changePassword(userId, String(currentPassword), newPassword, req.user.role);
+    res.set('Cache-Control', 'no-store');
+    return sendSuccess(res, session, 'Password changed successfully', 200);
   } catch (error) {
-    console.error('Change password error:', error);
-    if (error.message === 'Current password is incorrect') {
+    console.error('Change password error:', error.message);
+    if (
+      error.message === 'Current password is incorrect' ||
+      error.message === 'New password must be different from the current password'
+    ) {
       return sendError(res, error.message, 400);
     }
     return sendError(res, 'Failed to change password', 500);
@@ -164,6 +174,11 @@ exports.requestPasswordReset = async (req, res) => {
       password: process.env.SMTP_PASS
     };
 
+    // Send to the address on record (not the raw request value), and HTML-encode
+    // it wherever it appears in the HTML version of the email.
+    const recipient = user.email;
+    const safeRecipient = escapeHtml(recipient);
+
     const transporter = nodemailer.createTransport({
       host: smtp.host,
       port: smtp.port,
@@ -172,9 +187,9 @@ exports.requestPasswordReset = async (req, res) => {
     });
     const mailOptions = {
       from: process.env.SMTP_FROM || '"Hyloc Support" <no-reply@hyloc.co.in>',
-      to: email,
+      to: recipient,
       subject: 'Password Reset Request',
-      text: `Hello,\n\nWe received a request to reset the password for the Hyloc account associated with ${email}. Please use the verification code below to continue. This code is valid for 5 minutes.\n\n${otp}\n\nTo complete your password reset, open the Hyloc password reset page and enter the 6-digit verification code shown above.\n\nIf you did not request a password reset, you may safely ignore this email..\n\nFor security reasons, do not share this code with anyone. This code will expire after 5 minutes.\n\nRegards,\n\nHyloc Support Team`,
+      text: `Hello,\n\nWe received a request to reset the password for the Hyloc account associated with ${recipient}. Please use the verification code below to continue. This code is valid for 5 minutes.\n\n${otp}\n\nTo complete your password reset, open the Hyloc password reset page and enter the 6-digit verification code shown above.\n\nIf you did not request a password reset, you may safely ignore this email..\n\nFor security reasons, do not share this code with anyone. This code will expire after 5 minutes.\n\nRegards,\n\nHyloc Support Team`,
       html: `<!doctype html>
         <html>
           <head>
@@ -186,7 +201,7 @@ exports.requestPasswordReset = async (req, res) => {
             <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:8px;overflow:hidden;border:1px solid #e6e6ef;padding:24px;color:#111;">
               <h2 style="font-size:18px;margin:0 0 12px;">Password Reset Request</h2>
               <p style="margin:0 0 12px;">Hello,</p>
-              <p style="margin:0 0 16px;">We received a request to reset the password for the Hyloc account associated with <strong>${email}</strong>. Please use the verification code below to continue. This code is valid for <strong>5 minutes</strong>.</p>
+              <p style="margin:0 0 16px;">We received a request to reset the password for the Hyloc account associated with <strong>${safeRecipient}</strong>. Please use the verification code below to continue. This code is valid for <strong>5 minutes</strong>.</p>
               <div style="text-align:center;margin:18px 0;">
                 <div style="display:inline-block;padding:16px 22px;border-radius:6px;background:#f3f4f6;border:1px solid #e5e7eb;">
                   <span style="font-size:28px;letter-spacing:4px;font-weight:700;color:#111;">${otp}</span>
@@ -247,7 +262,8 @@ exports.resetPassword = async (req, res) => {
     if (!(await passwordResetModel.consumeRequest(request.id))) {
       return sendError(res, 'Invalid OTP or expired', 400);
     }
-    await UserModel.updateUser(user.id, { password: newPassword });
+    // The user chose this password themselves, so no forced change is needed
+    await UserModel.updateUser(user.id, { password: newPassword, must_change_password: false });
     // The user proved they own the account, so lift any login lock
     await loginAttemptModel.clear(user.id);
     return sendSuccess(res, {}, 'Password reset successful', 200);

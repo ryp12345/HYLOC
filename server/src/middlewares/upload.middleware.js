@@ -2,7 +2,7 @@ const multer = require('multer');
 const crypto = require('crypto');
 const path = require('path');
 const fs = require('fs');
-const { createUploadValidator } = require('../utils/uploadValidation');
+const { createUploadValidator, createSafeSingleUpload, uploadRejection } = require('../utils/uploadValidation');
 
 const uploadsDir = path.join(__dirname, '../../public/uploads/tickets');
 
@@ -33,16 +33,19 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage,
-  limits: { fileSize: 10 * 1024 * 1024 },
+  // One file per request, 10 MB, and bounded form fields
+  limits: { fileSize: 10 * 1024 * 1024, files: 1, fields: 30, fieldSize: 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const ext = path.extname(file.originalname || '').toLowerCase();
     if (!allowedTypes[ext] || !allowedTypes[ext].includes(file.mimetype)) {
-      return cb(new Error('Unsupported attachment type'));
+      return cb(uploadRejection('Unsupported attachment type. Allowed: PDF, PNG, JPG, XLSX, DOCX, TXT.'));
     }
     cb(null, true);
   }
 });
 
 upload.validateContent = createUploadValidator(allowedTypes, 'Invalid attachment content');
+// Use instead of upload.single(): returns 400/413 for upload errors instead of 500
+upload.safeSingle = createSafeSingleUpload(upload, '10 MB');
 
 module.exports = upload;

@@ -2,11 +2,13 @@ import { useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import Notification from '../../components/common/Notification';
 import { getUsers, createUser, updateUser, deleteUser, resetUserPassword } from '../../api/userApi';
+import TemporaryPasswordDialog from '../../components/common/TemporaryPasswordDialog';
 import { getDepartments } from '../../api/departmentApi';
 import { getDesignations } from '../../api/designationApi';
 import { API_URL } from '../../api/axios';
 import { useAuth } from '../../context/AuthContext';
 import AuthenticatedImage from '../../components/common/AuthenticatedImage';
+import { useTableControls, SortableHeader, TableFilterRow, TableToolbar } from '../../components/common/table';
 
 // Resolve a stored upload path (e.g. /api/uploads/users/EMP001.jpg) to an absolute URL
 const getPhotoUrl = (path) => {
@@ -40,11 +42,23 @@ const initialForm = {
   departmentId: '',
   designationId: '',
   staffPhoto: '',
-  password: 'Password@123',
-  confirmPassword: 'Password@123',
   role: 'employee',
   status: 'active'
 };
+
+const fullName = (u) => [u.firstname, u.middlename, u.lastname].filter(Boolean).join(' ');
+
+const COLUMNS = [
+  { key: 'sno', label: 'S.NO', sortable: false, filter: false },
+  { key: 'empid', label: 'Emp ID' },
+  { key: 'photo', label: 'Photo', sortable: false, filter: false },
+  { key: 'name', label: 'Name', accessor: fullName },
+  { key: 'email', label: 'Email' },
+  { key: 'department_name', label: 'Department', filter: 'select' },
+  { key: 'designation_name', label: 'Designation', filter: 'select' },
+  { key: 'status', label: 'Status', filter: 'select', accessor: (u) => u.status || 'active' },
+  { key: 'actions', label: 'Actions', sortable: false, filter: false },
+];
 
 export default function UsersPage() {
   const { user } = useAuth();
@@ -57,8 +71,6 @@ export default function UsersPage() {
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(initialForm);
   const [error, setError] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [departments, setDepartments] = useState([]);
   const [designations, setDesignations] = useState([]);
   const [photoFile, setPhotoFile] = useState(null);
@@ -68,6 +80,8 @@ export default function UsersPage() {
   const [resetTarget, setResetTarget] = useState(null);
   const [resetError, setResetError] = useState('');
   const [resetLoading, setResetLoading] = useState(false);
+  // Generated temporary password, kept only in memory until the dialog is closed
+  const [tempPassword, setTempPassword] = useState(null);
   // Management sees the restricted credentials view only via /management/users;
   // the Master → Users entry (/admin/users) gives them the full admin view.
   const isManagementView = String(user?.role?.name || user?.role || '').toLowerCase() === 'management'
@@ -98,7 +112,7 @@ export default function UsersPage() {
     loadDesignations();
   }, []);
 
-  const onClose = () => { setIsModalOpen(false); setEditingId(null); setForm(initialForm); setError(''); setShowPassword(false); setShowConfirmPassword(false); setPhotoFile(null); setPhotoPreview(''); };
+  const onClose = () => { setIsModalOpen(false); setEditingId(null); setForm(initialForm); setError(''); setPhotoFile(null); setPhotoPreview(''); };
   const openCreate = () => { onClose(); setIsModalOpen(true); };
   const openEdit = (row) => {
     setEditingId(row.id);
@@ -114,8 +128,6 @@ export default function UsersPage() {
       departmentId: row.department_id || '',
       designationId: row.designation_id || '',
       staffPhoto: row.staff_photo || '',
-      password: 'Password@123',
-      confirmPassword: 'Password@123',
       role: row.role || 'employee',
       status: row.status || 'active',
     });
@@ -130,11 +142,6 @@ export default function UsersPage() {
       const payload = {
         ...form,
       };
-      // Don't send password fields on edit
-      if (editingId) {
-        delete payload.password;
-        delete payload.confirmPassword;
-      }
       // Normalize optional fields to null instead of empty strings
       if (!payload.empid) payload.empid = null;
       if (!payload.phone) payload.phone = null;
@@ -185,8 +192,16 @@ export default function UsersPage() {
         )));
         showNotification('User updated successfully!', 'success');
       } else {
-        await createUser(requestData);
+        const res = await createUser(requestData);
+        const created = res.data?.data || {};
         showNotification('User created successfully!', 'success');
+        if (created.temporaryPassword) {
+          setTempPassword({
+            value: created.temporaryPassword,
+            userName: `${form.firstName || ''} ${form.lastName || ''}`.trim() || form.empid,
+            reason: 'create'
+          });
+        }
       }
       await load();
       onClose();
@@ -224,9 +239,11 @@ export default function UsersPage() {
     setResetError('');
     setResetLoading(true);
     try {
-      await resetUserPassword(resetTarget.id, 'Password@123');
+      const res = await resetUserPassword(resetTarget.id);
+      const userName = `${resetTarget.firstname || ''} ${resetTarget.middlename || ''} ${resetTarget.lastname || ''}`.trim() || resetTarget.empid;
       showNotification('Password reset successfully!', 'success');
       closeReset();
+      setTempPassword({ value: res.data?.data?.temporaryPassword, userName, reason: 'reset' });
     } catch (err) {
       const msg = err.response?.data?.message || 'Failed to reset password';
       setResetError(msg);
@@ -274,70 +291,12 @@ export default function UsersPage() {
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 10;
 
-  const [sortConfig, setSortConfig] = useState([]);
-
-  const getSortValue = (row, key) => {
-    switch (key) {
-      case 'name':
-        return `${row.firstname || ''} ${row.middlename || ''} ${row.lastname || ''}`.trim();
-      case 'empid':
-        return row.empid || '';
-      case 'department':
-        return row.department_name || '';
-      case 'designation':
-        return row.designation_name || '';
-      case 'email':
-        return row.email || '';
-      case 'status':
-        return row.status || '';
-      default:
-        return '';
-    }
-  };
-
-  const handleSort = (key, additive = false) => {
-    setSortConfig((current) => {
-      const existingIndex = current.findIndex(item => item.key === key);
-
-      if (existingIndex >= 0) {
-        const next = [...current];
-        const existing = next[existingIndex];
-        next[existingIndex] = {
-          ...existing,
-          direction: existing.direction === 'asc' ? 'desc' : 'asc',
-        };
-        return additive
-          ? next
-          : [next[existingIndex], ...next.filter((_, index) => index !== existingIndex)];
-      }
-
-      return additive ? [...current, { key, direction: 'asc' }] : [{ key, direction: 'asc' }];
-    });
-  };
-
-  // Filtered, sorted, and paginated data
-  const filtered = useMemo(() => {
-    // Sort by the configured column priority list.
-    const sorted = [...rows].sort((a, b) => {
-      for (const sortItem of sortConfig) {
-        const aValue = String(getSortValue(a, sortItem.key)).toLowerCase();
-        const bValue = String(getSortValue(b, sortItem.key)).toLowerCase();
-        const comparison = aValue.localeCompare(bValue, undefined, { numeric: true, sensitivity: 'base' });
-        if (comparison !== 0) {
-          return sortItem.direction === 'asc' ? comparison : -comparison;
-        }
-      }
-
-      const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
-      const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
-      if (bTime !== aTime) return bTime - aTime;
-      return (b.id || 0) - (a.id || 0);
-    });
-
+  // Page-level search + department/designation dropdowns
+  const searched = useMemo(() => {
     const departmentValue = String(departmentFilter || '').trim().toLowerCase();
     const designationValue = String(designationFilter || '').trim().toLowerCase();
 
-    const filteredBySelects = sorted.filter((row) => {
+    const filteredBySelects = rows.filter((row) => {
       const matchesDepartment = !departmentValue || String(row.department_id || '').toLowerCase() === departmentValue;
       const matchesDesignation = !designationValue || String(row.designation_id || '').toLowerCase() === designationValue;
       return matchesDepartment && matchesDesignation;
@@ -367,14 +326,18 @@ export default function UsersPage() {
       // All tokens must be present in at least one of the fields
       return tokens.every(t => fields.some(f => f.includes(t)));
     });
-  }, [rows, search, sortConfig, departmentFilter, designationFilter]);
+  }, [rows, search, departmentFilter, designationFilter]);
+
+  // Sorting (Name A–Z by default) and column filters
+  const table = useTableControls(searched, COLUMNS, { defaultSort: { key: 'name' } });
+  const filtered = table.rows;
 
   const paginated = useMemo(() => {
     const start = (page - 1) * PAGE_SIZE;
     return filtered.slice(start, start + PAGE_SIZE);
   }, [filtered, page]);
 
-  useEffect(() => { setPage(1); }, [search, rows, sortConfig, departmentFilter, designationFilter]);
+  useEffect(() => { setPage(1); }, [search, rows, departmentFilter, designationFilter, table.signature]);
 
   return (
     <div className="min-h-screen bg-[color:var(--app-bg)] px-4 py-12 text-[color:var(--text-primary)] transition-colors duration-300 sm:px-6 lg:px-8">
@@ -469,7 +432,7 @@ export default function UsersPage() {
               </svg>
             </div>
 
-            {/* Department */}
+            {/* Department and Designation dropdowns are hidden: the table's column filters (Filters button) cover them.
             <select
               value={departmentFilter}
               onChange={(e) => setDepartmentFilter(e.target.value)}
@@ -484,7 +447,6 @@ export default function UsersPage() {
               ))}
             </select>
 
-            {/* Designation */}
             <select
               value={designationFilter}
               onChange={(e) => setDesignationFilter(e.target.value)}
@@ -498,6 +460,7 @@ export default function UsersPage() {
                 </option>
               ))}
             </select>
+            */}
 
           </div>
 
@@ -523,41 +486,23 @@ export default function UsersPage() {
           </div>
 
         </div>
+        <TableToolbar table={table} searchable={false} />
         <div className="mb-10 overflow-hidden rounded-xl border border-[color:var(--border)] bg-[color:var(--surface)] shadow-xl">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-[color:var(--border)]">
               <thead className="bg-[color:var(--accent)]">
                 <tr>
                   <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white">S.NO</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white">
-                    <button type="button" onClick={(e) => handleSort('empid', e.shiftKey)} className="inline-flex items-center gap-2" title="Sort by employee ID">
-                      Emp ID
-                      <span className="text-[10px]">{sortConfig[0]?.key === 'empid' ? (sortConfig[0].direction === 'asc' ? '▲' : '▼') : '↕'}</span>
-                    </button>
-                  </th>
+                  <SortableHeader table={table} column="empid" className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white" />
                   <th className="px-6 py-4 text-center text-xs font-medium uppercase tracking-wider text-white">Photo</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white">
-                    <button type="button" onClick={(e) => handleSort('name', e.shiftKey)} className="inline-flex items-center gap-2" title="Sort by staff name">
-                      Name
-                      <span className="text-[10px]">{sortConfig[0]?.key === 'name' ? (sortConfig[0].direction === 'asc' ? '▲' : '▼') : '↕'}</span>
-                    </button>
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white">Email</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white">
-                    <button type="button" onClick={(e) => handleSort('department', e.shiftKey)} className="inline-flex items-center gap-2" title="Sort by department">
-                      Department
-                      <span className="text-[10px]">{sortConfig[0]?.key === 'department' ? (sortConfig[0].direction === 'asc' ? '▲' : '▼') : '↕'}</span>
-                    </button>
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white">
-                    <button type="button" onClick={(e) => handleSort('designation', e.shiftKey)} className="inline-flex items-center gap-2" title="Sort by designation">
-                      Designation
-                      <span className="text-[10px]">{sortConfig[0]?.key === 'designation' ? (sortConfig[0].direction === 'asc' ? '▲' : '▼') : '↕'}</span>
-                    </button>
-                  </th>
-                  <th className="px-6 py-4 text-center text-xs font-medium uppercase tracking-wider text-white">Status</th>
+                  <SortableHeader table={table} column="name" className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white" />
+                  <SortableHeader table={table} column="email" className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white" />
+                  <SortableHeader table={table} column="department_name" className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white" />
+                  <SortableHeader table={table} column="designation_name" className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white" />
+                  <SortableHeader table={table} column="status" className="px-6 py-4 text-center text-xs font-medium uppercase tracking-wider text-white" />
                   <th className="px-6 py-4 text-center text-xs font-medium uppercase tracking-wider text-white">Actions</th>
                 </tr>
+                <TableFilterRow table={table} />
               </thead>
               <tbody className="divide-y divide-[color:var(--border)] bg-[color:var(--surface)]">
                 {filtered.length === 0 ? (
@@ -742,34 +687,9 @@ export default function UsersPage() {
                         />
                       </div>
                       {!editingId && (
-                        <>
-                          <div>
-                            <label className="mb-2 block text-sm font-medium text-[color:var(--text-secondary)]">Password<span className='text-red-500'>*</span></label>
-                            <div className="relative">
-                              <input type={showPassword ? 'text' : 'password'} minLength={8} value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} className="block w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-4 py-3 text-[color:var(--text-primary)] focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--focus-ring)]" placeholder="••••••••" />
-                              <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-3 text-[color:var(--text-muted)] hover:text-[color:var(--text-primary)]">
-                                {showPassword ? (
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-4.803m5.596-3.856a3.375 3.375 0 11-4.753 4.753m4.753-4.753L9.172 9.172M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                                ) : (
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7C7.523 19 3.732 16.057 2.458 12z" /></svg>
-                                )}
-                              </button>
-                            </div>
-                          </div>
-                          <div>
-                            <label className="mb-2 block text-sm font-medium text-[color:var(--text-secondary)]">Confirm Password<span className='text-red-500'>*</span></label>
-                            <div className="relative">
-                              <input type={showConfirmPassword ? 'text' : 'password'} value={form.confirmPassword} onChange={e => setForm({ ...form, confirmPassword: e.target.value })} className="block w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-4 py-3 text-[color:var(--text-primary)] focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--focus-ring)]" placeholder="••••••••" />
-                              <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-3 text-[color:var(--text-muted)] hover:text-[color:var(--text-primary)]">
-                                {showConfirmPassword ? (
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-4.803m5.596-3.856a3.375 3.375 0 11-4.753 4.753m4.753-4.753L9.172 9.172M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                                ) : (
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7C7.523 19 3.732 16.057 2.458 12z" /></svg>
-                                )}
-                              </button>
-                            </div>
-                          </div>
-                        </>
+                        <div className="rounded-lg border border-[color:var(--border)] bg-[color:var(--surface-hover)] p-3 text-sm text-[color:var(--text-secondary)] md:col-span-2">
+                          A unique temporary password will be generated when you create the user. It is shown once; the employee must change it at first login.
+                        </div>
                       )}
                       {editingId && (
                         <div>
@@ -818,7 +738,10 @@ export default function UsersPage() {
                     <span className="font-semibold text-[color:var(--text-primary)]">
                       {resetTarget ? `${resetTarget.firstname || ''} ${resetTarget.middlename || ''} ${resetTarget.lastname || ''}`.trim() || resetTarget.empid : ''}
                     </span>{' '}
-                    to the default <span className="font-mono font-semibold text-[color:var(--text-primary)]">Password@123</span>.
+                    to a new, unique temporary password. Their current sessions will be signed out, and they must choose a new password at their next login.
+                  </p>
+                  <p className="mt-2 text-sm text-[color:var(--text-secondary)]">
+                    The temporary password is shown to you only once after the reset.
                   </p>
 
                   <div className="flex justify-end space-x-4 pt-6">
@@ -832,6 +755,13 @@ export default function UsersPage() {
             </div>
           </div>
         )}
+
+        <TemporaryPasswordDialog
+          password={tempPassword?.value}
+          userName={tempPassword?.userName}
+          reason={tempPassword?.reason}
+          onClose={() => setTempPassword(null)}
+        />
       </div>
     </div>
   );

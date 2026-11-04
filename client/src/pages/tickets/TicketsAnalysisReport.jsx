@@ -17,6 +17,7 @@ import {
   Cell,
   ComposedChart,
 } from 'recharts';
+import { useTableControls, SortableHeader, TableFilterRow, TableToolbar } from '../../components/common/table';
 
 const MONTH_LABELS = ['Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar'];
 
@@ -100,6 +101,25 @@ const SectionCard = ({ title, subtitle, children, className = '', headerColor = 
     </div>
   </div>
 );
+
+const ASSIGNEE_COLUMNS = [
+  { key: 'sno', label: 'S.No', sortable: false, filter: false },
+  { key: 'name', label: 'Assignee' },
+  { key: 'assigned_count', label: 'Assigned', type: 'number', accessor: (a) => a.assigned_count || 0 },
+  { key: 'completed_count', label: 'Completed', type: 'number', accessor: (a) => a.completed_count || 0 },
+  { key: 'performance', label: 'Performance %', type: 'number', accessor: (a) => (a.assigned_count > 0 ? Math.round(((a.completed_count || 0) / a.assigned_count) * 100) : 0) },
+  { key: 'overdue_count', label: 'Overdue', type: 'number', accessor: (a) => a.overdue_count || 0 },
+];
+
+const OVERDUE_COLUMNS = [
+  { key: 'sno', label: 'S.No', sortable: false, filter: false },
+  { key: 'title', label: 'Title' },
+  { key: 'assignee', label: 'Assignee' },
+  { key: 'priority', label: 'Priority', filter: 'select' },
+  { key: 'department', label: 'Department', filter: 'select' },
+  { key: 'due_date', label: 'Due Date', type: 'date' },
+  { key: 'overdue_days', label: 'Days', type: 'number' },
+];
 
 export default function TicketsAnalysisReport() {
   const { user } = useAuth();
@@ -384,6 +404,12 @@ export default function TicketsAnalysisReport() {
     );
   }
 
+
+  // Sorting (A–Z by default) and column filters for the two detail tables
+  const assigneeTable = useTableControls(assigneeBreakdownData, ASSIGNEE_COLUMNS);
+  const overdueRows = useMemo(() => report?.overdue_table || [], [report]);
+  const overdueTable = useTableControls(overdueRows, OVERDUE_COLUMNS);
+
   return (
     <div className="w-full max-w-none bg-[color:var(--app-bg)] px-0 sm:px-1 lg:px-2">
       {/* Header */}
@@ -589,20 +615,22 @@ export default function TicketsAnalysisReport() {
             <SectionCard title="Assignee Performance" subtitle="Assigned vs Overdue" headerColor="bg-emerald-100 dark:bg-emerald-900/40" headerText="text-emerald-900 dark:text-emerald-300" borderColor="border-emerald-500 dark:border-emerald-700">
               {assigneeBreakdownData.length > 0 ? (
                 <div className="h-full min-h-0 overflow-hidden">
+                  <TableToolbar table={assigneeTable} placeholder="Search assignees..." />
                   <div className="h-[260px] overflow-x-auto overflow-y-auto rounded-lg border-2 border-[color:var(--border)]">
                     <table className="w-full text-sm">
                       <thead className="bg-emerald-50 dark:bg-emerald-900/30 sticky top-0">
                         <tr>
                           <th className="px-3 py-2 text-left text-[11px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">S.No</th>
-                          <th className="px-3 py-2 text-left text-[11px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">Assignee</th>
-                          <th className="px-3 py-2 text-left text-[11px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">Assigned</th>
-                          <th className="px-3 py-2 text-left text-[11px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">Completed</th>
-                          <th className="px-3 py-2 text-left text-[11px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">Performance %</th>
-                          <th className="px-3 py-2 text-left text-[11px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">Overdue</th>
+                          <SortableHeader table={assigneeTable} column="name" className="px-3 py-2 text-left text-[11px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider" />
+                          <SortableHeader table={assigneeTable} column="assigned_count" className="px-3 py-2 text-left text-[11px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider" />
+                          <SortableHeader table={assigneeTable} column="completed_count" className="px-3 py-2 text-left text-[11px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider" />
+                          <SortableHeader table={assigneeTable} column="performance" className="px-3 py-2 text-left text-[11px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider" />
+                          <SortableHeader table={assigneeTable} column="overdue_count" className="px-3 py-2 text-left text-[11px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider" />
                         </tr>
+                        <TableFilterRow table={assigneeTable} cellClassName="px-2 py-1" />
                       </thead>
                       <tbody className="divide-y divide-[color:var(--border)]">
-                        {assigneeBreakdownData.map((a, idx) => (
+                        {assigneeTable.rows.map((a, idx) => (
                           <tr key={a.name} className="hover:bg-[color:var(--surface-hover)] transition">
                             <td className="px-3 py-2 font-medium text-[color:var(--text-primary)] text-sm">{idx + 1}</td>
                             <td className="px-3 py-2 text-[color:var(--text-secondary)] text-sm">{a.name}</td>
@@ -626,21 +654,23 @@ export default function TicketsAnalysisReport() {
             <SectionCard title="Overdue Ticket Details" subtitle={`${(report?.overdue_table || []).length} overdue`} headerColor="bg-red-100 dark:bg-red-900/40" headerText="text-red-900 dark:text-red-300" borderColor="border-red-500 dark:border-red-700">
               {(report?.overdue_table || []).length > 0 ? (
                 <div className="h-full min-h-0 overflow-hidden">
+                  <TableToolbar table={overdueTable} placeholder="Search overdue tickets..." />
                   <div className="h-[260px] overflow-x-auto overflow-y-auto rounded-lg border-2 border-[color:var(--border)]">
                     <table className="w-full text-sm">
                       <thead className="bg-red-50 dark:bg-red-900/30 sticky top-0">
                         <tr>
                           <th className="px-3 py-2 text-left text-[11px] font-bold text-red-700 dark:text-red-400 uppercase tracking-wider">S.No</th>
-                          <th className="px-3 py-2 text-left text-[11px] font-bold text-red-700 dark:text-red-400 uppercase tracking-wider">Title</th>
-                          <th className="px-3 py-2 text-left text-[11px] font-bold text-red-700 dark:text-red-400 uppercase tracking-wider">Assignee</th>
-                          <th className="px-3 py-2 text-left text-[11px] font-bold text-red-700 dark:text-red-400 uppercase tracking-wider">Priority</th>
-                          <th className="px-3 py-2 text-left text-[11px] font-bold text-red-700 dark:text-red-400 uppercase tracking-wider">Department</th>
-                          <th className="px-3 py-2 text-left text-[11px] font-bold text-red-700 dark:text-red-400 uppercase tracking-wider">Due Date</th>
-                          <th className="px-3 py-2 text-left text-[11px] font-bold text-red-700 dark:text-red-400 uppercase tracking-wider">Days</th>
+                          <SortableHeader table={overdueTable} column="title" className="px-3 py-2 text-left text-[11px] font-bold text-red-700 dark:text-red-400 uppercase tracking-wider" />
+                          <SortableHeader table={overdueTable} column="assignee" className="px-3 py-2 text-left text-[11px] font-bold text-red-700 dark:text-red-400 uppercase tracking-wider" />
+                          <SortableHeader table={overdueTable} column="priority" className="px-3 py-2 text-left text-[11px] font-bold text-red-700 dark:text-red-400 uppercase tracking-wider" />
+                          <SortableHeader table={overdueTable} column="department" className="px-3 py-2 text-left text-[11px] font-bold text-red-700 dark:text-red-400 uppercase tracking-wider" />
+                          <SortableHeader table={overdueTable} column="due_date" className="px-3 py-2 text-left text-[11px] font-bold text-red-700 dark:text-red-400 uppercase tracking-wider" />
+                          <SortableHeader table={overdueTable} column="overdue_days" className="px-3 py-2 text-left text-[11px] font-bold text-red-700 dark:text-red-400 uppercase tracking-wider" />
                         </tr>
+                        <TableFilterRow table={overdueTable} cellClassName="px-2 py-1" />
                       </thead>
                       <tbody className="divide-y divide-[color:var(--border)]">
-                        {(report?.overdue_table || []).map((t, idx) => (
+                        {overdueTable.rows.map((t, idx) => (
                           <tr key={t.id} className="hover:bg-[color:var(--surface-hover)] transition">
                             <td className="px-3 py-2 font-medium text-[color:var(--text-primary)] text-sm">{idx + 1}</td>
                             <td className="px-3 py-2 text-[color:var(--text-secondary)] text-sm max-w-[160px] truncate">{t.title || '—'}</td>

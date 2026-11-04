@@ -13,7 +13,7 @@ router.use(authenticate);
 router.get('/me', userController.getMyProfile);
 
 // Update current user profile
-router.put('/me', uploadUser.single('staffPhoto'), uploadUser.validateContent, userController.updateMyProfile);
+router.put('/me', uploadUser.safeSingle('staffPhoto'), uploadUser.validateContent, userController.updateMyProfile);
 
 // Minimal list of assignable users (any authenticated user)
 router.get('/assignable', userController.getAssignableUsers);
@@ -22,9 +22,9 @@ router.get('/assignable', userController.getAssignableUsers);
 router.get('/', authorize('admin', 'management', 'HR'), userController.getAllUsers);
 router.get('/department/:id', authorize('admin', 'super admin', 'management', 'HR', 'hod'), userController.getUsersByDepartment);
 router.get('/:id', userController.getUserById);
-router.post('/', authorize('admin', 'management'), uploadUser.single('staffPhoto'), uploadUser.validateContent, userController.createUser);
+router.post('/', authorize('admin', 'management'), uploadUser.safeSingle('staffPhoto'), uploadUser.validateContent, userController.createUser);
 router.patch('/:id/reset-password', authorize('admin', 'management'), userController.resetUserPassword);
-router.put('/:id', authorize('admin', 'management'), uploadUser.single('staffPhoto'), uploadUser.validateContent, userController.updateUser);
+router.put('/:id', authorize('admin', 'management'), uploadUser.safeSingle('staffPhoto'), uploadUser.validateContent, userController.updateUser);
 router.delete('/:id', authorize('admin', 'management'), userController.deleteUser);
 
 module.exports = router;

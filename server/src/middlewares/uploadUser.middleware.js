@@ -2,7 +2,7 @@ const multer = require('multer');
 const crypto = require('crypto');
 const path = require('path');
 const fs = require('fs');
-const { createUploadValidator } = require('../utils/uploadValidation');
+const { createUploadValidator, createSafeSingleUpload, uploadRejection } = require('../utils/uploadValidation');
 
 const uploadsDir = path.join(__dirname, '../../public/uploads/users');
 
@@ -30,16 +30,19 @@ const storage = multer.diskStorage({
 
 const uploadUser = multer({
   storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
+  // One photo per request, 5 MB, and bounded form fields
+  limits: { fileSize: 5 * 1024 * 1024, files: 1, fields: 30, fieldSize: 64 * 1024 },
   fileFilter: (req, file, cb) => {
     const ext = path.extname(file.originalname || '').toLowerCase();
     if (!allowedTypes[ext] || !allowedTypes[ext].includes(file.mimetype)) {
-      return cb(new Error('Only JPEG, PNG, and WEBP photos are allowed'));
+      return cb(uploadRejection('Only JPEG, PNG, and WEBP photos are allowed'));
     }
     cb(null, true);
   }
 });
 
 uploadUser.validateContent = createUploadValidator(allowedTypes, 'Invalid photo content');
+// Use instead of uploadUser.single(): returns 400/413 for upload errors instead of 500
+uploadUser.safeSingle = createSafeSingleUpload(uploadUser, '5 MB');
 
 module.exports = uploadUser;

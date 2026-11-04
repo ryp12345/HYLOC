@@ -70,6 +70,26 @@ axiosInstance.interceptors.response.use(
       return Promise.reject(error);
     }
 
+    // The server blocks everything until a temporary password is changed:
+    // remember that and go to the mandatory Change Password screen
+    if (
+      error.response?.status === 403 &&
+      error.response?.data?.errors?.code === 'PASSWORD_CHANGE_REQUIRED'
+    ) {
+      try {
+        const storedUser = JSON.parse(localStorage.getItem('user') || 'null');
+        if (storedUser && !storedUser.mustChangePassword) {
+          localStorage.setItem('user', JSON.stringify({ ...storedUser, mustChangePassword: true }));
+        }
+      } catch {
+        // ignore unreadable stored user; the redirect below still applies
+      }
+      if (!pathname.startsWith('/change-password')) {
+        window.location.href = '/change-password';
+      }
+      return Promise.reject(error);
+    }
+
     // Only refresh on 401 (expired/invalid token). A 403 means insufficient
     // permissions for the current role and must NOT trigger a token refresh,
     // otherwise switching roles would be silently reverted to the primary role.

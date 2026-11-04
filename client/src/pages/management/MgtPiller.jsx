@@ -1,6 +1,13 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { getPillers } from '../../api/pillerApi';
+import { useTableControls, SortableHeader, TableFilterRow, TableToolbar } from '../../components/common/table';
+
+const COLUMNS = [
+  { key: 'sno', label: 'S.NO', sortable: false, filter: false },
+  { key: 'piller_name', label: 'Piller Name' },
+  { key: 'short_name', label: 'Short Name' },
+];
 
 export default function MgtPiller() {
   const [rows, setRows] = useState([]);
@@ -21,27 +28,25 @@ export default function MgtPiller() {
     load();
   }, []);
 
-  const filtered = useMemo(() => {
-    const sorted = [...rows].sort((a, b) => {
-      const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
-      const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
-      if (bTime !== aTime) return bTime - aTime;
-      return (b.id || 0) - (a.id || 0);
-    });
-    if (!search) return sorted;
+  const searched = useMemo(() => {
+    if (!search) return rows;
     const q = search.toLowerCase();
-    return sorted.filter(r => (
+    return rows.filter(r => (
       (r.piller_name?.toLowerCase() || '').includes(q) ||
       (r.short_name?.toLowerCase() || '').includes(q)
     ));
   }, [rows, search]);
+
+  // Sorting (A–Z by default) and column filters
+  const table = useTableControls(searched, COLUMNS);
+  const filtered = table.rows;
 
   const paginated = useMemo(() => {
     const start = (page - 1) * PAGE_SIZE;
     return filtered.slice(start, start + PAGE_SIZE);
   }, [filtered, page]);
 
-  useEffect(() => { setPage(1); }, [search, rows]);
+  useEffect(() => { setPage(1); }, [search, rows, table.signature]);
 
   return (
     <div className="min-h-screen px-4 py-12 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-[color:var(--app-bg)] dark:to-[color:var(--surface)] sm:px-6 lg:px-8">
@@ -58,15 +63,17 @@ export default function MgtPiller() {
           </div>
         </div>
 
+        <TableToolbar table={table} searchable={false} />
         <div className="mb-10 overflow-hidden bg-white shadow-xl rounded-xl">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-blue-600">
                 <tr>
                   <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">S.NO</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">Piller Name</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">Short Name</th>
+                  <SortableHeader table={table} column="piller_name" className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider" />
+                  <SortableHeader table={table} column="short_name" className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider" />
                 </tr>
+                <TableFilterRow table={table} />
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {filtered.length === 0 ? (

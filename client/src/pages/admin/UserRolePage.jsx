@@ -3,12 +3,22 @@ import Notification from '../../components/common/Notification';
 import { getUserRoles, createUserRole, updateUserRole, deleteUserRole } from '../../api/userRoleApi';
 import { getUsers } from '../../api/userApi';
 import { getRoles } from '../../api/roleApi';
+import { useTableControls, SortableHeader, TableFilterRow, TableToolbar } from '../../components/common/table';
 
 const initialForm = { 
   userId: '', 
   roleId: '', 
   status: 'active' 
 };
+
+const COLUMNS = [
+  { key: 'sno', label: 'S.NO', sortable: false, filter: false },
+  { key: 'user', label: 'User', accessor: (r) => `${[r.firstname, r.middlename, r.lastname].filter(Boolean).join(' ')} (${r.email || ''})` },
+  { key: 'roles', label: 'Role', filter: 'select', accessor: (r) => r.roles.map((x) => x.role_name) },
+  { key: 'status', label: 'Status', filter: 'select', accessor: (r) => r.roles.map((x) => x.status || 'active') },
+  { key: 'createdAt', label: 'Assigned At', type: 'date', accessor: (r) => r.roles.map((x) => x.created_at) },
+  { key: 'actions', label: 'Action', sortable: false, filter: false },
+];
 
 export default function UserRolePage() {
   const [rows, setRows] = useState([]);
@@ -160,15 +170,9 @@ export default function UserRolePage() {
   };
 
   const filtered = useMemo(() => {
-    const sorted = [...rows].sort((a, b) => {
-      const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
-      const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
-      if (bTime !== aTime) return bTime - aTime;
-      return (b.id || 0) - (a.id || 0);
-    });
-    if (!search) return sorted;
+    if (!search) return rows;
     const q = search.toLowerCase();
-    return sorted.filter(r => (
+    return rows.filter(r => (
       (r.email?.toLowerCase() || '').includes(q) ||
       (r.firstname?.toLowerCase() || '').includes(q) ||
       (r.lastname?.toLowerCase() || '').includes(q) ||
@@ -178,7 +182,7 @@ export default function UserRolePage() {
   }, [rows, search]);
 
   // Merge role assignments that belong to the same user into a single row
-  const merged = useMemo(() => {
+  const mergedAll = useMemo(() => {
     const map = new Map();
     for (const r of filtered) {
       const key = r.email || r.user_id || r.id;
@@ -202,12 +206,16 @@ export default function UserRolePage() {
     return [...map.values()];
   }, [filtered]);
 
+  // Sorting (User A–Z by default) and column filters
+  const table = useTableControls(mergedAll, COLUMNS);
+  const merged = table.rows;
+
   const paginated = useMemo(() => {
     const start = (page - 1) * PAGE_SIZE;
     return merged.slice(start, start + PAGE_SIZE);
   }, [merged, page]);
 
-  useEffect(() => { setPage(1); }, [search, rows]);
+  useEffect(() => { setPage(1); }, [search, rows, table.signature]);
 
   return (
     <div className="min-h-screen bg-[color:var(--app-bg)] px-4 py-12 text-[color:var(--text-primary)] transition-colors duration-300 sm:px-6 lg:px-8">
@@ -235,18 +243,20 @@ export default function UserRolePage() {
           </div>
         </div>
 
+        <TableToolbar table={table} searchable={false} />
         <div className="mb-10 overflow-hidden rounded-xl border border-[color:var(--border)] bg-[color:var(--surface)] shadow-xl">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-[color:var(--border)]">
               <thead className="bg-[color:var(--accent)]">
                 <tr>
                   <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white">S.NO</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white">User</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white">Role</th>
-                  <th className="px-6 py-4 text-center text-xs font-medium uppercase tracking-wider text-white">Status</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white">Assigned At</th>
+                  <SortableHeader table={table} column="user" className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white" />
+                  <SortableHeader table={table} column="roles" className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white" />
+                  <SortableHeader table={table} column="status" className="px-6 py-4 text-center text-xs font-medium uppercase tracking-wider text-white" />
+                  <SortableHeader table={table} column="createdAt" className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white" />
                   <th className="px-6 py-4 text-center text-xs font-medium uppercase tracking-wider text-white">Action</th>
                 </tr>
+                <TableFilterRow table={table} />
               </thead>
               <tbody className="divide-y divide-[color:var(--border)] bg-[color:var(--surface)]">
                 {merged.length === 0 ? (

@@ -141,7 +141,9 @@ const KpiDataAudit = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [filters, setFilters] = useState({});
-  const [sort, setSort] = useState({ key: null, direction: 'asc' });
+  // Default order: KPI Description A–Z
+  const DEFAULT_SORT = { key: 'description', direction: 'asc' };
+  const [sort, setSort] = useState(DEFAULT_SORT);
 
   const monthColumns = useMemo(() => getMonthColumns(fiscalYear), [fiscalYear]);
 
@@ -195,7 +197,7 @@ const KpiDataAudit = () => {
   // Month keys depend on the fiscal year, so month filters and month sorting are reset with it
   useEffect(() => {
     setFilters((prev) => Object.fromEntries(Object.entries(prev).filter(([key]) => !key.startsWith('m_'))));
-    setSort((prev) => (prev.key?.startsWith('m_') ? { key: null, direction: 'asc' } : prev));
+    setSort((prev) => (prev.key?.startsWith('m_') ? DEFAULT_SORT : prev));
   }, [fiscalYear]);
 
   const allRows = useMemo(() => items.map((item) => toRow(item, monthColumns)), [items, monthColumns]);
@@ -260,7 +262,7 @@ const KpiDataAudit = () => {
     setSort((prev) => {
       if (prev.key !== key) return { key, direction: 'asc' };
       if (prev.direction === 'asc') return { key, direction: 'desc' };
-      return { key: null, direction: 'asc' };
+      return DEFAULT_SORT;
     });
 
   const sortIndicator = (key) => (sort.key !== key ? '↕' : sort.direction === 'asc' ? '▲' : '▼');
@@ -352,8 +354,8 @@ const KpiDataAudit = () => {
 
           <button
             type="button"
-            onClick={() => { setFilters({}); setSort({ key: null, direction: 'asc' }); }}
-            disabled={!activeFilterCount && !sort.key}
+            onClick={() => { setFilters({}); setSort(DEFAULT_SORT); }}
+            disabled={!activeFilterCount && sort.key === DEFAULT_SORT.key && sort.direction === DEFAULT_SORT.direction}
             className="rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-2 text-sm text-[color:var(--text-primary)] transition hover:bg-[color:var(--surface-hover)] disabled:cursor-not-allowed disabled:opacity-50"
           >
             Clear filters &amp; sort{activeFilterCount ? ` (${activeFilterCount})` : ''}

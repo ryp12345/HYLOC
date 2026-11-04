@@ -1,8 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
 import Notification from '../../components/common/Notification';
 import { getAllUnitMasters, createUnitMaster, updateUnitMaster, deleteUnitMaster } from '../../api/unitMasterApi';
+import { useTableControls, SortableHeader, TableFilterRow, TableToolbar } from '../../components/common/table';
 
 const initialForm = { unit_name: '', symbol: '' };
+
+const COLUMNS = [
+  { key: 'sno', label: 'S.NO', sortable: false, filter: false },
+  { key: 'unit_name', label: 'Unit Name' },
+  { key: 'symbol', label: 'Symbol' },
+  { key: 'actions', label: 'Actions', sortable: false, filter: false },
+];
 
 export default function UnitMaster() {
   const [rows, setRows] = useState([]);
@@ -120,25 +128,23 @@ export default function UnitMaster() {
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 10;
 
-  const filtered = useMemo(() => {
-    const sorted = [...rows].sort((a, b) => {
-      const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
-      const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
-      if (bTime !== aTime) return bTime - aTime;
-      return (b.id || 0) - (a.id || 0);
-    });
+  const searched = useMemo(() => {
     const q = search.toLowerCase();
-    return sorted.filter(r => (
+    return rows.filter(r => (
       r.unit_name?.toLowerCase().includes(q) || r.symbol?.toLowerCase().includes(q)
     ));
   }, [rows, search]);
+
+  // Sorting (A–Z by default) and column filters
+  const table = useTableControls(searched, COLUMNS);
+  const filtered = table.rows;
 
   const paginated = useMemo(() => {
     const start = (page - 1) * PAGE_SIZE;
     return filtered.slice(start, start + PAGE_SIZE);
   }, [filtered, page]);
 
-  useEffect(() => { setPage(1); }, [search, rows]);
+  useEffect(() => { setPage(1); }, [search, rows, table.signature]);
 
   return (
     <div className="min-h-screen bg-[color:var(--app-bg)] px-4 py-12 text-[color:var(--text-primary)] transition-colors duration-300 sm:px-6 lg:px-8">
@@ -166,16 +172,18 @@ export default function UnitMaster() {
           </div>
         </div>
 
+        <TableToolbar table={table} searchable={false} />
         <div className="mb-10 overflow-hidden rounded-xl border border-[color:var(--border)] bg-[color:var(--surface)] shadow-xl">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-[color:var(--border)]">
               <thead className="bg-[color:var(--accent)]">
                 <tr>
                   <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white">S.NO</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white">Unit Name</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white">Symbol</th>
+                  <SortableHeader table={table} column="unit_name" className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white" />
+                  <SortableHeader table={table} column="symbol" className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white" />
                   <th className="px-6 py-4 text-center text-xs font-medium uppercase tracking-wider text-white">Actions</th>
                 </tr>
+                <TableFilterRow table={table} />
               </thead>
               <tbody className="divide-y divide-[color:var(--border)] bg-[color:var(--surface)]">
                 {filtered.length === 0 ? (

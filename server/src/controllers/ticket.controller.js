@@ -21,6 +21,7 @@ const notificationModel = require('../models/notification.model');
 const fs = require('fs');
 const path = require('path');
 const pool = require('../config/db');
+const { setUntrustedFileHeaders } = require('../utils/uploadValidation');
 const ticketUploadsDir = path.resolve(__dirname, '../../public/uploads/tickets');
 
 const normalizeIdList = (values) => {
@@ -625,7 +626,8 @@ exports.getTicketAttachment = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Attachment not found' });
     }
 
-    res.setHeader('X-Content-Type-Options', 'nosniff');
+    // Always a download, never rendered inline; sandboxed if a browser does render it
+    setUntrustedFileHeaders(res);
     return res.download(filePath);
   } catch (error) {
     console.error('Get ticket attachment error:', error);

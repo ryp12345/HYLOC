@@ -22,6 +22,11 @@ const createResponse = () => {
   const response = {
     statusCode: 200,
     body: null,
+    headers: {},
+    set(name, value) {
+      this.headers[name] = value;
+      return this;
+    },
     status(code) {
       this.statusCode = code;
       return this;
@@ -274,6 +279,7 @@ describe('user password updates', () => {
     }, response);
 
     expect(response.statusCode).toBe(200);
-    expect(userModel.updateUser).toHaveBeenCalledWith('2', { password: 'StrongPass123' });
+    // An admin-chosen password is known to the admin, so it must be changed at next login
+    expect(userModel.updateUser).toHaveBeenCalledWith('2', { password: 'StrongPass123', must_change_password: true });
   });
 });

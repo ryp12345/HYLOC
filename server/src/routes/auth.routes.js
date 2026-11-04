@@ -1,6 +1,6 @@
 const express = require('express');
 const authController = require('../controllers/auth.controller');
-const { authenticate } = require('../middlewares/auth.middleware');
+const { authenticate, authenticateAllowPasswordChange } = require('../middlewares/auth.middleware');
 const {
   loginIpLimiter,
   loginAccountLimiter,
@@ -18,8 +18,9 @@ router.post('/verify-otp', passwordResetLimiter, authController.verifyOTP);
 router.post('/reset-password', passwordResetLimiter, authController.resetPassword);
 
 // Protected routes
-router.get('/profile', authenticate, authController.getProfile);
+// Reachable while a temporary password is still pending; everything else is blocked
+router.get('/profile', authenticateAllowPasswordChange, authController.getProfile);
 router.post('/switch-role', authenticate, authController.switchRole);
-router.post('/change-password', authenticate, authController.changePassword);
+router.post('/change-password', authenticateAllowPasswordChange, authController.changePassword);
 
 module.exports = router;

@@ -4,6 +4,13 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../api/axios';
 import { getAllUnitMasters } from '../../api/unitMasterApi';
+import { useTableControls, SortableHeader, TableFilterRow, TableToolbar } from '../../components/common/table';
+
+const DEPENDENCY_COLUMNS = [
+  { key: 'name', label: 'KPI Value Name' },
+  { key: 'ref', label: 'Variable ID', accessor: (d) => `v${d.id}` },
+  { key: 'value', label: 'Value', type: 'number', accessor: (d) => (d.hasValue ? d.value : null) },
+];
 
 function EmpKpiKaiPage() {
   const [units, setUnits] = useState([]);
@@ -1078,6 +1085,11 @@ function EmpKpiKaiPage() {
     );
   };
 
+
+  // Sorting (A–Z by default) and filters for the formula dependency table
+  const dependencyRows = formulaDetailsModal.data?.dependencies || [];
+  const dependencyTable = useTableControls(dependencyRows, DEPENDENCY_COLUMNS);
+
   return (
     <div className="min-h-screen bg-[color:var(--app-bg)] text-[color:var(--text-primary)]">
       {/* Main Content */}
@@ -1216,17 +1228,19 @@ function EmpKpiKaiPage() {
 
                   <div>
                     <h4 className="mb-2 text-sm font-semibold text-[color:var(--text-secondary)]">Dependent KPI Values ({formulaDetailsModal.data.month}):</h4>
+                    <TableToolbar table={dependencyTable} placeholder="Search values..." />
                     <div className="overflow-x-auto rounded-md shadow-sm">
                       <table className="w-full text-sm border-separate" style={{ borderSpacing: '0 8px' }}>
                         <thead>
                           <tr className="bg-[color:var(--accent)]">
-                            <th className="py-3 px-3 align-middle text-xs font-semibold text-white">KPI Value Name</th>
-                            <th className="py-3 px-3 align-middle text-xs font-semibold text-white">Variable ID</th>
-                            <th className="py-3 px-3 align-middle text-xs font-semibold text-white">Value</th>
+                            <SortableHeader table={dependencyTable} column="name" className="py-3 px-3 align-middle text-xs font-semibold text-white" />
+                            <SortableHeader table={dependencyTable} column="ref" className="py-3 px-3 align-middle text-xs font-semibold text-white" />
+                            <SortableHeader table={dependencyTable} column="value" className="py-3 px-3 align-middle text-xs font-semibold text-white" />
                           </tr>
+                          <TableFilterRow table={dependencyTable} />
                         </thead>
                         <tbody>
-                          {formulaDetailsModal.data.dependencies.map((dep, idx) => (
+                          {dependencyTable.rows.map((dep, idx) => (
                             <tr key={idx} className={`${dep.hasValue ? 'bg-[color:var(--surface)]' : 'bg-[color:var(--surface-hover)]'} rounded-md`}>
                               <td className="rounded-l-md bg-[color:var(--surface-hover)] px-3 py-3 align-top font-semibold text-[color:var(--text-primary)]">{dep.name}</td>
                               <td className="px-3 py-3 align-top text-[color:var(--text-secondary)]"><code className="rounded bg-[color:var(--surface)] px-2 py-1 text-xs">v{dep.id}</code></td>

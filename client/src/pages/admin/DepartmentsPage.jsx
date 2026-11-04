@@ -1,10 +1,17 @@
 import { useEffect, useMemo, useState } from 'react';
 import Notification from '../../components/common/Notification';
+import { useTableControls, SortableHeader, TableFilterRow, TableToolbar } from '../../components/common/table';
 import { getDepartments, createDepartment, updateDepartment, deleteDepartment } from '../../api/departmentApi';
 
-const initialForm = { 
+const initialForm = {
   departmentName: ''
 };
+
+const COLUMNS = [
+  { key: 'sno', label: 'S.NO', sortable: false, filter: false },
+  { key: 'department_name', label: 'Department Name' },
+  { key: 'actions', label: 'Actions', sortable: false, filter: false },
+];
 
 export default function DepartmentsPage() {
   const [rows, setRows] = useState([]);
@@ -129,26 +136,23 @@ export default function DepartmentsPage() {
   const PAGE_SIZE = 10;
 
   // Filtered, sorted, and paginated data
-  const filtered = useMemo(() => {
-    const sorted = [...rows].sort((a, b) => {
-      const aName = (a.department_name || '').toLowerCase();
-      const bName = (b.department_name || '').toLowerCase();
-      if (aName < bName) return -1;
-      if (aName > bName) return 1;
-      return 0;
-    });
+  const searched = useMemo(() => {
     const q = search.toLowerCase();
-    return sorted.filter(r => (
+    return rows.filter(r => (
       r.department_name?.toLowerCase().includes(q)
     ));
   }, [rows, search]);
+
+  // Sorting (A–Z by default) and column filters
+  const table = useTableControls(searched, COLUMNS);
+  const filtered = table.rows;
 
   const paginated = useMemo(() => {
     const start = (page - 1) * PAGE_SIZE;
     return filtered.slice(start, start + PAGE_SIZE);
   }, [filtered, page]);
 
-  useEffect(() => { setPage(1); }, [search, rows]);
+  useEffect(() => { setPage(1); }, [search, rows, table.signature]);
 
   return (
     <div className="min-h-screen bg-[color:var(--app-bg)] px-4 py-12 text-[color:var(--text-primary)] transition-colors duration-300 sm:px-6 lg:px-8">
@@ -176,15 +180,17 @@ export default function DepartmentsPage() {
           </div>
         </div>
 
+        <TableToolbar table={table} searchable={false} />
         <div className="mb-10 overflow-hidden rounded-xl border border-[color:var(--border)] bg-[color:var(--surface)] shadow-xl">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-[color:var(--border)]">
               <thead className="bg-[color:var(--accent)]">
                 <tr>
                   <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white">S.NO</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white">Department Name</th>
+                  <SortableHeader table={table} column="department_name" className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white" />
                   <th className="px-6 py-4 text-center text-xs font-medium uppercase tracking-wider text-white">Actions</th>
                 </tr>
+                <TableFilterRow table={table} />
               </thead>
               <tbody className="divide-y divide-[color:var(--border)] bg-[color:var(--surface)]">
                 {filtered.length === 0 ? (

@@ -2,6 +2,16 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { getAllLeaves } from '../../../api/leaveApi';
 import { useAuth } from '../../../context/AuthContext';
+import { useTableControls, SortableHeader, TableFilterRow, TableToolbar } from '../../../components/common/table';
+
+const COLUMNS = [
+  { key: 'sno', label: 'S.NO', sortable: false, filter: false },
+  { key: 'from_date', label: 'From Date', type: 'date' },
+  { key: 'to_date', label: 'To Date', type: 'date' },
+  { key: 'department_name', label: 'Department', filter: 'select' },
+  { key: 'leave_reason', label: 'Reason' },
+  { key: 'status', label: 'Status', filter: 'select' },
+];
 
 const MyLeavePage = () => {
   const { user } = useAuth();
@@ -49,14 +59,8 @@ const MyLeavePage = () => {
     });
   }, []);
 
-  const filteredLeaves = useMemo(() => {
-    // Sort latest first by from_date desc, then id desc
-    let result = [...leaves].sort((a, b) => {
-      const aTime = a.from_date ? new Date(a.from_date).getTime() : 0;
-      const bTime = b.from_date ? new Date(b.from_date).getTime() : 0;
-      if (bTime !== aTime) return bTime - aTime;
-      return (b.id || 0) - (a.id || 0);
-    });
+  const searched = useMemo(() => {
+    let result = leaves;
     // Apply filters
     if (filter.from) {
       result = result.filter(leave => new Date(leave.to_date) >= new Date(filter.from));
@@ -79,13 +83,17 @@ const MyLeavePage = () => {
     return result;
   }, [leaves, search, filter]);
 
+  // Sorting (Reason A–Z by default) and column filters
+  const table = useTableControls(searched, COLUMNS, { defaultSort: { key: 'leave_reason' } });
+  const filteredLeaves = table.rows;
+
   const paginatedLeaves = useMemo(() => {
     const start = (currentPage - 1) * PAGE_SIZE;
     return filteredLeaves.slice(start, start + PAGE_SIZE);
   }, [filteredLeaves, currentPage]);
   const totalPages = Math.ceil(filteredLeaves.length / PAGE_SIZE);
 
-  useEffect(() => { setCurrentPage(1); }, [search, leaves]);
+  useEffect(() => { setCurrentPage(1); }, [search, leaves, table.signature]);
 
   const formatDate = (dateStr) => {
     return new Date(dateStr).toLocaleDateString('en-US', {
@@ -159,18 +167,20 @@ const MyLeavePage = () => {
             </button>
           </form>
         </div>
+        <TableToolbar table={table} searchable={false} />
         <div className="mb-10 overflow-hidden rounded-xl border border-[color:var(--border)] bg-[color:var(--surface)] shadow-xl">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-[color:var(--border)]">
               <thead className="bg-[color:var(--accent)]">
                 <tr>
                   <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white">S.NO</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white">From Date</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white">To Date</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white">Department</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white">Reason</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white">Status</th>
+                  <SortableHeader table={table} column="from_date" className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white" />
+                  <SortableHeader table={table} column="to_date" className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white" />
+                  <SortableHeader table={table} column="department_name" className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white" />
+                  <SortableHeader table={table} column="leave_reason" className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white" />
+                  <SortableHeader table={table} column="status" className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white" />
                 </tr>
+                <TableFilterRow table={table} />
               </thead>
               <tbody className="divide-y divide-[color:var(--border)] bg-[color:var(--surface)]">
                 {loading ? (

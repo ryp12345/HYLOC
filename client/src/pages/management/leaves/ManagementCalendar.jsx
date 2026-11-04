@@ -12,6 +12,7 @@ import {
 import { getMyTickets, getAllTickets } from '../../../api/ticketApi';
 import { getUsers } from '../../../api/userApi';
 import { useAuth } from '../../../context/AuthContext';
+import { useTableControls, SortableHeader, TableFilterRow, TableToolbar } from '../../../components/common/table';
 
 const ManagementCalendar = ({ title = 'Management Calendar' }) => {
 	const { user } = useAuth();
@@ -712,8 +713,6 @@ const ManagementCalendar = ({ title = 'Management Calendar' }) => {
 	}, [allOrgLeaves, filter]);
 
 	// Pagination for filtered leaves
-	const totalPages = Math.ceil(filteredOrgLeaves.length / itemsPerPage);
-	const paginatedOrgLeaves = filteredOrgLeaves.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
 	// Format date helper
 	const formatDateDisplay = (dateStr) => {
@@ -739,6 +738,54 @@ const ManagementCalendar = ({ title = 'Management Calendar' }) => {
 	const monthLeaves = useMemo(() => {
 		return leaves.filter(overlapsMonth);
 	}, [leaves, currentDate]);
+
+	// Sorting (A–Z by default) and column filters for every table on this page
+	const orgLeaveColumns = [
+	  { key: 'sno', label: 'S.No', sortable: false, filter: false },
+	  { key: 'user_name', label: 'Name' },
+	  { key: 'user_role', label: 'Role', filter: 'select' },
+	  { key: 'department_name', label: 'Department', filter: 'select' },
+	  { key: 'from_date', label: 'Date Range', type: 'date', rangeEnd: 'to_date' },
+	  { key: 'credited_days', label: 'Duration', type: 'number' },
+	  { key: 'leave_reason', label: 'Reason' },
+	  { key: 'status', label: 'Status', filter: 'select' },
+	];
+	const orgTable = useTableControls(filteredOrgLeaves, orgLeaveColumns);
+	useEffect(() => { setCurrentPage(1); }, [orgTable.signature]);
+	const totalPages = Math.ceil(orgTable.rows.length / itemsPerPage);
+	const paginatedOrgLeaves = orgTable.rows.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+	const ticketColumns = [
+	  { key: 'sno', label: 'S.No', sortable: false, filter: false },
+	  { key: 'title', label: 'Title' },
+	  { key: 'description', label: 'Description' },
+	  { key: 'priority', label: 'Priority', filter: 'select' },
+	  { key: 'assignee', label: 'Assigned To', accessor: (t) => getAssigneeDisplay(t) },
+	  { key: 'due_date', label: 'Due Date', type: 'date' },
+	  { key: 'closed_date', label: 'Closed Date', type: 'date', hidden: !isManagementUser, accessor: (t) => (String(t.status || '').toLowerCase() === 'closed' ? t.updated_at : null) },
+	];
+	const ticketTable = useTableControls(selectedTickets, ticketColumns);
+
+	const myLeaveColumns = [
+	  { key: 'sno', label: 'S.No', sortable: false, filter: false },
+	  { key: 'status', label: 'Status', filter: 'select' },
+	  { key: 'duration', label: 'Duration', type: 'number', accessor: (l) => l.duration || l.credited_days },
+	  { key: 'leave_reason', label: 'Reason' },
+	  { key: 'actions', label: 'Action', sortable: false, filter: false },
+	];
+	const myLeavesTable = useTableControls(myLeaves, myLeaveColumns, { defaultSort: { key: 'leave_reason' } });
+
+	const dateLeaveColumns = [
+	  { key: 'sno', label: 'S.No', sortable: false, filter: false },
+	  { key: 'user_name', label: 'User Name' },
+	  { key: 'user_role', label: 'Role', filter: 'select' },
+	  { key: 'from_date', label: 'From Date', type: 'date' },
+	  { key: 'to_date', label: 'To Date', type: 'date' },
+	  { key: 'leave_reason', label: 'Leave Reason' },
+	  { key: 'leave_type', label: 'Type', filter: 'select' },
+	  { key: 'status', label: 'Status', filter: 'select' },
+	];
+	const dateLeavesTable = useTableControls(selectedDateLeaves, dateLeaveColumns);
 
 	return (
 		<>
@@ -895,19 +942,21 @@ const ManagementCalendar = ({ title = 'Management Calendar' }) => {
 			{/* Filtered Table */}
 			{showFilteredTable && (
 				<div className="mt-6 overflow-hidden rounded-xl border border-[color:var(--border)] bg-[color:var(--surface)] shadow-xl">
+										<TableToolbar table={orgTable} className="px-4" />
 										<div className="overflow-x-auto overflow-hidden rounded-t-lg">
 						<table className="min-w-full divide-y divide-[color:var(--border)]">
 							<thead className="bg-[color:var(--accent)]">
 								<tr>
 									<th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">S.No</th>
-									<th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Name</th>
-									<th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Role</th>
-									<th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Department</th>
-									<th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Date Range</th>
-									<th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Duration</th>
-									<th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Reason</th>
-									<th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Status</th>
+									<SortableHeader table={orgTable} column="user_name" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider" />
+									<SortableHeader table={orgTable} column="user_role" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider" />
+									<SortableHeader table={orgTable} column="department_name" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider" />
+									<SortableHeader table={orgTable} column="from_date" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider" />
+									<SortableHeader table={orgTable} column="credited_days" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider" />
+									<SortableHeader table={orgTable} column="leave_reason" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider" />
+									<SortableHeader table={orgTable} column="status" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider" />
 								</tr>
+							  <TableFilterRow table={orgTable} />
 							</thead>
 							<tbody className="divide-y divide-[color:var(--border)] bg-[color:var(--surface)]">
 								{loading ? (
@@ -1049,21 +1098,24 @@ const ManagementCalendar = ({ title = 'Management Calendar' }) => {
 									{selectedTickets.length === 0 ? (
 										<div className="py-8 text-center text-[color:var(--text-secondary)]">No tickets for this date</div>
 									) : (
+										<>
+										<TableToolbar table={ticketTable} />
 										<div className="overflow-x-auto">
 											<table className="min-w-full text-sm border">
 												<thead className="bg-blue-600 text-white">
 													<tr>
 														<th className="text-left px-4 py-2 border">S.No</th>
-														<th className="text-left px-4 py-2 border">Title</th>
-														<th className="text-left px-4 py-2 border">Description</th>
-														<th className="text-left px-4 py-2 border">Priority</th>
-														<th className="text-left px-4 py-2 border">Assigned To</th>
-														<th className="text-left px-4 py-2 border">Due Date</th>
-														{isManagementUser && <th className="text-left px-4 py-2 border">Closed Date</th>}
+														<SortableHeader table={ticketTable} column="title" className="text-left px-4 py-2 border" />
+														<SortableHeader table={ticketTable} column="description" className="text-left px-4 py-2 border" />
+														<SortableHeader table={ticketTable} column="priority" className="text-left px-4 py-2 border" />
+														<SortableHeader table={ticketTable} column="assignee" className="text-left px-4 py-2 border" />
+														<SortableHeader table={ticketTable} column="due_date" className="text-left px-4 py-2 border" />
+														{isManagementUser && <SortableHeader table={ticketTable} column="closed_date" className="text-left px-4 py-2 border" />}
 													</tr>
+												  <TableFilterRow table={ticketTable} />
 												</thead>
 												<tbody>
-													{selectedTickets.map((t, idx) => (
+													{ticketTable.rows.map((t, idx) => (
 														<tr key={t.id} className="border-t">
 															<td className="px-4 py-2 border">{idx + 1}</td>
 															<td className="px-4 py-2 border">{t.title || '-'}</td>
@@ -1077,6 +1129,7 @@ const ManagementCalendar = ({ title = 'Management Calendar' }) => {
 												</tbody>
 											</table>
 										</div>
+										</>
 									)}
 								</div>
 							</div>
@@ -1266,19 +1319,22 @@ const ManagementCalendar = ({ title = 'Management Calendar' }) => {
 											No leaves applied yet
 										</div>
 									) : (
+										<>
+										<TableToolbar table={myLeavesTable} />
 										<div className="overflow-x-auto mb-8">
 											<table className="min-w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] shadow">
 												<thead>
 													<tr className="bg-[color:var(--accent-soft)] text-[color:var(--accent)]">
 														<th className="py-2 px-4 text-center">S.No</th>
-														<th className="py-2 px-4 text-center">Status</th>
-														<th className="py-2 px-4 text-center">Duration</th>
-														<th className="py-2 px-4 text-center">Reason</th>
+														<SortableHeader table={myLeavesTable} column="status" className="py-2 px-4 text-center" />
+														<SortableHeader table={myLeavesTable} column="duration" className="py-2 px-4 text-center" />
+														<SortableHeader table={myLeavesTable} column="leave_reason" className="py-2 px-4 text-center" />
 														<th className="py-2 px-4 text-center">Action</th>
 													</tr>
+												  <TableFilterRow table={myLeavesTable} />
 												</thead>
 												<tbody>
-													{myLeaves.map((leave, idx) => (
+													{myLeavesTable.rows.map((leave, idx) => (
 														<tr key={leave.id} className="border-b border-[color:var(--border)] hover:bg-[color:var(--surface-hover)]">
 															<td className="py-2 px-4 text-center">{idx + 1}</td>
 															<td className="py-2 px-4 text-center">
@@ -1317,6 +1373,7 @@ const ManagementCalendar = ({ title = 'Management Calendar' }) => {
 												</tbody>
 											</table>
 										</div>
+										</>
 									)}
 								</div>
 								
@@ -1622,22 +1679,25 @@ const ManagementCalendar = ({ title = 'Management Calendar' }) => {
 						{selectedDateLeaves.length === 0 ? (
 							<div className="py-8 text-center text-[color:var(--text-secondary)]">No leaves for this date</div>
 						) : (
+							<>
+							<TableToolbar table={dateLeavesTable} />
 							<div className="overflow-x-auto">
 									<table className="min-w-full text-sm border">
 										<thead className="bg-[color:var(--accent)] text-white">
 												<tr>
 													<th className="text-left px-4 py-2 border">S.No</th>
-													<th className="text-left px-4 py-2 border">User Name</th>
-													<th className="text-left px-4 py-2 border">Role</th>
-													<th className="text-left px-4 py-2 border">From Date</th>
-													<th className="text-left px-4 py-2 border">To Date</th>
-													<th className="text-left px-4 py-2 border">Leave Reason</th>
-													<th className="text-left px-4 py-2 border">Type</th>
-													<th className="text-left px-4 py-2 border">Status</th>
+													<SortableHeader table={dateLeavesTable} column="user_name" className="text-left px-4 py-2 border" />
+													<SortableHeader table={dateLeavesTable} column="user_role" className="text-left px-4 py-2 border" />
+													<SortableHeader table={dateLeavesTable} column="from_date" className="text-left px-4 py-2 border" />
+													<SortableHeader table={dateLeavesTable} column="to_date" className="text-left px-4 py-2 border" />
+													<SortableHeader table={dateLeavesTable} column="leave_reason" className="text-left px-4 py-2 border" />
+													<SortableHeader table={dateLeavesTable} column="leave_type" className="text-left px-4 py-2 border" />
+													<SortableHeader table={dateLeavesTable} column="status" className="text-left px-4 py-2 border" />
 												</tr>
+											  <TableFilterRow table={dateLeavesTable} />
 											</thead>
 											<tbody>
-												{selectedDateLeaves.map((leave, idx) => (
+												{dateLeavesTable.rows.map((leave, idx) => (
 													<tr key={leave.id} className={`border-t border-[color:var(--border)] ${isLeaveWithoutPay(leave) ? 'border-l-4 border-[color:var(--danger)] bg-[color:var(--danger-soft)]' : ''}`}>
 													<td className="px-4 py-2 border">{idx + 1}</td>
 													<td className="px-4 py-2 border">{leave.user_name}</td>
@@ -1660,6 +1720,7 @@ const ManagementCalendar = ({ title = 'Management Calendar' }) => {
 									</tbody>
 								</table>
 							</div>
+							</>
 						)}
 					</div>
 				</div>

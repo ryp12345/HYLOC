@@ -45,6 +45,7 @@ import HODLeavesPage from '../pages/hod/leaves/LeavesPage';
 import HODLeaveApprovalPage from '../pages/hod/leaves/LeaveApprovalPage';
 import ManagementLeaveApprovalPage from '../pages/management/leaves/LeaveApprovalPage';
 import ForgotPasswordPage from '../pages/auth/ForgotPasswordPage';
+import ForcePasswordChangePage from '../pages/auth/ForcePasswordChangePage';
 import ProfilePage from '../pages/auth/ProfilePage';
 import TicketsPage from '../pages/tickets/TicketsPage';
 import TicketsAnalysisReport from '../pages/tickets/TicketsAnalysisReport';
@@ -159,6 +160,11 @@ const DashboardRedirect = () => {
     return <Navigate to="/login" replace />;
   }
 
+  // A temporary password must be changed before reaching any dashboard
+  if (user.mustChangePassword) {
+    return <Navigate to="/change-password" replace />;
+  }
+
   // Check role (case-insensitive) and redirect accordingly
   const userRole = user.role?.toLowerCase();
 
@@ -200,6 +206,9 @@ const AppRoutes = () => {
               </AuthRoute>
             }
           />
+          {/* Mandatory after logging in with a temporary password (no skip) */}
+          <Route path="/change-password" element={<ForcePasswordChangePage />} />
+
           <Route
             path="/forgot-password"
             element={

@@ -13,9 +13,8 @@ HYLOC-MGT is an internal HR / KPI / ticketing system (React + Express + PostgreS
 The main remaining risks are in **who gets which role** and **leave records**:
 
 1. **Deactivated roles still work.** If an admin sets a user's role to "Inactive", that user still receives the role at their next login or token refresh, because login picks the user's oldest role row without checking its status (**H1**).
-2. **Shared default password.** The admin screen creates and resets every account with the same password, `Password@123`, and users are never forced to change it. Anyone who knows this password and an employee ID (IDs are short and sequential, e.g. `70001`) can log in as any account that kept it (**H2**). Note: since the password-policy fix, the server rejects `Password@123`, so **creating users and resetting passwords from the admin screen currently fails**.
-3. **Approved leave can be erased through the API.** The UI hides "Cancel" for approved leave, but the API lets an employee delete their own approved leave (getting the days back), and lets any HOD delete anyone's leave in any department (**H3**).
-4. **JWT signing secrets** used placeholder values that are in git history. Local secrets were rotated; production rotation has not been confirmed and there is still no startup check (**C1**, potential).
+2. **Approved leave can be erased through the API.** The UI hides "Cancel" for approved leave, but the API lets an employee delete their own approved leave (getting the days back), and lets any HOD delete anyone's leave in any department (**H3**).
+3. **JWT signing secrets** used placeholder values that are in git history. Local secrets were rotated; production rotation has not been confirmed and there is still no startup check (**C1**, potential).
 
 **Overall risk rating: HIGH** (would be CRITICAL if production still uses the placeholder JWT secrets).
 
@@ -44,7 +43,6 @@ The main remaining risks are in **who gets which role** and **leave records**:
 |---|---|---|---|
 | C1 | CRITICAL | JWT signing secrets were placeholders committed to git; no guard against weak secrets | POTENTIAL |
 | H1 | HIGH | Deactivated ("Inactive") role is still granted at login and token refresh | **FIXED** (2026-11-03) |
-| H2 | HIGH | Every new / reset account gets the shared password `Password@123`; no forced change | CONFIRMED |
 | H3 | HIGH | `DELETE /api/leaves/:id`: employee can erase own approved leave; any HOD can delete any leave | **FIXED** (2026-11-03) |
 | M1 | MEDIUM | HODs receive every leave in the company (incl. reasons); department filter is client-side only | CONFIRMED |
 | M2 | MEDIUM | HOD can edit pending leave of Employees in other departments | **FIXED** (2026-11-03) |
@@ -93,23 +91,6 @@ The main remaining risks are in **who gets which role** and **leave records**:
 | **Likelihood** | HIGH — the UI's normal way to remove a role is setting it Inactive. |
 | **Recommended Fix** | Add `AND ur.status = 'active'` to both queries in `auth.service.js` (lines 63 and 111). If no active role remains, fall back to `'Employee'` as today. Optionally apply the same filter to the two leave "applicant role" queries. Add a unit test: inactive first role → token gets the next active role. |
 | **Status** | **FIXED (2026-11-03).** Both queries in `auth.service.js` (login, line 63; refresh fallback, line 111) now include `AND ur.status = 'active'`, the same rule `getActiveRoles`/`switchRole` already used. If no active role is left, the user gets `Employee`, as before. The leave "applicant role" queries were not changed (no privilege is granted there). Tests: 3 new cases in `server/src/services/auth.service.test.js`. They fail without the fix and pass with it. Full suite: 76/76. **Follow-up:** users already logged in keep their current access token for up to 15 minutes (see L2). |
-
----
-
-### H2 — Shared default password `Password@123` for every new or reset account
-
-| Field | Detail |
-|---|---|
-| **Vulnerability** | Default / shared credentials, no forced change |
-| **Severity** | HIGH |
-| **Location** | `client/src/pages/admin/UsersPage.jsx:43-44, 117-118` (create form default), `:227` (reset always sends `'Password@123'`), `:821` (UI text tells admin the default); server has no "must change password" flag (no such column in `server/database/migrations/`) |
-| **Description** | All accounts created or reset from the admin screen get the same, publicly visible password. Nothing forces the user to change it at first login. Employee IDs are short and sequential (e.g. staff photo names `70001.JPG … 70093.jpeg` in `server/public/uploads/users/`), so an insider can try the default against every ID. |
-| **Evidence** | `UsersPage.jsx:227`: `await resetUserPassword(resetTarget.id, 'Password@123');` Login (`auth.service.js:26-56`) has no "password expired / must change" check. |
-| **Attack Scenario** | 1. Any employee (or anyone who saw the admin screen) knows `Password@123`. 2. Tries empid `70001`, `70002`, … at `/api/auth/login` (5/min per IP is allowed). 3. Logs in as every colleague — including HOD/Management/Admin accounts — who never changed the default. |
-| **Impact** | Account takeover of any account still on the default; with an Admin/Management account, full control. |
-| **Likelihood** | HIGH — every account starts this way; the number still on the default is unknown (check: cannot be read from hashes directly, but can be tested offline with `bcrypt.compare('Password@123', hash)` per user). |
-| **Recommended Fix** | 1. **Now:** run an offline check of all users' hashes against `Password@123` and force-reset those accounts. 2. Add `must_change_password BOOLEAN DEFAULT false` to `users`; set it to true on admin create/reset; make login return a flag and block all routes except `change-password` until it is changed. 3. Let the admin screen generate a random one-time password (or let the admin type one) instead of the fixed value. **Note — current breakage:** since the password policy fix, `getPasswordError('Password@123')` returns "too common" (`passwordPolicy.js:13`), so `POST /api/users` and `PATCH /api/users/:id/reset-password` from the admin UI now return 400. Step 3 fixes both problems. |
-| **Status** | CONFIRMED (mechanism); number of affected accounts not verified |
 
 ---
 
@@ -214,7 +195,7 @@ The main remaining risks are in **who gets which role** and **leave records**:
 | **Severity** | LOW |
 | **Location** | `server/src/services/auth.service.js:28-55`; `auth.controller.js:36-46`; `auth.controller.js:147-210` |
 | **Description / Evidence** | Unknown empids always return 401 quickly (no bcrypt). Existing active empids return 423 "locked" after 10 failures, and take ~100 ms longer per attempt (bcrypt). Password reset: an existing email triggers bcrypt + SMTP before responding, an unknown one returns at once. |
-| **Attack Scenario** | Measure response times or trigger the lock to list valid empids/emails, then target them (see H2). |
+| **Attack Scenario** | Measure response times or trigger the lock to list valid empids/emails, then target them. |
 | **Impact** | Helps targeted guessing; empids are already semi-public inside the company. |
 | **Likelihood** | MEDIUM |
 | **Recommended Fix** | Run a dummy `bcrypt.compare` when the user isn't found; send the reset email after responding (fire-and-forget). |
@@ -326,7 +307,6 @@ Recommendation: update `eslint` to 9.x when convenient; watch for an `exceljs` r
 2. **C1** — rotate production/staging JWT secrets (config only), then re-apply the startup check.
 3. **H3** — add a "Pending only" check for owners and a department check for HODs in `cancelLeave` (≈10 lines).
 4. **M1** — force HOD `department_id` from the database in `getAllLeaves`/`getPendingLeaves` (≈6 lines).
-5. **H2 (immediate part)** — offline-check all password hashes against `Password@123` and force-reset matches.
 
 ---
 
@@ -334,17 +314,16 @@ Recommendation: update `eslint` to 9.x when convenient; watch for an `exceljs` r
 
 | Order | Items | Effort | Notes |
 |---|---|---|---|
-| 1 — today | C1 rotation; H2 offline hash check | < 1 h | Rotation logs everyone out once. |
+| 1 — today | C1 rotation | < 1 h | Rotation logs everyone out once. |
 | 2 — this week | H1, H3, M1, M2 | ~half day | Small, local server changes with unit tests. H3 needs a quick yes/no on HR/Management deleting approved leave. |
-| 3 — this week | H2 proper fix (must-change-password flag + no fixed default) | ~1 day | Also fixes the currently broken admin create/reset flow. |
-| 4 — next sprint | M3 (logout/refresh revocation), M4 (lockout), L2 | 1–2 days | M3 needs the "this device vs all devices" decision. |
-| 5 — decision | M5 | — | Confirm whether Management may manage Admins. |
-| 6 — backlog | L1, L3, L4, L5, I1–I7, dependency updates | 1 day total | Hardening. |
+| 3 — next sprint | M3 (logout/refresh revocation), M4 (lockout), L2 | 1–2 days | M3 needs the "this device vs all devices" decision. |
+| 4 — decision | M5 | — | Confirm whether Management may manage Admins. |
+| 5 — backlog | L1, L3, L4, L5, I1–I7, dependency updates | 1 day total | Hardening. |
 
 ---
 
 ## 11. Limitations
 
 - Static review only; no requests were sent to a running server. Findings marked CONFIRMED are proven from code paths, not live exploitation.
-- `server/.env`, production configuration, nginx config and the live database were not inspected, so C1 and the number of accounts affected by H2 are unverified.
+- `server/.env`, production configuration, nginx config and the live database were not inspected, so C1 is unverified.
 - Business rules were inferred from code, comments, UI behaviour and `LeaveRules.md`; findings M5 and parts of H3/M1 note where the intended rule should be confirmed.

@@ -11,7 +11,7 @@ router.get('/priorities', authenticate, ticketController.getTicketPriorities);
 router.get('/statuses', authenticate, ticketController.getTicketStatuses);
 
 // POST /api/tickets - Create a new ticket (accepts optional file 'attachment')
-router.post('/', authenticate, upload.single('attachment'), upload.validateContent, ticketController.createTicket);
+router.post('/', authenticate, upload.safeSingle('attachment'), upload.validateContent, ticketController.createTicket);
 
 // GET /api/tickets/me - list tickets created by the logged-in user
 router.get('/me', authenticate, ticketController.getMyTickets);
@@ -29,7 +29,7 @@ router.get('/:id/attachment', authenticate, ticketController.getTicketAttachment
 router.get('/:id', authenticate, ticketController.getTicketById);
 
 // PUT /api/tickets/:id - update ticket (accepts optional file 'attachment')
-router.put('/:id', authenticate, upload.single('attachment'), upload.validateContent, ticketController.updateTicket);
+router.put('/:id', authenticate, upload.safeSingle('attachment'), upload.validateContent, ticketController.updateTicket);
 
 // DELETE /api/tickets/:id
 router.delete('/:id', authenticate, ticketController.deleteTicket);

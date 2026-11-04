@@ -5,10 +5,23 @@ import {
   updateEntitlement,
   deleteEntitlement
 } from '../../../api/leaveEntitlementApi';
+import { useTableControls, SortableHeader, TableFilterRow, TableToolbar } from '../../../components/common/table';
 
 const PAGE_SIZE = 10;
 const MONTH_NAMES = [
   'January','February','March','April','May','June','July','August','September','October','November','December'
+];
+
+const COLUMNS = [
+  { key: 'sno', label: 'S.NO', sortable: false, filter: false },
+  { key: 'user_name', label: 'Name' },
+  { key: 'empid', label: 'Emp ID' },
+  { key: 'year', label: 'Year', type: 'number', filter: 'select' },
+  { key: 'leave_entitled', label: 'Entitled', type: 'number' },
+  { key: 'leaves_accumulated', label: 'Accumulated', type: 'number' },
+  { key: 'leaves_availed', label: 'Availed', type: 'number' },
+  { key: 'leave_balance', label: 'Balance', type: 'number' },
+  { key: 'actions', label: 'Actions', sortable: false, filter: false },
 ];
 
 const LeaveEntitlementPage = ({ token: propToken }) => {
@@ -47,16 +60,15 @@ const LeaveEntitlementPage = ({ token: propToken }) => {
     setLoading(false);
   };
 
-  const filtered = useMemo(() => {
-    const sorted = [...entitlements].sort((a, b) => {
-      const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
-      const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
-      if (bTime !== aTime) return bTime - aTime;
-      return (b.id || 0) - (a.id || 0);
-    });
+  const searched = useMemo(() => {
     const q = search.toLowerCase();
-    return sorted.filter(e => e.user_name?.toLowerCase().includes(q) || e.empid?.toLowerCase().includes(q));
+    return entitlements.filter(e => e.user_name?.toLowerCase().includes(q) || e.empid?.toLowerCase().includes(q));
   }, [entitlements, search]);
+
+  // Sorting (Name A–Z by default) and column filters
+  const table = useTableControls(searched, COLUMNS);
+  const filtered = table.rows;
+  useEffect(() => { setPage(1); }, [table.signature]);
 
   const paginated = useMemo(() => {
     const start = (page - 1) * PAGE_SIZE;
@@ -151,21 +163,23 @@ const LeaveEntitlementPage = ({ token: propToken }) => {
 
         {successMessage && (<div className="mb-6 rounded-lg border border-[color:var(--success-soft)] bg-[color:var(--success-soft)] p-4 text-sm text-[color:var(--success)]">{successMessage}</div>)}
 
+        <TableToolbar table={table} searchable={false} />
         <div className="mb-10 overflow-hidden bg-[color:var(--surface)] shadow-sm rounded-xl border border-[color:var(--border)]">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-[color:var(--border)]">
               <thead className="bg-[color:var(--accent)]">
                 <tr>
                   <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">S.NO</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">Name</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">Emp ID</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">Year</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">Entitled</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">Accumulated</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">Availed</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">Balance</th>
+                  <SortableHeader table={table} column="user_name" className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider" />
+                  <SortableHeader table={table} column="empid" className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider" />
+                  <SortableHeader table={table} column="year" className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider" />
+                  <SortableHeader table={table} column="leave_entitled" className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider" />
+                  <SortableHeader table={table} column="leaves_accumulated" className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider" />
+                  <SortableHeader table={table} column="leaves_availed" className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider" />
+                  <SortableHeader table={table} column="leave_balance" className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider" />
                   <th className="px-6 py-4 text-center text-xs font-medium text-white uppercase tracking-wider">Actions</th>
                 </tr>
+                <TableFilterRow table={table} />
               </thead>
               <tbody className="bg-[color:var(--surface)] divide-y divide-[color:var(--border)]">
                 {filtered.length === 0 ? (
