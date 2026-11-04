@@ -4,6 +4,7 @@ import { updateLeave } from '../../../api/leaveApi';
 import { useAuth } from '../../../context/AuthContext';
 import Notification from '../../../components/common/Notification';
 import { useTableControls, SortableHeader, TableFilterRow, TableToolbar } from '../../../components/common/table';
+import { compareLabels } from '../../../utils/sortOptions';
 
 const LeaveApprovalPage = () => {
   const { user } = useAuth();
@@ -51,7 +52,7 @@ const LeaveApprovalPage = () => {
     return allDepartments
       .map(d => d.name || d.department_name || d.departmentName || '')
       .filter(name => name)
-      .sort();
+      .sort(compareLabels);
   }, [allDepartments]);
 
   const loadMyLeaves = async () => {

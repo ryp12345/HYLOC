@@ -4,6 +4,7 @@ import { getUserRoles, createUserRole, updateUserRole, deleteUserRole } from '..
 import { getUsers } from '../../api/userApi';
 import { getRoles } from '../../api/roleApi';
 import { useTableControls, SortableHeader, TableFilterRow, TableToolbar } from '../../components/common/table';
+import { sortOptions } from '../../utils/sortOptions';
 
 const initialForm = { 
   userId: '', 
@@ -377,7 +378,7 @@ export default function UserRolePage() {
                           required
                         >
                           <option value="">Select User</option>
-                          {users.map((user) => (
+                          {sortOptions(users, (u) => u.email).map((user) => (
                             <option key={user.id} value={user.id}>
                               {user.email} - {user.firstname} {user.lastname}
                             </option>
@@ -394,7 +395,7 @@ export default function UserRolePage() {
                           required
                         >
                           <option value="">Select Role</option>
-                          {roles.map((role) => (
+                          {sortOptions(roles, (r) => r.role_name).map((role) => (
                             <option key={role.id} value={role.id}>
                               {role.role_name}
                             </option>

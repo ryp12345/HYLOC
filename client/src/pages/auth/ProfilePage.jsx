@@ -8,6 +8,7 @@ import { getUserById } from '../../api/userApi';
 import { API_URL } from '../../api/axios';
 import Notification from '../../components/common/Notification';
 import AuthenticatedImage from '../../components/common/AuthenticatedImage';
+import { sortOptions } from '../../utils/sortOptions';
 
 // Resolve a stored upload path (e.g. /api/uploads/users/EMP001.jpg) to an absolute URL
 const getPhotoUrl = (path) => {
@@ -459,7 +460,7 @@ export default function ProfilePage() {
                         </option>
                       )
                     )}
-                    {departments.map(dept => (
+                    {sortOptions(departments, (d) => d.department_name || d.name).map(dept => (
                       <option key={dept.id} value={dept.id}>{dept.department_name}</option>
                     ))}
                   </select>
@@ -485,7 +486,7 @@ export default function ProfilePage() {
                         </option>
                       )
                     )}
-                    {designations.map(desig => (
+                    {sortOptions(designations, (d) => d.designation_name || d.name).map(desig => (
                       <option key={desig.id} value={desig.id}>{desig.designation_name}</option>
                     ))}
                   </select>

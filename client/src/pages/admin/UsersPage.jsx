@@ -9,6 +9,7 @@ import { API_URL } from '../../api/axios';
 import { useAuth } from '../../context/AuthContext';
 import AuthenticatedImage from '../../components/common/AuthenticatedImage';
 import { useTableControls, SortableHeader, TableFilterRow, TableToolbar } from '../../components/common/table';
+import { sortOptions } from '../../utils/sortOptions';
 
 // Resolve a stored upload path (e.g. /api/uploads/users/EMP001.jpg) to an absolute URL
 const getPhotoUrl = (path) => {
@@ -366,7 +367,7 @@ export default function UsersPage() {
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
               >
                 <option value="">All Departments</option>
-                {departments.map((dept) => (
+                {sortOptions(departments, (d) => d.department_name || d.name).map((dept) => (
                   <option key={dept.id} value={dept.id}>
                     {dept.department_name}
                   </option>
@@ -381,7 +382,7 @@ export default function UsersPage() {
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
               >
                 <option value="">All Designations</option>
-                {designations.map((desig) => (
+                {sortOptions(designations, (d) => d.designation_name || d.name).map((desig) => (
                   <option key={desig.id} value={desig.id}>
                     {desig.designation_name}
                   </option>
@@ -440,7 +441,7 @@ export default function UsersPage() {
             >
               <option value="">All Departments</option>
 
-              {departments.map((dept) => (
+              {sortOptions(departments, (d) => d.department_name || d.name).map((dept) => (
                 <option key={dept.id} value={dept.id}>
                   {dept.department_name}
                 </option>
@@ -454,7 +455,7 @@ export default function UsersPage() {
             >
               <option value="">All Designations</option>
 
-              {designations.map((desig) => (
+              {sortOptions(designations, (d) => d.designation_name || d.name).map((desig) => (
                 <option key={desig.id} value={desig.id}>
                   {desig.designation_name}
                 </option>
@@ -656,7 +657,7 @@ export default function UsersPage() {
                         <label className="mb-2 block text-sm font-medium text-[color:var(--text-secondary)]">Department<span className='text-red-500'>*</span></label>
                         <select value={form.departmentId} onChange={e => setForm({ ...form, departmentId: e.target.value })} className="block w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-4 py-3 text-[color:var(--text-primary)] focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--focus-ring)]">
                           <option value="">Select Department</option>
-                          {departments.map(dept => (
+                          {sortOptions(departments, (d) => d.department_name || d.name).map(dept => (
                             <option key={dept.id} value={dept.id}>{dept.department_name}</option>
                           ))}
                         </select>
@@ -665,7 +666,7 @@ export default function UsersPage() {
                         <label className="mb-2 block text-sm font-medium text-[color:var(--text-secondary)]">Designation<span className='text-red-500'>*</span></label>
                         <select value={form.designationId} onChange={e => setForm({ ...form, designationId: e.target.value })} className="block w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-4 py-3 text-[color:var(--text-primary)] focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--focus-ring)]">
                           <option value="">Select Designation</option>
-                          {designations.map(desig => (
+                          {sortOptions(designations, (d) => d.designation_name || d.name).map(desig => (
                             <option key={desig.id} value={desig.id}>{desig.designation_name}</option>
                           ))}
                         </select>

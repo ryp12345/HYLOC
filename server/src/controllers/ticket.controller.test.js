@@ -108,6 +108,47 @@ describe('updateTicket authorization', () => {
     expect(ticketModel.updateTicket.mock.calls[0][1]).not.toHaveProperty('user_id');
     expect(client.release).toHaveBeenCalledTimes(1);
   });
+
+  const hodEdit = async (sameDepartmentEmployee) => {
+    const existing = {
+      id: 12, user_id: 10, assigned_to_ids: [20], status: 'Open',
+      title: 'Original', description: 'Details', priority: 'Low', due_date: '2026-12-01', attachment: null
+    };
+    ticketModel.getTicketById.mockResolvedValueOnce(existing).mockResolvedValue(existing);
+    ticketModel.updateTicket.mockResolvedValue(existing);
+    // 1st query: the HOD / Employee department check
+    pool.query
+      .mockResolvedValueOnce({ rows: sameDepartmentEmployee ? [{ '?column?': 1 }] : [] })
+      .mockResolvedValue({ rows: [] });
+    const client = { query: jest.fn().mockResolvedValue({ rows: [] }), release: jest.fn() };
+    pool.connect.mockResolvedValue(client);
+    const response = createResponse();
+
+    await controller.updateTicket({
+      params: { id: 12 },
+      user: { userId: 40, role: 'HOD' },
+      body: {
+        title: 'Changed', description: 'New details', priority: 'High', status: 'Closed',
+        due_date: '2027-01-01', assigned_to_ids: [40]
+      }
+    }, response);
+    return response;
+  };
+
+  test('lets an HOD edit only the title and description of an Employee ticket in their department', async () => {
+    const response = await hodEdit(true);
+
+    expect(response.statusCode).toBe(200);
+    expect(pool.query.mock.calls[0][1]).toEqual([40, 10]);
+    expect(ticketModel.updateTicket.mock.calls[0][1]).toEqual({ title: 'Changed', description: 'New details' });
+  });
+
+  test('rejects an HOD editing a ticket outside their department', async () => {
+    const response = await hodEdit(false);
+
+    expect(response.statusCode).toBe(403);
+    expect(ticketModel.updateTicket).not.toHaveBeenCalled();
+  });
 });
 
 describe('deleteTicket authorization', () => {

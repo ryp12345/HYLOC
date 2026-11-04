@@ -102,6 +102,11 @@ body {
   --map-ocean: #0b1222;
 }
 
+/* Filter row under a table header: the hover tint laid over a solid surface, so it reads the same on any header colour */
+.table-filter-row { background: linear-gradient(var(--surface-hover), var(--surface-hover)), var(--surface); }
+.dark .table-filter-row input,
+.dark .table-filter-row select { color-scheme: dark; }
+
 .dark .bg-white { background-color: var(--surface); }
 .dark .bg-gray-50 { background-color: var(--surface-hover); }
 .dark .bg-gray-100 { background-color: var(--surface-hover); }

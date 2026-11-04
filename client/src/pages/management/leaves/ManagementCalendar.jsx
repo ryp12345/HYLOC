@@ -13,6 +13,7 @@ import { getMyTickets, getAllTickets } from '../../../api/ticketApi';
 import { getUsers } from '../../../api/userApi';
 import { useAuth } from '../../../context/AuthContext';
 import { useTableControls, SortableHeader, TableFilterRow, TableToolbar } from '../../../components/common/table';
+import { compareLabels } from '../../../utils/sortOptions';
 
 const ManagementCalendar = ({ title = 'Management Calendar' }) => {
 	const { user } = useAuth();
@@ -684,7 +685,7 @@ const ManagementCalendar = ({ title = 'Management Calendar' }) => {
 				return d.name || d.department_name || d.departmentName || '';
 			})
 			.filter(name => name) // Remove empty strings
-			.sort();
+			.sort(compareLabels);
 		return options;
 	}, [allDepartments]);
 

@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import axios from '../../api/axios';
 import { useAuth } from '../../context/AuthContext';
 import Notification from '../../components/common/Notification';
+import { sortOptions } from '../../utils/sortOptions';
 
 // Helper function to get current financial year
 const getInitialYear = () => {
@@ -1284,7 +1285,7 @@ function KmisPage() {
                     className="w-full rounded-md border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-2.5 text-sm text-[color:var(--text-primary)] focus:border-[color:var(--accent)] focus:outline-none focus:ring-2 focus:ring-[color:var(--focus-ring)]"
                   >
                     <option value="">Select Department</option>
-                    {departments.map((dept) => (
+                    {sortOptions(departments, (d) => d.department_name || d.name).map((dept) => (
                       <option key={dept.id} value={String(dept.id)}>{dept.name || dept.department_name}</option>
                     ))}
                   </select>
@@ -1305,9 +1306,9 @@ function KmisPage() {
                     className="w-full rounded-md border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-2.5 text-sm text-[color:var(--text-primary)] focus:border-[color:var(--accent)] focus:outline-none focus:ring-2 focus:ring-[color:var(--focus-ring)]"
                   >
                     <option value="">Select Employee</option>
-                    {((formData.category_ids || []).includes('2') && formData.department_id
+                    {sortOptions((formData.category_ids || []).includes('2') && formData.department_id
                       ? getEmployeesForDepartment(formData.department_id)
-                      : employees
+                      : employees, (u) => `${u.firstname || u.name || u.full_name || u.email || ''} ${u.lastname || ''}`
                     ).map((emp) => (
                       <option key={emp.id} value={String(emp.empid)}>{emp.firstname} {emp.lastname} ({emp.empid})</option>
                     ))}

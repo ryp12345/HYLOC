@@ -85,7 +85,8 @@ function FilterInput({ table, col }) {
 export function TableFilterRow({ table, cellClassName = 'px-2 py-2' }) {
   if (!table.showFilters) return null;
   return (
-    <tr className="bg-[color:var(--surface-hover)]">
+    // Solid background: in dark mode --surface-hover is see-through, so a coloured header would show through
+    <tr className="table-filter-row text-[color:var(--text-primary)]">
       {table.visibleColumns.map((col) => (
         <th key={col.key} className={`${cellClassName} align-top font-normal`}>
           <FilterInput table={table} col={col} />

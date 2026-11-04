@@ -3,6 +3,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import axios from '../../api/axios';
 import Notification from '../../components/common/Notification';
 import { useTableControls, SortableHeader, TableFilterRow, TableToolbar } from '../../components/common/table';
+import { sortOptions } from '../../utils/sortOptions';
 
 function KmiDetail() {
   const { id } = useParams();
@@ -991,7 +992,7 @@ function KmiDetail() {
                   {units.length === 0 ? (
                     <option disabled>No units available</option>
                   ) : (
-                    units.map((u) => (
+                    sortOptions(units, (u) => u.unit_name).map((u) => (
                       <option key={u.id} value={u.id}>
                         {u.unit_name}
                       </option>
@@ -1041,7 +1042,7 @@ function KmiDetail() {
                   className="w-full rounded-md border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-2.5 text-sm text-[color:var(--text-primary)] focus:border-[color:var(--accent)] focus:outline-none focus:ring-2 focus:ring-[color:var(--focus-ring)]"
                 >
                   <option value="">Select Pillar</option>
-                  {pillers.map((piller) => (
+                  {sortOptions(pillers, (p) => p.piller_name).map((piller) => (
                     <option key={piller.id} value={piller.id}>
                       {piller.piller_name}{piller.short_name ? ` (${piller.short_name})` : ''}
                     </option>

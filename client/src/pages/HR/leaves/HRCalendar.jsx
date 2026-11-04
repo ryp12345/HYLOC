@@ -14,6 +14,7 @@ import { getMyTickets, getAllTickets } from '../../../api/ticketApi';
 import { getUsers } from '../../../api/userApi';
 import { useAuth } from '../../../context/AuthContext';
 import { useTableControls, SortableHeader, TableFilterRow, TableToolbar } from '../../../components/common/table';
+import { compareLabels } from '../../../utils/sortOptions';
 
 const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 	const { user } = useAuth();
@@ -162,11 +163,14 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 			setTickets(ticketsRes.data.data || []);
 			const users = usersRes?.data?.data || [];
 			const map = {};
-			const activeStaffUsers = users.filter((u) => u && u.id !== undefined && u.id !== null && String(u.status || '').toLowerCase() !== 'inactive');
+			const staffName = (u) => `${u.firstname || ''} ${u.lastname || ''}`.trim() || u.name || u.full_name || u.email || `User #${u.id}`;
+			// Staff dropdown is listed alphabetically by name (A–Z)
+			const activeStaffUsers = users
+				.filter((u) => u && u.id !== undefined && u.id !== null && String(u.status || '').toLowerCase() !== 'inactive')
+				.sort((a, b) => staffName(a).localeCompare(staffName(b), undefined, { sensitivity: 'base', numeric: true }));
 			users.forEach((u) => {
 				if (!u || u.id === undefined || u.id === null) return;
-				const name = `${u.firstname || ''} ${u.lastname || ''}`.trim() || u.name || u.full_name || u.email || `User #${u.id}`;
-				map[String(u.id)] = name;
+				map[String(u.id)] = staffName(u);
 			});
 			setUsersById(map);
 			setStaffUsers(activeStaffUsers);
@@ -722,7 +726,7 @@ const HRCalendar = ({ title = 'HR Leave Calendar' }) => {
 				return d.name || d.department_name || d.departmentName || '';
 			})
 			.filter(name => name) // Remove empty strings
-			.sort();
+			.sort(compareLabels);
 		return options;
 	}, [allDepartments]);
 

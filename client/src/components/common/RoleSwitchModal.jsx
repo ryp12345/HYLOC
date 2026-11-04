@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import axios from '../../api/axios';
 import Notification from './Notification';
+import { sortOptions } from '../../utils/sortOptions';
 
 const RoleSwitchModal = ({ isOpen, onClose, roles: rolesProp }) => {
   const { user, switchRole } = useAuth();
@@ -108,7 +109,7 @@ const RoleSwitchModal = ({ isOpen, onClose, roles: rolesProp }) => {
                     onChange={(e) => setPendingRole(e.target.value)}
                     className="w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-4 py-3 capitalize text-[color:var(--text-primary)] focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--focus-ring)]"
                   >
-                    {roles.map((r) => (
+                    {sortOptions(roles).map((r) => (
                       <option key={r} value={r} className="capitalize">{r}</option>
                     ))}
                   </select>

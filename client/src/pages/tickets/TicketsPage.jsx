@@ -6,6 +6,7 @@ import { getAllTickets, updateTicket, createTicket, getTicketPriorities, getTick
 import { getUsers, getAssignableUsers } from '../../api/userApi';
 import { useAuth } from '../../context/AuthContext';
 import { useTableControls, SortableHeader, TableFilterRow, TableToolbar } from '../../components/common/table';
+import { sortOptions } from '../../utils/sortOptions';
 
 const initialForm = {
   title: '',
@@ -635,7 +636,7 @@ export default function TicketsPage() {
                   <label className="mb-1 block text-xs text-[color:var(--text-secondary)]">Assignee</label>
                   <select value={assigneeFilter} onChange={e => setAssigneeFilter(e.target.value)} className="w-full rounded border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-2 text-[color:var(--text-primary)]">
                     <option value="">Any</option>
-                    {users.map(u => <option key={u.id} value={u.id}>{`${u.firstname || u.name || u.full_name || u.email}${u.lastname ? ' ' + u.lastname : ''}`}</option>)}
+                    {sortOptions(users, (u) => `${u.firstname || u.name || u.full_name || u.email || ''} ${u.lastname || ''}`).map(u => <option key={u.id} value={u.id}>{`${u.firstname || u.name || u.full_name || u.email}${u.lastname ? ' ' + u.lastname : ''}`}</option>)}
                   </select>
                 </div>
                 <div>

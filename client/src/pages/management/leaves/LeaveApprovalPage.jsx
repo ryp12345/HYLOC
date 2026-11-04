@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { getAllLeaves, approveLeave, rejectLeave, updateLeave } from '../../../api/leaveApi';
 import Notification from '../../../components/common/Notification';
 import { useTableControls, SortableHeader, TableFilterRow, TableToolbar } from '../../../components/common/table';
+import { compareLabels } from '../../../utils/sortOptions';
 
 const LeaveApprovalPage = () => {
   const [leaves, setLeaves] = useState([]);
@@ -48,7 +49,7 @@ const LeaveApprovalPage = () => {
     return allDepartments
       .map(d => d.name || d.department_name || d.departmentName || '')
       .filter(name => name)
-      .sort();
+      .sort(compareLabels);
   }, [allDepartments]);
 
   const loadLeaves = async (filters = {}) => {

@@ -101,6 +101,28 @@ const syncTicketAssignees = async (db, ticketId, assigneeIds, assignedBy) => {
 
 const isManagementRole = (role) => String(role || '').toLowerCase() === 'management';
 
+// True when the requester is an HOD and the ticket creator is an Employee of the same department
+// (the tickets an HOD sees in their list besides their own).
+const isHodOfEmployeeCreator = async (requesterId, requesterRole, creatorId) => {
+  if (String(requesterRole || '').toLowerCase() !== 'hod') return false;
+  const result = await pool.query(
+    `SELECT 1
+     FROM users requester
+     JOIN users creator ON creator.id = $2
+     WHERE requester.id = $1
+       AND requester.department_id IS NOT NULL
+       AND creator.department_id = requester.department_id
+       AND EXISTS (
+         SELECT 1 FROM user_roles ur
+         JOIN roles r ON r.id = ur.role_id
+         WHERE ur.user_id = creator.id AND ur.status = 'active' AND LOWER(r.role_name) = 'employee'
+       )
+     LIMIT 1`,
+    [requesterId, creatorId]
+  );
+  return result.rows.length > 0;
+};
+
 const ticketUploadsBasePath = '/api/uploads/tickets';
 
 // Map a stored attachment value to a file inside uploads/tickets only.
@@ -347,10 +369,21 @@ exports.updateTicket = async (req, res) => {
     const isCreator = String(existing.user_id) === String(requesterId);
     const isAssignee = ticketHasAssignee(existing, requesterId);
     if (!managementUser && !isCreator && !isAssignee) {
+      // An HOD sees the tickets of Employees in their department (same rule as the ticket list)
+      // and may edit only their title and description.
+      const canEditText = await isHodOfEmployeeCreator(requesterId, requesterRole, existing.user_id);
       if (req.file?.filename) {
         await removeLocalAttachmentIfExists(`${ticketUploadsBasePath}/${req.file.filename}`);
       }
-      return res.status(403).json({ success: false, message: 'You are not authorized to update this ticket' });
+      if (!canEditText) {
+        return res.status(403).json({ success: false, message: 'You are not authorized to update this ticket' });
+      }
+      Object.keys(payload).forEach((key) => {
+        if (!['title', 'description'].includes(key)) delete payload[key];
+      });
+      if (Object.keys(payload).length === 0) {
+        return res.status(400).json({ success: false, message: 'You can only edit title or description' });
+      }
     }
 
     const hasAssigneeUpdate = payload.assigned_to_ids !== undefined || payload.assigned_to !== undefined;
