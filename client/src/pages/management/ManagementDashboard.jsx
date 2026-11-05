@@ -7,7 +7,7 @@ import { getPillers } from '../../api/pillerApi';
 import { getUsers } from '../../api/userApi';
 import { getDepartments } from '../../api/departmentApi';
 import api, { API_URL } from '../../api/axios';
-import { calculateAchievement } from '../../utils/kpiAchievement';
+import { calculateAchievement, isLowerBetterKpi } from '../../utils/kpiAchievement';
 import AuthenticatedImage from '../../components/common/AuthenticatedImage';
 import { NO_DATA_TEXT, isMissingValue, formatChartValue, labelFormatter, maxOfValues, renderNoDataMarkers, renderZeroBarLabels, ChartTooltip } from '../../utils/chartValues';
 import {
@@ -258,35 +258,66 @@ const OnTimeDeliveryBarChart = ({ title, subtitle, labels, actuals, targets, sho
 
 
 
-// Employees left line chart
-// Employees left line chart
-const Box4EmployeesLineChart = ({ title, subtitle, labels, values, showAxisLabels = true, showPointLabels = true, xAxisTitle = 'Month', yAxisTitle = 'Count', showHeader = true, showSubtitle, isExpanded = false }) => {
-  const data = labels.map((label, i) => ({ name: label, Count: isMissingValue(values[i]) ? null : Number(values[i]) }));
-  const max = maxOfValues(values, 1);
-  const yMax = Math.ceil(max * 1.15);
+// Employee Skill Level line chart (actual % with dashed target line)
+const EmployeeSkillLevelLineChart = ({ title, labels, actuals, targets, showHeader = true, isExpanded = false }) => {
+  const data = labels.map((label, i) => ({
+    name: label,
+    Actual: isMissingValue(actuals[i]) ? null : Number(actuals[i]),
+    Target: isMissingValue(targets[i]) ? null : Number(targets[i]),
+  }));
+  const yMax = Math.min(100, Math.ceil(maxOfValues([...actuals, ...targets], 1) * 1.15));
   const tf = isExpanded ? 13 : 12;
   return (
     <div className="flex h-full w-full flex-col">
-      {showHeader && <h2 className="mb-1 text-center text-base font-bold text-cyan-300">{title}</h2>}
-      {(showHeader || showSubtitle) && subtitle && <p className="mb-1 text-center text-xs font-semibold uppercase tracking-wide text-slate-400">{subtitle}</p>}
+      {showHeader && <h2 className="mb-1 text-center text-base font-bold text-[color:var(--accent)]">{title}</h2>}
       <div className="min-h-0 flex-1">
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={data} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
-            <defs>
-              <linearGradient id="employeeArea" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#ef4444" stopOpacity={0.35} />
-                <stop offset="100%" stopColor="#ef4444" stopOpacity={0} />
-              </linearGradient>
-            </defs>
+          <LineChart data={data} margin={{ top: 14, right: 12, left: 0, bottom: 0 }}>
             <CartesianGrid strokeDasharray="4 4" stroke="var(--border)" vertical={false} />
             <XAxis dataKey="name" tick={{ fontSize: tf, fill: 'var(--text-muted)', fontWeight: 800 }} tickLine={false} axisLine={{ stroke: 'var(--border)' }} />
-            <YAxis domain={[0, yMax]} allowDecimals={false} tick={{ fontSize: tf, fill: 'var(--text-muted)', fontWeight: 800 }} tickLine={false} axisLine={false} width={38} />
+            <YAxis domain={[0, yMax]} unit="%" tick={{ fontSize: tf, fill: 'var(--text-muted)', fontWeight: 800 }} tickLine={false} axisLine={false} width={42} />
             <Tooltip content={<ChartTooltip />} filterNull={false} cursor={{ stroke: 'var(--border)', strokeDasharray: '4 4' }} />
-            {renderNoDataMarkers(data, ['Count'], tf - 2)}
-            <Area type="monotone" dataKey="Count" stroke="#ef4444" strokeWidth={3} fill="url(#employeeArea)" dot={{ r: 3, fill: '#ef4444', strokeWidth: 0 }} activeDot={{ r: 5 }} name="Count">
-              <LabelList dataKey="Count" position="top" formatter={labelFormatter()} style={{ fontSize: tf, fill: 'var(--text-primary)', fontWeight: 800 }} />
-            </Area>
-          </AreaChart>
+            {renderNoDataMarkers(data, ['Actual'], tf - 2)}
+            <Line type="monotone" dataKey="Target" stroke="#f59e0b" strokeWidth={2} strokeDasharray="6 4" dot={false} activeDot={{ r: 4 }} name="Target" />
+            <Line type="monotone" dataKey="Actual" stroke="#8b5cf6" strokeWidth={3} dot={{ r: 3, fill: '#8b5cf6', strokeWidth: 0 }} activeDot={{ r: 5 }} name="Actual">
+              <LabelList dataKey="Actual" position="top" formatter={labelFormatter('%')} style={{ fontSize: tf, fill: 'var(--text-primary)', fontWeight: 800 }} />
+            </Line>
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+};
+
+// Employee Turnover bar chart: employees left below zero, employees added above zero
+const EmployeeTurnoverBarChart = ({ title, labels, left, added, showHeader = true, isExpanded = false }) => {
+  const data = labels.map((label, i) => ({
+    name: label,
+    Left: isMissingValue(left[i]) ? null : -Math.abs(Number(left[i])),
+    Added: isMissingValue(added[i]) ? null : Math.abs(Number(added[i])),
+  }));
+  const extent = Math.ceil(maxOfValues([...left, ...added].map((v) => (isMissingValue(v) ? v : Math.abs(Number(v)))), 1) * 1.25);
+  const tf = isExpanded ? 13 : 12;
+  return (
+    <div className="flex h-full w-full flex-col">
+      {showHeader && <h2 className="mb-1 text-center text-base font-bold text-[color:var(--accent)]">{title}</h2>}
+      <div className="min-h-0 flex-1">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={data} stackOffset="sign" margin={{ top: 14, right: 8, left: 0, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="4 4" stroke="var(--border)" vertical={false} />
+            <XAxis dataKey="name" tick={{ fontSize: tf, fill: 'var(--text-muted)', fontWeight: 800 }} tickLine={false} axisLine={{ stroke: 'var(--border)' }} />
+            <YAxis domain={[-extent, extent]} allowDecimals={false} tick={{ fontSize: tf, fill: 'var(--text-muted)', fontWeight: 800 }} tickLine={false} axisLine={false} width={32} />
+            <Tooltip content={<ChartTooltip />} filterNull={false} cursor={{ fill: 'color-mix(in srgb, var(--app-bg) 84%, transparent)' }} />
+            {isExpanded && <Legend wrapperStyle={{ fontSize: tf, fontWeight: 700 }} />}
+            <ReferenceLine y={0} stroke="var(--text-muted)" />
+            {renderNoDataMarkers(data, ['Left', 'Added'], tf - 2)}
+            <Bar dataKey="Added" stackId="turnover" fill="#22c55e" radius={[4, 4, 0, 0]} maxBarSize={32} name="Employees Added">
+              <LabelList dataKey="Added" position="top" formatter={(v) => (isMissingValue(v) || Number(v) === 0 ? '' : `+${formatChartValue(v, '', 0)}`)} style={{ fontSize: tf, fill: 'var(--text-primary)', fontWeight: 800 }} />
+            </Bar>
+            <Bar dataKey="Left" stackId="turnover" fill="#ef4444" radius={[4, 4, 0, 0]} maxBarSize={32} name="Employees Left">
+              <LabelList dataKey="Left" position="bottom" formatter={(v) => (isMissingValue(v) || Number(v) === 0 ? '' : formatChartValue(v, '', 0))} style={{ fontSize: tf, fill: 'var(--text-primary)', fontWeight: 800 }} />
+            </Bar>
+          </BarChart>
         </ResponsiveContainer>
       </div>
     </div>
@@ -303,7 +334,7 @@ const PillarRadarChart = ({ pillars, onPillarClick, compact = false }) => {
       pillar?.total_kpis ??
       pillar?.kpis?.length ??
       pillar?.count ??
-      1;
+      0;
     return {
       subject: pillar?.short_name || pillar?.piller_name || pillar?.pillar_name || `Pillar ${index + 1}`,
       value: Number(rawValue) || 0,
@@ -568,8 +599,10 @@ function ManagementDashboard() {
   const [onTimeDeliveryChart, setOnTimeDeliveryChart] = useState(null);
   const [onTimeDeliveryLoading, setOnTimeDeliveryLoading] = useState(false);
 
-  const [employeesChart, setEmployeesChart] = useState(null);
-  const [employeesChartLoading, setEmployeesChartLoading] = useState(false);
+  const [skillLevelChart, setSkillLevelChart] = useState(null);
+  const [skillLevelLoading, setSkillLevelLoading] = useState(false);
+  const [turnoverChart, setTurnoverChart] = useState(null);
+  const [turnoverLoading, setTurnoverLoading] = useState(false);
   const [expandedChart, setExpandedChart] = useState(null);
   const [expandedChartData, setExpandedChartData] = useState(null);
   const [kpiIdMap, setKpiIdMap] = useState({});
@@ -585,6 +618,16 @@ function ManagementDashboard() {
       value: Number(department?.value) || 0,
     }));
   }, [departmentPerformance]);
+
+  // Number of KPI values per pillar in the selected fiscal year (the pillar list itself carries no counts)
+  const pillarKpiCounts = useMemo(() => {
+    const counts = {};
+    cachedKpiValues.forEach((kv) => {
+      if (kv?.piller_id == null) return;
+      counts[kv.piller_id] = (counts[kv.piller_id] || 0) + 1;
+    });
+    return counts;
+  }, [cachedKpiValues]);
 
   const getPhotoUrl = (path) => {
     if (!path) return '';
@@ -813,12 +856,13 @@ function ManagementDashboard() {
           loadGreenFactoryChart(fiscalValues),
           loadZeroAccidentsChart(fiscalValues),
           loadOnTimeDeliveryChart(fiscalValues),
-          loadEmployeesChart(fiscalValues)
+          loadSkillLevelChart(fiscalValues),
+          loadTurnoverChart(fiscalValues)
         ]);
 
         // Log any failures
         chartResults.forEach((result, index) => {
-          const chartNames = ['Industry40', 'ZeroQuality', 'Sales', 'Profitability', 'PlantEfficiency', 'GreenFactory', 'ZeroAccidents', 'OnTimeDelivery', 'Employees'];
+          const chartNames = ['Industry40', 'ZeroQuality', 'Sales', 'Profitability', 'PlantEfficiency', 'GreenFactory', 'ZeroAccidents', 'OnTimeDelivery', 'SkillLevel', 'Turnover'];
           if (result.status === 'rejected') {
             console.error(`Failed to load ${chartNames[index]} chart:`, result.reason);
           }
@@ -958,9 +1002,6 @@ function ManagementDashboard() {
           if (titleLower.includes('profit') || titleLower.includes('p & l') || titleLower.includes('p&l')) {
             idMap['Profitability'] = kpi.id;
           }
-          if (titleLower.includes('morale') || titleLower.includes('theme') || titleLower.includes('attrition') || titleLower.includes('employee')) {
-            idMap['Morale'] = kpi.id;
-          }
           idMap[kpi.title] = kpi.id; // Also map by exact title
         });
         setKpiIdMap(idMap);
@@ -1076,10 +1117,17 @@ function ManagementDashboard() {
       const year1 = selectedFiscalYear;
       const year2 = selectedFiscalYear + 1;
 
-      const [resp1, resp2] = await Promise.allSettled([
+      const [resp1, resp2, unitsResp] = await Promise.allSettled([
         api.post('/kpi-data-values/multiple', { kpiValueIds: ids, year: year1 }),
         api.post('/kpi-data-values/multiple', { kpiValueIds: ids, year: year2 }),
+        api.get('/unit-master'),
       ]);
+
+      // Unit symbol per unit id, used to tell "lower is better" KPIs (time, days, PPM) apart
+      const unitSymbolById = {};
+      (unitsResp.status === 'fulfilled' ? (unitsResp.value?.data?.data || []) : []).forEach(unit => {
+        unitSymbolById[String(unit.id)] = unit.symbol;
+      });
 
       const allDataValues = [
         ...(resp1.status === 'fulfilled' ? (resp1.value?.data?.data || []) : []),
@@ -1120,10 +1168,11 @@ function ManagementDashboard() {
           });
 
           const monthlyAchievements = [];
+          const lowerIsBetter = isLowerBetterKpi(kv.data, unitSymbolById[String(kv.uom)]);
 
           Object.values(byMonth).forEach(m => {
             // Skips months with a missing value or no usable target
-            const achievement = calculateAchievement(m.actual, m.target);
+            const achievement = calculateAchievement(m.actual, m.target, { lowerIsBetter });
             if (achievement == null) return;
 
             monthlyAchievements.push(Math.min(achievement, 100));
@@ -1321,54 +1370,91 @@ function ManagementDashboard() {
 
 
 
-  const loadEmployeesChart = async (fiscalValues) => {
+  // Monthly actual/target series for one KPI value across the fiscal year.
+  // lastIdx is the last fiscal month that has an actual entry (-1 if none).
+  const fetchFiscalMonthlySeries = async (kpiValueId) => {
+    const yearRows = {};
+    const series = [];
+    let lastIdx = -1;
+    for (let idx = 0; idx < FISCAL_MONTH_SEQUENCE.length; idx++) {
+      const { month, year } = FISCAL_MONTH_SEQUENCE[idx];
+      try {
+        if (!yearRows[year]) {
+          const resp = await api.get(`/kpi-data-values/${kpiValueId}/monthly`, { params: { year } });
+          yearRows[year] = resp.data?.data || [];
+        }
+        const monthRows = yearRows[year].filter(r => Number(r.month) === month && Number(r.year) === year);
+        const actualRow = monthRows.find(r => normalizeValueType(r.value_type) === 'actual');
+        const targetRow = monthRows.find(r => normalizeValueType(r.value_type) === 'target');
+        if (actualRow) lastIdx = idx;
+        series.push({ actual: parseNullableNumeric(actualRow?.value), target: parseNullableNumeric(targetRow?.value) });
+      } catch (err) {
+        console.warn(`Failed to load data for month ${month}, year ${year}:`, err.message);
+        series.push({ actual: null, target: null });
+      }
+    }
+    return { series, lastIdx };
+  };
+
+  const getFiscalDisplayYear = () => `${FISCAL_MONTH_SEQUENCE[0].year}-${FISCAL_MONTH_SEQUENCE[FISCAL_MONTH_SEQUENCE.length - 1].year}`;
+
+  const loadSkillLevelChart = async (fiscalValues) => {
     try {
-      setEmployeesChartLoading(true);
-      console.log(`📊 Loading Employees Chart for Fiscal Year: ${selectedFiscalYear}`);
-
-      // Match "NO. OF EMPLOYEES WHO LEFT" exactly
-      const employeesValue = findKpiValueByData(
-        fiscalValues,
-        (text) => text === 'no. of employees who left'
-      );
-
-      if (!employeesValue) {
-        console.warn('KPI value not found for NO. OF EMPLOYEES WHO LEFT');
-        setEmployeesChart(null);
+      setSkillLevelLoading(true);
+      const skillValue = findKpiValueByData(fiscalValues, (text) => text === 'employee skill level');
+      if (!skillValue) {
+        console.warn('KPI value not found for EMPLOYEE SKILL LEVEL');
+        setSkillLevelChart(null);
         return;
       }
 
-      const employeesByMonth = [];
-      let lastAvailableIdx = -1;
-      for (let idx = 0; idx < FISCAL_MONTH_SEQUENCE.length; idx++) {
-        const { month, year } = FISCAL_MONTH_SEQUENCE[idx];
-        try {
-          console.log(`  📅 Fetching Employees data for month ${month}, year ${year} (Fiscal Year ${selectedFiscalYear})`);
-          const resp = await api.get(`/kpi-data-values/${employeesValue.id}/monthly`, {
-            params: { year }
-          });
-          const rows = resp.data?.data || [];
-          const monthRows = rows.filter(r => Number(r.month) === month && Number(r.year) === year);
-          const actualRow = monthRows.find(r => normalizeValueType(r.value_type) === 'actual');
-          if (actualRow) {
-            lastAvailableIdx = idx;
-          }
-          const value = parseNullableNumeric(actualRow?.value);
-          console.log(`    ✅ Employees data: month=${month}, year=${year}, value=${value}`);
-          employeesByMonth.push(value);
-        } catch (err) {
-          console.warn(`Failed to load data for month ${month}, year ${year}:`, err);
-          employeesByMonth.push(null);
-        }
+      const { series, lastIdx } = await fetchFiscalMonthlySeries(skillValue.id);
+      const sliceEnd = lastIdx >= 0 ? lastIdx + 1 : 12;
+      setSkillLevelChart({
+        title: `Employee Skill Level (${getFiscalDisplayYear()})`,
+        labels: FISCAL_MONTH_SEQUENCE.map(entry => MONTH_LABELS[entry.month - 1]).slice(0, sliceEnd),
+        actuals: series.map(d => d.actual).slice(0, sliceEnd),
+        targets: series.map(d => d.target).slice(0, sliceEnd),
+      });
+    } catch (err) {
+      console.error('Failed to load Employee Skill Level chart', err);
+      setSkillLevelChart(null);
+    } finally {
+      setSkillLevelLoading(false);
+    }
+  };
+
+  const loadTurnoverChart = async (fiscalValues) => {
+    try {
+      setTurnoverLoading(true);
+      // 2025-26 names this KPI "No. of employees who left"; 2026-27 names it "No. Of Employees Left"
+      const leftValue = findKpiValueByData(fiscalValues, (text) => text === 'no. of employees who left' || text === 'no. of employees left');
+      const addedValue = findKpiValueByData(fiscalValues, (text) => text === 'no. of new employees joined');
+      if (!leftValue && !addedValue) {
+        console.warn('KPI values not found for EMPLOYEE TURNOVER RATIO (employees left / new employees joined)');
+        setTurnoverChart(null);
+        return;
       }
 
-      const sliceEnd = lastAvailableIdx >= 0 ? lastAvailableIdx + 1 : 12;
-      const labels = FISCAL_MONTH_SEQUENCE.map(entry => MONTH_LABELS[entry.month - 1]).slice(0, sliceEnd);
-      setEmployeesChart({ title: 'No. of Employees Who Left', subtitle: 'Monthly Attrition', labels, values: employeesByMonth.slice(0, sliceEnd) });
+      const empty = { series: FISCAL_MONTH_SEQUENCE.map(() => ({ actual: null, target: null })), lastIdx: -1 };
+      const [leftData, addedData] = await Promise.all([
+        leftValue ? fetchFiscalMonthlySeries(leftValue.id) : empty,
+        addedValue ? fetchFiscalMonthlySeries(addedValue.id) : empty,
+      ]);
+      const lastIdx = Math.max(leftData.lastIdx, addedData.lastIdx);
+      const sliceEnd = lastIdx >= 0 ? lastIdx + 1 : 12;
+      setTurnoverChart({
+        title: `Employee Turnover (${getFiscalDisplayYear()})`,
+        labels: FISCAL_MONTH_SEQUENCE.map(entry => MONTH_LABELS[entry.month - 1]).slice(0, sliceEnd),
+        left: leftData.series.map(d => d.actual).slice(0, sliceEnd),
+        added: addedData.series.map(d => d.actual).slice(0, sliceEnd),
+      });
     } catch (err) {
-      console.error('Failed to load Employees chart', err);
-      setEmployeesChart(null);
-    } finally { setEmployeesChartLoading(false); }
+      console.error('Failed to load Employee Turnover chart', err);
+      setTurnoverChart(null);
+    } finally {
+      setTurnoverLoading(false);
+    }
   };
 
   const loadPlantEfficiency = async (fiscalValues) => {
@@ -1416,15 +1502,13 @@ function ManagementDashboard() {
             efficiencyByIndex[idx] = null; // no data for this month
             continue;
           }
-          const target = parseNullableNumeric(targetRow?.value);
           const actual = parseNullableNumeric(actualRow.value);
           if (actual === null) {
             efficiencyByIndex[idx] = null; // blank value entered = no data
             continue;
           }
-          // If target is missing, assume actual is already a percent value.
-          const efficiency = target > 0 ? Math.min(100, (actual / target) * 100) : Math.min(100, actual);
-          efficiencyByIndex[idx] = Math.round(efficiency * 10) / 10;
+          // The gauge shows the OPE % itself (not achievement against target)
+          efficiencyByIndex[idx] = Math.round(actual * 10) / 10;
           //console.log(`Month ${month}/${year} - Efficiency calculated: ${efficiencyByIndex[idx]}% (actual: ${actual}, target: ${target})`);
         } catch (err) {
           //console.warn(`Failed to load efficiency for month ${month}, year ${year}:`, err);
@@ -1469,7 +1553,8 @@ function ManagementDashboard() {
     'onTimeDelivery',
     'zeroAccidents',
     'greenFactory',
-    'themeEmployees'
+    'skillLevel',
+    'turnover'
   ];
 
   const getChartData = (key) => {
@@ -1515,12 +1600,19 @@ function ManagementDashboard() {
           labels: FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1]),
           values: Array(12).fill(0)
         };
-      case 'themeEmployees':
-        return employeesChart || {
-          title: 'No. of Employees Who Left',
-          subtitle: 'Monthly Attrition',
+      case 'skillLevel':
+        return skillLevelChart || {
+          title: 'Employee Skill Level',
           labels: FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1]),
-          values: Array(12).fill(0)
+          actuals: Array(12).fill(null),
+          targets: Array(12).fill(null)
+        };
+      case 'turnover':
+        return turnoverChart || {
+          title: 'Employee Turnover',
+          labels: FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1]),
+          left: Array(12).fill(null),
+          added: Array(12).fill(null)
         };
       default:
         return null;
@@ -1556,7 +1648,7 @@ function ManagementDashboard() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [expandedChart, monthlyEfficiency, selectedFiscalIndex, industry40Chart, zeroQualityChart, monthlySalesData, selectedSalesIndex, monthlyProfitData, selectedProfitIndex, onTimeDeliveryChart, zeroAccidentsChart, greenFactoryChart, employeesChart]);
+  }, [expandedChart, monthlyEfficiency, selectedFiscalIndex, industry40Chart, zeroQualityChart, monthlySalesData, selectedSalesIndex, monthlyProfitData, selectedProfitIndex, onTimeDeliveryChart, zeroAccidentsChart, greenFactoryChart, skillLevelChart, turnoverChart]);
 
   const handleKPITitleClick = async (chartTitle) => {
     let kpiId = kpiIdMap[chartTitle];
@@ -1584,7 +1676,6 @@ function ManagementDashboard() {
             if (titleLower === 'cost' && kTitle.includes('cost') && !kTitle.includes('revenue') && !kTitle.includes('sales') && !kTitle.includes('profit')) return true;
             if (titleLower === 'revenue' && (kTitle.includes('revenue') || kTitle.includes('sales'))) return true;
             if (titleLower === 'profitability' && (kTitle.includes('profit') || kTitle.includes('p & l') || kTitle.includes('p&l'))) return true;
-            if (titleLower === 'morale' && (kTitle.includes('morale') || kTitle.includes('theme') || kTitle.includes('attrition') || kTitle.includes('employee'))) return true;
             return false;
           });
         }
@@ -2200,7 +2291,7 @@ function ManagementDashboard() {
                     onClick={() => handleKPITitleClick('Profitability')}
                     className="mb-0 cursor-pointer rounded-md px-1.5 py-0.5 text-center text-[10px] font-bold tracking-wide text-[color:var(--text-secondary)] transition-colors hover:bg-[color:var(--surface-hover)] hover:text-[color:var(--success)] focus:outline-none focus:ring-1 focus:ring-[color:var(--focus-ring)] md:px-2 md:text-xs"
                   >
-                    PROFITABILITY (YTD)
+                    PROFITABILITY
                   </button>
                   {profitabilityLoading ? (
                     <div className="flex items-center justify-center p-1 text-xs text-[color:var(--text-muted)] md:p-2">Loading...</div>
@@ -2288,9 +2379,9 @@ function ManagementDashboard() {
             </div>
           </div>
 
-          {/* Row 3: Zero Accidents, Green Factory, Morale (each col-span-2) */}
+          {/* Row 3: Zero Accidents, Green Factory, Employee Skill Level, Employee Turnover Ratio (each col-span-3) */}
           {/* Zero Accidents */}
-          <div className="w-full h-full min-h-0 lg:col-span-4">
+          <div className="w-full h-full min-h-0 lg:col-span-3">
             <div className="dashboard-card flex h-full min-h-0 flex-col">
               <button
                 onClick={() => handleKPITitleClick('Zero Accidents')}
@@ -2318,7 +2409,7 @@ function ManagementDashboard() {
           </div>
 
           {/* Green Factory */}
-          <div className="w-full h-full min-h-0 lg:col-span-4">
+          <div className="w-full h-full min-h-0 lg:col-span-3">
             <div className="dashboard-card flex h-full min-h-0 flex-col">
               <button
                 onClick={() => handleKPITitleClick('Green Factory')}
@@ -2345,35 +2436,59 @@ function ManagementDashboard() {
             </div>
           </div>
 
-          {/* Morale */}
-          <div className="w-full h-full min-h-0 lg:col-span-4">
+          {/* Employee Skill Level */}
+          <div className="w-full h-full min-h-0 lg:col-span-3">
             <div className="dashboard-card flex h-full min-h-0 flex-col">
               <button
-                onClick={() => handleKPITitleClick('Morale')}
+                onClick={() => handleKPITitleClick('EMPLOYEE SKILL LEVEL')}
+                className="dashboard-card__title dashboard-card__title--violet text-xs font-extrabold leading-snug sm:text-sm"
+              >
+                <span className="text-sm sm:text-base">🎓</span>
+                <span className="whitespace-normal break-words">Employee Skill Level</span>
+              </button>
+              {skillLevelLoading ? (
+                <div className="flex items-center justify-center p-3 text-slate-400">Loading...</div>
+              ) : skillLevelChart ? (
+                <div
+                  className="flex-1 min-h-0 cursor-pointer flex"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => openExpandedChart('skillLevel', skillLevelChart)}
+                  onKeyDown={(e) => e.key === 'Enter' && openExpandedChart('skillLevel', skillLevelChart)}
+                >
+                  <EmployeeSkillLevelLineChart title={skillLevelChart.title} labels={skillLevelChart.labels} actuals={skillLevelChart.actuals} targets={skillLevelChart.targets} showHeader={false} />
+                </div>
+              ) : (
+                <div className="flex items-center justify-center flex-1 h-full min-h-0 text-slate-400 text-sm font-medium">{NO_DATA_TEXT}</div>
+              )}
+            </div>
+          </div>
+
+          {/* Employee Turnover Ratio */}
+          <div className="w-full h-full min-h-0 lg:col-span-3">
+            <div className="dashboard-card flex h-full min-h-0 flex-col">
+              <button
+                onClick={() => handleKPITitleClick('EMPLOYEE TURNOVER RATIO')}
                 className="dashboard-card__title dashboard-card__title--rose text-xs font-extrabold leading-snug sm:text-sm"
               >
-                <span className="text-sm sm:text-base">😊</span>
-                <span className="whitespace-normal break-words">Morale</span>
+                <span className="text-sm sm:text-base">🔄</span>
+                <span className="whitespace-normal break-words">Employee Turnover Ratio</span>
               </button>
-              <div className="flex-1 px-1 pb-1 pt-0.5 min-w-0">
-                {employeesChartLoading ? (
-                  <div className="flex items-center justify-center p-2 text-slate-400 text-xs">Loading...</div>
-                ) : (
-                  <div
-                    className="h-full cursor-pointer"
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => openExpandedChart('themeEmployees', employeesChart)}
-                    onKeyDown={(e) => e.key === 'Enter' && openExpandedChart('themeEmployees', employeesChart)}
-                  >
-                    {employeesChart ? (
-                      <Box4EmployeesLineChart title={employeesChart.title} subtitle={employeesChart.subtitle} labels={employeesChart.labels} values={employeesChart.values} showHeader={false} showSubtitle={true} />
-                    ) : (
-                      <div className="flex items-center justify-center flex-1 h-full min-h-0 text-slate-400 text-xs font-medium">{NO_DATA_TEXT}</div>
-                    )}
-                  </div>
-                )}
-              </div>
+              {turnoverLoading ? (
+                <div className="flex items-center justify-center p-3 text-slate-400">Loading...</div>
+              ) : turnoverChart ? (
+                <div
+                  className="flex-1 min-h-0 cursor-pointer flex"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => openExpandedChart('turnover', turnoverChart)}
+                  onKeyDown={(e) => e.key === 'Enter' && openExpandedChart('turnover', turnoverChart)}
+                >
+                  <EmployeeTurnoverBarChart title={turnoverChart.title} labels={turnoverChart.labels} left={turnoverChart.left} added={turnoverChart.added} showHeader={false} />
+                </div>
+              ) : (
+                <div className="flex items-center justify-center flex-1 h-full min-h-0 text-slate-400 text-sm font-medium">{NO_DATA_TEXT}</div>
+              )}
             </div>
           </div>
         </div>
@@ -2428,7 +2543,9 @@ function ManagementDashboard() {
         </div>
         <div className="min-h-0 flex-1">
           <PillarRadarChart
-            pillars={[...pillerStats.pillers].sort((a, b) => (a.piller_name || '').localeCompare(b.piller_name || ''))}
+            pillars={[...pillerStats.pillers]
+              .sort((a, b) => (a.piller_name || '').localeCompare(b.piller_name || ''))
+              .map((pillar) => ({ ...pillar, kpi_count: pillarKpiCounts[pillar.id] || 0 }))}
             onPillarClick={(pillar) => {
               if (pillar?.id) {
                 navigate(`/management/pillar/${pillar.id}`);
@@ -2477,12 +2594,12 @@ function ManagementDashboard() {
                         ? expandedChartData.title || 'Zero Accidents'
                         : expandedChart === 'onTimeDelivery'
                           ? expandedChartData.title || 'On Time Delivery'
-                          : expandedChart === 'employeesChart'
-                            ? expandedChartData.title || 'Employees Left'
+                          : expandedChart === 'skillLevel'
+                            ? expandedChartData.title || 'Employee Skill Level'
                             : expandedChart === 'greenFactory'
                               ? expandedChartData.title || 'Green Factory'
-                              : expandedChart === 'themeEmployees'
-                                ? 'Morale (Theme Of The Year & Employees Left)'
+                              : expandedChart === 'turnover'
+                                ? expandedChartData.title || 'Employee Turnover'
                                 : expandedChart === 'salesProfit'
                                   ? 'Revenue & Profitability'
                                   : 'Chart'}
@@ -2583,12 +2700,12 @@ function ManagementDashboard() {
 
 
 
-              {expandedChart === 'employeesChart' && (
-                <Box4EmployeesLineChart
+              {expandedChart === 'skillLevel' && (
+                <EmployeeSkillLevelLineChart
                   title={expandedChartData.title}
-                  subtitle={expandedChartData.subtitle}
                   labels={expandedChartData.labels}
-                  values={expandedChartData.values}
+                  actuals={expandedChartData.actuals}
+                  targets={expandedChartData.targets}
                   isExpanded={true}
                 />
               )}
@@ -2603,19 +2720,14 @@ function ManagementDashboard() {
                 />
               )}
 
-              {expandedChart === 'themeEmployees' && (
-                <div className="flex items-center justify-center w-full h-full">
-                  <div className="flex h-full w-full max-w-4xl flex-col border border-[color:var(--border)] bg-[color:var(--surface-elevated)] p-4 shadow-sm">
-                    <div className="flex-1 min-h-0">
-                      <Box4EmployeesLineChart
-                        title={expandedChartData?.title || 'No. of Employees Who Left'}
-                        labels={expandedChartData?.labels || FISCAL_MONTH_SEQUENCE.map(e => MONTH_LABELS[e.month - 1])}
-                        values={expandedChartData?.values || Array(12).fill(0)}
-                        isExpanded={true}
-                      />
-                    </div>
-                  </div>
-                </div>
+              {expandedChart === 'turnover' && (
+                <EmployeeTurnoverBarChart
+                  title={expandedChartData.title}
+                  labels={expandedChartData.labels}
+                  left={expandedChartData.left}
+                  added={expandedChartData.added}
+                  isExpanded={true}
+                />
               )}
 
               {expandedChart === 'salesProfit' && (

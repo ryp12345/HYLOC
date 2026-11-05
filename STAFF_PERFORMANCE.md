@@ -21,10 +21,12 @@ Performance is derived from KPI data values for the selected fiscal year.
 | Metric Type | Formula | Examples |
 |-------------|---------|----------|
 | **Normal** (higher = better) | `(Actual / Target) × 100` | Sales, Revenue, Efficiency, Production |
+| **Lower = better** | `(Target / Actual) × 100` (actual of 0 = 100%) | MTTR, setting time, inventory days, rejection PPM |
 
+- A KPI is "lower = better" when its unit is Mins., Hrs., Days or PPM (except names containing "saving", "MTBF" or "kaizen"), or its name contains "cost of poor quality", "absenteeism", or "consumption" without "reduction" (`isLowerBetterKpi` in `client/src/utils/kpiAchievement.js`).
 - Result is clamped to a maximum of `100%`.
 - If `target = 0` or either value is missing, that month's data point is skipped.
-- The same rule is used on the HOD dashboard, KPI detail, pillar and KMI detail pages (`client/src/utils/kpiAchievement.js`).
+- The higher-is-better rule is shared with the HOD dashboard, KPI detail, pillar and KMI detail pages (`client/src/utils/kpiAchievement.js`); the lower-is-better rule is applied only in the staff performance score.
 - KPIs with `target_required = false` are excluded from the staff performance score.
 
 ### Per-KPI Average

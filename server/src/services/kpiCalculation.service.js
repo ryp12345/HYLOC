@@ -52,19 +52,6 @@ class KPICalculationService {
    * @returns {Promise<number>}
    */
   static async computeCumulativeSumForSource(sourceKpiValueId, month, year, valueType = 'actual') {
-    // First, get the unit_symbol for this KPI value
-    const kpiValueResult = await pool.query(
-      `SELECT k.data, u.symbol as unit_symbol
-       FROM kpi_values k
-       LEFT JOIN unit_master u ON k.uom = u.id
-       WHERE k.id = $1`,
-      [sourceKpiValueId]
-    );
-
-    const kpiData = kpiValueResult.rows?.[0];
-    const unitSymbol = kpiData?.unit_symbol;
-    const isPercentage = unitSymbol === '%' || (unitSymbol && unitSymbol.toLowerCase().includes('percent'));
-
     // Build query conditions for fiscal range (April to current month)
     let query;
     let params;
@@ -93,17 +80,13 @@ class KPICalculationService {
     }
 
     const result = await pool.query(query, params);
-    let num = parseFloat(result.rows?.[0]?.total);
+    const num = parseFloat(result.rows?.[0]?.total);
 
     if (Number.isNaN(num)) return 0;
 
-    // If unit is percentage, convert to a fraction (95% -> 0.95)
-    if (isPercentage) {
-      num = num / 100;
-    }
-
-    // Remove floating-point noise only. The computed KPI's own result is rounded
-    // by its unit in calculateKPIValue, so no precision is lost here.
+    // The total uses the stored numbers as they are, the same as a plain v<ID>
+    // reference does (a percentage KPI stays 95, not 0.95). Only floating-point
+    // noise is removed; calculateKPIValue rounds the final result.
     return Math.round(num * 1e6) / 1e6;
   }
 
@@ -227,30 +210,9 @@ class KPICalculationService {
       const evaluator = new FormulaEvaluator(valuesMap);
       const result = evaluator.evaluate(processedFormula);
 
-      // Get the unit of measurement for this KPI value to determine rounding
-      const unitResult = await pool.query(
-        `SELECT u.symbol, u.unit_name
-         FROM kpi_values kv
-         LEFT JOIN unit_master u ON kv.uom = u.id
-         WHERE kv.id = $1`,
-        [kpiValueId]
-      );
-
-      const unit = unitResult.rows[0];
-      const unitSymbol = unit?.symbol?.toLowerCase() || '';
-      const unitName = unit?.unit_name?.toLowerCase() || '';
-
-      // Round based on unit type
-      let roundedResult;
-      if (unitSymbol === '%' || unitName.includes('percent')) {
-        // Percentages: round to whole number (no decimals)
-        roundedResult = Math.round(result);
-      } else {
-        // Ratios and other values: round to 2 decimal places
-        roundedResult = Math.round(result * 100) / 100;
-      }
-
-      return roundedResult;
+      // Round to 2 decimal places for every unit. Percentages keep their decimals
+      // too, so small values such as 0.47% rejection are not shown as 0%.
+      return Math.round(result * 100) / 100;
     } catch (error) {
       console.error('Error calculating KPI value:', error.message);
       throw error;

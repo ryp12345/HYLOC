@@ -4,7 +4,7 @@ import { getUsersByDepartment } from '../../api/userApi';
 import { getDepartmentLeaves } from '../../api/leaveApi';
 import api from '../../api/axios';
 import { getEmployeeKPIValues } from '../../api/kpiApi';
-import { calculateAchievement } from '../../utils/kpiAchievement';
+import { calculateAchievement, isLowerBetterKpi } from '../../utils/kpiAchievement';
 
 function HODDashboard() {
 	const { user } = useAuth();
@@ -130,7 +130,9 @@ function HODDashboard() {
 					if (actualValue === null || actualValue === undefined || actualValue === '') {
 						pendingCount++;
 					} else {
-						const achievement = calculateAchievement(actualValue, currentMonthData.target_value);
+						const achievement = calculateAchievement(actualValue, currentMonthData.target_value, {
+							lowerIsBetter: isLowerBetterKpi(kv.data, kv.unit_symbol)
+						});
 						if (achievement != null) {
 							totalAchievement += Math.min(100, achievement);
 							achievementCount++;

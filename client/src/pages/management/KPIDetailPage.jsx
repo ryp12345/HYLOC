@@ -19,7 +19,7 @@ import {
 import { getKPIById, getChildKPIs, getKPIValuesByKPI, getMonthlyDataByKPIValue } from '../../api/kpiApi';
 import { getUserById } from '../../api/userApi';
 import { useAuth } from '../../context/AuthContext';
-import { calculateAchievement } from '../../utils/kpiAchievement';
+import { calculateAchievement, isLowerBetterKpi } from '../../utils/kpiAchievement';
 import { NO_DATA_TEXT, isMissingValue, formatChartValue, renderNoDataMarkers, ChartTooltip } from '../../utils/chartValues';
 
 const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -197,12 +197,12 @@ const normalizeMetricName = (value) => String(value || '').toUpperCase().replace
 const hasAllMetricTokens = (label, tokens) => tokens.every((token) => label.includes(token));
 
 /**
- * Achievement % for a metric card (actual / target).
+ * Achievement % for a metric card (actual / target, or target / actual when lower is better).
  * Without a usable target, the actual is shown as a percentage (capped at 100) as before.
  */
-const getMetricPercent = (actual, target) => {
+const getMetricPercent = (actual, target, lowerIsBetter = false) => {
   if (actual == null) return 0;
-  const achievement = calculateAchievement(actual, target);
+  const achievement = calculateAchievement(actual, target, { lowerIsBetter });
   return achievement ?? Math.min(actual, 100);
 };
 
@@ -440,6 +440,7 @@ const KPIDetailPage = () => {
       candidates.push({
         id: `parent-${value.id}`,
         title: value?.data || '',
+        lowerIsBetter: isLowerBetterKpi(value?.data, value?.unit_symbol),
         rows,
       });
     });
@@ -452,7 +453,8 @@ const KPIDetailPage = () => {
           candidates.push({
             id: `node-${node?.kpi?.id || 'x'}-${value.id}`,
             title: value?.data || nodeTitle,
-                rows,
+            lowerIsBetter: isLowerBetterKpi(value?.data || nodeTitle, value?.unit_symbol),
+            rows,
           });
         });
         walkNodes(node?.children || []);
@@ -485,6 +487,7 @@ const KPIDetailPage = () => {
           return {
             value: candidate,
             title: candidate.title,
+            lowerIsBetter: candidate.lowerIsBetter,
             actualValues: series.actualValues,
             targetValues: series.targetValues,
             labels: series.labels,
@@ -544,6 +547,7 @@ const KPIDetailPage = () => {
       return {
         id: c.id,
         title: c.title,
+        lowerIsBetter: c.lowerIsBetter,
         actualValues: series.actualValues,
         targetValues: series.targetValues,
         labels: series.labels,
@@ -701,7 +705,7 @@ const KPIDetailPage = () => {
       );
     }
 
-    const pct = getMetricPercent(rawActual, hasMonthTarget ? rawTarget : null);
+    const pct = getMetricPercent(rawActual, hasMonthTarget ? rawTarget : null, metric?.lowerIsBetter);
     const clampedPct = Math.min(Math.max(pct, 0), 100);
 
     const donutData = [
@@ -809,7 +813,7 @@ const KPIDetailPage = () => {
       );
     }
 
-    const pct = getMetricPercent(rawActual, hasMonthTarget ? rawTarget : null);
+    const pct = getMetricPercent(rawActual, hasMonthTarget ? rawTarget : null, metric?.lowerIsBetter);
     const clampedPct = Math.min(Math.max(pct, 0), 100);
 
     const donutData = [
@@ -855,7 +859,7 @@ const KPIDetailPage = () => {
     const rawTarget = metric.latestTarget;
     const hasActual = !isMissingValue(rawActual);
     const hasTarget = metric.targetValues.some((v) => !isMissingValue(v));
-    const pct = getMetricPercent(rawActual, rawTarget);
+    const pct = getMetricPercent(rawActual, rawTarget, metric.lowerIsBetter);
     const clampedPct = Math.min(Math.max(pct, 0), 100);
     // No actual value → show "No data available" instead of a misleading 0% achievement
     const pctText = hasActual ? formatChartValue(clampedPct, '%') : NO_DATA_TEXT;
@@ -943,12 +947,12 @@ const KPIDetailPage = () => {
     if (!isMainMetric) {
       const la = metric.latestActual;
       const lt = metric.latestTarget;
-      const p = getMetricPercent(la, lt);
+      const p = getMetricPercent(la, lt, metric.lowerIsBetter);
       const cp = Math.min(Math.max(p, 0), 100);
       accentColor = cp >= 100 ? '#16a34a' : cp >= 90 ? '#f59e0b' : cp >= 80 ? '#f97316' : '#ef4444';
     }
 
-    const pct = getMetricPercent(rawActual, hasMonthTarget ? rawTarget : null);
+    const pct = getMetricPercent(rawActual, hasMonthTarget ? rawTarget : null, metric?.lowerIsBetter);
     const clampedPct = rawActual != null ? Math.min(Math.max(pct, 0), 100) : 0;
 
     // With no actual value, draw an empty ring so the chart area is still visible
@@ -1276,6 +1280,7 @@ const KPIDetailPage = () => {
                     const m = {
                       id: c.id,
                       title: c.title,
+                      lowerIsBetter: c.lowerIsBetter,
                       actualValues: series.actualValues,
                       targetValues: series.targetValues,
                       labels: series.labels,

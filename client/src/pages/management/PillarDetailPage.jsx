@@ -4,7 +4,7 @@ import { getPillerById } from '../../api/pillerApi';
 import { getKPIValuesByPillar, getMonthlyDataByKPIValue } from '../../api/kpiApi';
 import { getAllUnitMasters } from '../../api/unitMasterApi';
 import { getUserById } from '../../api/userApi';
-import { calculateAchievement } from '../../utils/kpiAchievement';
+import { calculateAchievement, isLowerBetterKpi } from '../../utils/kpiAchievement';
 
 const FISCAL_MONTHS = [
   { label: 'Apr', month: 4, yearOffset: 0 },
@@ -398,7 +398,8 @@ export default function PillarDetailPage() {
     const achievement = pairedMonths.length > 0
       ? calculateAchievement(
         average(pairedMonths.map(m => m.actual)),
-        average(pairedMonths.map(m => m.target))
+        average(pairedMonths.map(m => m.target)),
+        { lowerIsBetter: isLowerBetterKpi(kpiVal.data, kpiVal.unit_symbol) }
       )
       : null;
     const hasAchievement = achievement !== null;

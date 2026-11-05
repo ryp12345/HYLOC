@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { getMyLeaveBalance } from '../../api/leaveApi';
 import { getMyTickets } from '../../api/ticketApi';
 import { getEmployeeKPIValues, getKPIValueMonthlyData, getKPIs } from '../../api/kpiApi';
+import { isLowerBetterKpi } from '../../utils/kpiAchievement';
 
 // Monthly data for month M is due by this day of month M+1.
 const DUE_DAY = 5;
@@ -75,17 +76,8 @@ const getEntryTimestamp = (row) => {
   return Number.isNaN(date.getTime()) ? null : date;
 };
 
-// Defaults to "higher is better" unless the KPI value or KPI declares otherwise.
-const isHigherBetter = (kpiValue, kpi) => {
-  for (const source of [kpiValue, kpi]) {
-    if (!source) continue;
-    if (typeof source.higher_is_better === 'boolean') return source.higher_is_better;
-    const direction = String(source.direction ?? source.polarity ?? source.target_direction ?? '').toLowerCase();
-    if (/(lower|less|min|decreas|down)/.test(direction)) return false;
-    if (/(higher|more|max|increas|up)/.test(direction)) return true;
-  }
-  return true;
-};
+// Same rule as every other page: time, day and PPM KPIs (and a few named ones) are better when lower.
+const isHigherBetter = (kpiValue) => !isLowerBetterKpi(kpiValue?.data, kpiValue?.unit_symbol);
 
 const getCategoryName = (kpi) => String(kpi?.category_name ?? kpi?.category?.category_name ?? '').toUpperCase();
 
@@ -225,7 +217,7 @@ function EmployeeDashboard() {
           const rows = result.status === 'fulfilled' ? result.value : [];
           const rowByMonth = new Map(rows.map((row) => [monthKey(row.year, row.month), row]));
           const kpi = kpiById.get(String(kv.kpi_id));
-          const higherBetter = isHigherBetter(kv, kpi);
+          const higherBetter = isHigherBetter(kv);
           const valueLabel = kv.data || kv.name || kpi?.title || `KPI value #${kv.id}`;
 
           // On-time updates and pending entries: only months that have already ended count

@@ -7,8 +7,10 @@ exports.getAllKPIValues = async () => {
       `SELECT kv.id, kv.data, kv.kpi_id, kv."data operator" AS data_operator, 
               kv.target_required, kv.uom, kv.kpi_type, kv.piller_id, kv.formula, 
               kv.source_kpi_value_ids, kv.default_target_value, kv.computation_type, 
-              kv.target_formula, kv.target_source_kpi_value_ids, kv.created_at, kv.updated_at
+              kv.target_formula, kv.target_source_kpi_value_ids, kv.created_at, kv.updated_at,
+              um.symbol AS unit_symbol
        FROM kpi_values kv
+       LEFT JOIN unit_master um ON um.id = kv.uom
        ORDER BY kv.created_at DESC`
     );
     return result.rows;
@@ -25,8 +27,10 @@ exports.getKPIValuesByKPI = async (kpiId) => {
       `SELECT kv.id, kv.data, kv.kpi_id, kv."data operator" AS data_operator, 
               kv.target_required, kv.uom, kv.kpi_type, kv.piller_id, kv.formula, 
               kv.source_kpi_value_ids, kv.default_target_value, kv.computation_type, 
-              kv.target_formula, kv.target_source_kpi_value_ids, kv.created_at, kv.updated_at
+              kv.target_formula, kv.target_source_kpi_value_ids, kv.created_at, kv.updated_at,
+              um.symbol AS unit_symbol
        FROM kpi_values kv
+       LEFT JOIN unit_master um ON um.id = kv.uom
        WHERE kv.kpi_id = $1 
        ORDER BY kv.created_at DESC`,
       [kpiId]
@@ -45,8 +49,10 @@ exports.getKPIValuesByPillar = async (pillerId) => {
       `SELECT kv.id, kv.data, kv.kpi_id, kv."data operator" AS data_operator, 
               kv.target_required, kv.uom, kv.kpi_type, kv.piller_id, kv.formula, 
               kv.source_kpi_value_ids, kv.default_target_value, kv.computation_type, 
-              kv.target_formula, kv.target_source_kpi_value_ids, kv.created_at, kv.updated_at
+              kv.target_formula, kv.target_source_kpi_value_ids, kv.created_at, kv.updated_at,
+              um.symbol AS unit_symbol
        FROM kpi_values kv
+       LEFT JOIN unit_master um ON um.id = kv.uom
        WHERE kv.piller_id = $1 
        ORDER BY kv.created_at DESC`,
       [pillerId]
@@ -65,8 +71,10 @@ exports.getKPIValueById = async (id) => {
       `SELECT kv.id, kv.data, kv.kpi_id, kv."data operator" AS data_operator, 
               kv.target_required, kv.uom, kv.kpi_type, kv.piller_id, kv.formula, 
               kv.source_kpi_value_ids, kv.default_target_value, kv.computation_type, 
-              kv.target_formula, kv.target_source_kpi_value_ids, kv.created_at, kv.updated_at
+              kv.target_formula, kv.target_source_kpi_value_ids, kv.created_at, kv.updated_at,
+              um.symbol AS unit_symbol
        FROM kpi_values kv
+       LEFT JOIN unit_master um ON um.id = kv.uom
        WHERE kv.id = $1`,
       [id]
     );
@@ -84,8 +92,10 @@ exports.getKPIValueByData = async (dataValue) => {
       `SELECT kv.id, kv.data, kv.kpi_id, kv."data operator" AS data_operator, 
               kv.target_required, kv.uom, kv.kpi_type, kv.piller_id, kv.formula, 
               kv.source_kpi_value_ids, kv.default_target_value, kv.computation_type, 
-              kv.target_formula, kv.target_source_kpi_value_ids, kv.created_at, kv.updated_at
+              kv.target_formula, kv.target_source_kpi_value_ids, kv.created_at, kv.updated_at,
+              um.symbol AS unit_symbol
        FROM kpi_values kv
+       LEFT JOIN unit_master um ON um.id = kv.uom
        WHERE LOWER(TRIM(kv.data)) = LOWER(TRIM($1))`,
       [dataValue]
     );

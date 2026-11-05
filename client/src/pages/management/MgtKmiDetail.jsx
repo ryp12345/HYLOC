@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import axios from '../../api/axios';
-import { calculateAchievement } from '../../utils/kpiAchievement';
+import { calculateAchievement, isLowerBetterKpi } from '../../utils/kpiAchievement';
 import { useTableControls, SortableHeader, TableFilterRow, TableToolbar } from '../../components/common/table';
 
 // Calendar order: index + 1 = month number
@@ -164,7 +164,10 @@ export default function MgtKmiDetail() {
               }
             }
 
-            const transformedData = transformMonthlyData(allRows);
+            // Keep only the financial year's months: April of the first year to March of the next
+            const transformedData = transformMonthlyData(allRows).filter(d =>
+              (d.year === yearParam && d.month >= 4) || (d.year === yearParam + 1 && d.month <= 3)
+            );
             return { valueId: value.id, data: transformedData };
           } catch {
             return { valueId: value.id, data: [] };
@@ -184,7 +187,7 @@ export default function MgtKmiDetail() {
 
         allData.forEach(({ data }, index) => {
           const value = kpiValues[index];
-          const insights = calculateInsights(data, value?.target_required);
+          const insights = calculateInsights(data, value?.target_required, isLowerBetterValue(value));
           if (insights && (insights.monthsWithData > 0 || (!insights.targetRequired && insights.monthsWithActual > 0))) {
             if (insights.targetRequired && insights.monthsWithData > 0) {
               totalAchievementSum += insights.overallAchievement;
@@ -199,7 +202,7 @@ export default function MgtKmiDetail() {
         if (totalKpiWithData > 0) {
           const kpiWithAchievement = allData.filter(({ data }, index) => {
             const value = kpiValues[index];
-            const insights = calculateInsights(data, value?.target_required);
+            const insights = calculateInsights(data, value?.target_required, isLowerBetterValue(value));
             return insights && insights.targetRequired && insights.monthsWithData > 0;
           }).length;
 
@@ -258,7 +261,9 @@ export default function MgtKmiDetail() {
     return months[month - 1] || month;
   };
 
-  const calculateInsights = (data, targetRequired = true) => {
+  const isLowerBetterValue = (value) => isLowerBetterKpi(value?.data, value?.unit_symbol);
+
+  const calculateInsights = (data, targetRequired = true, lowerIsBetter = false) => {
     if (!data || data.length === 0) return null;
 
     // Check if we have any data at all
@@ -283,8 +288,10 @@ export default function MgtKmiDetail() {
     // For KPIs without target requirement, analyze based on actual values only
     if (!targetRequired) {
       if (dataWithActual.length > 0) {
-        // Sort by actual value to find best/worst
-        const sortedByActual = [...dataWithActual].sort((a, b) => parseFloat(b.actual_value) - parseFloat(a.actual_value));
+        // Sort by actual value to find best/worst (best first; lowest is best when lower is better)
+        const sortedByActual = [...dataWithActual].sort((a, b) => lowerIsBetter
+          ? parseFloat(a.actual_value) - parseFloat(b.actual_value)
+          : parseFloat(b.actual_value) - parseFloat(a.actual_value));
         bestMonth = {
           month: sortedByActual[0].month,
           year: sortedByActual[0].year,
@@ -303,12 +310,15 @@ export default function MgtKmiDetail() {
           const midPoint = Math.floor(dataWithActual.length / 2);
           const firstHalfAvg = dataWithActual.slice(0, midPoint).reduce((sum, d) => sum + parseFloat(d.actual_value), 0) / midPoint;
           const secondHalfAvg = dataWithActual.slice(midPoint).reduce((sum, d) => sum + parseFloat(d.actual_value), 0) / (dataWithActual.length - midPoint);
+          // A rise is an improvement, unless lower is better
+          const up = lowerIsBetter ? 'declining' : 'improving';
+          const down = lowerIsBetter ? 'improving' : 'declining';
           if (firstHalfAvg === 0) {
             // No base to compare a percentage against: use the direction of the change
-            trend = secondHalfAvg === firstHalfAvg ? 'stable' : (secondHalfAvg > firstHalfAvg ? 'improving' : 'declining');
+            trend = secondHalfAvg === firstHalfAvg ? 'stable' : (secondHalfAvg > firstHalfAvg ? up : down);
           } else {
             const percentChange = ((secondHalfAvg - firstHalfAvg) / Math.abs(firstHalfAvg)) * 100;
-            trend = percentChange > 10 ? 'improving' : percentChange < -10 ? 'declining' : 'stable';
+            trend = percentChange > 10 ? up : percentChange < -10 ? down : 'stable';
           }
         }
       }
@@ -319,7 +329,7 @@ export default function MgtKmiDetail() {
           .map(d => ({
             month: d.month,
             year: d.year,
-            achievement: calculateAchievement(d.actual_value, d.target_value),
+            achievement: calculateAchievement(d.actual_value, d.target_value, { lowerIsBetter }),
             variance: Number(d.actual_value) - Number(d.target_value)
           }))
           .filter(a => a.achievement !== null);
@@ -347,7 +357,7 @@ export default function MgtKmiDetail() {
     // Overall achievement compares actual and target over the same months (those with both)
     const pairedTarget = validData.reduce((sum, d) => sum + parseFloat(d.target_value), 0);
     const pairedActual = validData.reduce((sum, d) => sum + parseFloat(d.actual_value), 0);
-    overallAchievement = calculateAchievement(pairedActual, pairedTarget) ?? 0;
+    overallAchievement = calculateAchievement(pairedActual, pairedTarget, { lowerIsBetter }) ?? 0;
 
     return {
       targetRequired,
@@ -381,7 +391,7 @@ export default function MgtKmiDetail() {
   const performanceScore = (value) => {
     const data = monthlyData[value.id];
     if (!data) return null;
-    const ins = calculateInsights(data, value.target_required);
+    const ins = calculateInsights(data, value.target_required, isLowerBetterValue(value));
     if (!ins) return null;
     if (!value.target_required) return ins.monthsWithActual > 0 ? ins.totalActual : null;
     return ins.monthsWithData > 0 ? ins.overallAchievement : null;
@@ -508,7 +518,7 @@ export default function MgtKmiDetail() {
                     <tr><td colSpan="7" className="px-4 py-8 text-center text-sm text-gray-500">No KPI values match the current filters</td></tr>
                   )}
                   {kpiValuesTable.rows.map((value) => {
-                    const valueInsights = monthlyData[value.id] ? calculateInsights(monthlyData[value.id], value.target_required) : null;
+                    const valueInsights = monthlyData[value.id] ? calculateInsights(monthlyData[value.id], value.target_required, isLowerBetterValue(value)) : null;
                     return (
                     <React.Fragment key={value.id}>
                       <tr className="bg-gray-50 border-b border-gray-200">
@@ -617,7 +627,7 @@ export default function MgtKmiDetail() {
                               ) : (
                                 <>
                                   {(() => {
-                                    const insights = calculateInsights(monthlyData[value.id], value.target_required);
+                                    const insights = calculateInsights(monthlyData[value.id], value.target_required, isLowerBetterValue(value));
                                     return insights ? (
                                       <div className="space-y-4">
                                         {/* Data Coverage Info */}
