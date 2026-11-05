@@ -294,10 +294,33 @@ const EmployeeTurnoverBarChart = ({ title, labels, left, added, showHeader = tru
   const data = labels.map((label, i) => ({
     name: label,
     Left: isMissingValue(left[i]) ? null : -Math.abs(Number(left[i])),
-    Added: isMissingValue(added[i]) ? null : Math.abs(Number(added[i])),
+    // Keep the sign: a negative count is a reduction and belongs below zero in red
+    Added: isMissingValue(added[i]) ? null : Number(added[i]),
   }));
-  const extent = Math.ceil(maxOfValues([...left, ...added].map((v) => (isMissingValue(v) ? v : Math.abs(Number(v)))), 1) * 1.25);
+  // Stacked extent: everything below zero (left + negative added) vs everything above zero
+  const extent = Math.ceil(maxOfValues(data.flatMap((d) => {
+    const neg = Math.abs(d.Left || 0) + (d.Added < 0 ? Math.abs(d.Added) : 0);
+    const pos = d.Added > 0 ? d.Added : 0;
+    return [neg, pos];
+  }), 1) * 1.25);
   const tf = isExpanded ? 13 : 12;
+  // Positive counts get their label above the bar, negative counts below it,
+  // so a minus value never appears in the area above the zero line
+  const renderSignedLabel = (props) => {
+    const { value } = props;
+    if (isMissingValue(value) || Number(value) === 0) return null;
+    const box = props.viewBox || props;
+    const x = Number(box.x), y = Number(box.y), width = Number(box.width), height = Number(box.height);
+    if (![x, y, width, height].every(Number.isFinite)) return null;
+    const top = Math.min(y, y + height);
+    const bottom = Math.max(y, y + height);
+    const v = Number(value);
+    return (
+      <text x={x + width / 2} y={v > 0 ? top - 4 : bottom + tf} textAnchor="middle" style={{ fontSize: tf, fill: 'var(--text-primary)', fontWeight: 800 }}>
+        {v > 0 ? `+${formatChartValue(v, '', 0)}` : formatChartValue(v, '', 0)}
+      </text>
+    );
+  };
   return (
     <div className="flex h-full w-full flex-col">
       {showHeader && <h2 className="mb-1 text-center text-base font-bold text-[color:var(--accent)]">{title}</h2>}
@@ -312,10 +335,13 @@ const EmployeeTurnoverBarChart = ({ title, labels, left, added, showHeader = tru
             <ReferenceLine y={0} stroke="var(--text-muted)" />
             {renderNoDataMarkers(data, ['Left', 'Added'], tf - 2)}
             <Bar dataKey="Added" stackId="turnover" fill="#22c55e" radius={[4, 4, 0, 0]} maxBarSize={32} name="Employees Added">
-              <LabelList dataKey="Added" position="top" formatter={(v) => (isMissingValue(v) || Number(v) === 0 ? '' : `+${formatChartValue(v, '', 0)}`)} style={{ fontSize: tf, fill: 'var(--text-primary)', fontWeight: 800 }} />
+              {data.map((d) => (
+                <Cell key={d.name} fill={d.Added < 0 ? '#ef4444' : '#22c55e'} />
+              ))}
+              <LabelList dataKey="Added" content={renderSignedLabel} />
             </Bar>
-            <Bar dataKey="Left" stackId="turnover" fill="#ef4444" radius={[4, 4, 0, 0]} maxBarSize={32} name="Employees Left">
-              <LabelList dataKey="Left" position="bottom" formatter={(v) => (isMissingValue(v) || Number(v) === 0 ? '' : formatChartValue(v, '', 0))} style={{ fontSize: tf, fill: 'var(--text-primary)', fontWeight: 800 }} />
+            <Bar dataKey="Left" stackId="turnover" fill="#ef4444" radius={[0, 0, 4, 4]} maxBarSize={32} name="Employees Left">
+              <LabelList dataKey="Left" content={renderSignedLabel} />
             </Bar>
           </BarChart>
         </ResponsiveContainer>
